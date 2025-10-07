@@ -15,7 +15,6 @@ export default function AdminLayout() {
         <div className="flex-1 bg-[#f3f3f9] overflow-auto">
           <Outlet />
         </div>
-
         <Footer />
       </div>
     </div>

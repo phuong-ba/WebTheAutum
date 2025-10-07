@@ -12,6 +12,7 @@ import Collection from "@/pages/collection/Collection";
 import Warehouse from "@/pages/warehouse/Warehouse";
 import Discount from "@/pages/discount/Discount";
 import Promo from "@/pages/promo/Promo";
+import User from "@/pages/user/User";
 
 const contentStyle = {
   padding: 50,
@@ -109,6 +110,14 @@ const adminRouters = [
           </LazyLoad>
         ),
       },
+      {
+        path: "user",
+        element: (
+          <LazyLoad>
+            <User />
+          </LazyLoad>
+        ),
+      },
     ],
   },
   {
@@ -120,7 +129,7 @@ const adminRouters = [
     ),
   },
   {
-    path: "/register", // ✅ sửa lại "regiter" thành "register"
+    path: "/register", 
     element: (
       <LazyLoad>
         <Register />
