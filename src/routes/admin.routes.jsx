@@ -13,6 +13,7 @@ import Warehouse from "@/pages/warehouse/Warehouse";
 import Discount from "@/pages/discount/Discount";
 import Promo from "@/pages/promo/Promo";
 import User from "@/pages/user/User";
+import AddProduct from "@/pages/product/AddProduct";
 
 const contentStyle = {
   padding: 50,
@@ -111,6 +112,14 @@ const adminRouters = [
         ),
       },
       {
+        path: "add-product",
+        element: (
+          <LazyLoad>
+            <AddProduct />
+          </LazyLoad>
+        ),
+      },
+      {
         path: "user",
         element: (
           <LazyLoad>
@@ -129,7 +138,7 @@ const adminRouters = [
     ),
   },
   {
-    path: "/register", 
+    path: "/register",
     element: (
       <LazyLoad>
         <Register />

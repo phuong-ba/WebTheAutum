@@ -8,7 +8,6 @@ export default function User() {
   const dispatch = useDispatch();
   const { data } = useSelector((state) => state.nhanvien);
   const [editingUser, setEditingUser] = useState(null);
-  const [modal, contextHolder] = Modal.useModal();
 
   useEffect(() => {
     dispatch(fetchNhanVien());
@@ -116,7 +115,6 @@ export default function User() {
         />
       </div>
 
-      {contextHolder}
     </>
   );
 }
