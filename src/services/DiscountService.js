@@ -11,8 +11,8 @@ export const deletePGG = async (id) => {
   const res = await fetch(`${API}/delete/${id}`, {
     method: "DELETE",
   });
-  const erros = await res.text();
-  throw new Error("Fail roi" + erros);
+  const errors = await res.text();
+  throw new Error("Fail roi" + errors);
 };
 
 export const addPGG = async (data) => {
@@ -51,7 +51,8 @@ export const getPhieuGiamGiaById = async (id) => {
 export const phanTrang = async (page, size) => {
   const res = await fetch(`${API}/phan-trang?pageNo=${page}&pageSize=${size}`);
   if (!res.ok) throw new Error("Lỗi khi fetch API");
-  return await res.json();
+  const result = await res.json();
+  return result;
 };
 
 export const updateTrangThai = async (id, trangThai) => {
@@ -63,7 +64,7 @@ export const updateTrangThai = async (id, trangThai) => {
     }
   );
   if (!res.ok) {
-    if (!res.ok) throw new Error("Lỗi khi fetch API");
+    throw new Error("Lỗi khi fetch API");
   }
   return await res.json();
 };
