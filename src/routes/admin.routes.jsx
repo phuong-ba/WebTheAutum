@@ -12,6 +12,7 @@ import Collection from "@/pages/collection/Collection";
 import Warehouse from "@/pages/warehouse/Warehouse";
 import Discount from "@/pages/discount/Discount";
 import Promo from "@/pages/promo/Promo";
+import Exam from "@/pages/user/Exam";
 
 const contentStyle = {
   padding: 50,
@@ -106,6 +107,14 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <Promo />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "user",
+        element: (
+          <LazyLoad>
+            <Exam />
           </LazyLoad>
         ),
       },
