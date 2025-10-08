@@ -17,11 +17,10 @@ import {
   MenuUnfoldOutlined,
 } from "@ant-design/icons";
 import { Button, Menu } from "antd";
-import { useNavigate } from "react-router-dom";
-
+import { useNavigate, useLocation } from "react-router-dom";
 export default function Navbar() {
   const navigate = useNavigate();
-
+  const location = useLocation();
   const items = [
     { key: "/", icon: <IconHome />, label: "Trang chủ" },
     {
@@ -47,6 +46,7 @@ export default function Navbar() {
       icon: <IconDiscount />,
       label: "Quản lý phiếu giảm giá",
     },
+<<<<<<< HEAD
     { key: "/promo", icon: <IconDiscount />, label: "Quản lý đơn giảm giá" },
     {
       key: "sub2",
@@ -62,6 +62,10 @@ export default function Navbar() {
       label: "Quản lý khách hàng",
       icon: <AppstoreOutlined />,
     },
+=======
+    { key: "/promo", icon: <IconDiscount />, label: "Quản lý đợt giảm giá" },
+    { key: "/user", icon: <AppstoreOutlined />, label: "Quản lý nhân viên" },
+>>>>>>> ff5553e3896905d4358ef9d6866ad56f0d31aefc
   ];
 
   const [collapsed, setCollapsed] = useState(false);
@@ -77,7 +81,7 @@ export default function Navbar() {
       </div>
 
       <Menu
-        defaultSelectedKeys={["/"]}
+        selectedKeys={[location.pathname]}
         defaultOpenKeys={["sub1"]}
         mode="inline"
         inlineCollapsed={collapsed}

@@ -162,9 +162,44 @@ export function IconMessQuestion() {
 
 export function DropdownIcon() {
   return (
-   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="8" viewBox="0 0 13 8" fill="none">
-<path fill-rule="evenodd" clip-rule="evenodd" d="M2.10727 0.340088L6.69727 4.92009L11.2873 0.340088L12.6973 1.75009L6.69727 7.75009L0.697266 1.75009L2.10727 0.340088Z" fill="#5D7AFB"/>
-</svg>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="13"
+      height="8"
+      viewBox="0 0 13 8"
+      fill="none"
+    >
+      <path
+        fill-rule="evenodd"
+        clip-rule="evenodd"
+        d="M2.10727 0.340088L6.69727 4.92009L11.2873 0.340088L12.6973 1.75009L6.69727 7.75009L0.697266 1.75009L2.10727 0.340088Z"
+        fill="#5D7AFB"
+      />
+    </svg>
   );
 }
 
+export function BtnAdd() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="22"
+      height="22"
+      viewBox="0 0 22 22"
+      fill="none"
+    >
+      <path
+        opacity="0.5"
+        d="M11 21C16.5228 21 21 16.5228 21 11C21 5.47715 16.5228 1 11 1C5.47715 1 1 5.47715 1 11C1 16.5228 5.47715 21 11 21Z"
+        stroke="#1C274C"
+        stroke-width="1.5"
+      />
+      <path
+        d="M14 11H11M11 11H8M11 11V8M11 11V14"
+        stroke="#1C274C"
+        stroke-width="1.5"
+        stroke-linecap="round"
+      />
+    </svg>
+  );
+}

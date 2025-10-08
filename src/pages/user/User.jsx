@@ -1,20 +1,37 @@
-import FliterProduct from "./FliterProduct";
 import React, { useEffect, useState } from "react";
 import { Space, Table, Tag, message, Modal } from "antd";
-import { useSelector } from "react-redux";
-import { useNavigate } from "react-router";
-export default function Product() {
+import AddUser from "./AddUser";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchNhanVien, deleteNhanVien } from "@/services/nhanVienService";
+
+export default function User() {
+  const dispatch = useDispatch();
   const { data } = useSelector((state) => state.nhanvien);
   const [editingUser, setEditingUser] = useState(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-  const navigate = useNavigate();
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: (newSelectedRowKeys) => {
-      setSelectedRowKeys(newSelectedRowKeys);
-    },
-    type: "checkbox", // chọn nhiều
+
+  useEffect(() => {
+    dispatch(fetchNhanVien());
+  }, [dispatch]);
+
+  const handleDelete = (record) => {
+    modal.confirm({
+      title: "Xác nhận xóa",
+      content: `Bạn có chắc muốn xóa nhân viên "${record.hoTen}" không?`,
+      okText: "Xóa",
+      cancelText: "Hủy",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await dispatch(deleteNhanVien(record.id));
+          message.success("Xóa nhân viên thành công!");
+          dispatch(fetchNhanVien());
+        } catch (error) {
+          message.error("Xóa nhân viên thất bại!");
+        }
+      },
+    });
   };
+
   const columns = [
     {
       title: "STT",
@@ -23,19 +40,19 @@ export default function Product() {
       width: 60,
       align: "center",
     },
-    { title: "TÊN SẢN PHẨM", dataIndex: "maNhanVien", key: "maNhanVien" },
-    { title: "HÃNG", dataIndex: "hoTen", key: "hoTen" },
+    { title: "MÃ NHÂN VIÊN", dataIndex: "maNhanVien", key: "maNhanVien" },
+    { title: "TÊN NHÂN VIÊN", dataIndex: "hoTen", key: "hoTen" },
     {
-      title: "XUẤT XỨ",
+      title: "GIỚI TÍNH",
       dataIndex: "gioiTinh",
       key: "gioiTinh",
       render: (value) => (value ? "Nam" : "Nữ"),
       align: "center",
     },
-    { title: "CHẤT LIỆU", dataIndex: "sdt", key: "sdt" },
-    { title: "KIỂU DÁNG", dataIndex: "diaChi", key: "diaChi" },
-    { title: "SỐ LƯỢNG", dataIndex: "chucVuName", key: "chucVuName" },
-    { title: "ĐƠN GIÁ", dataIndex: "email", key: "email" },
+    { title: "SỐ ĐIỆN THOẠI", dataIndex: "sdt", key: "sdt" },
+    { title: "ĐỊA CHỈ", dataIndex: "diaChi", key: "diaChi" },
+    { title: "CHỨC VỤ", dataIndex: "chucVuName", key: "chucVuName" },
+    { title: "EMAIL", dataIndex: "email", key: "email" },
     {
       title: "NGÀY BẮT ĐẦU",
       dataIndex: "ngayTao",
@@ -74,9 +91,10 @@ export default function Product() {
       ),
     },
   ];
+
   return (
     <>
-      <FliterProduct
+      <AddUser
         editingUser={editingUser}
         onFinishUpdate={() => {
           dispatch(fetchNhanVien());
@@ -84,20 +102,11 @@ export default function Product() {
         }}
       />
 
-      <div className="bg-white min-h-[500px] px-5 py-[32px]">
-        <div className="flex justify-between items-center mb-5">
-          <p className="text-[#E67E22] font-bold text-[18px] mb-4">
-            Danh sách nhân viên
-          </p>
-          <button
-            onClick={() => navigate("/add-product")}
-            className="border border-[#E67E22] text-[#E67E22] rounded px-10  h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
-          >
-            Thêm mới
-          </button>
-        </div>
+      <div className="bg-white min-h-[500px]">
+        <p className="text-[#E67E22] font-bold text-[18px] mb-4">
+          Danh sách nhân viên
+        </p>
         <Table
-          rowSelection={rowSelection}
           columns={columns}
           dataSource={data}
           rowKey="id"
@@ -105,6 +114,7 @@ export default function Product() {
           pagination={{ pageSize: 5 }}
         />
       </div>
+
     </>
   );
 }

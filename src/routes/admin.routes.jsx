@@ -12,7 +12,12 @@ import Collection from "@/pages/collection/Collection";
 import Warehouse from "@/pages/warehouse/Warehouse";
 import Discount from "@/pages/discount/Discount";
 import Promo from "@/pages/promo/Promo";
+<<<<<<< HEAD
 import Exam from "@/pages/user/Exam";
+=======
+import User from "@/pages/user/User";
+import AddProduct from "@/pages/product/AddProduct";
+>>>>>>> ff5553e3896905d4358ef9d6866ad56f0d31aefc
 
 const contentStyle = {
   padding: 50,
@@ -111,10 +116,25 @@ const adminRouters = [
         ),
       },
       {
+<<<<<<< HEAD
         path: "user",
         element: (
           <LazyLoad>
             <Exam />
+=======
+        path: "add-product",
+        element: (
+          <LazyLoad>
+            <AddProduct />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "user",
+        element: (
+          <LazyLoad>
+            <User />
+>>>>>>> ff5553e3896905d4358ef9d6866ad56f0d31aefc
           </LazyLoad>
         ),
       },
@@ -129,7 +149,7 @@ const adminRouters = [
     ),
   },
   {
-    path: "/register", // ✅ sửa lại "regiter" thành "register"
+    path: "/register",
     element: (
       <LazyLoad>
         <Register />
