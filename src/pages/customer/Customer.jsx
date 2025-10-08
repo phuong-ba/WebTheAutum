@@ -15,7 +15,7 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { khachHangApi } from "/src/api/khachHangApi";
 
-export default function CustomerPage() {
+export default function Customer() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -25,7 +25,6 @@ export default function CustomerPage() {
   const [form] = Form.useForm();
   const pageSize = 6;
 
-  // Lấy dữ liệu khách hàng
   const fetchCustomers = async () => {
     setLoading(true);
     try {
@@ -42,14 +41,12 @@ export default function CustomerPage() {
     fetchCustomers();
   }, []);
 
-  // Thêm mới
   const handleAdd = () => {
     setEditId(null);
     form.resetFields();
     setMode("form");
   };
 
-  // Sửa
   const handleEdit = (record) => {
     const diaChi = record.diaChi?.[0] || {};
     form.setFieldsValue({
@@ -67,12 +64,10 @@ export default function CustomerPage() {
     setMode("form");
   };
 
-  // Xóa
   const handleDelete = (id) => {
     setDeleteId(id);
   };
 
-  // Lưu thêm/sửa
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -187,7 +182,6 @@ export default function CustomerPage() {
         </>
       )}
 
-      {/* Form nhập liệu */}
       {mode === "form" && (
         <div
           style={{ padding: 16, border: "1px solid #f0f0f0", borderRadius: 8 }}
@@ -322,7 +316,6 @@ export default function CustomerPage() {
         </div>
       )}
 
-      {/* Modal xác nhận xóa */}
       <Modal
         open={!!deleteId}
         title="Xác nhận xóa khách hàng"

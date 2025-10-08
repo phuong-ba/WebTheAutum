@@ -12,7 +12,6 @@ const { Option } = Select;
 
 export default function AddUser({ editingUser, onFinishUpdate }) {
   const { data } = useSelector((state) => state.chucvu);
-  console.log("🚀 ~ AddUser ~ data:", data);
 
   const [form] = Form.useForm();
   const dispatch = useDispatch();
@@ -28,7 +27,7 @@ export default function AddUser({ editingUser, onFinishUpdate }) {
         soDienThoai: editingUser.sdt,
         diaChi: editingUser.diaChi,
         email: editingUser.email,
-        chucVu: editingUser.chucVuId, 
+        chucVu: editingUser.chucVuId,
         taiKhoan: editingUser.taiKhoan,
         matKhau: editingUser.matKhau,
       });
