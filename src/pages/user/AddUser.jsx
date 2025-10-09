@@ -28,7 +28,7 @@ export default function AddUser({ editingUser, onFinishUpdate }) {
         soDienThoai: editingUser.sdt,
         diaChi: editingUser.diaChi,
         email: editingUser.email,
-        chucVu: editingUser.chucVuId, 
+        chucVu: editingUser.chucVuId,
         taiKhoan: editingUser.taiKhoan,
         matKhau: editingUser.matKhau,
       });

@@ -1,8 +1,8 @@
-import { fetchAllChucVu } from "@/services/chucVuService";
+import { fetchAllKhachHang } from "@/services/khachHangService";
 import { createSlice } from "@reduxjs/toolkit";
 
-const chucVuSlice = createSlice({
-  name: "chucvu",
+const khachHangSlice = createSlice({
+  name: "khachHang",
   initialState: {
     status: "idle",
     data: [],
@@ -12,17 +12,17 @@ const chucVuSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchAllChucVu.pending, (state, action) => {
+      .addCase(fetchAllKhachHang.pending, (state, action) => {
         state.status = "pending";
       })
-      .addCase(fetchAllChucVu.fulfilled, (state, action) => {
+      .addCase(fetchAllKhachHang.fulfilled, (state, action) => {
         state.status = "successfully";
         state.data = action.payload.data || [];
       })
-      .addCase(fetchAllChucVu.rejected, (state, action) => {
+      .addCase(fetchAllKhachHang.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.error.message;
       });
   },
 });
-export default chucVuSlice.reducer;
+export default khachHangSlice.reducer;
