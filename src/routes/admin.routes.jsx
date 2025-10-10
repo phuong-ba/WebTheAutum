@@ -16,6 +16,8 @@ import Promo from "@/pages/promo/Promo";
 import User from "@/pages/user/User";
 import AddProduct from "@/pages/product/AddProduct";
 import Customer from "@/pages/customer/Customer";
+import AddUser from "@/pages/user/AddUser";
+import UpdateUser from "@/pages/user/UpdateUser";
 
 const contentStyle = {
   padding: 50,
@@ -126,6 +128,22 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <User />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "add-user",
+        element: (
+          <LazyLoad>
+            <AddUser />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "update-user",
+        element: (
+          <LazyLoad>
+            <UpdateUser />
           </LazyLoad>
         ),
       },

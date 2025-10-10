@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+.product-detail .ant-upload-list-item-container {
+  width: 240px !important;
+  height: 271px !important;
+}
+.product-detail .ant-upload {
+  width: 240px !important;
+  height: 271px !important;
+}
+
+.user .ant-upload {
+  width: 240px !important;
+  height: 240px !important;
+}

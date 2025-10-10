@@ -1,18 +1,15 @@
-/* Màu cho item đã chọn */
 .custom-menu .ant-menu-item-selected {
   background-color: #e29578 !important;
   color: #fff !important;
-  border-radius: 8px; /* tuỳ chọn */
+  border-radius: 8px; 
 }
 
-/* Màu cho text trong submenu khi được chọn */
 .custom-menu .ant-menu-submenu-selected > .ant-menu-submenu-title {
   background-color: #e29578 !important;
   color: #fff !important;
-  border-radius: 8px; /* tuỳ chọn */
+  border-radius: 8px; 
 }
 
-/* Màu cho icon khi active */
 .custom-menu .ant-menu-item-selected .anticon,
 .custom-menu .ant-menu-submenu-selected .anticon,
 .custom-menu .ant-menu-item-selected svg,
