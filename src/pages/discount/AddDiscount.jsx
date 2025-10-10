@@ -17,7 +17,7 @@ import { useNavigate } from "react-router";
 
 const { Option } = Select;
 
-export default function AddUser() {
+export default function AddDiscount() {
   const dispatch = useDispatch();
   const [form] = Form.useForm();
   const navigate = useNavigate();
@@ -26,19 +26,6 @@ export default function AddUser() {
   useEffect(() => {
     dispatch(fetchAllChucVu());
   }, [dispatch]);
-
-  const handleUpload = (info) => {
-    if (info.file.status === "uploading") {
-      setLoading(true);
-      return;
-    }
-    if (info.file.status === "done") {
-      getBase64(info.file.originFileObj, (url) => {
-        setLoading(false);
-        setImageUrl(url);
-      });
-    }
-  };
 
   const onFinish = async (values) => {
     const payload = {
