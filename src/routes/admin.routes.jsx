@@ -18,6 +18,7 @@ import AddProduct from "@/pages/product/AddProduct";
 import Customer from "@/pages/customer/Customer";
 import AddUser from "@/pages/user/AddUser";
 import UpdateUser from "@/pages/user/UpdateUser";
+import AddDiscount from "@/pages/discount/AddDiscount";
 
 const contentStyle = {
   padding: 50,
@@ -104,6 +105,14 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <Discount />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "add-discount",
+        element: (
+          <LazyLoad>
+            <AddDiscount />
           </LazyLoad>
         ),
       },
