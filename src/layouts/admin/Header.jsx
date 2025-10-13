@@ -25,7 +25,7 @@ export default function Header() {
   ];
   return (
     <>
-      <header className=" w-full h-[67px]  flex items-center justify-end gap-12 px-[30px]">
+      <header className=" w-full h-[67px]  flex items-center justify-end gap-12 px-[30px] border-b border-slate-300">
         <img src="" />
         <div className="flex items-center gap-2">
           <IconPhone />

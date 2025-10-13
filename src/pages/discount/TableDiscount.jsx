@@ -3,9 +3,9 @@ import { Space, Table, Tag } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router";
 import { fetchPhieuGiamGia } from "../../services/phieuGiamGiaService";
-import DiscountForm from "./DiscountForm";
+import Input from "antd/es/input/Input";
 
-export default function Discount() {
+export default function TableDiscount() {
   const { data } = useSelector((state) => state.phieuGiamGia);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [editingItem, setEditingItem] = useState(null);
@@ -80,56 +80,22 @@ export default function Discount() {
         }),
       align: "center",
     },
-    {
-      title: "TRẠNG THÁI",
-      dataIndex: "trangThai",
-      key: "trangThai",
-      render: (value) =>
-        value ? (
-          <Tag color="#E9FBF4">
-            <div className="text-[#00A96C] font-medium">Đang diễn ra</div>
-          </Tag>
-        ) : (
-          <Tag color="red">Đã kết thúc</Tag>
-        ),
-      align: "center",
-    },
-    {
-      title: "HÀNH ĐỘNG",
-      key: "action",
-      align: "center",
-      render: (_, record) => (
-        <Space size="middle">
-          <a onClick={() => setEditingItem(record)}>Sửa</a>
-        </Space>
-      ),
-    },
   ];
-
   return (
-    <div className="bg-white min-h-[500px] px-5 py-[32px]">
-      <div className="flex justify-between items-center mb-5">
-        <p className="text-[#E67E22] font-bold text-[18px] mb-4">
-          Danh sách phiếu giảm giá
-        </p>
-        <button
-          onClick={() => navigate("/add-discount")}
-          className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
-        >
-          Thêm mới
-        </button>
+    <>
+      <div className="flex flex-col gap-5 border-t border-dashed border-slate-400 py-5 px-10">
+        <div className="max-w-[400px]">
+          <Input placeholder="Tìm kiếm" />
+        </div>
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data}
+          rowKey="id"
+          bordered
+          pagination={false}
+        />
       </div>
-
-      <DiscountForm />
-
-      <Table
-        rowSelection={rowSelection}
-        columns={columns}
-        dataSource={data}
-        rowKey="id"
-        bordered
-        pagination={{ pageSize: 5 }}
-      />
-    </div>
+    </>
   );
 }

@@ -2,17 +2,69 @@ import React, { useEffect, useState } from "react";
 import { Space, Table, Tag, message, Modal } from "antd";
 import AddUser from "./AddUser";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchNhanVien, deleteNhanVien } from "@/services/nhanVienService";
+import {
+  fetchNhanVien,
+  changeStatusNhanVien,
+  deleteNhanVien,
+} from "@/services/nhanVienService";
+import FliterUser from "./FliterUser";
+import { useNavigate } from "react-router";
+import {
+  LockKeyIcon,
+  LockOpenIcon,
+  PencilIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 
 export default function User() {
   const dispatch = useDispatch();
   const { data } = useSelector((state) => state.nhanvien);
-  const [editingUser, setEditingUser] = useState(null);
+  const navigate = useNavigate();
   const [modal, contextHolder] = Modal.useModal();
-
+  const [messageApi, messageContextHolder] = message.useMessage();
   useEffect(() => {
     dispatch(fetchNhanVien());
   }, [dispatch]);
+  const handleChangeStatus = (record) => {
+    if (record.trangThai) {
+      modal.confirm({
+        title: "Xác nhận khóa",
+        content: `Bạn có chắc muốn khóa nhân viên "${record.hoTen}" không?`,
+        okText: "Khóa",
+        cancelText: "Hủy",
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          try {
+            await dispatch(
+              changeStatusNhanVien({
+                id: record.id,
+                trangThai: false,
+              })
+            );
+            messageApi.success("Khóa nhân viên thành công!");
+            dispatch(fetchNhanVien());
+          } catch (error) {
+            messageApi.error("Khóa nhân viên thất bại!");
+          }
+        },
+      });
+    } else {
+      (async () => {
+        try {
+          await dispatch(
+            changeStatusNhanVien({
+              id: record.id,
+              trangThai: true,
+            })
+          );
+          messageApi.success("Mở khóa nhân viên thành công!");
+          dispatch(fetchNhanVien());
+        } catch (error) {
+          messageApi.error("Mở khóa nhân viên thất bại!");
+        }
+      })();
+    }
+  };
 
   const handleDelete = (record) => {
     modal.confirm({
@@ -24,15 +76,14 @@ export default function User() {
       onOk: async () => {
         try {
           await dispatch(deleteNhanVien(record.id));
-          message.success("Xóa nhân viên thành công!");
+          messageApi.success("Xóa nhân viên thành công!");
           dispatch(fetchNhanVien());
         } catch (error) {
-          message.error("Xóa nhân viên thất bại!");
+          messageApi.error("Xóa nhân viên thất bại!");
         }
       },
     });
   };
-
   const columns = [
     {
       title: "STT",
@@ -72,7 +123,7 @@ export default function User() {
       key: "trangThai",
       render: (value) =>
         value ? (
-          <Tag color="#E9FBF4">
+          <Tag color="#E9FBF4" style={{ border: "1px solid #00A96C" }}>
             <div className="text-[#00A96C] ">Đang hoạt động</div>
           </Tag>
         ) : (
@@ -86,8 +137,23 @@ export default function User() {
       align: "center",
       render: (_, record) => (
         <Space size="middle">
-          <a onClick={() => setEditingUser(record)}>Sửa</a>
-          <a onClick={() => handleDelete(record)}>Xóa</a>
+          <a onClick={() => handleChangeStatus(record)}>
+            {record.trangThai ? (
+              <LockKeyIcon size={24} color="#E67E22" />
+            ) : (
+              <LockOpenIcon size={24} color="#00A96C" />
+            )}
+          </a>
+          <a
+            onClick={() =>
+              navigate("/update-user", { state: { user: record } })
+            }
+          >
+            <PencilIcon size={24} />
+          </a>
+          <a onClick={() => handleDelete(record)}>
+            <TrashIcon size={24} color="#b30000" />
+          </a>
         </Space>
       ),
     },
@@ -95,18 +161,35 @@ export default function User() {
 
   return (
     <>
-      <AddUser
-        editingUser={editingUser}
-        onFinishUpdate={() => {
-          dispatch(fetchNhanVien());
-          setEditingUser(null);
-        }}
-      />
-
-      <div className="bg-white min-h-[500px]">
-        <p className="text-[#E67E22] font-bold text-[18px] mb-4">
-          Danh sách nhân viên
-        </p>
+      {contextHolder}
+      {messageContextHolder}
+      <FliterUser />
+      <div className="bg-white min-h-[500px] px-5 py-[32px]">
+        <div className="flex justify-between items-center mb-5">
+          <p className="text-[#E67E22] font-bold text-[18px] mb-4">
+            Danh sách nhân viên
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => navigate("/add-user")}
+              className="border border-[#E67E22] text-[#E67E22] rounded px-10  h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
+            >
+              Thêm mới
+            </button>
+            <button
+              onClick={() => navigate("/add-product")}
+              className="border border-[#E67E22] text-[#E67E22] rounded px-10  h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
+            >
+              Xuất dữ liệu
+            </button>
+            <button
+              onClick={() => navigate("/add-product")}
+              className="border border-[#E67E22] text-[#E67E22] rounded px-10  h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
+            >
+              In danh sách
+            </button>
+          </div>
+        </div>
         <Table
           columns={columns}
           dataSource={data}
@@ -115,8 +198,6 @@ export default function User() {
           pagination={{ pageSize: 5 }}
         />
       </div>
-
-      {contextHolder}
     </>
   );
 }

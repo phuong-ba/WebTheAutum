@@ -27,13 +27,9 @@ const nhanVienSlice = createSlice({
                 state.status = "pending";
             })
             .addCase(fetchNhanVien.fulfilled, (state, action) => {
-
-
                 state.status = "successfully";
-
                 state.data = action.payload.data || [];
                 state.totalElement = action.payload.totalElements;
-                console.log("🚀 ~ action.payload:", action.payload)
                 state.number = action.payload.number;
                 state.size = action.payload.size;
             })

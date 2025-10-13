@@ -12,7 +12,13 @@ import Collection from "@/pages/collection/Collection";
 import Warehouse from "@/pages/warehouse/Warehouse";
 import Discount from "@/pages/discount/Discount";
 import Promo from "@/pages/promo/Promo";
+
 import User from "@/pages/user/User";
+import AddProduct from "@/pages/product/AddProduct";
+import Customer from "@/pages/customer/Customer";
+import AddUser from "@/pages/user/AddUser";
+import UpdateUser from "@/pages/user/UpdateUser";
+import AddDiscount from "@/pages/discount/AddDiscount";
 
 const contentStyle = {
   padding: 50,
@@ -103,6 +109,14 @@ const adminRouters = [
         ),
       },
       {
+        path: "add-discount",
+        element: (
+          <LazyLoad>
+            <AddDiscount />
+          </LazyLoad>
+        ),
+      },
+      {
         path: "promo",
         element: (
           <LazyLoad>
@@ -111,10 +125,42 @@ const adminRouters = [
         ),
       },
       {
+        path: "add-product",
+        element: (
+          <LazyLoad>
+            <AddProduct />
+          </LazyLoad>
+        ),
+      },
+      {
         path: "user",
         element: (
           <LazyLoad>
             <User />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "add-user",
+        element: (
+          <LazyLoad>
+            <AddUser />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "update-user",
+        element: (
+          <LazyLoad>
+            <UpdateUser />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "customer",
+        element: (
+          <LazyLoad>
+            <Customer />
           </LazyLoad>
         ),
       },
@@ -129,7 +175,7 @@ const adminRouters = [
     ),
   },
   {
-    path: "/register", 
+    path: "/register",
     element: (
       <LazyLoad>
         <Register />
