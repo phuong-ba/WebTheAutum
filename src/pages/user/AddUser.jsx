@@ -6,14 +6,13 @@ import {
   Row,
   Col,
   message,
-  Upload,
   DatePicker,
 } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { addNhanVien, fetchNhanVien } from "@/services/nhanVienService";
 import { fetchAllChucVu } from "@/services/chucVuService";
-import UploadAvartar from "./UploadAvartar";
 import { useNavigate } from "react-router";
+import UploadAvartar from "../../components/UploadAvartar";
 
 const { Option } = Select;
 
@@ -22,23 +21,10 @@ export default function AddUser() {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
-
+  const [imageUrl, setImageUrl] = useState("");
   useEffect(() => {
     dispatch(fetchAllChucVu());
   }, [dispatch]);
-
-  const handleUpload = (info) => {
-    if (info.file.status === "uploading") {
-      setLoading(true);
-      return;
-    }
-    if (info.file.status === "done") {
-      getBase64(info.file.originFileObj, (url) => {
-        setLoading(false);
-        setImageUrl(url);
-      });
-    }
-  };
 
   const onFinish = async (values) => {
     const payload = {
@@ -49,6 +35,7 @@ export default function AddUser() {
       email: values.email,
       chucVuId: values.chucVu,
       ngaySinh: values.ngaySinh,
+      hinhAnh: imageUrl,
       matKhau: values.matKhau || "123456",
       trangThai: true,
     };
@@ -70,7 +57,7 @@ export default function AddUser() {
         <div className="px-6 py-3">
           <p className="font-bold text-2xl text-[#E67E22]">Thêm nhân viên</p>
         </div>
-        <UploadAvartar />
+        <UploadAvartar onUploaded={setImageUrl} />
 
         <div className="px-10 py-5">
           <Form form={form} layout="vertical" onFinish={onFinish}>
