@@ -1,30 +1,19 @@
 import React, { useEffect, useState } from "react";
-import {
-  Form,
-  Input,
-  Select,
-  Row,
-  Col,
-  message,
-  Upload,
-  DatePicker,
-} from "antd";
+import { Form, Input, Select, Row, Col, message, DatePicker } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { updateNhanVien } from "@/services/nhanVienService";
 import { fetchAllChucVu } from "@/services/chucVuService";
 import dayjs from "dayjs";
 import { useLocation, useNavigate } from "react-router";
-import UploadAvartar from "./UploadAvartar";
+import UploadAvartar from "../../components/UploadAvartar";
 
 const { Option } = Select;
-
-
 
 export default function UpdateUser() {
   const dispatch = useDispatch();
   const { data } = useSelector((state) => state.chucvu);
   const [form] = Form.useForm();
-
+  const [imageUrl, setImageUrl] = useState(null);
   const [messageApi, contextHolder] = message.useMessage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -43,14 +32,14 @@ export default function UpdateUser() {
         diaChi: userFromState.diaChi,
         email: userFromState.email,
         chucVu: userFromState.chucVuId,
+        hinhAnh: userFromState.hinhAnh,
         ngaySinh: userFromState.ngaySinh ? dayjs(userFromState.ngaySinh) : null,
         matKhau: userFromState.matKhau,
       });
-      // setImageUrl(userFromState.anhDaiDien || null);
+      setImageUrl(userFromState.hinhAnh || null);
     }
   }, [userFromState, form]);
 
- 
   const onFinish = async (values) => {
     try {
       const payload = {
@@ -64,7 +53,7 @@ export default function UpdateUser() {
         ngaySinh: values.ngaySinh?.toISOString(),
         trangThai: true,
         matKhau: userFromState.matKhau,
-        // anhDaiDien: imageUrl || editingUser.anhDaiDien,
+        hinhAnh: imageUrl,
       };
 
       await dispatch(
@@ -88,7 +77,7 @@ export default function UpdateUser() {
       </div>
 
       <div className="bg-white border-t border-slate-300">
-        <UploadAvartar />
+        <UploadAvartar imageUrl={imageUrl} onUploaded={setImageUrl} />
 
         <div className="px-10 py-5">
           <Form
