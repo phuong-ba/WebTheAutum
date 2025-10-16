@@ -15,20 +15,28 @@ export const fetchPhieuGiamGia = createAsyncThunk(
 
 export const addPhieuGiamGia = createAsyncThunk(
   "phieu-giam-gia/add",
-  async (nhanvien) => {
-    const response = await baseUrl.post("phieu-giam-gia/add", nhanvien);
+  async (phieuGiamGia) => {
+    const response = await baseUrl.post("phieu-giam-gia/add", phieuGiamGia);
     return response.data;
   }
 );
 
 export const updatePhieuGiamGia = createAsyncThunk(
-  "nhan-vien/update",
-  async ({ id, nhanvien }) => {
-    const response = await baseUrl.put(`phieu-giam-gia/update/${id}`, nhanvien);
+  "phieu-giam-gia/update/id",
+  async ({ id, phieuGiamGia }) => {
+    const response = await baseUrl.put(
+      `phieu-giam-gia/update/${id}`,
+      phieuGiamGia
+    );
 
     return response.data;
   }
 );
+
+export const getKhachHangTheoPhieuGiam = async (idPhieu) => {
+  const response = await baseUrl.get(`phieu-giam-gia/khach-hang/${idPhieu}`);
+  return response.data;
+};
 
 export const deletePhieuGiamGia = createAsyncThunk(
   "phieu-giam-gia/id",
@@ -39,28 +47,36 @@ export const deletePhieuGiamGia = createAsyncThunk(
 );
 
 export const changeStatusPhieuGiamGia = createAsyncThunk(
-  "phieu-giam-gia/update-trang-thai/id",
-  async (id) => {
-    await baseUrl.put(`phieu-giam-gia/update-trang-thai/${id}`);
-
-    return id;
-  }
-);
-
-export const searchPGG = createAsyncThunk(
-  "phieu-giam-gia/search-all",
-  async (keyword) => {
-    await baseUrl.get(`phieu-giam-gia/search-all?keyword=${keyword}`);
-    return keyword;
-  }
-);
-
-export const searchTheoNgay = createAsyncThunk(
-  "phieu-giam-gia/search-by-date",
-  async (ngayBatDau, ngayKetThuc) => {
-    await baseUrl.get(
-      `phieu-giam-gia/search-by-date?ngayBatDau=${ngayBatDau}&ngayKetThuc=${ngayKetThuc}`
+  "phieu-giam-gia/change-status",
+  async ({ id, trangThai }) => {
+    const response = await baseUrl.put(
+      `phieu-giam-gia/update-trang-thai/${id}?trangThai=${trangThai}`
     );
-    return ngayBatDau, ngayKetThuc;
+    return response.data;
+  }
+);
+
+export const searchPhieuGiamGia = createAsyncThunk(
+  "phieu-giam-gia/search",
+  async (params) => {
+    try {
+      const cleanParams = {};
+      Object.keys(params).forEach((key) => {
+        if (
+          params[key] !== "" &&
+          params[key] !== undefined &&
+          params[key] !== null
+        ) {
+          cleanParams[key] = params[key];
+        }
+      });
+      const queryParams = new URLSearchParams(cleanParams).toString();
+      const response = await baseUrl.get(
+        `phieu-giam-gia/search?${queryParams}`
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || "Đã xảy ra lỗi khi tìm kiếm";
+    }
   }
 );
