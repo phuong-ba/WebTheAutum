@@ -117,6 +117,14 @@ const adminRouters = [
         ),
       },
       {
+        path: "update-discount",
+        element: (
+          <LazyLoad>
+            <AddDiscount />
+          </LazyLoad>
+        ),
+      },
+      {
         path: "promo",
         element: (
           <LazyLoad>

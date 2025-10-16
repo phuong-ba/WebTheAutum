@@ -22,6 +22,7 @@ export default function User() {
   const navigate = useNavigate();
   const [modal, contextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
+
   useEffect(() => {
     dispatch(fetchNhanVien());
   }, [dispatch]);
