@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
-import { Space, Table, Tag, Modal, message } from "antd";
+import { Space, Table, Tag, Modal, message, Breadcrumb } from "antd";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import dayjs from "dayjs";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -197,38 +197,58 @@ export default function Discount() {
   ];
 
   return (
-    <div className="bg-white min-h-[500px] px-5 py-[32px]">
+    <>
       {contextHolder}
       {messageContextHolder}
-      <FliterDiscount />
-      <div className="flex justify-between items-center mb-5">
-        <p className="text-[#E67E22] font-bold text-[18px] mb-4">
-          Danh sách phiếu giảm giá
-        </p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => navigate("/add-discount")}
-            className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
-          >
-            Thêm mới
-          </button>
-          <button
-            onClick={handleExportExcel}
-            className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
-          >
-            Xuất EXCEL
-          </button>
-        </div>
+      <div className="bg-white flex flex-col gap-3 px-10 py-[20px]">
+        <h1 className="font-bold text-4xl text-[#E67E22]">
+          Quản lý phiếu giảm giá
+        </h1>
+        {/* <Breadcrumb
+          items={[
+            {
+              title: <Link to="/discount">Quản lý phiếu giảm giá</Link>,
+            },
+            {
+              title: "An Application",
+            },
+             {
+              title: "Quản lý phiếu giảm giá",
+            },
+          ]}
+        /> */}
       </div>
+      <FliterDiscount />
+      <div className="bg-white min-h-[500px] px-5 py-[32px]">
+        <div className="flex justify-between items-center mb-5">
+          <p className="text-[#E67E22] font-bold text-[18px] mb-4">
+            Danh sách phiếu giảm giá
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => navigate("/add-discount")}
+              className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
+            >
+              Thêm mới
+            </button>
+            <button
+              onClick={handleExportExcel}
+              className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
+            >
+              Xuất EXCEL
+            </button>
+          </div>
+        </div>
 
-      <Table
-        columns={columns}
-        dataSource={data}
-        rowKey="id"
-        bordered
-        loading={loading}
-        pagination={{ pageSize: 5 }}
-      />
-    </div>
+        <Table
+          columns={columns}
+          dataSource={data}
+          rowKey="id"
+          bordered
+          loading={loading}
+          pagination={{ pageSize: 5 }}
+        />
+      </div>
+    </>
   );
 }
