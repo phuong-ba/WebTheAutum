@@ -146,14 +146,17 @@ export default function User() {
             )}
           </a>
           <a
-            onClick={() =>
-              navigate("/update-user", { state: { user: record } })
-            }
+            onClick={() => {
+              if (!record.trangThai) {
+                messageApi.warning(
+                  "Không thể cập nhật! Nhân viên này đã bị khóa."
+                );
+                return;
+              }
+              navigate("/update-user", { state: { user: record } });
+            }}
           >
             <PencilIcon size={24} />
-          </a>
-          <a onClick={() => handleDelete(record)}>
-            <TrashIcon size={24} color="#b30000" />
           </a>
         </Space>
       ),
@@ -164,6 +167,24 @@ export default function User() {
     <>
       {contextHolder}
       {messageContextHolder}
+      <div className="bg-white flex flex-col gap-3 px-10 py-[20px]">
+        <h1 className="font-bold text-4xl text-[#E67E22]">
+          Quản lý nhân viên
+        </h1>
+        {/* <Breadcrumb
+          items={[
+            {
+              title: <Link to="/discount">Quản lý phiếu giảm giá</Link>,
+            },
+            {
+              title: "An Application",
+            },
+             {
+              title: "Quản lý phiếu giảm giá",
+            },
+          ]}
+        /> */}
+      </div>
       <FliterUser />
       <div className="bg-white min-h-[500px] px-5 py-[32px]">
         <div className="flex justify-between items-center mb-5">

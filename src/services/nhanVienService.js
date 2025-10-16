@@ -7,7 +7,7 @@ export const fetchNhanVien = createAsyncThunk(
     ) => {
         try {
             const response = await baseUrl.get(`nhan-vien`);
-            return response.data; // Trả về dữ liệu từ API
+            return response.data;
         } catch (error) {
             throw error.response?.data || "Đã xảy ra lỗi khi lấy dữ liệu";
         }
