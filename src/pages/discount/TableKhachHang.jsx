@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Table, Input } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAllKhachHang } from "@/services/khachHangService";
+import dayjs from "dayjs";
 
 export default function TableKhachHang({ onSelectChange, selectedRowKeys }) {
   const { data } = useSelector((state) => state.khachHang);
@@ -25,8 +26,18 @@ export default function TableKhachHang({ onSelectChange, selectedRowKeys }) {
     type: "checkbox",
   };
 
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 5,
+  });
+
   const columns = [
-    { title: "STT", key: "stt", render: (_, __, index) => index + 1 },
+    {
+      title: "STT",
+      key: "stt",
+      render: (_, __, index) =>
+        (pagination.current - 1) * pagination.pageSize + index + 1,
+    },
     { title: "Tên khách hàng", dataIndex: "hoTen", key: "hoTen" },
     { title: "Số điện thoại", dataIndex: "sdt", key: "sdt" },
     {
@@ -35,7 +46,24 @@ export default function TableKhachHang({ onSelectChange, selectedRowKeys }) {
       key: "gioiTinh",
       render: (v) => (v ? "Nam" : "Nữ"),
     },
+    {
+      title: "Ngày sinh",
+      dataIndex: "ngaySinh",
+      key: "ngaySinh",
+      render: (value) => (value ? dayjs(value).format("DD/MM/YYYY") : ""),
+    },
     { title: "Email", dataIndex: "email", key: "email" },
+    {
+      title: "Số lần mua hàng",
+      dataIndex: "soLanMua",
+      key: "soLanMua",
+    },
+    {
+      title: "Ngày mua gần nhất",
+      dataIndex: "ngayMuaGanNhat",
+      key: "ngayMuaGanNhat",
+      render: (d) => (d ? dayjs(d).format("DD/MM/YYYY") : ""),
+    },
   ];
 
   return (
@@ -60,7 +88,12 @@ export default function TableKhachHang({ onSelectChange, selectedRowKeys }) {
         dataSource={filteredData}
         rowKey="id"
         bordered
-        pagination={{ pageSize: 5 }}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          onChange: (page, pageSize) =>
+            setPagination({ current: page, pageSize }),
+        }}
       />
     </div>
   );
