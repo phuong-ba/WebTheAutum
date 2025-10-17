@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Form, Input, Select, Row, Col, message, DatePicker } from "antd";
+import {
+  Form,
+  Input,
+  Select,
+  Row,
+  Col,
+  message,
+  DatePicker,
+  Modal,
+  Radio,
+} from "antd";
 import { useDispatch } from "react-redux";
 import { useLocation, useNavigate } from "react-router";
 import dayjs from "dayjs";
@@ -12,6 +22,7 @@ import { fetchAllKhachHang } from "@/services/khachHangService";
 import TextArea from "antd/es/input/TextArea";
 import TableKhachHang from "./TableKhachHang";
 import { getKhachHangTheoPhieuGiam } from "@/services/phieuGiamGiaService";
+import DiscountBreadcrumb from "@/components/DiscountBreadcrumb";
 
 const { Option } = Select;
 
@@ -19,13 +30,13 @@ export default function AddDiscount() {
   const dispatch = useDispatch();
   const [form] = Form.useForm();
   const navigate = useNavigate();
-  const [messageApi, contextHolder] = message.useMessage();
+  const [messageApi, messageContextHolder] = message.useMessage();
   const location = useLocation();
   const editingItem = location.state?.phieuGiamGia || null;
-
   const [kieu, setKieu] = useState(editingItem?.kieu ?? 0);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [trangThai, setTrangThai] = useState(editingItem?.trangThai ?? true);
+  const [modal, contextHolder] = Modal.useModal();
 
   useEffect(() => {
     dispatch(fetchAllKhachHang());
@@ -69,19 +80,22 @@ export default function AddDiscount() {
     }
   }, [editingItem, form]);
 
-  const onFinish = async (values) => {
+  useEffect(() => {
+    if (kieu === 1) {
+      form.setFieldsValue({
+        soLuongDung: selectedCustomers.length,
+      });
+    }
+  }, [selectedCustomers, kieu, form]);
+
+  const handleSubmit = async (values) => {
     const now = dayjs();
     const start = dayjs(values.ngayBatDau);
     const end = dayjs(values.ngayKetThuc);
+    const isUpdate = !!editingItem;
 
     let autoTrangThai = true;
-    if (end.isBefore(now, "day")) {
-      autoTrangThai = false;
-    } else if (start.isAfter(now, "day")) {
-      autoTrangThai = true;
-    } else {
-      autoTrangThai = true;
-    }
+    if (end.isBefore(now, "day")) autoTrangThai = false;
 
     const payload = {
       maGiamGia: values.maGiamGia,
@@ -89,7 +103,10 @@ export default function AddDiscount() {
       loaiGiamGia: values.loaiGiamGia === "Tiền mặt",
       giaTriGiamGia: Number(values.giaTriGiamGia ?? 0),
       mucGiaGiamToiDa: Number(values.mucGiaGiamToiDa ?? 0),
-      soLuongDung: Number(values.soLuongDung ?? 0),
+      soLuongDung:
+        values.kieu === 1
+          ? selectedCustomers.length
+          : Number(values.soLuongDung ?? 0),
       giaTriDonHangToiThieu: Number(values.giaTriDonHangToiThieu ?? 0),
       kieu: values.kieu,
       ngayBatDau: values.ngayBatDau?.format("YYYY-MM-DDTHH:mm:ss"),
@@ -100,28 +117,54 @@ export default function AddDiscount() {
     };
 
     try {
-      if (editingItem) {
+      if (isUpdate) {
         await dispatch(
           updatePhieuGiamGia({ id: editingItem.id, phieuGiamGia: payload })
         );
         messageApi.success("Cập nhật phiếu giảm giá thành công!");
       } else {
-        await dispatch(addPhieuGiamGia(payload));
+        const res = await dispatch(addPhieuGiamGia(payload));
         messageApi.success("✅ Thêm phiếu giảm giá thành công!");
+        dispatch(fetchPhieuGiamGia({ prepend: res.payload }));
         form.resetFields();
         setSelectedCustomers([]);
-        dispatch(fetchPhieuGiamGia());
       }
       setTimeout(() => navigate("/discount"), 800);
     } catch (err) {
       console.error(err);
-      messageApi.error(editingItem ? "Cập nhật thất bại!" : "Thêm thất bại!");
+      messageApi.error(isUpdate ? "Cập nhật thất bại!" : "Thêm thất bại!");
     }
+  };
+
+  const onFinish = (values) => {
+    const isUpdate = !!editingItem;
+    const action = isUpdate ? "Cập nhật" : "Thêm";
+    const colorDanger = isUpdate;
+
+    modal.confirm({
+      title: `Xác nhận ${action}`,
+      content: `Bạn có chắc muốn ${action.toLowerCase()} phiếu giảm giá "${
+        values.tenChuongTrinh || editingItem?.tenChuongTrinh || "mới"
+      }" không?`,
+      okText: action,
+      cancelText: "Hủy",
+      okButtonProps: { danger: colorDanger },
+      async onOk() {
+        await handleSubmit(values);
+      },
+    });
   };
 
   return (
     <>
       {contextHolder}
+      {messageContextHolder}
+      <div className="bg-white flex flex-col gap-3 px-10 py-[20px]">
+        <h1 className="font-bold text-4xl text-[#E67E22]">
+          Quản lý phiếu giảm giá
+        </h1>
+        <DiscountBreadcrumb />
+      </div>
       <div className="bg-white rounded-xl mx-6 my-6 py-5">
         <div className="px-6 pb-5 border-b border-slate-300">
           <p className="font-bold text-2xl text-[#E67E22]">
@@ -133,18 +176,13 @@ export default function AddDiscount() {
           <Form
             form={form}
             layout="vertical"
+            initialValues={{ kieu: 0 }}
             onFinish={onFinish}
             onFinishFailed={() =>
               messageApi.error("Vui lòng nhập đầy đủ và đúng thông tin!")
             }
           >
             <Row gutter={16} wrap>
-              <Col flex="1">
-                <Form.Item name="maGiamGia" label="Mã giảm giá">
-                  <Input placeholder="Mã sẽ được tự động tạo" readOnly />
-                </Form.Item>
-              </Col>
-
               <Col flex="1">
                 <Form.Item
                   name="tenChuongTrinh"
@@ -161,25 +199,6 @@ export default function AddDiscount() {
                   ]}
                 >
                   <Input placeholder="Nhập tên chương trình" />
-                </Form.Item>
-              </Col>
-
-              <Col flex="1">
-                <Form.Item
-                  name="kieu"
-                  label="Kiểu"
-                  rules={[
-                    { required: true, message: "Vui lòng chọn kiểu giảm giá" },
-                  ]}
-                >
-                  <Select
-                    placeholder="Chọn kiểu"
-                    onChange={(value) => setKieu(value)}
-                    value={kieu}
-                  >
-                    <Option value={0}>Công khai</Option>
-                    <Option value={1}>Cá nhân</Option>
-                  </Select>
                 </Form.Item>
               </Col>
 
@@ -347,7 +366,28 @@ export default function AddDiscount() {
                     },
                   ]}
                 >
-                  <Input placeholder="Nhập số lượng phiếu giảm giá" />
+                  <Input
+                    placeholder="Nhập số lượng phiếu giảm giá"
+                    readOnly={kieu === 1}
+                    value={kieu === 1 ? selectedCustomers.length : undefined}
+                  />
+                </Form.Item>
+              </Col>
+              <Col flex="1">
+                <Form.Item
+                  name="kieu"
+                  label="Kiểu"
+                  rules={[
+                    { required: true, message: "Vui lòng chọn kiểu giảm giá" },
+                  ]}
+                >
+                  <Radio.Group
+                    onChange={(e) => setKieu(e.target.value)}
+                    value={kieu}
+                  >
+                    <Radio value={0}>Công khai</Radio>
+                    <Radio value={1}>Cá nhân</Radio>
+                  </Radio.Group>
                 </Form.Item>
               </Col>
             </Row>

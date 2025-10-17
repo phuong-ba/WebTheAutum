@@ -1,7 +1,7 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Space, Table, Tag, Modal, message, Breadcrumb } from "antd";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import dayjs from "dayjs";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -15,6 +15,7 @@ import {
   PencilIcon,
 } from "@phosphor-icons/react";
 import FliterDiscount from "./FliterDiscount";
+import DiscountBreadcrumb from "@/components/DiscountBreadcrumb";
 
 export default function Discount() {
   const dispatch = useDispatch();
@@ -26,6 +27,37 @@ export default function Discount() {
   useEffect(() => {
     dispatch(fetchPhieuGiamGia());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!data || data.length === 0) return;
+
+    const now = dayjs();
+
+    const expired = data.filter(
+      (item) =>
+        item.trangThai === true && dayjs(item.ngayKetThuc).isBefore(now, "day")
+    );
+
+    if (expired.length === 0) return;
+
+    (async () => {
+      try {
+        await Promise.all(
+          expired.map((item) =>
+            dispatch(
+              changeStatusPhieuGiamGia({ id: item.id, trangThai: false })
+            )
+          )
+        );
+
+        dispatch(fetchPhieuGiamGia());
+        messageApi.info(`Đã tự động cập nhật ${expired.length} phiếu hết hạn.`);
+      } catch (err) {
+        console.error("Lỗi khi tự động cập nhật trạng thái:", err);
+        messageApi.error("Có lỗi khi tự động cập nhật trạng thái phiếu.");
+      }
+    })();
+  }, [data, dispatch, messageApi]);
 
   const handleChangeStatus = (record) => {
     const action = record.trangThai ? "Kết thúc" : "Kích hoạt";
@@ -45,10 +77,14 @@ export default function Discount() {
           if (changeStatusPhieuGiamGia.fulfilled.match(result)) {
             messageApi.success(`Đã ${action} phiếu giảm giá thành công!`);
             dispatch(fetchPhieuGiamGia());
-          } else throw new Error(result.payload || "Đổi trạng thái thất bại");
+          } else {
+            const payload = result.payload || "Đổi trạng thái thất bại";
+            throw new Error(payload);
+          }
         } catch (err) {
           console.error(err);
-          messageApi.error("Bạn phải cập nhập ngày kết thúc!");
+          const msg = err?.message || "Cập nhật trạng thái thất bại";
+          messageApi.error(msg);
         }
       },
     });
@@ -87,11 +123,17 @@ export default function Discount() {
     saveAs(blob, `Danh_sach_phieu_giam_gia_${dayjs().format("DDMMYYYY")}.xlsx`);
   };
 
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 5,
+  });
+
   const columns = [
     {
       title: "STT",
       key: "stt",
-      render: (_, __, index) => index + 1,
+      render: (_, __, index) =>
+        (pagination.current - 1) * pagination.pageSize + index + 1,
       width: 60,
       align: "center",
     },
@@ -105,7 +147,14 @@ export default function Discount() {
       title: "KIỂU",
       dataIndex: "kieu",
       key: "kieu",
-      render: (v) => (v === 0 ? "Công khai" : "Cá nhân"),
+      render: (v) =>
+        v ? (
+          <Tag color="#E9FBF4" style={{ border: "1px solid #00A96C" }}>
+            <div className="text-[#00A96C] ">Cá nhân</div>
+          </Tag>
+        ) : (
+          <Tag color="red">Công khai</Tag>
+        ),
       align: "center",
     },
     {
@@ -139,7 +188,6 @@ export default function Discount() {
       render: (_, record) => {
         const now = dayjs();
         const start = dayjs(record.ngayBatDau);
-        const end = dayjs(record.ngayKetThuc);
 
         let status = "";
         let color = "";
@@ -179,7 +227,7 @@ export default function Discount() {
         <Space size="middle">
           <a
             onClick={() =>
-              navigate("/add-discount", { state: { phieuGiamGia: record } })
+              navigate("/update-discount", { state: { phieuGiamGia: record } })
             }
           >
             <PencilIcon size={24} />
@@ -204,19 +252,7 @@ export default function Discount() {
         <h1 className="font-bold text-4xl text-[#E67E22]">
           Quản lý phiếu giảm giá
         </h1>
-        {/* <Breadcrumb
-          items={[
-            {
-              title: <Link to="/discount">Quản lý phiếu giảm giá</Link>,
-            },
-            {
-              title: "An Application",
-            },
-             {
-              title: "Quản lý phiếu giảm giá",
-            },
-          ]}
-        /> */}
+        <DiscountBreadcrumb />
       </div>
       <FliterDiscount />
       <div className="bg-white min-h-[500px] px-5 py-[32px]">
@@ -246,7 +282,12 @@ export default function Discount() {
           rowKey="id"
           bordered
           loading={loading}
-          pagination={{ pageSize: 5 }}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            onChange: (page, pageSize) =>
+              setPagination({ current: page, pageSize }),
+          }}
         />
       </div>
     </>

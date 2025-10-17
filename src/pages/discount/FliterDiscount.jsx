@@ -15,7 +15,7 @@ export default function FliterDiscount() {
 
   const handleSearch = (values) => {
     const query = {
-      tenChuongTrinh: values.tenChuongTrinh || undefined,
+      keyword: values.keyword || undefined,
       tuNgay: values.tuNgay
         ? dayjs(values.tuNgay).format("YYYY-MM-DD")
         : undefined,
@@ -64,8 +64,8 @@ export default function FliterDiscount() {
       >
         <Row gutter={16}>
           <Col flex="1">
-            <Form.Item name="tenChuongTrinh" label="Tên chương trình">
-              <Input placeholder="Tìm tên chương trình" />
+            <Form.Item name="keyword" label="Từ khóa tìm kiếm">
+              <Input placeholder="Nhập mã hoặc tên" />
             </Form.Item>
           </Col>
 
