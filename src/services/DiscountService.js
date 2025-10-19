@@ -1,5 +1,5 @@
-const API = "http://localhost:8080/api/phieu-giam-gia";
-const KH_API = "http://localhost:8080/api/khach-hang";
+const API = "http://localhost:8081/api/phieu-giam-gia";
+const KH_API = "http://localhost:8081/api/khach-hang";
 
 export const getPhieuGiamGia = async () => {
   const res = await fetch(API);
