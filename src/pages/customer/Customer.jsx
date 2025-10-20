@@ -38,7 +38,12 @@ export default function Customer() {
     setLoading(true);
     try {
       const res = await khachHangApi.getAll();
-      setCustomers(Array.isArray(res) ? res : [res]);
+
+      const sorted = Array.isArray(res)
+        ? [...res].sort((a, b) => b.id - a.id)
+        : [res];
+
+      setCustomers(sorted);
     } catch {
       message.error("Không thể tải danh sách khách hàng");
     } finally {
@@ -334,7 +339,7 @@ export default function Customer() {
         <CustomerForm
           customer={editCustomer}
           onCancel={() => setMode("table")}
-          onSuccess={() => {
+          onSuccess={(newCustomer) => {
             setMode("table");
             fetchCustomers();
           }}

@@ -8,12 +8,14 @@ import {
   Button,
   Card,
   Divider,
-  Popconfirm,
   Table,
   Space,
+  Radio,
+  DatePicker,
   notification,
 } from "antd";
 import { flushSync } from "react-dom";
+import dayjs from "dayjs";
 import {
   PlusOutlined,
   EnvironmentOutlined,
@@ -33,7 +35,7 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
   const [editingAddress, setEditingAddress] = useState(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
 
-  const [quanList, setQuanList] = useState([]); // danh sách quận dùng chung
+  const [quanList, setQuanList] = useState([]);
 
   const [api, contextHolder] = notification.useNotification();
   const openNotification = (type, title, description) => {
@@ -66,6 +68,7 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
         sdt: customer.sdt,
         email: customer.email,
         gioiTinh: customer.gioiTinh ? "Nam" : "Nữ",
+        ngaySinh: customer.ngaySinh ? dayjs(customer.ngaySinh) : null,
       });
     } else {
       form.resetFields();
@@ -168,6 +171,7 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
         hoTen: values.hoTen,
         gioiTinh: values.gioiTinh === "Nam",
         sdt: values.sdt,
+        ngaySinh: values.ngaySinh ? values.ngaySinh.format("YYYY-MM-DD") : null,
         email: values.email,
         diaChi: addresses.map((a) => ({
           ...(a.id ? { id: a.id } : {}),
@@ -316,12 +320,25 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
             <Form.Item
               name="gioiTinh"
               label="Giới tính"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message: "Chọn giới tính!" }]}
             >
-              <Select placeholder="Chọn giới tính">
-                <Select.Option value="Nam">Nam</Select.Option>
-                <Select.Option value="Nữ">Nữ</Select.Option>
-              </Select>
+              <Radio.Group>
+                <Radio value="Nam">Nam</Radio>
+                <Radio value="Nữ">Nữ</Radio>
+              </Radio.Group>
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="ngaySinh"
+              label="Ngày sinh"
+              rules={[{ required: true, message: "Chọn ngày sinh!" }]}
+            >
+              <DatePicker
+                format="DD/MM/YYYY"
+                style={{ width: "100%" }}
+                placeholder="Chọn ngày sinh"
+              />
             </Form.Item>
           </Col>
         </Row>
