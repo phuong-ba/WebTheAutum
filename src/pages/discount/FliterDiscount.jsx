@@ -65,7 +65,7 @@ export default function FliterDiscount() {
         <Row gutter={16}>
           <Col flex="1">
             <Form.Item name="keyword" label="Từ khóa tìm kiếm">
-              <Input placeholder="Nhập mã hoặc tên" />
+              <Input placeholder="Nhập mã hoặc tên...." />
             </Form.Item>
           </Col>
 

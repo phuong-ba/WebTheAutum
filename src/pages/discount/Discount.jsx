@@ -30,28 +30,38 @@ export default function Discount() {
 
   useEffect(() => {
     if (!data || data.length === 0) return;
-
     const now = dayjs();
-
-    const expired = data.filter(
-      (item) =>
-        item.trangThai === true && dayjs(item.ngayKetThuc).isBefore(now, "day")
-    );
-
-    if (expired.length === 0) return;
-
     (async () => {
       try {
+        const needUpdate = data.filter((item) => {
+          const start = dayjs(item.ngayBatDau);
+          const end = dayjs(item.ngayKetThuc);
+
+          if (item.trangThai === true && end.isBefore(now, "day")) {
+            return true;
+          }
+          if (item.trangThai === true && start.isAfter(now, "day")) {
+            return true;
+          }
+          return false;
+        });
+
+        if (needUpdate.length === 0) return;
+
         await Promise.all(
-          expired.map((item) =>
-            dispatch(
-              changeStatusPhieuGiamGia({ id: item.id, trangThai: false })
-            )
-          )
+          needUpdate.map((item) => {
+            const start = dayjs(item.ngayBatDau);
+            const end = dayjs(item.ngayKetThuc);
+            let newStatus = false;
+
+            return dispatch(
+              changeStatusPhieuGiamGia({ id: item.id, trangThai: newStatus })
+            );
+          })
         );
 
         dispatch(fetchPhieuGiamGia());
-        messageApi.info(`Đã tự động cập nhật ${expired.length} phiếu hết hạn.`);
+        messageApi.info(`Đã tự động cập nhật ${needUpdate.length} phiếu.`);
       } catch (err) {
         console.error("Lỗi khi tự động cập nhật trạng thái:", err);
         messageApi.error("Có lỗi khi tự động cập nhật trạng thái phiếu.");
@@ -60,9 +70,24 @@ export default function Discount() {
   }, [data, dispatch, messageApi]);
 
   const handleChangeStatus = (record) => {
+    const now = dayjs();
+    const start = dayjs(record.ngayBatDau);
+    const end = dayjs(record.ngayKetThuc);
+    let canChange = true;
+    let message = "";
+    if (!record.trangThai && end.isBefore(now, "day")) {
+      canChange = false;
+      message = "Không thể kích hoạt phiếu đã hết hạn";
+    } else if (start.isAfter(now, "day")) {
+      canChange = false;
+      message = "Không thể thay đổi trạng thái phiếu chưa đến ngày bắt đầu";
+    }
+    if (!canChange) {
+      messageApi.warning(message);
+      return;
+    }
     const action = record.trangThai ? "Kết thúc" : "Kích hoạt";
     const newStatus = !record.trangThai;
-
     modal.confirm({
       title: `Xác nhận ${action}`,
       content: `Bạn có chắc muốn ${action} phiếu "${record.tenChuongTrinh}" không?`,
@@ -78,11 +103,11 @@ export default function Discount() {
             messageApi.success(`Đã ${action} phiếu giảm giá thành công!`);
             dispatch(fetchPhieuGiamGia());
           } else {
-            const payload = result.payload || "Đổi trạng thái thất bại";
+            const payload = result.payload || "Cập nhật trạng thái thất bại";
             throw new Error(payload);
           }
         } catch (err) {
-          console.error(err);
+          console.error("Lỗi khi cập nhật trạng thái:", err);
           const msg = err?.message || "Cập nhật trạng thái thất bại";
           messageApi.error(msg);
         }
@@ -95,19 +120,36 @@ export default function Discount() {
       messageApi.warning("Không có dữ liệu để xuất!");
       return;
     }
-    const exportData = data.map((item, index) => ({
-      STT: index + 1,
-      "Mã giảm giá": item.maGiamGia,
-      "Tên chương trình": item.tenChuongTrinh,
-      Kiểu: item.kieu === 0 ? "Công khai" : "Cá nhân",
-      "Giá trị":
-        item.loaiGiamGia === true
-          ? `${item.giaTriGiamGia.toLocaleString()} VNĐ`
-          : `${item.giaTriGiamGia}%`,
-      "Ngày bắt đầu": new Date(item.ngayBatDau).toLocaleDateString("vi-VN"),
-      "Ngày kết thúc": new Date(item.ngayKetThuc).toLocaleDateString("vi-VN"),
-      "Trạng thái": item.trangThai ? "Đang diễn ra" : "Đã kết thúc",
-    }));
+
+    const exportData = data.map((item, index) => {
+      const now = new Date();
+      const startDate = new Date(item.ngayBatDau);
+      const endDate = new Date(item.ngayKetThuc);
+
+      let trangThaiText = "";
+
+      if (now < startDate) {
+        trangThaiText = "Sắp diễn ra";
+      } else if (now > endDate) {
+        trangThaiText = "Đã kết thúc";
+      } else {
+        trangThaiText = "Đang diễn ra";
+      }
+
+      return {
+        STT: index + 1,
+        "Mã giảm giá": item.maGiamGia,
+        "Tên chương trình": item.tenChuongTrinh,
+        Kiểu: item.kieu === 0 ? "Công khai" : "Cá nhân",
+        "Giá trị":
+          item.loaiGiamGia === true
+            ? `${item.giaTriGiamGia.toLocaleString()} VNĐ`
+            : `${item.giaTriGiamGia}%`,
+        "Ngày bắt đầu": new Date(item.ngayBatDau).toLocaleDateString("vi-VN"),
+        "Ngày kết thúc": new Date(item.ngayKetThuc).toLocaleDateString("vi-VN"),
+        "Trạng thái": trangThaiText,
+      };
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
@@ -167,6 +209,13 @@ export default function Discount() {
       align: "center",
     },
     {
+      title: "SỐ LƯỢNG",
+      dataIndex: "soLuongDung",
+      key: "soLuongDung",
+      align: "center",
+      render: (soLuong) => soLuong || 0,
+    },
+    {
       title: "NGÀY BẮT ĐẦU",
       dataIndex: "ngayBatDau",
       key: "ngayBatDau",
@@ -188,19 +237,30 @@ export default function Discount() {
       render: (_, record) => {
         const now = dayjs();
         const start = dayjs(record.ngayBatDau);
+        const end = dayjs(record.ngayKetThuc);
 
         let status = "";
         let color = "";
+        let displayStatus = "";
 
-        if (!record.trangThai) {
+        if (end.isBefore(now, "day")) {
           status = "Đã kết thúc";
           color = "#E74C3C";
+          displayStatus = "Đã kết thúc";
         } else if (start.isAfter(now, "day")) {
           status = "Sắp diễn ra";
           color = "#FFA500";
+          displayStatus = "Sắp diễn ra";
         } else {
-          status = "Đang diễn ra";
-          color = "#00A96C";
+          if (record.trangThai) {
+            status = "Đang diễn ra";
+            color = "#00A96C";
+            displayStatus = "Đang diễn ra";
+          } else {
+            status = "Đã kết thúc";
+            color = "#E74C3C";
+            displayStatus = "Đã kết thúc";
+          }
         }
 
         return (
@@ -214,7 +274,7 @@ export default function Discount() {
             }
             style={{ border: `1px solid ${color}` }}
           >
-            <div style={{ color }}>{status}</div>
+            <div style={{ color }}>{displayStatus}</div>
           </Tag>
         );
       },

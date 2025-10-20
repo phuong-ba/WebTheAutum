@@ -16,12 +16,9 @@ import Promo from "@/pages/promo/Promo";
 import User from "@/pages/user/User";
 import AddProduct from "@/pages/product/AddProduct";
 import Customer from "@/pages/customer/Customer";
-<<<<<<< HEAD
 import AddUser from "@/pages/user/AddUser";
 import UpdateUser from "@/pages/user/UpdateUser";
 import AddDiscount from "@/pages/discount/AddDiscount";
-=======
->>>>>>> phuong
 
 const contentStyle = {
   padding: 50,
@@ -152,7 +149,6 @@ const adminRouters = [
         ),
       },
       {
-<<<<<<< HEAD
         path: "add-user",
         element: (
           <LazyLoad>
@@ -169,8 +165,6 @@ const adminRouters = [
         ),
       },
       {
-=======
->>>>>>> phuong
         path: "customer",
         element: (
           <LazyLoad>
