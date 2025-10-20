@@ -62,7 +62,7 @@ export default function TableKhachHang({ onSelectChange, selectedRowKeys }) {
       title: "Ngày mua gần nhất",
       dataIndex: "ngayMuaGanNhat",
       key: "ngayMuaGanNhat",
-      render: (d) => (d ? dayjs(d).format("DD/MM/YYYY") : ""),
+      render: (d) => (d ? dayjs(d).format("DD/MM/YYYY") : "Chưa có"),
     },
   ];
 

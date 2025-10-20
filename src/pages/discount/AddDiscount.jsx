@@ -23,6 +23,7 @@ import TextArea from "antd/es/input/TextArea";
 import TableKhachHang from "./TableKhachHang";
 import { getKhachHangTheoPhieuGiam } from "@/services/phieuGiamGiaService";
 import DiscountBreadcrumb from "@/components/DiscountBreadcrumb";
+import { prependItem } from "@/redux/slices/phieuGiamGiaSlice";
 
 const { Option } = Select;
 
@@ -37,6 +38,8 @@ export default function AddDiscount() {
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [trangThai, setTrangThai] = useState(editingItem?.trangThai ?? true);
   const [modal, contextHolder] = Modal.useModal();
+
+  const currentDate = dayjs();
 
   useEffect(() => {
     dispatch(fetchAllKhachHang());
@@ -88,6 +91,21 @@ export default function AddDiscount() {
     }
   }, [selectedCustomers, kieu, form]);
 
+  const disabledDateBeforeToday = (current) => {
+    return current && current < currentDate.startOf("day");
+  };
+
+  const disabledEndDate = (current, startDate) => {
+    if (!startDate) {
+      return current && current < currentDate.startOf("day");
+    }
+    return (
+      current &&
+      (current < startDate.startOf("day") ||
+        current < currentDate.startOf("day"))
+    );
+  };
+
   const handleSubmit = async (values) => {
     const now = dayjs();
     const start = dayjs(values.ngayBatDau);
@@ -123,9 +141,9 @@ export default function AddDiscount() {
         );
         messageApi.success("Cập nhật phiếu giảm giá thành công!");
       } else {
-        const res = await dispatch(addPhieuGiamGia(payload));
+        const res = await dispatch(addPhieuGiamGia(payload)).unwrap();
         messageApi.success("✅ Thêm phiếu giảm giá thành công!");
-        dispatch(fetchPhieuGiamGia({ prepend: res.payload }));
+        dispatch(prependItem(res));
         form.resetFields();
         setSelectedCustomers([]);
       }
@@ -182,7 +200,7 @@ export default function AddDiscount() {
               messageApi.error("Vui lòng nhập đầy đủ và đúng thông tin!")
             }
           >
-            <Row gutter={16} wrap>
+            <Row gutter={16} wrap className="gap-10">
               <Col flex="1">
                 <Form.Item
                   name="tenChuongTrinh"
@@ -210,7 +228,12 @@ export default function AddDiscount() {
                     { required: true, message: "Vui lòng chọn ngày bắt đầu" },
                   ]}
                 >
-                  <DatePicker className="w-full" showTime />
+                  <DatePicker
+                    className="w-full"
+                    showTime
+                    disabledDate={disabledDateBeforeToday}
+                    placeholder="Chọn ngày bắt đầu"
+                  />
                 </Form.Item>
               </Col>
 
@@ -245,12 +268,20 @@ export default function AddDiscount() {
                     }),
                   ]}
                 >
-                  <DatePicker className="w-full" showTime />
+                  <DatePicker
+                    className="w-full"
+                    showTime
+                    disabledDate={(current) => {
+                      const startDate = form.getFieldValue("ngayBatDau");
+                      return disabledEndDate(current, startDate);
+                    }}
+                    placeholder="Chọn ngày kết thúc"
+                  />
                 </Form.Item>
               </Col>
             </Row>
 
-            <Row gutter={16} wrap>
+            <Row gutter={16} wrap className="gap-10">
               <Col flex="1">
                 <Form.Item
                   name="loaiGiamGia"

@@ -12,7 +12,13 @@ const phieuGiamGiaSlice = createSlice({
     newDetail: null,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    prependItem: (state, action) => {
+      if (action.payload) {
+        state.data = [action.payload, ...state.data];
+      }
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchPhieuGiamGia.pending, (state, action) => {
@@ -42,4 +48,5 @@ const phieuGiamGiaSlice = createSlice({
       });
   },
 });
+export const { prependItem } = phieuGiamGiaSlice.actions;
 export default phieuGiamGiaSlice.reducer;
