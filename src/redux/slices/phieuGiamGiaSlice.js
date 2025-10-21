@@ -1,4 +1,7 @@
-import { fetchPhieuGiamGia } from "@/services/phieuGiamGiaService";
+import {
+  fetchPhieuGiamGia,
+  searchPhieuGiamGia,
+} from "@/services/phieuGiamGiaService";
 import { createSlice } from "@reduxjs/toolkit";
 
 const phieuGiamGiaSlice = createSlice({
@@ -9,7 +12,13 @@ const phieuGiamGiaSlice = createSlice({
     newDetail: null,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    prependItem: (state, action) => {
+      if (action.payload) {
+        state.data = [action.payload, ...state.data];
+      }
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchPhieuGiamGia.pending, (state, action) => {
@@ -22,7 +31,22 @@ const phieuGiamGiaSlice = createSlice({
       .addCase(fetchPhieuGiamGia.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.error.message;
+      })
+      .addCase(searchPhieuGiamGia.pending, (state) => {
+        state.status = "pending";
+        state.loading = true;
+      })
+      .addCase(searchPhieuGiamGia.fulfilled, (state, action) => {
+        state.status = "successfully";
+        state.loading = false;
+        state.data = action.payload.data || action.payload || [];
+      })
+      .addCase(searchPhieuGiamGia.rejected, (state, action) => {
+        state.status = "failed";
+        state.loading = false;
+        state.error = action.error.message;
       });
   },
 });
+export const { prependItem } = phieuGiamGiaSlice.actions;
 export default phieuGiamGiaSlice.reducer;

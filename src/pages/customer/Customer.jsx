@@ -4,33 +4,42 @@ import {
   Button,
   Space,
   Tag,
-  Form,
-  Input,
-  Select,
+  message,
   Row,
   Col,
-  message,
-  Modal,
+  Input,
+  Radio,
+  Switch,
+  Card,
+  Tooltip,
 } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import {
+  PlusOutlined,
+  EditOutlined,
+  FileExcelOutlined,
+  CloudUploadOutlined,
+  DownloadOutlined,
+} from "@ant-design/icons";
 import { khachHangApi } from "/src/api/khachHangApi";
+import CustomerForm from "../customer/CustomerForm";
 
 export default function Customer() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [editId, setEditId] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
+  const [editCustomer, setEditCustomer] = useState(null);
   const [mode, setMode] = useState("table");
-  const [form] = Form.useForm();
-  const pageSize = 6;
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [filterTrangThai, setFilterTrangThai] = useState("all");
+  const pageSize = 5;
 
+  // 🔹 Gọi API lấy danh sách
   const fetchCustomers = async () => {
     setLoading(true);
     try {
       const res = await khachHangApi.getAll();
       setCustomers(Array.isArray(res) ? res : [res]);
-    } catch (err) {
+    } catch {
       message.error("Không thể tải danh sách khách hàng");
     } finally {
       setLoading(false);
@@ -42,301 +51,295 @@ export default function Customer() {
   }, []);
 
   const handleAdd = () => {
-    setEditId(null);
-    form.resetFields();
+    setEditCustomer(null);
     setMode("form");
   };
 
   const handleEdit = (record) => {
-    const diaChi = record.diaChi?.[0] || {};
-    form.setFieldsValue({
-      hoTen: record.hoTen,
-      gioiTinh: record.gioiTinh ? "Nam" : "Nữ",
-      sdt: record.sdt,
-      email: record.email,
-      tenTaiKhoan: record.tenTaiKhoan,
-      trangThai: record.trangThai ? "Hoạt động" : "Ngừng",
-      thanhPho: diaChi.thanhPho,
-      quan: diaChi.quan,
-      diaChiCuThe: diaChi.diaChiCuThe,
-    });
-    setEditId(record.id);
+    setEditCustomer(record);
     setMode("form");
   };
 
-  const handleDelete = (id) => {
-    setDeleteId(id);
-  };
+  // 🔹 Lọc và tìm kiếm
+  const filteredData = customers.filter((item) => {
+    const matchSearch =
+      item.maKhachHang?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      item.hoTen?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      item.email?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      item.sdt?.toLowerCase().includes(searchKeyword.toLowerCase());
 
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      const payload = {
-        hoTen: values.hoTen,
-        gioiTinh: values.gioiTinh === "Nam",
-        sdt: values.sdt,
-        email: values.email,
-        tenTaiKhoan: values.tenTaiKhoan,
-        matKhau: values.matKhau || undefined,
-        trangThai: values.trangThai === "Hoạt động",
-        diaChi: [
-          {
-            thanhPho: values.thanhPho,
-            quan: values.quan,
-            diaChiCuThe: values.diaChiCuThe,
-          },
-        ],
-      };
+    const matchStatus =
+      filterTrangThai === "all"
+        ? true
+        : filterTrangThai === "active"
+        ? item.trangThai
+        : !item.trangThai;
 
-      if (editId) {
-        await khachHangApi.update(editId, payload);
-        message.success("Cập nhật khách hàng thành công");
-      } else {
-        await khachHangApi.create(payload);
-        message.success("Thêm khách hàng thành công");
-      }
+    return matchSearch && matchStatus;
+  });
 
-      form.resetFields();
-      setMode("table");
-      fetchCustomers();
-    } catch (err) {
-      message.error("Lưu khách hàng thất bại");
-    }
-  };
-
-  // Cột bảng
+  // 🔹 Cấu hình cột
   const columns = [
     {
       title: "STT",
       render: (_, __, index) => (currentPage - 1) * pageSize + index + 1,
+      align: "center",
     },
-    { title: "Mã KH", dataIndex: "maKhachHang", key: "maKhachHang" },
-    { title: "Họ tên", dataIndex: "hoTen", key: "hoTen" },
-    { title: "Giới tính", render: (r) => (r.gioiTinh ? "Nam" : "Nữ") },
-    { title: "SĐT", dataIndex: "sdt", key: "sdt" },
-    { title: "Email", dataIndex: "email", key: "email" },
     {
-      title: "Địa chỉ",
+      title: "Mã Khách Hàng",
+      dataIndex: "maKhachHang",
+      render: (text) => (
+        <a style={{ color: "#00b96b", fontWeight: 600, fontSize: "16px" }}>
+          {text}
+        </a>
+      ),
+    },
+    { title: "Tên Khách Hàng", dataIndex: "hoTen" },
+    { title: "Số Điện Thoại", dataIndex: "sdt" },
+    { title: "Email", dataIndex: "email" },
+    {
+      title: "Địa Chỉ",
       render: (r) => {
-        const d = r.diaChi?.[0];
-        return d
-          ? `${d.diaChiCuThe}, ${d.quan}, ${d.thanhPho}`
-          : "Chưa có địa chỉ";
+        const defaultAddress = r.diaChi?.find((a) => a.trangThai);
+        return defaultAddress
+          ? defaultAddress.diaChiCuThe
+          : r.diaChi?.[0]?.diaChiCuThe || "Không có địa chỉ";
       },
     },
     {
-      title: "Trạng thái",
-      render: (r) => (
-        <Tag color={r.trangThai ? "green" : "red"}>
-          {r.trangThai ? "Hoạt động" : "Ngừng"}
-        </Tag>
-      ),
+      title: "Trạng Thái",
+      align: "center",
+      render: (r) =>
+        r.trangThai ? (
+          <Tag color="green" style={{ fontSize: 14, padding: "6px 14px" }}>
+            Kích Hoạt
+          </Tag>
+        ) : (
+          <Tag color="red" style={{ fontSize: 14, padding: "6px 14px" }}>
+            Đã Hủy
+          </Tag>
+        ),
     },
     {
-      title: "Hành động",
-      key: "action",
+      title: "Hành Động",
+      align: "center",
       render: (_, record) => (
-        <Space>
-          <Button
-            type="text"
-            icon={<EditOutlined style={{ color: "#1976d2" }} />}
-            onClick={() => handleEdit(record)}
+        <Space size="large">
+          <Switch
+            checked={record.trangThai}
+            onChange={() => {
+              const updated = customers.map((c) =>
+                c.id === record.id ? { ...c, trangThai: !c.trangThai } : c
+              );
+              setCustomers(updated);
+            }}
+            style={{ transform: "scale(1.2)" }}
           />
-          <Button
-            type="text"
-            icon={<DeleteOutlined style={{ color: "red" }} />}
-            onClick={() => handleDelete(record.id)}
-          />
+          <Tooltip
+            title={
+              record.trangThai ? "Chỉnh sửa khách hàng" : "Không thể chỉnh sửa"
+            }
+          >
+            <Button
+              type="text"
+              icon={
+                <EditOutlined
+                  style={{
+                    color: record.trangThai ? "#e67e22" : "#ccc",
+                    fontSize: 20,
+                  }}
+                />
+              }
+              onClick={() => handleEdit(record)}
+              disabled={!record.trangThai}
+            />
+          </Tooltip>
         </Space>
       ),
     },
   ];
 
+  // 🔹 JSX hiển thị
   return (
-    <div style={{ padding: 24, background: "#fff", borderRadius: 12 }}>
-      <h2 style={{ marginBottom: 16, color: "#f57c00" }}>Quản lý khách hàng</h2>
-
-      {/* Bảng */}
+    <div
+      style={{
+        padding: 30,
+        background: "#fff",
+        fontSize: "16px",
+        lineHeight: 1.6,
+      }}
+    >
       {mode === "table" && (
         <>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            style={{ marginBottom: 16 }}
-          >
-            Thêm mới
-          </Button>
-
-          <Table
-            columns={columns}
-            dataSource={customers}
-            rowKey="id"
-            loading={loading}
-            pagination={{
-              current: currentPage,
-              pageSize,
-              onChange: (page) => setCurrentPage(page),
+          {/* Bộ lọc */}
+          <Card
+            title={
+              <span
+                style={{
+                  color: "#e67e22",
+                  fontSize: "30px",
+                  fontWeight: "600",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                Quản lý khách hàng
+              </span>
+            }
+            style={{
+              marginBottom: 16,
+              borderRadius: 12,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
             }}
-          />
+          >
+            <Row gutter={[16, 16]}>
+              <Col span={10}>
+                <Input
+                  placeholder="Mã, tên, email, SĐT..."
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  style={{ borderRadius: 8, fontSize: 15 }}
+                />
+              </Col>
+            </Row>
+
+            <Row
+              gutter={[16, 16]}
+              align="middle"
+              style={{ marginTop: 14, marginBottom: 4 }}
+            >
+              <Col xs={24}>
+                <span style={{ fontSize: 16 }}>
+                  Tổng số khách hàng:{" "}
+                  <b style={{ color: "#00b96b", fontSize: 17 }}>
+                    {filteredData.length}
+                  </b>
+                </span>
+              </Col>
+            </Row>
+
+            <Row
+              gutter={[16, 16]}
+              justify="space-between"
+              align="middle"
+              style={{
+                marginTop: 8,
+                borderTop: "1px solid #f0f0f0",
+                paddingTop: 10,
+              }}
+            >
+              <Col xs={24} md={12}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontWeight: 500, fontSize: 15 }}>
+                    Trạng thái:
+                  </span>
+                  <Radio.Group
+                    value={filterTrangThai}
+                    onChange={(e) => setFilterTrangThai(e.target.value)}
+                  >
+                    <Radio value="all" style={{ fontSize: 15 }}>
+                      Tất cả
+                    </Radio>
+                    <Radio value="active" style={{ fontSize: 15 }}>
+                      Kích hoạt
+                    </Radio>
+                    <Radio value="inactive" style={{ fontSize: 15 }}>
+                      Hủy kích hoạt
+                    </Radio>
+                  </Radio.Group>
+                </div>
+              </Col>
+
+              <Col xs={24} md={12} style={{ textAlign: "right" }}>
+                <Space wrap>
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={handleAdd}
+                    style={{
+                      background: "#00b96b",
+                      borderRadius: 8,
+                      fontWeight: 500,
+                    }}
+                  >
+                    Thêm Khách Hàng
+                  </Button>
+
+                  <Button
+                    icon={<FileExcelOutlined />}
+                    style={{ borderRadius: 8 }}
+                  >
+                    Xuất Excel
+                  </Button>
+
+                  <Button
+                    icon={<CloudUploadOutlined />}
+                    style={{ borderRadius: 8 }}
+                  >
+                    Nhập từ Excel
+                  </Button>
+
+                  <Button
+                    icon={<DownloadOutlined />}
+                    style={{ borderRadius: 8 }}
+                  >
+                    Tải mẫu Excel
+                  </Button>
+
+                  <Button
+                    onClick={() => {
+                      setSearchKeyword("");
+                      setFilterTrangThai("all");
+                    }}
+                    style={{ background: "#f5f5f5", borderRadius: 8 }}
+                  >
+                    Đặt lại bộ lọc
+                  </Button>
+                </Space>
+              </Col>
+            </Row>
+          </Card>
+
+          {/* Bảng danh sách */}
+          <Card
+            title={
+              <span style={{ fontSize: "18px", fontWeight: 600 }}>
+                Danh Sách Khách Hàng
+              </span>
+            }
+            style={{
+              borderRadius: 12,
+              boxShadow: "0 3px 10px rgba(0,0,0,0.08)",
+            }}
+          >
+            <Table
+              columns={columns}
+              dataSource={filteredData}
+              rowKey="id"
+              loading={loading}
+              pagination={{
+                current: currentPage,
+                pageSize,
+                onChange: setCurrentPage,
+                total: filteredData.length,
+                showSizeChanger: false,
+                position: ["bottomCenter"],
+              }}
+              style={{ fontSize: "16px" }}
+            />
+          </Card>
         </>
       )}
 
       {mode === "form" && (
-        <div
-          style={{ padding: 16, border: "1px solid #f0f0f0", borderRadius: 8 }}
-        >
-          <h3>{editId ? "Cập nhật khách hàng" : "Thêm khách hàng mới"}</h3>
-          <Form layout="vertical" form={form}>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  name="hoTen"
-                  label="Họ tên"
-                  rules={[{ required: true, message: "Nhập họ tên" }]}
-                >
-                  <Input />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="gioiTinh"
-                  label="Giới tính"
-                  rules={[{ required: true, message: "Chọn giới tính" }]}
-                >
-                  <Select
-                    options={[
-                      { label: "Nam", value: "Nam" },
-                      { label: "Nữ", value: "Nữ" },
-                    ]}
-                  />
-                </Form.Item>
-              </Col>
-
-              <Col span={12}>
-                <Form.Item
-                  name="sdt"
-                  label="Số điện thoại"
-                  rules={[{ required: true, message: "Nhập số điện thoại" }]}
-                >
-                  <Input />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="email"
-                  label="Email"
-                  rules={[{ required: true, message: "Nhập email" }]}
-                >
-                  <Input />
-                </Form.Item>
-              </Col>
-
-              <Col span={12}>
-                <Form.Item
-                  name="tenTaiKhoan"
-                  label="Tên tài khoản"
-                  rules={[{ required: true, message: "Nhập tên tài khoản" }]}
-                >
-                  <Input disabled={!!editId} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="matKhau"
-                  label="Mật khẩu"
-                  rules={[{ message: "Nhập mật khẩu" }]}
-                >
-                  <Input />
-                </Form.Item>
-              </Col>
-
-              <Col span={12}>
-                <Form.Item
-                  name="thanhPho"
-                  label="Thành phố"
-                  rules={[{ required: true, message: "Nhập thành phố" }]}
-                >
-                  <Input />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="quan"
-                  label="Quận/Huyện"
-                  rules={[{ required: true, message: "Nhập quận/huyện" }]}
-                >
-                  <Input />
-                </Form.Item>
-              </Col>
-
-              <Col span={24}>
-                <Form.Item
-                  name="diaChiCuThe"
-                  label="Địa chỉ cụ thể"
-                  rules={[{ required: true, message: "Nhập địa chỉ cụ thể" }]}
-                >
-                  <Input />
-                </Form.Item>
-              </Col>
-
-              <Col span={12}>
-                <Form.Item
-                  name="trangThai"
-                  label="Trạng thái"
-                  rules={[{ required: true, message: "Chọn trạng thái" }]}
-                >
-                  <Select
-                    options={[
-                      { label: "Hoạt động", value: "Hoạt động" },
-                      { label: "Ngừng", value: "Ngừng" },
-                    ]}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Button
-              type="primary"
-              onClick={handleSubmit}
-              style={{ marginTop: 8 }}
-            >
-              Lưu
-            </Button>
-            <Button
-              onClick={() => {
-                form.resetFields();
-                setMode("table");
-              }}
-              style={{ marginLeft: 8, marginTop: 8 }}
-            >
-              Hủy
-            </Button>
-          </Form>
-        </div>
-      )}
-
-      <Modal
-        open={!!deleteId}
-        title="Xác nhận xóa khách hàng"
-        okText="Xóa"
-        okType="danger"
-        cancelText="Hủy"
-        onCancel={() => setDeleteId(null)}
-        onOk={async () => {
-          try {
-            await khachHangApi.delete(deleteId);
-            message.success("Xóa khách hàng thành công");
-            setDeleteId(null);
+        <CustomerForm
+          customer={editCustomer}
+          onCancel={() => setMode("table")}
+          onSuccess={() => {
+            setMode("table");
             fetchCustomers();
-          } catch (err) {
-            console.error("❌ Lỗi API:", err);
-            message.error("Không thể xóa khách hàng");
-          }
-        }}
-      >
-        <p>Bạn có chắc chắn muốn xóa khách hàng này không?</p>
-      </Modal>
+          }}
+        />
+      )}
     </div>
   );
 }

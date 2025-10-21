@@ -49,7 +49,16 @@ export default function Navbar() {
 
     { key: "/promo", icon: <IconDiscount />, label: "Quản lý đợt giảm giá" },
     { key: "/user", icon: <AppstoreOutlined />, label: "Quản lý nhân viên" },
-    { key: "/customer", icon: <AppstoreOutlined />, label: "Quản lý khách hàng" },
+    {
+      key: "/customer",
+      icon: <AppstoreOutlined />,
+      label: "Quản lý khách hàng",
+    },
+    {
+      key: "/customer",
+      icon: <AppstoreOutlined />,
+      label: "Quản lý khach hàng",
+    },
   ];
 
   const [collapsed, setCollapsed] = useState(false);
