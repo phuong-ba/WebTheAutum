@@ -13,12 +13,13 @@ export default function TableKhachHang({ onSelectChange, selectedRowKeys }) {
     dispatch(fetchAllKhachHang());
   }, [dispatch]);
 
-  const filteredData =
-    search.trim() === ""
-      ? data
-      : data?.filter((item) =>
-          item.hoTen.toLowerCase().includes(search.toLowerCase())
-        );
+  const filteredData = data
+    ?.filter((item) => item.trangThai === true)
+    ?.filter((item) =>
+      search.trim() === ""
+        ? true
+        : item.hoTen?.toLowerCase().includes(search.toLowerCase())
+    );
 
   const rowSelection = {
     selectedRowKeys,

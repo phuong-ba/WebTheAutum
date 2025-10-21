@@ -286,12 +286,23 @@ export default function Discount() {
       render: (_, record) => (
         <Space size="middle">
           <a
-            onClick={() =>
-              navigate("/update-discount", { state: { phieuGiamGia: record } })
-            }
+            onClick={() => {
+              if (record.trangThai === false) {
+                messageApi.warning("Không thể chỉnh sửa phiếu giảm giá!");
+                return;
+              }
+              navigate("/update-discount", { state: { phieuGiamGia: record } });
+            }}
           >
-            <PencilIcon size={24} />
+            <PencilIcon
+              size={24}
+              color={record.trangThai === false ? "#ccc" : "#E67E22"}
+              style={{
+                cursor: record.trangThai === false ? "not-allowed" : "pointer",
+              }}
+            />
           </a>
+
           <a onClick={() => handleChangeStatus(record)}>
             {record.trangThai ? (
               <ToggleRightIcon size={24} color="#00A96C" />
