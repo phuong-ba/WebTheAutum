@@ -204,7 +204,7 @@ export default function User() {
       for (const row of rows) {
         const payload = {
           hoTen: row.HoTen?.trim() || "",
-          gioiTinh: row.GioiTinh?.toLowerCase() === "nam", 
+          gioiTinh: row.GioiTinh?.toLowerCase() === "nam",
           sdt: row.SoDienThoai?.trim() || "",
           email: row.Email?.trim() || "",
           diaChi: row.DiaChi?.trim() || "",
@@ -222,7 +222,7 @@ export default function User() {
       form.resetFields();
     } catch (error) {
       console.error(error);
-      messageApi.error("Lỗi khi đọc file Excel!");
+      // messageApi.error("Lỗi khi đọc file Excel!");
     }
   };
 

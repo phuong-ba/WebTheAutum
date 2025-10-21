@@ -3,15 +3,12 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { message } from "antd";
 
-// 🔹 1️⃣ TẢI FILE MẪU EXCEL — thông tin khách hàng + Ngày sinh + Giới tính
-
 export const downloadTemplate = async () => {
   try {
     const workbook = new ExcelJS.Workbook();
     const mainSheet = workbook.addWorksheet("Mẫu khách hàng");
     const gioiTinhSheet = workbook.addWorksheet("GiớiTinh");
 
-    // === Header chính ===
     const headers = [
       "Tên khách hàng",
       "Số điện thoại",
@@ -47,8 +44,6 @@ export const downloadTemplate = async () => {
     message.error("❌ Không thể tạo file mẫu Excel.");
   }
 };
-
-// 🔹 2️⃣ NHẬP DỮ LIỆU TỪ EXCEL
 
 export const importFromExcel = async (
   file,
