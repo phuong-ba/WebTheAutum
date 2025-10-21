@@ -155,6 +155,12 @@ export default function AddDiscount() {
   };
 
   const onFinish = (values) => {
+    if (values.kieu === 1 && selectedCustomers.length === 0) {
+      messageApi.error(
+        "Vui lòng chọn ít nhất 1 khách hàng cho kiểu 'Cá nhân'!"
+      );
+      return;
+    }
     const isUpdate = !!editingItem;
     const action = isUpdate ? "Cập nhật" : "Thêm";
     const colorDanger = isUpdate;
