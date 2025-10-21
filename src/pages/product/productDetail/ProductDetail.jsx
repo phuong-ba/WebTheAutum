@@ -3,7 +3,6 @@ import { Space, Table, Tag, message, Modal, Image, Upload } from "antd";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router";
 import { PlusOutlined } from "@ant-design/icons";
-import "./ProductDetail.css";
 export default function ProductDetail() {
   const { data } = useSelector((state) => state.nhanvien);
   const [editingUser, setEditingUser] = useState(null);
@@ -122,12 +121,13 @@ export default function ProductDetail() {
           bordered
           pagination={{ pageSize: 5 }}
         />
-        <div>
+        <div className="product-detail">
           <div className="border-b border-b-amber-400 my-5 pb-2">
             <p className="font-bold text-md text-[#E67E22]">
               Thông tin sản phẩm
             </p>
           </div>
+
           <Upload
             width={"240px"}
             action="https://660d2bd96ddfa2943b33731c.mockapi.io/api/upload"

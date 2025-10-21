@@ -52,6 +52,11 @@ export default function Navbar() {
     {
       key: "/customer",
       icon: <AppstoreOutlined />,
+      label: "Quản lý khách hàng",
+    },
+    {
+      key: "/customer",
+      icon: <AppstoreOutlined />,
       label: "Quản lý khach hàng",
     },
   ];

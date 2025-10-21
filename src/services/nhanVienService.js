@@ -7,7 +7,7 @@ export const fetchNhanVien = createAsyncThunk(
     ) => {
         try {
             const response = await baseUrl.get(`nhan-vien`);
-            return response.data; // Trả về dữ liệu từ API
+            return response.data;
         } catch (error) {
             throw error.response?.data || "Đã xảy ra lỗi khi lấy dữ liệu";
         }
@@ -27,7 +27,6 @@ export const updateNhanVien = createAsyncThunk(
     "nhan-vien/update",
     async ({ id, nhanvien }) => {
         const response = await baseUrl.put(`nhan-vien/update/${id}`, nhanvien);
-
         return response.data;
     }
 );
@@ -40,8 +39,7 @@ export const deleteNhanVien = createAsyncThunk(
     }
 );
 
-export const changeStatusNhanVien = createAsyncThunk("admin/movie/status/id", async (id) => {
-    await baseUrl.put(`nhan-vien/update-trang-thai/${id}`);
-
+export const changeStatusNhanVien = createAsyncThunk("nhan-vien/status/id", async ({ id, trangThai }) => {
+    await baseUrl.put(`nhan-vien/update-trang-thai/${id}?trangThai=${trangThai}`);
     return id;
 })

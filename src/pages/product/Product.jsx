@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Space, Table, Tag, message, Modal } from "antd";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router";
+
 export default function Product() {
   const { data } = useSelector((state) => state.nhanvien);
   const [editingUser, setEditingUser] = useState(null);
@@ -13,8 +14,9 @@ export default function Product() {
     onChange: (newSelectedRowKeys) => {
       setSelectedRowKeys(newSelectedRowKeys);
     },
-    type: "checkbox", // chọn nhiều
+    type: "checkbox",
   };
+
   const columns = [
     {
       title: "STT",
