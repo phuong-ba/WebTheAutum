@@ -95,20 +95,13 @@ export const importFromExcel = async (
 // 🔹 3️⃣ XUẤT DANH SÁCH RA EXCEL
 export const exportToExcel = async (data) => {
   try {
-    const worksheetData = data.map((item) => {
-      const diaChi = item.diaChiList?.[0] || {};
-      return {
-        "Tên khách hàng": item.hoTen,
-        "Số điện thoại": item.sdt,
-        Email: item.email,
-        "Ngày sinh (yyyy-mm-dd)": item.ngaySinh || "",
-        "Giới tính (1: nam, 0: nữ)": item.gioiTinh ? 1 : 0,
-        "Tên địa chỉ": diaChi.tenDiaChi || "",
-        "Địa chỉ cụ thể": diaChi.diaChiCuThe || "",
-        "Tỉnh/Thành phố": diaChi.tenTinh || "",
-        "Quận/Huyện": diaChi.tenQuan || "",
-      };
-    });
+    const worksheetData = data.map((item) => ({
+      "Tên khách hàng": item.hoTen,
+      "Số điện thoại": item.sdt,
+      Email: item.email,
+      "Ngày sinh (yyyy-mm-dd)": item.ngaySinh || "",
+      "Giới tính (1: nam, 0: nữ)": item.gioiTinh ? 1 : 0,
+    }));
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
