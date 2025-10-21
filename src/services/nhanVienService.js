@@ -43,3 +43,8 @@ export const changeStatusNhanVien = createAsyncThunk("nhan-vien/status/id", asyn
     await baseUrl.put(`nhan-vien/update-trang-thai/${id}?trangThai=${trangThai}`);
     return id;
 })
+export const scanCCCD = (formData) => {
+    return axios.post("/api/cccd/scan", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+};
