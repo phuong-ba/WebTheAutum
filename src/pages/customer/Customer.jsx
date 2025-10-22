@@ -12,6 +12,7 @@ import {
   Switch,
   Card,
   Tooltip,
+  Modal,
 } from "antd";
 import {
   PlusOutlined,
@@ -19,6 +20,8 @@ import {
   FileExcelOutlined,
   CloudUploadOutlined,
   DownloadOutlined,
+  LockOutlined,
+  UnlockOutlined,
 } from "@ant-design/icons";
 import { khachHangApi } from "/src/api/khachHangApi";
 import { diaChiApi } from "/src/api/diaChiApi";
@@ -37,28 +40,35 @@ export default function Customer() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [filterTrangThai, setFilterTrangThai] = useState("all");
   const [importing, setImporting] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
 
   const pageSize = 5;
 
-  // 🔹 Gọi API lấy danh sách
+  // 🔹 Gọi API lấy danh sách và sắp xếp theo ngày sửa / ngày tạo giảm dần
   const fetchCustomers = async () => {
     setLoading(true);
     try {
       const res = await khachHangApi.getAll();
 
+      // 🔸 Ưu tiên ngày sửa nếu có, nếu không có thì dùng ngày tạo
       const sorted = Array.isArray(res)
-        ? [...res].sort((a, b) => b.id - a.id)
+        ? [...res].sort((a, b) => {
+            const dateA = new Date(a.ngaySua || a.ngayTao);
+            const dateB = new Date(b.ngaySua || b.ngayTao);
+            return dateB - dateA; // giảm dần
+          })
         : [res];
 
       setCustomers(sorted);
-    } catch {
+      return sorted;
+    } catch (err) {
       message.error("Không thể tải danh sách khách hàng");
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
-  // --
   useEffect(() => {
     fetchCustomers();
   }, []);
@@ -71,6 +81,55 @@ export default function Customer() {
   const handleEdit = (record) => {
     setEditCustomer(record);
     setMode("form");
+  };
+
+  // Khai báo cấu hình message để hiện ở góc phải
+  message.config({
+    duration: 1,
+    maxCount: 3,
+  });
+
+  const toggleStatus = async (record) => {
+    try {
+      const updatedCustomer = {
+        ...record,
+        trangThai: !record.trangThai,
+      };
+      await khachHangApi.update(record.id, updatedCustomer);
+
+      messageApi.open({
+        type: "success",
+        content: (
+          <div style={{ fontSize: "16px", fontWeight: 600 }}>
+            Đã mở khóa khách hàng{" "}
+            <span style={{ color: "#1677ff" }}>{record.hoTen}</span>
+          </div>
+        ),
+        duration: 2,
+        style: {
+          position: "fixed",
+          right: 20,
+          top: 80,
+          minWidth: 280,
+          padding: "12px 16px",
+          borderRadius: "10px",
+          fontSize: "16px",
+        },
+      });
+
+      fetchCustomers();
+    } catch (err) {
+      messageApi.open({
+        type: "error",
+        content: "Cập nhật trạng thái thất bại!",
+        duration: 2,
+        style: {
+          position: "fixed",
+          right: 20,
+          top: 80,
+        },
+      });
+    }
   };
 
   // 🔹 Lọc và tìm kiếm
@@ -91,7 +150,7 @@ export default function Customer() {
     return matchSearch && matchStatus;
   });
 
-  // 🔹 Cấu hình cột
+  // 🔹 Cột bảng
   const columns = [
     {
       title: "STT",
@@ -138,16 +197,28 @@ export default function Customer() {
       align: "center",
       render: (_, record) => (
         <Space size="large">
-          <Switch
-            checked={record.trangThai}
-            onChange={() => {
-              const updated = customers.map((c) =>
-                c.id === record.id ? { ...c, trangThai: !c.trangThai } : c
-              );
-              setCustomers(updated);
-            }}
-            style={{ transform: "scale(1.2)" }}
-          />
+          <Tooltip title={record.trangThai ? "Đang kích hoạt" : "Đã khóa"}>
+            {record.trangThai ? (
+              <UnlockOutlined
+                style={{
+                  color: "#e29578",
+                  fontSize: 22,
+                  cursor: "pointer",
+                }}
+                onClick={() => toggleStatus(record)}
+              />
+            ) : (
+              <LockOutlined
+                style={{
+                  color: "#ff4d4f",
+                  fontSize: 22,
+                  cursor: "pointer",
+                }}
+                onClick={() => toggleStatus(record)}
+              />
+            )}
+          </Tooltip>
+
           <Tooltip
             title={
               record.trangThai ? "Chỉnh sửa khách hàng" : "Không thể chỉnh sửa"
@@ -172,7 +243,6 @@ export default function Customer() {
     },
   ];
 
-  // 🔹 JSX hiển thị
   return (
     <div
       style={{
@@ -182,18 +252,14 @@ export default function Customer() {
         lineHeight: 1.6,
       }}
     >
+      {contextHolder}
       {mode === "table" && (
         <>
-          {/* Bộ lọc */}
+          {/* Filter + Action */}
           <Card
             title={
               <span
-                style={{
-                  color: "#e67e22",
-                  fontSize: "30px",
-                  fontWeight: "600",
-                  letterSpacing: "0.5px",
-                }}
+                style={{ color: "#e67e22", fontSize: "30px", fontWeight: 600 }}
               >
                 Quản lý khách hàng
               </span>
@@ -214,7 +280,6 @@ export default function Customer() {
                 />
               </Col>
             </Row>
-
             <Row
               gutter={[16, 16]}
               align="middle"
@@ -229,7 +294,6 @@ export default function Customer() {
                 </span>
               </Col>
             </Row>
-
             <Row
               gutter={[16, 16]}
               justify="space-between"
@@ -261,7 +325,6 @@ export default function Customer() {
                   </Radio.Group>
                 </div>
               </Col>
-
               <Col xs={24} md={12} style={{ textAlign: "right" }}>
                 <Space wrap>
                   <Button
@@ -276,7 +339,6 @@ export default function Customer() {
                   >
                     Thêm Khách Hàng
                   </Button>
-
                   <Button
                     onClick={() => exportToExcel(customers)}
                     icon={<FileExcelOutlined />}
@@ -284,7 +346,6 @@ export default function Customer() {
                   >
                     Xuất Excel
                   </Button>
-
                   <Button
                     loading={importing}
                     onClick={() =>
@@ -310,7 +371,6 @@ export default function Customer() {
                       )
                     }
                   />
-
                   <Button
                     onClick={() => downloadTemplate(diaChiApi)}
                     icon={<DownloadOutlined />}
@@ -318,7 +378,6 @@ export default function Customer() {
                   >
                     Tải mẫu Excel
                   </Button>
-
                   <Button
                     onClick={() => {
                       setSearchKeyword("");
@@ -368,9 +427,22 @@ export default function Customer() {
         <CustomerForm
           customer={editCustomer}
           onCancel={() => setMode("table")}
-          onSuccess={(newCustomer) => {
+          onSuccess={async (newCustomer) => {
             setMode("table");
-            fetchCustomers();
+
+            const isEdit = !!editCustomer;
+
+            if (newCustomer) {
+              message.success(
+                isEdit
+                  ? "Cập nhật khách hàng thành công"
+                  : "Thêm khách hàng mới thành công"
+              );
+
+              await fetchCustomers();
+            } else {
+              await fetchCustomers();
+            }
           }}
         />
       )}

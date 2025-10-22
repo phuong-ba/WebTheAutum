@@ -27,7 +27,7 @@ import {
 import { khachHangApi } from "/src/api/khachHangApi";
 import { diaChiApi } from "/src/api/diaChiApi";
 import AddressSelect from "./AddressSelect";
-
+import { debounce } from "lodash";
 export default function CustomerForm({ customer, onCancel, onSuccess }) {
   const [form] = Form.useForm();
   const [addresses, setAddresses] = useState([]);
@@ -38,12 +38,12 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
   const [quanList, setQuanList] = useState([]);
 
   const [api, contextHolder] = notification.useNotification();
-  const openNotification = (type, title, description) => {
+  const openNotification = (type, title, description, duration = 2) => {
     api[type]({
       message: title,
       description,
       placement: "topRight",
-      duration: 2,
+      duration,
     });
   };
 
@@ -162,10 +162,56 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
     setShowAddressForm(true);
     setEditingAddress(record);
   };
+  //--gọi check
+  const debouncedCheck = debounce((field) => checkExists(field), 500);
+  //--
+  //--check email và sdt
+  const checkExists = async (field) => {
+    const email = field === "email" ? form.getFieldValue("email") : null;
+    const sdt = field === "sdt" ? form.getFieldValue("sdt") : null;
 
+    if (!email && !sdt) return;
+
+    try {
+      const exists = await khachHangApi.checkEmailAndSDt(email, sdt);
+
+      if (field === "email") {
+        form.setFields([
+          { name: "email", errors: exists ? ["Email này đã tồn tại!"] : [] },
+        ]);
+      } else if (field === "sdt") {
+        form.setFields([
+          { name: "sdt", errors: exists ? ["SĐT này đã tồn tại!"] : [] },
+        ]);
+      }
+    } catch (error) {
+      console.error("Lỗi kiểm tra:", error);
+    }
+  };
+
+  //---
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+
+      // check email + sdt cùng lúc
+      const exists = await khachHangApi.checkEmailAndSDt(
+        values.email,
+        values.sdt
+      );
+
+      const errors = [];
+      if (exists.emailExists)
+        errors.push({ name: "email", errors: ["Email này đã tồn tại!"] });
+      if (exists.sdtExists)
+        errors.push({ name: "sdt", errors: ["SĐT này đã tồn tại!"] });
+
+      if (errors.length > 0) {
+        form.setFields(errors);
+        openNotification("error", "Thất bại", "Không thể lưu khách hàng!");
+        return; // dừng submit
+      }
+
       const payload = {
         ...customer,
         hoTen: values.hoTen,
@@ -191,6 +237,9 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
           "Cập nhật thành công",
           "Thông tin khách hàng đã được lưu!"
         );
+        setTimeout(() => {
+          onSuccess(res);
+        }, 1400);
       } else {
         res = await khachHangApi.create(payload);
         openNotification(
@@ -198,25 +247,12 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
           "Thêm thành công",
           "Khách hàng mới đã được thêm!"
         );
+        setTimeout(() => {
+          onSuccess(res);
+        }, 1400);
       }
 
-      onSuccess(res);
-
-      if (res?.diaChi) {
-        setAddresses(
-          res.diaChi.map((a, idx) => ({
-            key: a.id,
-            id: a.id,
-            tenDiaChi: a.tenDiaChi,
-            thanhPho: a.tinhThanhId,
-            quan: a.quanHuyenId,
-            tenTinh: a.tenTinh,
-            tenQuan: a.tenQuan,
-            diaChiCuThe: a.diaChiCuThe,
-            trangThai: a.trangThai ?? idx === 0,
-          }))
-        );
-      }
+      // onSuccess(res);
     } catch (err) {
       console.error(err);
       openNotification("error", "Thất bại", "Không thể lưu khách hàng!");
@@ -301,7 +337,10 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
                 { pattern: /^[0-9]{9,11}$/, message: "SĐT không hợp lệ!" },
               ]}
             >
-              <Input placeholder="Nhập số điện thoại" />
+              <Input
+                placeholder="Nhập số điện thoại"
+                onChange={() => debouncedCheck("sdt")}
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -313,7 +352,10 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
                 { type: "email", message: "Email không hợp lệ!" },
               ]}
             >
-              <Input placeholder="Nhập email" />
+              <Input
+                placeholder="Nhập email"
+                onChange={() => debouncedCheck("email")}
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
