@@ -40,7 +40,8 @@ export default function Customer() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [filterTrangThai, setFilterTrangThai] = useState("all");
   const [importing, setImporting] = useState(false);
-  const [messageApi, contextHolder] = message.useMessage();
+  const [messageApi, messageContextHolder] = message.useMessage();
+  const [modal, contextHolder] = Modal.useModal();
 
   const pageSize = 5;
 
@@ -90,43 +91,103 @@ export default function Customer() {
   });
 
   const toggleStatus = async (record) => {
-    try {
-      const updatedCustomer = {
-        ...record,
-        trangThai: !record.trangThai,
-      };
-      await khachHangApi.update(record.id, updatedCustomer);
+    if (record.trangThai) {
+      modal.confirm({
+        title: "Xác nhận khóa",
+        content: `Bạn có chắc muốn khóa khách hàng "${record.hoTen}" không?`,
+        okText: "Khóa",
+        cancelText: "Hủy",
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          try {
+            const updatedCustomer = {
+              ...record,
+              trangThai: false,
+            };
+            await khachHangApi.update(record.id, updatedCustomer);
 
-      messageApi.open({
-        type: "success",
-        content: (
-          <div style={{ fontSize: "16px", fontWeight: 600 }}>
-            Đã mở khóa khách hàng{" "}
-            <span style={{ color: "#1677ff" }}>{record.hoTen}</span>
-          </div>
-        ),
-        duration: 2,
-        style: {
-          position: "fixed",
-          right: 20,
-          top: 80,
-          minWidth: 280,
-          padding: "12px 16px",
-          borderRadius: "10px",
-          fontSize: "16px",
+            messageApi.open({
+              type: "success",
+              content: (
+                <div style={{ fontSize: "16px", fontWeight: 600 }}>
+                  Đã khóa khách hàng{" "}
+                  <span style={{ color: "#1677ff" }}>{record.hoTen}</span>
+                </div>
+              ),
+              duration: 2,
+              style: {
+                position: "fixed",
+                right: 20,
+                top: 80,
+                minWidth: 280,
+                padding: "12px 16px",
+                borderRadius: "10px",
+                fontSize: "16px",
+              },
+            });
+
+            fetchCustomers();
+          } catch (err) {
+            messageApi.open({
+              type: "error",
+              content: "Khóa khách hàng thất bại!",
+              duration: 2,
+              style: {
+                position: "fixed",
+                right: 20,
+                top: 80,
+              },
+            });
+          }
         },
       });
+    } else {
+      modal.confirm({
+        title: "Xác nhận mở khóa",
+        content: `Bạn có chắc muốn mở khóa khách hàng "${record.hoTen}" không?`,
+        okText: "Mở khóa",
+        cancelText: "Hủy",
+        onOk: async () => {
+          try {
+            const updatedCustomer = {
+              ...record,
+              trangThai: true,
+            };
+            await khachHangApi.update(record.id, updatedCustomer);
 
-      fetchCustomers();
-    } catch (err) {
-      messageApi.open({
-        type: "error",
-        content: "Cập nhật trạng thái thất bại!",
-        duration: 2,
-        style: {
-          position: "fixed",
-          right: 20,
-          top: 80,
+            messageApi.open({
+              type: "success",
+              content: (
+                <div style={{ fontSize: "16px", fontWeight: 600 }}>
+                  Đã mở khóa khách hàng{" "}
+                  <span style={{ color: "#1677ff" }}>{record.hoTen}</span>
+                </div>
+              ),
+              duration: 2,
+              style: {
+                position: "fixed",
+                right: 20,
+                top: 80,
+                minWidth: 280,
+                padding: "12px 16px",
+                borderRadius: "10px",
+                fontSize: "16px",
+              },
+            });
+
+            fetchCustomers();
+          } catch (err) {
+            messageApi.open({
+              type: "error",
+              content: "Mở khóa khách hàng thất bại!",
+              duration: 2,
+              style: {
+                position: "fixed",
+                right: 20,
+                top: 80,
+              },
+            });
+          }
         },
       });
     }
@@ -253,6 +314,7 @@ export default function Customer() {
       }}
     >
       {contextHolder}
+      {messageContextHolder}
       {mode === "table" && (
         <>
           {/* Filter + Action */}
