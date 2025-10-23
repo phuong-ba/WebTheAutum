@@ -19,6 +19,8 @@ import Customer from "@/pages/customer/Customer";
 import AddUser from "@/pages/user/AddUser";
 import UpdateUser from "@/pages/user/UpdateUser";
 import AddDiscount from "@/pages/discount/AddDiscount";
+import ProductDetailPage from "@/pages/product/ProductDetailPage";
+import MultiProductDetailPage from "@/pages/product/MultiProductDetailPage";
 
 const contentStyle = {
   padding: 50,
@@ -137,6 +139,22 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <AddProduct />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "detail-product/:id",
+        element: (
+          <LazyLoad>
+            <ProductDetailPage />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "detail-products/:ids",
+        element: (
+          <LazyLoad>
+            <MultiProductDetailPage />
           </LazyLoad>
         ),
       },

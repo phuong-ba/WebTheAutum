@@ -44,9 +44,9 @@ export const khachHangApi = {
     });
     return res.data;
   },
-  checkTenTaiKhoan: async (tenTaiKhoan) => {
-    const res = await axios.get(`${API_URL}/checkTaiKhoan`, {
-      params: { tenTaiKhoan },
+  checkEmailAndSDt: async (email, sdt) => {
+    const res = await axios.get(`${API_URL}/check`, {
+      params: { email, sdt },
       ...authHeader(),
     });
     return res.data;

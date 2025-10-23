@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 
-
 import "./index.css";
 import routers from "./routes/index.routes.jsx";
 import store from "./redux/store/index.js";
