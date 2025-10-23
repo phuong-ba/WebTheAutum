@@ -202,10 +202,43 @@ export default function Discount() {
     {
       title: "GIÁ TRỊ",
       key: "giaTriGiamGia",
-      render: (r) =>
-        r.loaiGiamGia
+      render: (r) => {
+        const mainValue = r.loaiGiamGia
           ? `${r.giaTriGiamGia.toLocaleString()} VNĐ`
-          : `${r.giaTriGiamGia}%`,
+          : `${r.giaTriGiamGia}%`;
+
+        const minOrder =
+          r.giaTriDonHangToiThieu || r.giaTriDonHangToiThieu === 0
+            ? r.giaTriDonHangToiThieu
+            : null;
+
+        const maxDiscount =
+          r.mucGiaGiamToiDa || r.mucGiaGiamToiDa === 0
+            ? r.mucGiaGiamToiDa
+            : null;
+
+        let subText = "";
+        if (minOrder) {
+          subText = `Đơn hàng tối thiểu: ${Number(
+            minOrder
+          ).toLocaleString()} VNĐ`;
+        } else if (maxDiscount) {
+          subText = `Mức giảm tối đa: ${Number(
+            maxDiscount
+          ).toLocaleString()} VNĐ`;
+        }
+
+        return (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontWeight: 600 }}>{mainValue}</div>
+            {subText && (
+              <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
+                {subText}
+              </div>
+            )}
+          </div>
+        );
+      },
       align: "center",
     },
     {
