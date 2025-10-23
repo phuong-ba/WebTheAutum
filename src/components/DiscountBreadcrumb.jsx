@@ -9,15 +9,20 @@ export default function DiscountBreadcrumb() {
   let items = [];
 
   if (path === "/discount") {
-    items = [{ title: "Quản lý phiếu giảm giá" }];
+    items = [
+      { title: <Link to="/#">Trang chủ</Link> },
+      { title: "Quản lý phiếu giảm giá" },
+    ];
   } else if (path === "/add-discount") {
     items = [
-      { title: <Link to="/add-discount">Quản lý phiếu giảm giá</Link> },
+      { title: <Link to="/#">Trang chủ</Link> },
+      { title: <Link to="/discount">Quản lý phiếu giảm giá</Link> },
       { title: "Thêm phiếu giảm giá" },
     ];
   } else if (path === "/update-discount") {
     items = [
-      { title: <Link to="/update-discount">Quản lý phiếu giảm giá</Link> },
+      { title: <Link to="/#">Trang chủ</Link> },
+      { title: <Link to="/discount">Quản lý phiếu giảm giá</Link> },
       { title: "Cập nhật phiếu giảm giá" },
     ];
   }
