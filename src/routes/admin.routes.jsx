@@ -19,6 +19,8 @@ import Customer from "@/pages/customer/Customer";
 import AddUser from "@/pages/user/AddUser";
 import UpdateUser from "@/pages/user/UpdateUser";
 import AddDiscount from "@/pages/discount/AddDiscount";
+import DetailHoaDon from "@/pages/bill/DetailHoaDon";
+import EditHoaDon from "@/pages/bill/EditHoaDon";
 
 const contentStyle = {
   padding: 50,
@@ -57,6 +59,22 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <Bill />
+          </LazyLoad>
+        ),
+      },
+       {
+        path: "DetailHoaDon/:id",  // ⭐ THÊM ROUTE MỚI
+        element: (
+          <LazyLoad>
+            <DetailHoaDon />
+          </LazyLoad>
+        ),
+      },
+       {
+        path: "bill/edit/:id",  // ⭐ ROUTE SỬA HÓA ĐƠN
+        element: (
+          <LazyLoad>
+            <EditHoaDon />
           </LazyLoad>
         ),
       },
