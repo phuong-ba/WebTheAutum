@@ -1,20 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { Space, Table, Tag, message, Modal } from "antd";
-import AddUser from "./AddUser";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchNhanVien,
   changeStatusNhanVien,
-  deleteNhanVien,
+  addNhanVien,
 } from "@/services/nhanVienService";
 import FliterUser from "./FliterUser";
 import { useNavigate } from "react-router";
-import {
-  LockKeyIcon,
-  LockOpenIcon,
-  PencilIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { LockKeyIcon, LockOpenIcon, PencilIcon } from "@phosphor-icons/react";
+import dayjs from "dayjs";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 export default function User() {
   const dispatch = useDispatch();
@@ -22,10 +19,12 @@ export default function User() {
   const navigate = useNavigate();
   const [modal, contextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     dispatch(fetchNhanVien());
   }, [dispatch]);
+
   const handleChangeStatus = (record) => {
     if (record.trangThai) {
       modal.confirm({
@@ -67,24 +66,6 @@ export default function User() {
     }
   };
 
-  const handleDelete = (record) => {
-    modal.confirm({
-      title: "Xác nhận xóa",
-      content: `Bạn có chắc muốn xóa nhân viên "${record.hoTen}" không?`,
-      okText: "Xóa",
-      cancelText: "Hủy",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await dispatch(deleteNhanVien(record.id));
-          messageApi.success("Xóa nhân viên thành công!");
-          dispatch(fetchNhanVien());
-        } catch (error) {
-          messageApi.error("Xóa nhân viên thất bại!");
-        }
-      },
-    });
-  };
   const columns = [
     {
       title: "STT",
@@ -162,62 +143,150 @@ export default function User() {
       ),
     },
   ];
+  console.log("🚀 ~ handleExportExcel ~ data:", data);
+  const handleExportExcel = () => {
+    if (!data || data.length === 0) {
+      messageApi.warning("Không có dữ liệu để xuất!");
+      return;
+    }
+
+    const exportData = data.map((item) => ({
+      MaNhanVien: item.maNhanVien || "",
+      HoTen: item.hoTen || "",
+      GioiTinh: item.gioiTinh ? "Nam" : "Nữ",
+      SoDienThoai: item.sdt || "",
+      DiaChi: item.diaChi || "",
+      ChucVu: item.chucVuName || "",
+      Email: item.email || "",
+      NgaySinh: item.ngaySinh ? dayjs(item.ngaySinh).format("DD/MM/YYYY") : "",
+      NgayTao: item.ngayTao
+        ? dayjs(item.ngayTao).format("DD/MM/YYYY HH:mm:ss")
+        : "",
+      NgaySua: item.ngaySua
+        ? dayjs(item.ngaySua).format("DD/MM/YYYY HH:mm:ss")
+        : "",
+      HinhAnh: item.hinhAnh || "",
+      TrangThai: item.trangThai ? "Đang hoạt động" : "Ngừng hoạt động",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "DanhSachNhanVien");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    saveAs(
+      blob,
+      `Danh_sach_nhan_vien_${dayjs().format("DDMMYYYY_HHmmss")}.xlsx`
+    );
+
+    messageApi.success("Xuất file Excel thành công!");
+  };
+
+  const handleImportExcel = async (file) => {
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      if (!rows.length) {
+        messageApi.warning("File Excel trống!");
+        return;
+      }
+
+      for (const row of rows) {
+        const payload = {
+          hoTen: row.HoTen?.trim() || "",
+          gioiTinh: row.GioiTinh?.toLowerCase() === "nam",
+          sdt: row.SoDienThoai?.trim() || "",
+          email: row.Email?.trim() || "",
+          diaChi: row.DiaChi?.trim() || "",
+          ngaySinh: row.NgaySinh
+            ? dayjs(row.NgaySinh, ["DD/MM/YYYY", "YYYY-MM-DD"]).toISOString()
+            : null,
+          chucVuId: Number(row.ChucVuId) || null,
+        };
+
+        await dispatch(addNhanVien(payload));
+      }
+
+      messageApi.success("Nhập nhân viên từ Excel thành công!");
+      dispatch(fetchNhanVien());
+      form.resetFields();
+    } catch (error) {
+      console.error(error);
+      // messageApi.error("Lỗi khi đọc file Excel!");
+    }
+  };
 
   return (
     <>
       {contextHolder}
       {messageContextHolder}
       <div className="bg-white flex flex-col gap-3 px-10 py-[20px]">
-        <h1 className="font-bold text-4xl text-[#E67E22]">
-          Quản lý nhân viên
-        </h1>
-        {/* <Breadcrumb
-          items={[
-            {
-              title: <Link to="/discount">Quản lý phiếu giảm giá</Link>,
-            },
-            {
-              title: "An Application",
-            },
-             {
-              title: "Quản lý phiếu giảm giá",
-            },
-          ]}
-        /> */}
+        <h1 className="font-bold text-4xl text-[#E67E22]">Quản lý nhân viên</h1>
       </div>
+
       <FliterUser />
+
       <div className="bg-white min-h-[500px] px-5 py-[32px]">
         <div className="flex justify-between items-center mb-5">
           <p className="text-[#E67E22] font-bold text-[18px] mb-4">
             Danh sách nhân viên
           </p>
+
           <div className="flex gap-3">
             <button
               onClick={() => navigate("/add-user")}
-              className="border border-[#E67E22] text-[#E67E22] rounded px-10  h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
+              className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
             >
               Thêm mới
             </button>
+
             <button
-              onClick={() => navigate("/add-product")}
-              className="border border-[#E67E22] text-[#E67E22] rounded px-10  h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
+              onClick={handleExportExcel}
+              className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
             >
-              Xuất dữ liệu
+              Xuất Excel
             </button>
+
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              hidden
+              ref={fileInputRef}
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) handleImportExcel(file);
+                e.target.value = "";
+              }}
+            />
+
             <button
-              onClick={() => navigate("/add-product")}
-              className="border border-[#E67E22] text-[#E67E22] rounded px-10  h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
+              type="button"
+              onClick={() =>
+                fileInputRef.current && fileInputRef.current.click()
+              }
+              className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
             >
-              In danh sách
+              Thêm Excel
             </button>
           </div>
         </div>
+
         <Table
           columns={columns}
           dataSource={data}
           rowKey="id"
           bordered
-          pagination={{ pageSize: 5 }}
+          pagination={{ pageSize: 10 }}
         />
       </div>
     </>
