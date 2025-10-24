@@ -1,37 +1,381 @@
 import React, { useEffect, useState } from "react";
-import { Space, Table, Tag, message, Modal, Image, Upload } from "antd";
-import { useSelector } from "react-redux";
-import { useNavigate } from "react-router";
-import { PlusOutlined } from "@ant-design/icons";
-export default function ProductDetail() {
-  const { data } = useSelector((state) => state.nhanvien);
-  const [editingUser, setEditingUser] = useState(null);
+import {
+  Space,
+  Table,
+  Tag,
+  message,
+  Modal,
+  Image,
+  Button,
+  Form,
+  InputNumber,
+  Popconfirm,
+  Input,
+  Upload,
+} from "antd";
+import CloudinaryUpload from "../CloudinaryUpload";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SaveOutlined,
+  CloseOutlined,
+  ExclamationCircleOutlined,
+  EyeOutlined,
+} from "@ant-design/icons";
+import baseUrl from "@/api/instance";
+import "./ProductDetail.css";
+
+export default function ProductDetail({
+  bienTheList = [],
+  loading = false,
+  onResetCallback,
+  onShowConfirmModal,
+}) {
+  const [variants, setVariants] = useState([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
-  const navigate = useNavigate();
+  const [editingKey, setEditingKey] = useState("");
+  const [form] = Form.useForm();
+
+  useEffect(() => {
+    if (!Array.isArray(bienTheList) || bienTheList.length === 0) {
+      setVariants([]);
+      setSelectedRowKeys([]);
+      return;
+    }
+
+    const transformedVariants = bienTheList.map((bienThe, index) => {
+      const tenSanPham =
+        bienThe.tenSanPham ||
+        bienThe.sanPham?.tenSanPham ||
+        bienThe.sanPhamTen ||
+        "Sản phẩm chưa đặt tên";
+
+      return {
+        key: bienThe.id || `bien-the-${index}-${Date.now()}`,
+        idChiTietSanPham: bienThe.id,
+        tenSanPham,
+        tenCoAo: bienThe.tenCoAo || bienThe.coAo?.tenCoAo || "N/A",
+        tenTayAo: bienThe.tenTayAo || bienThe.tayAo?.tenTayAo || "N/A",
+        tenTrongLuong:
+          bienThe.tenTrongLuong || bienThe.trongLuong?.tenTrongLuong || "N/A",
+        tenKichThuoc:
+          bienThe.tenKichThuoc || bienThe.kichThuoc?.tenKichThuoc || "N/A",
+        tenMauSac: bienThe.tenMauSac || bienThe.mauSac?.tenMauSac || "N/A",
+        donGia: bienThe.giaBan || bienThe.donGia || 0,
+        soLuong: bienThe.soLuongTon || bienThe.soLuong || 1,
+        moTa: bienThe.moTa || "",
+        idMauSac: bienThe.idMauSac || bienThe.mauSac?.id,
+        idKichThuoc: bienThe.idKichThuoc || bienThe.kichThuoc?.id,
+        idCoAo: bienThe.idCoAo || bienThe.coAo?.id,
+        idTayAo: bienThe.idTayAo || bienThe.tayAo?.id,
+        idTrongLuong: bienThe.idTrongLuong || bienThe.trongLuong?.id,
+        imageUrl: null, 
+        imageId: null,  
+      };
+    });
+
+    setVariants(transformedVariants);
+    setSelectedRowKeys(transformedVariants.map((v) => v.key));
+
+    transformedVariants.forEach(variant => {
+      if (variant.idChiTietSanPham) {
+        loadImageForVariant(variant.idChiTietSanPham);
+      }
+    });
+  }, [bienTheList]);
+
+  const loadImageForVariant = async (idChiTietSanPham) => {
+    try {
+      const response = await baseUrl.get(`/anh/bien-the/${idChiTietSanPham}`);
+      if (response.data.success && response.data.data?.length > 0) {
+        const image = response.data.data[0];
+        setVariants(prev => prev.map(v => 
+          v.idChiTietSanPham === idChiTietSanPham 
+            ? { ...v, imageUrl: image.duongDanAnh, imageId: image.id }
+            : v
+        ));
+      }
+    } catch (error) {
+      console.error('Lỗi load ảnh:', error);
+    }
+  };
+
+  const handleUploadImageForVariant = async (variantKey, uploadedImage) => {
+    const variant = variants.find(v => v.key === variantKey);
+    if (!variant?.idChiTietSanPham) {
+      message.error('Biến thể chưa được lưu, không thể upload ảnh');
+      return;
+    }
+
+    try {
+      const response = await baseUrl.post(
+        `/anh/${variant.idChiTietSanPham}/single`,
+        { imageUrl: uploadedImage.url }
+      );
+
+      if (response.data.success) {
+        const imgUrl = uploadedImage.url || response.data.data.imageUrl;
+        setVariants(prev => prev.map(v => 
+          v.key === variantKey 
+            ? { ...v, imageUrl: imgUrl, imageId: response.data.data.id }
+            : v
+        ));
+        message.success('Đã lưu ảnh cho biến thể');
+      }
+    } catch (error) {
+      message.error('Lỗi khi lưu ảnh');
+    }
+  };
+
+  const handleDeleteImage = async (variantKey) => {
+    const variant = variants.find(v => v.key === variantKey);
+    if (!variant?.imageId) return;
+
+    try {
+      await baseUrl.delete(`/anh/${variant.imageId}`);
+      setVariants(prev => prev.map(v => 
+        v.key === variantKey 
+          ? { ...v, imageUrl: null, imageId: null }
+          : v
+      ));
+      message.success('Đã xóa ảnh');
+    } catch (error) {
+      message.error('Lỗi khi xóa ảnh');
+    }
+  };
+
+  const apiCall = async (url, method = "GET", data = null) => {
+    try {
+      const config = { method };
+      if (data) config.data = data;
+
+      const response = await baseUrl(url, config);
+      return response.data?.success
+        ? { success: true, data: response.data }
+        : { success: false, error: response.data?.message };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || "Lỗi kết nối",
+      };
+    }
+  };
+
+  const capNhatSoLuong = (idChiTietSanPham, soLuong) =>
+    apiCall(`/chi-tiet-san-pham/${idChiTietSanPham}/so-luong`, "PATCH", {
+      soLuong,
+    });
+
+  const capNhatGia = (idChiTietSanPham, donGia) =>
+    apiCall(`/chi-tiet-san-pham/${idChiTietSanPham}/gia`, "PATCH", { donGia });
+
+  const xoaBienThe = (idChiTietSanPham) =>
+    apiCall(`/chi-tiet-san-pham/${idChiTietSanPham}`, "DELETE");
+
+  const handleEdit = (record) => {
+    form.setFieldsValue({
+      soLuong: record.soLuong,
+      donGia: record.donGia,
+      moTa: record.moTa,
+    });
+    setEditingKey(record.key);
+  };
+
+  const handleCancel = () => setEditingKey("");
+
+  const handleSave = async (key) => {
+    try {
+      const row = await form.validateFields();
+      const newData = [...variants];
+      const index = newData.findIndex((item) => key === item.key);
+
+      if (index > -1) {
+        const item = newData[index];
+        const updatedItem = { ...item, ...row };
+
+        newData.splice(index, 1, updatedItem);
+        setVariants(newData);
+        setEditingKey("");
+
+        if (updatedItem.idChiTietSanPham) {
+          if (row.soLuong !== undefined && row.soLuong !== item.soLuong) {
+            const result = await capNhatSoLuong(
+              updatedItem.idChiTietSanPham,
+              row.soLuong
+            );
+            if (!result.success) throw new Error(result.error);
+          }
+
+          if (row.donGia !== undefined && row.donGia !== item.donGia) {
+            const result = await capNhatGia(
+              updatedItem.idChiTietSanPham,
+              parseFloat(row.donGia)
+            );
+            if (!result.success) throw new Error(result.error);
+          }
+        }
+
+        message.success("Cập nhật biến thể thành công");
+      }
+    } catch (error) {
+      message.error(error.message || "Lỗi khi cập nhật biến thể");
+    }
+  };
+
+  const handleDelete = async (record) => {
+    try {
+      if (record.idChiTietSanPham) {
+        const result = await xoaBienThe(record.idChiTietSanPham);
+        if (!result.success) throw new Error(result.error);
+      }
+
+      const updatedVariants = variants.filter(
+        (variant) => variant.key !== record.key
+      );
+      setVariants(updatedVariants);
+      setSelectedRowKeys((prev) => prev.filter((key) => key !== record.key));
+      message.success("Xóa biến thể thành công");
+    } catch (error) {
+      message.error(error.message || "Lỗi khi xóa biến thể");
+    }
+  };
+
+  const handleDeleteMultiple = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning("Vui lòng chọn ít nhất một biến thể để xóa");
+      return;
+    }
+
+    Modal.confirm({
+      title: "Xác nhận xóa",
+      icon: <ExclamationCircleOutlined />,
+      content: `Bạn có chắc muốn xóa ${selectedRowKeys.length} biến thể đã chọn?`,
+      okText: "Xóa",
+      cancelText: "Hủy",
+      okType: "danger",
+      onOk: async () => {
+        try {
+          const deletePromises = selectedRowKeys.map(async (key) => {
+            const variant = variants.find((v) => v.key === key);
+            return variant?.idChiTietSanPham
+              ? await xoaBienThe(variant.idChiTietSanPham)
+              : { success: true };
+          });
+
+          await Promise.all(deletePromises);
+          const updatedVariants = variants.filter(
+            (variant) => !selectedRowKeys.includes(variant.key)
+          );
+
+          setVariants(updatedVariants);
+          setSelectedRowKeys([]);
+          message.success(
+            `Đã xóa ${selectedRowKeys.length} biến thể thành công`
+          );
+        } catch (error) {
+          message.error("Lỗi khi xóa biến thể");
+        }
+      },
+    });
+  };
+
+  const handleQuickUpdate = async (key, field, value, apiFunction) => {
+    try {
+      const variant = variants.find((v) => v.key === key);
+      if (!variant?.idChiTietSanPham) return;
+
+      const updatedVariants = variants.map((v) =>
+        v.key === key ? { ...v, [field]: value } : v
+      );
+      setVariants(updatedVariants);
+
+      const result = await apiFunction(variant.idChiTietSanPham, value);
+      if (!result.success) throw new Error(result.error);
+    } catch (error) {
+      message.error(error.message || `Lỗi khi cập nhật ${field}`);
+    }
+  };
+
+  const handleQuickQuantityChange = (key, value) =>
+    handleQuickUpdate(key, "soLuong", value, capNhatSoLuong);
+
+  const handleQuickPriceChange = (key, value) =>
+    handleQuickUpdate(key, "donGia", parseFloat(value), capNhatGia);
+
+const handleTaoSanPham = () => {
+  const variantsWithMissingPrice = variants.filter(
+    (v) => !v.donGia || v.donGia <= 0
+  );
+  if (variantsWithMissingPrice.length > 0) {
+    message.error(
+      `Có ${variantsWithMissingPrice.length} biến thể chưa có đơn giá`
+    );
+    return;
+  }
+
+  if (variants.length === 0) {
+    message.error("Không có biến thể nào để tạo sản phẩm");
+    return;
+  }
+
+  const totalQuantity = variants.reduce(
+    (total, v) => total + (v.soLuong || 0),
+    0
+  );
+  const totalValue = variants.reduce(
+    (total, v) => total + v.donGia * (v.soLuong || 0),
+    0
+  );
+
+  const handleConfirm = () => {
+    console.log("🎯 Bắt đầu tạo sản phẩm với các biến thể:", variants);
+    
+    message.success(`Đã tạo thành công ${variants.length} biến thể sản phẩm!`);
+    
+    handleReset();
+  };
+
+  onShowConfirmModal?.({
+    totalVariants: variants.length,
+    totalQuantity,
+    totalValue,
+    variantsWithStock: variants.filter((v) => v.soLuong > 0).length,
+    variantsData: variants,
+    isPreview: false,
+    onConfirm: handleConfirm 
+  });
+};
+
+  const handleReset = () => {
+    setVariants([]);
+    setSelectedRowKeys([]);
+    setEditingKey("");
+    onResetCallback?.();
+    message.info("Đã làm mới danh sách biến thể");
+  };
+
   const rowSelection = {
     selectedRowKeys,
-    onChange: (newSelectedRowKeys) => {
-      setSelectedRowKeys(newSelectedRowKeys);
-    },
-    type: "checkbox", // chọn nhiều
+    onChange: setSelectedRowKeys,
+    type: "checkbox",
   };
-  const getBase64 = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (error) => reject(error);
-    });
-  const [fileList, setFileList] = useState([
-    {
-      uid: "-1",
-      name: "image.png",
-      status: "done",
-      url: "https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png",
-    },
-  ]);
+
+  const isEditing = (record) => record.key === editingKey;
+
+  const renderEditableCell = (record, dataIndex, component, rules = []) => {
+    const editable = isEditing(record);
+    return editable ? (
+      <Form.Item name={dataIndex} style={{ margin: 0 }} rules={rules}>
+        {component}
+      </Form.Item>
+    ) : (
+      component
+    );
+  };
+
   const columns = [
     {
       title: "STT",
@@ -40,130 +384,284 @@ export default function ProductDetail() {
       width: 60,
       align: "center",
     },
-    { title: "TÊN SẢN PHẨM", dataIndex: "maNhanVien", key: "maNhanVien" },
-    { title: "HÃNG", dataIndex: "hoTen", key: "hoTen" },
     {
-      title: "XUẤT XỨ",
-      dataIndex: "gioiTinh",
-      key: "gioiTinh",
-      render: (value) => (value ? "Nam" : "Nữ"),
+      title: "ẢNH",
+      key: "image",
+      width: 120,
       align: "center",
+      render: (_, record) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+          {record.imageUrl ? (
+            <>
+              <Image
+                src={record.imageUrl}
+                width={200}
+                height={200}
+                style={{ objectFit: 'cover', borderRadius: 4, border: '1px solid #d9d9d9' }}
+                preview={{
+                  mask: <EyeOutlined />
+                }}
+              />
+              <Popconfirm
+                title="Xác nhận xóa ảnh"
+                description="Bạn có chắc muốn xóa ảnh này?"
+                onConfirm={() => handleDeleteImage(record.key)}
+                okText="Có"
+                cancelText="Không"
+              >
+                <Button danger size="small" type="text">
+                  Xóa ảnh
+                </Button>
+              </Popconfirm>
+            </>
+          ) : (
+            <CloudinaryUpload
+              onUploadSuccess={(img) => handleUploadImageForVariant(record.key, img)}
+              maxFiles={1}
+            />
+          )}
+        </div>
+      ),
     },
-    { title: "CHẤT LIỆU", dataIndex: "sdt", key: "sdt" },
-    { title: "KIỂU DÁNG", dataIndex: "diaChi", key: "diaChi" },
-    { title: "SỐ LƯỢNG", dataIndex: "chucVuName", key: "chucVuName" },
-    { title: "ĐƠN GIÁ", dataIndex: "email", key: "email" },
     {
-      title: "NGÀY BẮT ĐẦU",
-      dataIndex: "ngayTao",
-      key: "ngayTao",
-      render: (date) =>
-        new Date(date).toLocaleDateString("vi-VN", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
+      title: "TÊN SẢN PHẨM",
+      dataIndex: "tenSanPham",
+      key: "tenSanPham",
+      width: 200,
+    },
+    {
+      title: "MÀU SẮC",
+      dataIndex: "tenMauSac",
+      key: "tenMauSac",
       align: "center",
+      width: 100,
+      render: (text) => <Tag color="blue">{text}</Tag>,
     },
     {
-      title: "TRẠNG THÁI",
-      dataIndex: "trangThai",
-      key: "trangThai",
-      render: (value) =>
-        value ? (
-          <Tag color="#E9FBF4">
-            <div className="text-[#00A96C] ">Đang hoạt động</div>
-          </Tag>
-        ) : (
-          <Tag color="red">Ngừng hoạt động</Tag>
+      title: "KÍCH THƯỚC",
+      dataIndex: "tenKichThuoc",
+      key: "tenKichThuoc",
+      align: "center",
+      width: 100,
+    },
+    {
+      title: "CỔ ÁO",
+      dataIndex: "tenCoAo",
+      key: "tenCoAo",
+      align: "center",
+      width: 100,
+    },
+    {
+      title: "TAY ÁO",
+      dataIndex: "tenTayAo",
+      key: "tenTayAo",
+      align: "center",
+      width: 100,
+    },
+    {
+      title: "TRỌNG LƯỢNG",
+      dataIndex: "trongLuong",
+      key: "trongLuong",
+      align: "center",
+      width: 120,
+    },
+    {
+      title: "SỐ LƯỢNG",
+      dataIndex: "soLuong",
+      key: "soLuong",
+      align: "center",
+      width: 120,
+      render: (_, record) =>
+        renderEditableCell(
+          record,
+          "soLuong",
+          <InputNumber
+            min={1}
+            value={record.soLuong}
+            onChange={(value) => handleQuickQuantityChange(record.key, value)}
+            style={{ width: 80 }}
+          />,
+          [{ required: true, message: "Vui lòng nhập số lượng" }]
         ),
+    },
+    {
+      title: "ĐƠN GIÁ (VNĐ)",
+      dataIndex: "donGia",
+      key: "donGia",
       align: "center",
+      width: 150,
+      render: (_, record) =>
+        renderEditableCell(
+          record,
+          "donGia",
+          <InputNumber
+            min={0}
+            value={record.donGia}
+            onChange={(value) => handleQuickPriceChange(record.key, value)}
+            formatter={(value) =>
+              `₫ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+            }
+            parser={(value) => value.replace(/₫\s?|(,*)/g, "")}
+            style={{ width: 120 }}
+          />,
+          [{ required: true, message: "Vui lòng nhập đơn giá" }]
+        ),
+    },
+    {
+      title: "MÔ TẢ",
+      dataIndex: "moTa",
+      key: "moTa",
+      width: 150,
+      render: (_, record) =>
+        renderEditableCell(
+          record,
+          "moTa",
+          isEditing(record) ? (
+            <Input placeholder="Mô tả" />
+          ) : (
+            <span>{record.moTa || "Chưa có mô tả"}</span>
+          )
+        ),
     },
     {
       title: "HÀNH ĐỘNG",
       key: "action",
       align: "center",
-      render: (_, record) => (
-        <Space size="middle">
-          <a onClick={() => setEditingUser(record)}>Sửa</a>
-          <a onClick={() => handleDelete(record)}>Xóa</a>
-        </Space>
-      ),
+      width: 150,
+      render: (_, record) => {
+        const editable = isEditing(record);
+        return editable ? (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              onClick={() => handleSave(record.key)}
+              icon={<SaveOutlined />}
+            >
+              Lưu
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              onClick={handleCancel}
+              icon={<CloseOutlined />}
+            >
+              Hủy
+            </Button>
+          </Space>
+        ) : (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              onClick={() => handleEdit(record)}
+              icon={<EditOutlined />}
+              disabled={editingKey !== ""}
+            >
+              Sửa
+            </Button>
+            <Popconfirm
+              title="Xác nhận xóa"
+              description="Bạn có chắc muốn xóa biến thể này?"
+              onConfirm={() => handleDelete(record)}
+              okText="Có"
+              cancelText="Không"
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                Xóa
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ];
-  const handlePreview = async (file) => {
-    if (!file.url && !file.preview) {
-      file.preview = await getBase64(file.originFileObj);
-    }
-    setPreviewImage(file.url || file.preview);
-    setPreviewOpen(true);
-  };
-  const handleChange = ({ fileList: newFileList }) => setFileList(newFileList);
-  const uploadButton = (
-    <button style={{ border: 0, background: "none" }} type="button">
-      <PlusOutlined />
-      <div style={{ marginTop: 8 }}>Upload</div>
-    </button>
-  );
+
   return (
-    <>
-      <div className="bg-white min-h-[500px] px-5 py-[32px]">
-        <div className="flex justify-between items-center mb-5">
-          <p className="text-[#E67E22] font-bold text-[18px] mb-4">
-            Chi tiết biến thể
-          </p>
-        </div>
+    <div className="bg-white min-h-[500px] px-5 py-[32px]">
+      <div className="flex justify-between items-center mb-5">
+        <p className="text-[#E67E22] font-bold text-[18px] mb-4">
+          Chi tiết biến thể ({variants.length} biến thể)
+        </p>
+        {selectedRowKeys.length > 0 && (
+          <Popconfirm
+            title="Xác nhận xóa"
+            description={`Bạn có chắc muốn xóa ${selectedRowKeys.length} biến thể đã chọn?`}
+            onConfirm={handleDeleteMultiple}
+            okText="Có"
+            cancelText="Không"
+          >
+            <Button
+              type="primary"
+              danger
+              icon={<DeleteOutlined />}
+              size="small"
+            >
+              Xóa đã chọn ({selectedRowKeys.length})
+            </Button>
+          </Popconfirm>
+        )}
+      </div>
+
+      <Form form={form} component={false}>
         <Table
+          components={{
+            body: {
+              cell: (props) => (
+                <td {...props} className="ant-table-cell">
+                  {props.children}
+                </td>
+              ),
+            },
+          }}
           rowSelection={rowSelection}
           columns={columns}
-          dataSource={data}
-          rowKey="id"
+          dataSource={variants}
+          rowKey="key"
           bordered
-          pagination={{ pageSize: 5 }}
+          pagination={{
+            pageSize: 5,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} của ${total} biến thể`,
+          }}
+          scroll={{ x: 1800 }}
+          locale={{
+            emptyText:
+              "Chưa có biến thể nào. Hãy tạo biến thể để hiển thị ở đây.",
+          }}
         />
-        <div className="product-detail">
-          <div className="border-b border-b-amber-400 my-5 pb-2">
-            <p className="font-bold text-md text-[#E67E22]">
-              Thông tin sản phẩm
-            </p>
-          </div>
+      </Form>
 
-          <Upload
-            width={"240px"}
-            action="https://660d2bd96ddfa2943b33731c.mockapi.io/api/upload"
-            listType="picture-card"
-            fileList={fileList}
-            onPreview={handlePreview}
-            onChange={handleChange}
+      <div className="flex flex-col items-end pr-3 gap-4 mt-6">
+        <div className="flex gap-4">
+          <button
+            onClick={handleReset}
+            className="border border-[#E67E22] text-[#E67E22] rounded px-6 h-8 cursor-pointer hover:bg-[#E67E22] hover:text-white transition-colors"
           >
-            {fileList.length >= 8 ? null : uploadButton}
-          </Upload>
-          {previewImage && (
-            <Image
-              wrapperStyle={{ display: "none" }}
-              preview={{
-                visible: previewOpen,
-                onVisibleChange: (visible) => setPreviewOpen(visible),
-                afterOpenChange: (visible) => !visible && setPreviewImage(""),
-              }}
-              src={previewImage}
-            />
-          )}
-        </div>
-        <div className="flex flex-col items-end  pr-3 gap-4">
-          <div className="flex gap-4">
-            <button className="border border-[#E67E22] font-[Roboto] text-[#E67E22] rounded px-6 h-8 cursor-pointer active:bg-[#E67E22] active:text-white">
-              Nhập lại
-            </button>
-            <button
-              className=" bg-[#E67E22]  font-[Roboto] text-white rounded px-6  cursor-pointer h-8 active:bg-[#0821ad] active:text-white"
-              type="submit"
-            >
-              Tạo biến thể
-            </button>
-          </div>
+            Nhập lại
+          </button>
+          <button
+            onClick={handleTaoSanPham}
+            disabled={variants.length === 0 || loading}
+            className="bg-[#E67E22] text-white rounded px-6 h-8 cursor-pointer hover:bg-[#d4721f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading
+              ? "⏳ Đang tạo..."
+              : `Tạo sản phẩm (${variants.length})`}
+          </button>
         </div>
       </div>
-    </>
+
+      <Modal
+        open={previewOpen}
+        footer={null}
+        onCancel={() => setPreviewOpen(false)}
+      >
+        <img alt="preview" style={{ width: '100%' }} src={previewImage} />
+      </Modal>
+    </div>
   );
 }
