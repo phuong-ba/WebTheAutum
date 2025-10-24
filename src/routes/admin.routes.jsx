@@ -17,8 +17,13 @@ import Customer from "@/pages/customer/Customer";
 import AddUser from "@/pages/user/AddUser";
 import UpdateUser from "@/pages/user/UpdateUser";
 import AddDiscount from "@/pages/discount/AddDiscount";
+
 import CreatePromo from "@/pages/promo/CreatePromo";
 import ListDotGiamGiaPage from "@/pages/promo/ListDotGiamGiaPage";
+import ProductDetailPage from "@/pages/product/ProductDetailPage";
+import MultiProductDetailPage from "@/pages/product/MultiProductDetailPage";
+import DetailHoaDon from "@/pages/bill/DetailHoaDon";
+import EditHoaDon from "@/pages/bill/EditHoaDon";
 
 const contentStyle = {
   padding: 50,
@@ -57,6 +62,22 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <Bill />
+          </LazyLoad>
+        ),
+      },
+       {
+        path: "DetailHoaDon/:id",  // ⭐ THÊM ROUTE MỚI
+        element: (
+          <LazyLoad>
+            <DetailHoaDon />
+          </LazyLoad>
+        ),
+      },
+       {
+        path: "bill/edit/:id",  // ⭐ ROUTE SỬA HÓA ĐƠN
+        element: (
+          <LazyLoad>
+            <EditHoaDon />
           </LazyLoad>
         ),
       },
@@ -145,6 +166,22 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <AddProduct />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "detail-product/:id",
+        element: (
+          <LazyLoad>
+            <ProductDetailPage />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "detail-products/:ids",
+        element: (
+          <LazyLoad>
+            <MultiProductDetailPage />
           </LazyLoad>
         ),
       },
