@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import hoaDonApi from '../../api/HoaDonAPI';
-
 import nhanVienApi from '../../api/NhanVienAPI';
 import chiTietSanPhamApi from '../../api/ChiTietSanPhamAPI';
 import { toast } from 'react-toastify';
+import { Table, Tag, Space, message, Modal, Button } from "antd";
 
 // ==================== UTILITY FUNCTIONS ====================
 const formatMoney = (value) => {
@@ -30,15 +30,20 @@ const getStatusInfo = (status) => {
       };
     case 1:
       return {
-        label: '💳 Chờ thanh toán',
+        label: '💳 Chờ giao hàng',
         color: 'bg-blue-100 text-blue-700 ring-blue-600/20'
       };
     case 2:
       return {
-        label: '✅ Đã thanh toán',
+        label: '🚚 Đang vận chuyển',
         color: 'bg-green-100 text-green-700 ring-green-600/20'
       };
     case 3:
+      return {
+        label: '✅ Đã thanh toán',
+        color: 'bg-red-100 text-red-700 ring-red-600/20'
+      };
+    case 4:
       return {
         label: '❌ Đã hủy',
         color: 'bg-red-100 text-red-700 ring-red-600/20'
@@ -60,9 +65,10 @@ const StatusDropdown = ({ currentStatus, onStatusChange, onClose }) => {
 
   const statusOptions = [
     { value: 0, label: '⏳ Chờ xác nhận', color: 'hover:bg-yellow-50' },
-    { value: 1, label: '💳 Chờ thanh toán', color: 'hover:bg-blue-50' },
-    { value: 2, label: '✅ Đã thanh toán', color: 'hover:bg-green-50' },
-    { value: 3, label: '❌ Đã hủy', color: 'hover:bg-red-50' }
+    { value: 1, label: '💳 Chờ giao hàng', color: 'hover:bg-blue-50' },
+    { value: 2, label: '🚚 Đang vận chuyển', color: 'hover:bg-blue-50' },
+    { value: 3, label: '✅ Đã thanh toán', color: 'hover:bg-green-50' },
+    { value: 4, label: '❌ Đã hủy', color: 'hover:bg-red-50' }
   ];
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -108,7 +114,7 @@ const InvoiceFilter = ({ onSearch, onReset, onFilterChange }) => {
   const [filterParams, setFilterParams] = useState({
     trangThai: '',
     ngayTao: '',
-      priceRange: ''
+    priceRange: ''
   });
 
   const handleSearch = () => {
@@ -117,7 +123,7 @@ const InvoiceFilter = ({ onSearch, onReset, onFilterChange }) => {
 
   const handleReset = () => {
     setSearchParams({ maHoaDon: '', tenKhachHang: '', tenNhanVien: '' });
-    setFilterParams({  trangThai: '', ngayTao: '',  priceRange: '' });
+    setFilterParams({ trangThai: '', ngayTao: '', priceRange: '' });
     onReset();
   };
 
@@ -127,9 +133,9 @@ const InvoiceFilter = ({ onSearch, onReset, onFilterChange }) => {
   };
 
   return (
-    <div className="relative w-full bg-white rounded-xl p-4 mb-4 shadow-lg border border-gray-100">
-      <div className="relative z-10 flex items-center gap-3 mb-5 pb-4 border-b-2 border-gray-100">
-        <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 text-xl shadow-md">
+    <div className="relative w-full bg-orange-50 rounded-xl p-4 mb-4 shadow-lg border border-orange-100">
+      <div className="relative z-10 flex items-center gap-3 mb-5 pb-4 border-b border-orange-200">
+        <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-orange-100 text-xl shadow-md">
           🔍
         </div>
         <div>
@@ -144,27 +150,30 @@ const InvoiceFilter = ({ onSearch, onReset, onFilterChange }) => {
             onChange={(e) => setSearchParams({ ...searchParams, maHoaDon: e.target.value })}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Nhập mã hóa đơn..."
-            className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm font-medium transition-all hover:border-orange-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 focus:outline-none"
+            className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm font-medium transition-all hover:border-orange-300 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 focus:outline-none"
           />
           <input
             value={searchParams.tenKhachHang}
             onChange={(e) => setSearchParams({ ...searchParams, tenKhachHang: e.target.value })}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Nhập tên khách hàng..."
-            className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm font-medium transition-all hover:border-orange-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 focus:outline-none"
+            className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm font-medium transition-all hover:border-orange-300 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 focus:outline-none"
           />
           <input
             value={searchParams.tenNhanVien}
             onChange={(e) => setSearchParams({ ...searchParams, tenNhanVien: e.target.value })}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Nhập tên nhân viên..."
-            className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm font-medium transition-all hover:border-orange-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 focus:outline-none"
+            className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm font-medium transition-all hover:border-orange-300 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 focus:outline-none"
+
           />
           {/* ⭐ THAY loaiHoaDon thành priceRange */}
           <select
             value={filterParams.priceRange}
             onChange={(e) => handleLocalFilterChange('priceRange', e.target.value)}
-            className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm font-medium transition-all hover:border-orange-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 focus:outline-none"
+            className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm font-medium transition-all hover:border-orange-300 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 focus:outline-none"
+
+
           >
             <option value="">Lọc theo tổng tiền</option>
             <option value="under100">💰 Dưới 100K</option>
@@ -179,7 +188,7 @@ const InvoiceFilter = ({ onSearch, onReset, onFilterChange }) => {
             type="date"
             value={filterParams.ngayTao}
             onChange={(e) => handleLocalFilterChange('ngayTao', e.target.value)}
-            className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm font-medium transition-all hover:border-orange-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 focus:outline-none"
+            className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm font-medium transition-all hover:border-orange-300 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 focus:outline-none"
           />
           {/* <select
             value={filterParams.hinhThucThanhToan}
@@ -196,25 +205,26 @@ const InvoiceFilter = ({ onSearch, onReset, onFilterChange }) => {
           <select
             value={filterParams.trangThai}
             onChange={(e) => handleLocalFilterChange('trangThai', e.target.value)}
-            className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm font-medium transition-all hover:border-orange-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 focus:outline-none"
+            className="w-full px-3 py-2 border border-orange-200 rounded-lg text-sm font-medium transition-all hover:border-orange-300 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 focus:outline-none"
           >
             <option value="">Tất cả trạng thái</option>
             <option value="0">⏳ Chờ xác nhận</option>
-            <option value="1">💳 Chờ thanh toán</option>
-            <option value="2">✅ Đã thanh toán</option>
-            <option value="3">❌ Đã hủy</option>
+            <option value="1">💳 Chờ giao hàng</option>
+            <option value="2">🚚 Đang vận chuyển</option>
+            <option value="3">✅ Đã thanh toán</option>
+            <option value="4">❌ Đã hủy</option>
           </select>
           <div className="flex gap-2">
             <button
               onClick={handleReset}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 bg-orange-100 text-orange-700 rounded-lg font-semibold text-sm hover:bg-orange-200 transition-all"
             >
               <span>↻</span>
               <span>Nhập lại</span>
             </button>
             <button
               onClick={handleSearch}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-sm shadow-md hover:shadow-lg transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-lg font-semibold text-sm hover:bg-orange-600 transition-all"
             >
               <span>🔍</span>
               <span>Tìm kiếm</span>
@@ -264,7 +274,7 @@ const InvoiceTable = ({ invoices, selectedInvoices, isAllSelected, onToggleSelec
   return (
     <div className="w-full overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
       <table className="w-full min-w-[750px] bg-white">
-        <thead className="bg-gray-50 border-b-2 border-gray-200">
+        <thead className="bg-orange-50 border-b border-orange-200">
           <tr>
             <th className="px-2 py-3 text-left">
               <input
@@ -279,9 +289,10 @@ const InvoiceTable = ({ invoices, selectedInvoices, isAllSelected, onToggleSelec
             <th className="px-2 py-3 text-left text-xs font-bold text-gray-700 uppercase">Tên khách hàng</th>
             <th className="px-2 py-3 text-left text-xs font-bold text-gray-700 uppercase">Nhân viên</th>
             <th className="px-2 py-3 text-left text-xs font-bold text-gray-700 uppercase">Trạng thái</th>
+            <th className="px-2 py-3 text-left text-xs font-bold text-gray-700 uppercase">Dịch vụ</th>
+            <th className="px-2 py-3 text-left text-xs font-bold text-gray-700 uppercase">Hình thức TT</th>
             <th className="px-2 py-3 text-left text-xs font-bold text-gray-700 uppercase">Ngày tạo</th>
             <th className="px-2 py-3 text-left text-xs font-bold text-gray-700 uppercase">Tổng tiền</th>
-            {/* <th className="px-2 py-3 text-left text-xs font-bold text-gray-700 uppercase">Hình thức TT</th> */}
             <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase">Hành động</th>
           </tr>
         </thead>
@@ -318,14 +329,20 @@ const InvoiceTable = ({ invoices, selectedInvoices, isAllSelected, onToggleSelec
                     />
                   )}
                 </td>
+                <td className="px-2 py-2 text-sm text-gray-700">
+                  {invoice.loaiHoaDon ? 'Tại quầy' : 'Online'}
+                </td>
+                <td className="px-2 py-2 text-sm text-gray-700">
+                  {invoice.hinhThucThanhToan || '—'}
+                </td>
                 <td className="px-2 py-2 text-sm text-gray-600">{formatDate(invoice.ngayTao)}</td>
                 <td className="px-2 py-2 text-sm font-semibold text-orange-600">{formatMoney(invoice.tongTien)}</td>
-                {/* <td className="px-2 py-2 text-sm text-gray-700">{invoice.hinhThucThanhToan || '—'}</td> */}
+
                 <td className="px-2 py-2">
                   <div className="flex items-center justify-center gap-1.5">
                     <button
                       onClick={() => onViewDetail(invoice.id)}
-                      className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                      className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
                       title="Xem chi tiết"
                     >
                       👁️
@@ -367,8 +384,8 @@ const InvoicePagination = ({ currentPage, totalPages, totalItems, onPageChange }
           key={i + 1}
           onClick={() => onPageChange(i + 1)}
           className={`px-3 py-2 rounded-lg text-sm transition-all ${currentPage === i + 1
-              ? 'bg-blue-500 text-white font-semibold'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            ? 'bg-blue-500 text-white font-semibold'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
         >
           {i + 1}
@@ -450,6 +467,7 @@ export default function InvoiceManager() {
       setError(null);
       setCurrentPage(1);
       const response = await hoaDonApi.searchAndFilter({ ...newFilters, page: 0, size: 5 });
+      console.log('Response từ API:', response.data.content);
       setInvoices(response.data.content || []);
       setTotalPages(response.data.totalPages || 0);
       setTotalItems(response.data.totalElements || 0);
@@ -499,7 +517,7 @@ export default function InvoiceManager() {
         window.URL.revokeObjectURL(url);
       }, 100);
 
-     toast.success('✅ Xuất Excel thành công!');
+      toast.success('✅ Xuất Excel thành công!');
     } catch (err) {
       console.error('❌ Chi tiết lỗi:', err);
       console.error('❌ Response:', err.response);
@@ -527,7 +545,7 @@ export default function InvoiceManager() {
   const handlePrint = async () => {
     try {
       if (!invoices || invoices.length === 0) {
-       toast.warn('⚠️ Không có hóa đơn để in!');
+        toast.warn('⚠️ Không có hóa đơn để in!');
         return;
       }
       setLoading(true);
@@ -539,7 +557,7 @@ export default function InvoiceManager() {
       setTimeout(() => window.URL.revokeObjectURL(url), 100);
     } catch (err) {
       console.error('❌ Lỗi in:', err);
-     toast.error(`❌ Không thể in: ${err.message}`);
+      toast.error(`❌ Không thể in: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -588,7 +606,7 @@ export default function InvoiceManager() {
     try {
       await hoaDonApi.updateStatus(invoiceId, newStatus);
 
-      const statusNames = ['Chờ xác nhận', 'Chờ thanh toán', 'Đã thanh toán', 'Đã hủy'];
+      const statusNames = ['Chờ xác nhận', 'Chờ giao hàng', 'Đang vận chuyển', 'Đã thanh toán', 'Đã hủy'];
       console.log(`✅ Đã lưu vào database: ${statusNames[newStatus]}`);
       toast.success(`✅ Cập nhật trạng thái thành công!`);
 
@@ -623,7 +641,7 @@ export default function InvoiceManager() {
       <div className="flex gap-2 mb-4 flex-wrap">
         <button
           onClick={handleExport}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0"
+          className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-lg font-semibold text-sm hover:bg-orange-600 transition-all"
         >
           <span className="text-base">📥</span>
           Xuất dữ liệu
@@ -631,7 +649,7 @@ export default function InvoiceManager() {
 
         <button
           onClick={handlePrint}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0"
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-500 text-white rounded-lg font-semibold text-sm hover:bg-blue-600 transition-all"
         >
           <span className="text-base">🖨️</span>
           In danh sách

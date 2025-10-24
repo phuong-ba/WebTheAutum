@@ -6,44 +6,44 @@ import hoaDonApi from '../../api/HoaDonAPI';
 const DetailHoaDon = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-   const location = useLocation(); 
+  const location = useLocation();
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [canEdit, setCanEdit] = useState(false);
 
- 
+
   useEffect(() => {
-  fetchInvoiceDetail();
-  checkCanEdit(); // ⭐ Thêm dòng này
-}, [id]);
-
-
- useEffect(() => {
-  if (location.state?.refreshData) {
-    console.log('🔄 Refreshing data...');
     fetchInvoiceDetail();
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-}, [location.state?.refreshData]);
+    checkCanEdit(); // ⭐ Thêm dòng này
+  }, [id]);
+
+
+  useEffect(() => {
+    if (location.state?.refreshData) {
+      console.log('🔄 Refreshing data...');
+      fetchInvoiceDetail();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [location.state?.refreshData]);
 
 
   const fetchInvoiceDetail = async () => {
     try {
       setLoading(true);
       console.log('🔍 Đang gọi API với ID:', id);
-      
+
       const response = await hoaDonApi.getDetail(id);
-       console.log('📦 Full invoice:', response.data);
-    
+      console.log('📦 Full invoice:', response.data);
+
       const invoiceData = response.data?.data || response.data;
-      
+
       console.log('✅ Invoice data sau khi parse:', invoiceData);
-      
+
       if (!invoiceData || !invoiceData.id) {
         throw new Error('Dữ liệu hóa đơn không hợp lệ');
       }
-      
+
       setInvoice(invoiceData);
       setError(null);
     } catch (err) {
@@ -58,14 +58,14 @@ const DetailHoaDon = () => {
 
 
   const checkCanEdit = async () => {
-  try {
-    const res = await hoaDonApi.canEdit(id);
-    setCanEdit(res.data?.canEdit || false);
-  } catch (error) {
-    console.error('Error checking edit permission:', error);
-    setCanEdit(false);
-  }
-};
+    try {
+      const res = await hoaDonApi.canEdit(id);
+      setCanEdit(res.data?.canEdit || false);
+    } catch (error) {
+      console.error('Error checking edit permission:', error);
+      setCanEdit(false);
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -75,9 +75,9 @@ const DetailHoaDon = () => {
     navigate(`/bill/edit/${id}`);
   };
 
-useEffect(() => {
-  fetchInvoiceDetail();
-}, [id]);
+  useEffect(() => {
+    fetchInvoiceDetail();
+  }, [id]);
 
 
   const formatMoney = (amount) => {
@@ -100,7 +100,7 @@ useEffect(() => {
   };
 
 
-const getStatusInfo = (status) => {
+  const getStatusInfo = (status) => {
   switch (status) {
     case 0:
       return {
@@ -109,15 +109,20 @@ const getStatusInfo = (status) => {
       };
     case 1:
       return {
-        label: '💳 Chờ thanh toán',
+        label: '💳 Chờ giao hàng',
         color: 'bg-blue-100 text-blue-700 ring-blue-600/20'
       };
     case 2:
       return {
-        label: '✅ Đã thanh toán',
-        color: 'bg-green-100 text-green-700 ring-green-600/20'
+        label: '🚚 Đang vận chuyển',
+        color: 'bg-orgin-100 text-green-700 ring-green-600/20'
       };
     case 3:
+      return {
+        label: '✅ Đã thanh toán',
+        color: 'bg-green-100 text-red-700 ring-red-600/20'
+      };
+      case 4:
       return {
         label: '❌ Đã hủy',
         color: 'bg-red-100 text-red-700 ring-red-600/20'
@@ -131,38 +136,37 @@ const getStatusInfo = (status) => {
 };
 
 
-
-const getLoaiHoaDonInfo = (loaiHoaDon) => {
-  if (loaiHoaDon === null || loaiHoaDon === undefined) {
-    return {
-      label: '—',
-      color: 'bg-gray-100 text-gray-700 ring-gray-600/20'
-    };
-  }
-  if (typeof loaiHoaDon === 'boolean' || typeof loaiHoaDon === 'number') {
-    const isOnline = Boolean(loaiHoaDon);
-    return isOnline
-      ? { label: '💻 Online', color: 'bg-purple-100 text-purple-700 ring-purple-600/20' }
-      : { label: '🏪 Tại quầy', color: 'bg-green-100 text-green-700 ring-green-600/20' };
-  }
-  switch (loaiHoaDon) {
-    case 'Hóa đơn online':
-    case 'Online':
-      return { label: '💻 Online', color: 'bg-purple-100 text-purple-700 ring-purple-600/20' };
-    case 'Hóa đơn tại cửa hàng':
-    case 'Tại quầy':
-      return { label: '🏪 Tại quầy', color: 'bg-green-100 text-green-700 ring-green-600/20' };
-    case 'Hóa đơn bán lẻ':
-      return { label: '🛒 Bán lẻ', color: 'bg-blue-100 text-blue-700 ring-blue-600/20' };
-    case 'Hóa đơn bán sỉ':
-      return { label: '📦 Bán sỉ', color: 'bg-orange-100 text-orange-700 ring-orange-600/20' };
-    default:
+  const getLoaiHoaDonInfo = (loaiHoaDon) => {
+    if (loaiHoaDon === null || loaiHoaDon === undefined) {
       return {
-        label: String(loaiHoaDon),
+        label: '—',
         color: 'bg-gray-100 text-gray-700 ring-gray-600/20'
       };
-  }
-};
+    }
+    if (typeof loaiHoaDon === 'boolean' || typeof loaiHoaDon === 'number') {
+      const isOnline = Boolean(loaiHoaDon);
+      return isOnline
+        ? { label: '💻 Online', color: 'bg-purple-100 text-purple-700 ring-purple-600/20' }
+        : { label: '🏪 Tại quầy', color: 'bg-green-100 text-green-700 ring-green-600/20' };
+    }
+    switch (loaiHoaDon) {
+      case 'Hóa đơn online':
+      case 'Online':
+        return { label: '💻 Online', color: 'bg-purple-100 text-purple-700 ring-purple-600/20' };
+      case 'Hóa đơn tại cửa hàng':
+      case 'Tại quầy':
+        return { label: '🏪 Tại quầy', color: 'bg-green-100 text-green-700 ring-green-600/20' };
+      case 'Hóa đơn bán lẻ':
+        return { label: '🛒 Bán lẻ', color: 'bg-blue-100 text-blue-700 ring-blue-600/20' };
+      case 'Hóa đơn bán sỉ':
+        return { label: '📦 Bán sỉ', color: 'bg-orange-100 text-orange-700 ring-orange-600/20' };
+      default:
+        return {
+          label: String(loaiHoaDon),
+          color: 'bg-gray-100 text-gray-700 ring-gray-600/20'
+        };
+    }
+  };
 
 
 
@@ -209,22 +213,22 @@ const getLoaiHoaDonInfo = (loaiHoaDon) => {
               <p className="text-sm text-gray-500">Mã đơn hàng: {invoice.maHoaDon}</p>
             </div>
             <div className="flex gap-3">
-     {canEdit && (
-  <button
-    onClick={handleEdit}
-    className="px-4 py-2 bg-blue-500 text-white rounded-lg flex items-center gap-2 hover:bg-blue-600 transition-all font-medium"
-  >
-    <span>✏️</span>
-    Chỉnh sửa
-  </button>
-)}
+              {canEdit && (
+                <button
+                  onClick={handleEdit}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg flex items-center gap-2 hover:bg-blue-600 transition-all font-medium"
+                >
+                  <span>✏️</span>
+                  Chỉnh sửa
+                </button>
+              )}
 
-{!canEdit && (
-  <div className="px-4 py-2 bg-gray-300 text-gray-600 rounded-lg flex items-center gap-2 cursor-not-allowed">
-    <span>🔒</span>
-    Không thể sửa
-  </div>
-)}
+              {!canEdit && (
+                <div className="px-4 py-2 bg-gray-300 text-gray-600 rounded-lg flex items-center gap-2 cursor-not-allowed">
+                  <span>🔒</span>
+                  Không thể sửa
+                </div>
+              )}
               <button
                 onClick={handlePrint}
                 className="px-4 py-2 bg-purple-500 text-white rounded-lg flex items-center gap-2 hover:bg-purple-600 transition-all font-medium"
@@ -233,7 +237,7 @@ const getLoaiHoaDonInfo = (loaiHoaDon) => {
                 In đơn hàng
               </button>
               <button
-                onClick={() => {/* Thêm logic gửi email nếu cần */}}
+                onClick={() => {/* Thêm logic gửi email nếu cần */ }}
                 className="px-4 py-2 bg-orange-500 text-white rounded-lg flex items-center gap-2 hover:bg-orange-600 transition-all font-medium"
               >
                 <span>📧</span>
@@ -248,22 +252,22 @@ const getLoaiHoaDonInfo = (loaiHoaDon) => {
           {/* Trạng thái và Tóm tắt */}
           <div className="grid grid-cols-2 gap-6 mb-6">
             {/* Trạng thái đơn hàng */}
-     <div className="bg-gray-50 p-4 rounded-lg">
-     <h3 className="font-semibold mb-3 text-gray-700">Trạng thái đơn hàng</h3>
-     <div className="space-y-2 text-sm">
-      <div className="flex justify-between items-center">
-       <span className="text-gray-600">Trạng thái:</span>
-       {(() => {
-         const statusInfo = getStatusInfo(invoice.trangThai);
-         return (
-           <span className={`px-3 py-1 rounded-full text-xs font-semibold ring-1 ${statusInfo.color}`}>
-            {statusInfo.label}
-          </span>
-        );
-      })()}
-    </div>
-  </div>
-</div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-semibold mb-3 text-gray-700">Trạng thái đơn hàng</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Trạng thái:</span>
+                  {(() => {
+                    const statusInfo = getStatusInfo(invoice.trangThai);
+                    return (
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ring-1 ${statusInfo.color}`}>
+                        {statusInfo.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
 
             {/* Tóm tắt đơn hàng */}
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -326,25 +330,43 @@ const getLoaiHoaDonInfo = (loaiHoaDon) => {
 
             {/* Thông tin vận chuyển và thanh toán */}
             <div>
-              <div className="space-y-2 text-sm">      
+              <div className="space-y-2 text-sm">
                 <div>
                   <span className="text-gray-600">Nhân viên phục vụ:</span>
                   <p className="font-medium text-gray-800">{invoice.tenNhanVien || 'N/A'}</p>
                 </div>
-                
+
                 <div className="pt-3 border-t border-gray-200">
                   <h4 className="font-semibold mb-2 text-gray-700">Thông tin thanh toán</h4>
                   <div className="space-y-1">
                     <div>
+                      <div>
+                        <span className="text-gray-600">Dịch vụ:</span>
+                        <p className="font-medium text-gray-800">
+                          {invoice.loaiHoaDonText
+                            ? invoice.loaiHoaDonText
+                            : invoice.loaiHoaDon === false
+                              ? 'Tại quầy'
+                              : invoice.loaiHoaDon === true
+                                ? 'Online'
+                                : '—'}
+                        </p>
+                      </div>
                       <span className="text-gray-600">Phương thức thanh toán:</span>
-                      <p className="font-medium text-gray-800">{invoice.hinhThucThanhToan || 'N/A'}</p>
+                      <p className="font-medium text-gray-800">
+                        {invoice.hinhThucThanhToan === '0'
+                          ? 'Tiền mặt'
+                          : invoice.hinhThucThanhToan === '1'
+                            ? 'Chuyển khoản'
+                            : 'N/A'}
+                      </p>
                     </div>
                     {invoice.tongTienSauGiam && (
                       <div>
                         <span className="text-gray-600">Số tiền thanh toán:</span>
                         <p className="font-medium text-gray-800">{formatMoney(invoice.tongTienSauGiam)}</p>
                       </div>
-                    )}                                    
+                    )}
                   </div>
                 </div>
               </div>
