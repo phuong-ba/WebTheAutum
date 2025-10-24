@@ -11,14 +11,14 @@ import Category from "@/pages/category/Category";
 import Collection from "@/pages/collection/Collection";
 import Warehouse from "@/pages/warehouse/Warehouse";
 import Discount from "@/pages/discount/Discount";
-import Promo from "@/pages/promo/Promo";
-
 import User from "@/pages/user/User";
 import AddProduct from "@/pages/product/AddProduct";
 import Customer from "@/pages/customer/Customer";
 import AddUser from "@/pages/user/AddUser";
 import UpdateUser from "@/pages/user/UpdateUser";
 import AddDiscount from "@/pages/discount/AddDiscount";
+import CreatePromo from "@/pages/promo/CreatePromo";
+import ListDotGiamGiaPage from "@/pages/promo/ListDotGiamGiaPage";
 
 const contentStyle = {
   padding: 50,
@@ -128,7 +128,15 @@ const adminRouters = [
         path: "promo",
         element: (
           <LazyLoad>
-            <Promo />
+            <ListDotGiamGiaPage />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "promo/create", // route tạo mới
+        element: (
+          <LazyLoad>
+            <CreatePromo />
           </LazyLoad>
         ),
       },

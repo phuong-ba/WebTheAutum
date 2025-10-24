@@ -21,8 +21,13 @@ import {
   DownloadOutlined,
 } from "@ant-design/icons";
 import { khachHangApi } from "/src/api/khachHangApi";
+import { diaChiApi } from "/src/api/diaChiApi";
 import CustomerForm from "../customer/CustomerForm";
-
+import {
+  downloadTemplate,
+  importFromExcel,
+  exportToExcel,
+} from "/src/pages/customer/excelCustomerUtils";
 export default function Customer() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -31,6 +36,8 @@ export default function Customer() {
   const [mode, setMode] = useState("table");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [filterTrangThai, setFilterTrangThai] = useState("all");
+  const [importing, setImporting] = useState(false);
+
   const pageSize = 5;
 
   // 🔹 Gọi API lấy danh sách
@@ -38,7 +45,12 @@ export default function Customer() {
     setLoading(true);
     try {
       const res = await khachHangApi.getAll();
-      setCustomers(Array.isArray(res) ? res : [res]);
+
+      const sorted = Array.isArray(res)
+        ? [...res].sort((a, b) => b.id - a.id)
+        : [res];
+
+      setCustomers(sorted);
     } catch {
       message.error("Không thể tải danh sách khách hàng");
     } finally {
@@ -46,6 +58,7 @@ export default function Customer() {
     }
   };
 
+  // --
   useEffect(() => {
     fetchCustomers();
   }, []);
@@ -265,6 +278,7 @@ export default function Customer() {
                   </Button>
 
                   <Button
+                    onClick={() => exportToExcel(customers)}
                     icon={<FileExcelOutlined />}
                     style={{ borderRadius: 8 }}
                   >
@@ -272,13 +286,33 @@ export default function Customer() {
                   </Button>
 
                   <Button
+                    loading={importing}
+                    onClick={() =>
+                      document.getElementById("importExcel").click()
+                    }
                     icon={<CloudUploadOutlined />}
                     style={{ borderRadius: 8 }}
                   >
-                    Nhập từ Excel
+                    {importing ? "Đang nhập..." : "Nhập từ Excel"}
                   </Button>
+                  <input
+                    id="importExcel"
+                    type="file"
+                    accept=".xlsx, .xls"
+                    style={{ display: "none" }}
+                    onChange={(e) =>
+                      importFromExcel(
+                        e.target.files[0],
+                        khachHangApi,
+                        diaChiApi,
+                        fetchCustomers,
+                        setImporting
+                      )
+                    }
+                  />
 
                   <Button
+                    onClick={() => downloadTemplate(diaChiApi)}
                     icon={<DownloadOutlined />}
                     style={{ borderRadius: 8 }}
                   >
@@ -334,7 +368,7 @@ export default function Customer() {
         <CustomerForm
           customer={editCustomer}
           onCancel={() => setMode("table")}
-          onSuccess={() => {
+          onSuccess={(newCustomer) => {
             setMode("table");
             fetchCustomers();
           }}
