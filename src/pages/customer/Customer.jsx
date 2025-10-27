@@ -26,7 +26,6 @@ import {
 import { khachHangApi } from "/src/api/khachHangApi";
 import { diaChiApi } from "/src/api/diaChiApi";
 import CustomerForm from "../customer/CustomerForm";
-import CustomerBreadcrumb from "@/components/CustomerBreadcrumb";
 import {
   downloadTemplate,
   importFromExcel,
