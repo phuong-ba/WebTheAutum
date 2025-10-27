@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import FliterDiscount from "./FliterDiscount";
 import DiscountBreadcrumb from "@/components/DiscountBreadcrumb";
+import { Eye } from "lucide-react";
 
 export default function Discount() {
   const dispatch = useDispatch();
@@ -327,9 +328,9 @@ export default function Discount() {
               navigate("/update-discount", { state: { phieuGiamGia: record } });
             }}
           >
-            <PencilIcon
-              size={24}
-              color={record.trangThai === false ? "#ccc" : "#E67E22"}
+            <Eye
+              size={20}
+              color={record.trangThai === false ? "#ccc" : "#00A96C"}
               style={{
                 cursor: record.trangThai === false ? "not-allowed" : "pointer",
               }}
