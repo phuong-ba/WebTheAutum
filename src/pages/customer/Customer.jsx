@@ -26,6 +26,8 @@ import {
 import { khachHangApi } from "/src/api/khachHangApi";
 import { diaChiApi } from "/src/api/diaChiApi";
 import CustomerForm from "../customer/CustomerForm";
+import "./CustomerPage.css";
+
 import {
   downloadTemplate,
   importFromExcel,
@@ -111,7 +113,7 @@ export default function Customer() {
               content: (
                 <div style={{ fontSize: "16px", fontWeight: 600 }}>
                   Đã khóa khách hàng{" "}
-                  <span style={{ color: "#1677ff" }}>{record.hoTen}</span>
+                  <span style={{ color: "#e57c23" }}>{record.hoTen}</span>
                 </div>
               ),
               duration: 2,
@@ -160,7 +162,7 @@ export default function Customer() {
               content: (
                 <div style={{ fontSize: "16px", fontWeight: 600 }}>
                   Đã mở khóa khách hàng{" "}
-                  <span style={{ color: "#1677ff" }}>{record.hoTen}</span>
+                  <span style={{ color: "#e57c23" }}>{record.hoTen}</span>
                 </div>
               ),
               duration: 2,
@@ -222,7 +224,7 @@ export default function Customer() {
       title: "Mã Khách Hàng",
       dataIndex: "maKhachHang",
       render: (text) => (
-        <a style={{ color: "#00b96b", fontWeight: 600, fontSize: "16px" }}>
+        <a style={{ color: "#e67e22", fontWeight: 600, fontSize: "16px" }}>
           {text}
         </a>
       ),
@@ -262,7 +264,7 @@ export default function Customer() {
             {record.trangThai ? (
               <UnlockOutlined
                 style={{
-                  color: "#e29578",
+                  color: "#e57c23",
                   fontSize: 22,
                   cursor: "pointer",
                 }}
@@ -271,7 +273,7 @@ export default function Customer() {
             ) : (
               <LockOutlined
                 style={{
-                  color: "#ff4d4f",
+                  color: "#e90408ff",
                   fontSize: 22,
                   cursor: "pointer",
                 }}
@@ -350,7 +352,7 @@ export default function Customer() {
               <Col xs={24}>
                 <span style={{ fontSize: 16 }}>
                   Tổng số khách hàng:{" "}
-                  <b style={{ color: "#00b96b", fontSize: 17 }}>
+                  <b style={{ color: "#e67e22", fontSize: 17 }}>
                     {filteredData.length}
                   </b>
                 </span>
@@ -390,31 +392,26 @@ export default function Customer() {
               <Col xs={24} md={12} style={{ textAlign: "right" }}>
                 <Space wrap>
                   <Button
-                    type="primary"
+                    className="btn-orange-hover"
                     icon={<PlusOutlined />}
                     onClick={handleAdd}
-                    style={{
-                      background: "#00b96b",
-                      borderRadius: 8,
-                      fontWeight: 500,
-                    }}
                   >
                     Thêm Khách Hàng
                   </Button>
                   <Button
+                    className="btn-orange-hover"
                     onClick={() => exportToExcel(customers)}
                     icon={<FileExcelOutlined />}
-                    style={{ borderRadius: 8 }}
                   >
                     Xuất Excel
                   </Button>
                   <Button
+                    className="btn-orange-hover"
                     loading={importing}
                     onClick={() =>
                       document.getElementById("importExcel").click()
                     }
                     icon={<CloudUploadOutlined />}
-                    style={{ borderRadius: 8 }}
                   >
                     {importing ? "Đang nhập..." : "Nhập từ Excel"}
                   </Button>
@@ -434,18 +431,18 @@ export default function Customer() {
                     }
                   />
                   <Button
+                    className="btn-orange-hover"
                     onClick={() => downloadTemplate(diaChiApi)}
                     icon={<DownloadOutlined />}
-                    style={{ borderRadius: 8 }}
                   >
                     Tải mẫu Excel
                   </Button>
                   <Button
+                    className="btn-orange-hover"
                     onClick={() => {
                       setSearchKeyword("");
                       setFilterTrangThai("all");
                     }}
-                    style={{ background: "#f5f5f5", borderRadius: 8 }}
                   >
                     Đặt lại bộ lọc
                   </Button>

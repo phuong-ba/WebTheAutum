@@ -1,0 +1,17 @@
+.btn-orange-hover {
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  border: 1px solid #c1440e;
+  color: #c1440e;
+  font-weight: 500;
+  padding: 8px 22px;
+  background-color: #fff8f0;
+}
+
+.btn-orange-hover:hover {
+  background-color: #e57c23 !important;
+  border-color: #e57c23 !important;
+  color: #fff !important;
+  box-shadow: 0 4px 8px rgba(193, 68, 14, 0.3);
+  transform: translateY(-2px);
+}
