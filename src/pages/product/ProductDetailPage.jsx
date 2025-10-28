@@ -85,6 +85,12 @@ export default function ProductDetailPage() {
       align: "center",
     },
     {
+      title: "TRỌNG LƯỢNG",
+      dataIndex: "trongLuong",
+      key: "trongLuong",
+      align: "center",
+    },
+    {
       title: "KIỂU DÁNG",
       dataIndex: "tenKieuDang",
       key: "tenKieuDang",
@@ -174,13 +180,6 @@ export default function ProductDetailPage() {
       ),
     },
     {
-      title: "TRỌNG LƯỢNG",
-      dataIndex: "trongLuong",
-      key: "trongLuong",
-      align: "center",
-      render: (text) => <Tag color="blue">{text}</Tag>,
-    },
-    {
       title: "KÍCH THƯỚC",
       dataIndex: "tenKichThuoc",
       key: "tenKichThuoc",
@@ -261,6 +260,7 @@ export default function ProductDetailPage() {
           tenKieuDang: productData.tenKieuDang,
           tenCoAo: productData.tenCoAo,
           tenTayAo: productData.tenTayAo,
+          trongLuong: productData.trongLuong,
           moTa: productData.chiTietSanPhams?.[0]?.moTa || "Chưa có mô tả",
         },
       ]
@@ -299,18 +299,18 @@ export default function ProductDetailPage() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex justify-between items-center mb-6">
         <div className="text-sm text-gray-600">
-          <span
+        <span
             className="cursor-pointer hover:text-[#E67E22]"
-            onClick={() => navigate("/products")}
+            onClick={() => navigate("/")}
           >
-            Quản lý sản phẩm
+            Trang chủ
           </span>
           <span className="mx-2">/</span>
           <span
             className="cursor-pointer hover:text-[#E67E22]"
             onClick={() => navigate(-1)}
           >
-            Danh mục sản phẩm
+            Quản lý sản phẩm
           </span>
           <span className="mx-2">/</span>
           <span className="text-gray-900 font-medium">
@@ -321,39 +321,6 @@ export default function ProductDetailPage() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
           Quay lại
         </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4 text-center">
-          <div className="text-2xl font-bold text-[#E67E22]">
-            {productData.tongSoLuong || 0}
-          </div>
-          <div className="text-gray-600">Tổng số lượng</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 text-center">
-          <div className="text-2xl font-bold text-green-600">
-            {new Intl.NumberFormat("vi-VN", {
-              style: "currency",
-              currency: "VND",
-            }).format(productData.giaThapNhat || 0)}
-          </div>
-          <div className="text-gray-600">Giá thấp nhất</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 text-center">
-          <div className="text-2xl font-bold text-red-600">
-            {new Intl.NumberFormat("vi-VN", {
-              style: "currency",
-              currency: "VND",
-            }).format(productData.giaCaoNhat || 0)}
-          </div>
-          <div className="text-gray-600">Giá cao nhất</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 text-center">
-          <div className="text-2xl font-bold text-blue-600">
-            {variantDataSource.length}
-          </div>
-          <div className="text-gray-600">Số biến thể</div>
-        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">

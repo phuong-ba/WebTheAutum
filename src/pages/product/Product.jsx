@@ -649,31 +649,6 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="text-center shadow-sm">
-          <Statistic
-            title="Tổng sản phẩm"
-            value={totalProducts}
-            prefix={<ShoppingOutlined />}
-            valueStyle={{ color: "#E67E22" }}
-          />
-        </Card>
-        <Card className="text-center shadow-sm">
-          <Statistic
-            title="Tổng số lượng"
-            value={totalQuantity}
-            valueStyle={{ color: "#52c41a" }}
-          />
-        </Card>
-        <Card className="text-center shadow-sm">
-          <Statistic
-            title="Sản phẩm đang hoạt động"
-            value={activeProducts}
-            valueStyle={{ color: "#1890ff" }}
-          />
-        </Card>
-      </div>
-
       <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
         <div className="bg-[#E67E22] text-white px-6 py-3">
           <h2 className="text-lg font-bold">Bộ lọc sản phẩm</h2>

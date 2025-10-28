@@ -11,11 +11,9 @@ import {
   InputNumber,
   Popconfirm,
   Input,
-  Upload,
 } from "antd";
 import CloudinaryUpload from "../CloudinaryUpload";
 import {
-  PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   SaveOutlined,
@@ -72,80 +70,20 @@ export default function ProductDetail({
         idCoAo: bienThe.idCoAo || bienThe.coAo?.id,
         idTayAo: bienThe.idTayAo || bienThe.tayAo?.id,
         idTrongLuong: bienThe.idTrongLuong || bienThe.trongLuong?.id,
-        imageUrl: null, 
-        imageId: null,  
+        imageUrl: null,
+        imageId: null,
       };
     });
 
     setVariants(transformedVariants);
     setSelectedRowKeys(transformedVariants.map((v) => v.key));
 
-    transformedVariants.forEach(variant => {
+    transformedVariants.forEach((variant) => {
       if (variant.idChiTietSanPham) {
         loadImageForVariant(variant.idChiTietSanPham);
       }
     });
   }, [bienTheList]);
-
-  const loadImageForVariant = async (idChiTietSanPham) => {
-    try {
-      const response = await baseUrl.get(`/anh/bien-the/${idChiTietSanPham}`);
-      if (response.data.success && response.data.data?.length > 0) {
-        const image = response.data.data[0];
-        setVariants(prev => prev.map(v => 
-          v.idChiTietSanPham === idChiTietSanPham 
-            ? { ...v, imageUrl: image.duongDanAnh, imageId: image.id }
-            : v
-        ));
-      }
-    } catch (error) {
-      console.error('Lỗi load ảnh:', error);
-    }
-  };
-
-  const handleUploadImageForVariant = async (variantKey, uploadedImage) => {
-    const variant = variants.find(v => v.key === variantKey);
-    if (!variant?.idChiTietSanPham) {
-      message.error('Biến thể chưa được lưu, không thể upload ảnh');
-      return;
-    }
-
-    try {
-      const response = await baseUrl.post(
-        `/anh/${variant.idChiTietSanPham}/single`,
-        { imageUrl: uploadedImage.url }
-      );
-
-      if (response.data.success) {
-        const imgUrl = uploadedImage.url || response.data.data.imageUrl;
-        setVariants(prev => prev.map(v => 
-          v.key === variantKey 
-            ? { ...v, imageUrl: imgUrl, imageId: response.data.data.id }
-            : v
-        ));
-        message.success('Đã lưu ảnh cho biến thể');
-      }
-    } catch (error) {
-      message.error('Lỗi khi lưu ảnh');
-    }
-  };
-
-  const handleDeleteImage = async (variantKey) => {
-    const variant = variants.find(v => v.key === variantKey);
-    if (!variant?.imageId) return;
-
-    try {
-      await baseUrl.delete(`/anh/${variant.imageId}`);
-      setVariants(prev => prev.map(v => 
-        v.key === variantKey 
-          ? { ...v, imageUrl: null, imageId: null }
-          : v
-      ));
-      message.success('Đã xóa ảnh');
-    } catch (error) {
-      message.error('Lỗi khi xóa ảnh');
-    }
-  };
 
   const apiCall = async (url, method = "GET", data = null) => {
     try {
@@ -174,6 +112,72 @@ export default function ProductDetail({
 
   const xoaBienThe = (idChiTietSanPham) =>
     apiCall(`/chi-tiet-san-pham/${idChiTietSanPham}`, "DELETE");
+
+  const loadImageForVariant = async (idChiTietSanPham) => {
+    try {
+      const response = await baseUrl.get(`/anh/bien-the/${idChiTietSanPham}`);
+      if (response.data.success && response.data.data?.length > 0) {
+        const image = response.data.data[0];
+        setVariants((prev) =>
+          prev.map((v) =>
+            v.idChiTietSanPham === idChiTietSanPham
+              ? { ...v, imageUrl: image.duongDanAnh, imageId: image.id }
+              : v
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Lỗi load ảnh:", error);
+    }
+  };
+
+  const handleUploadImageForVariant = async (variantKey, uploadedImage) => {
+    const variant = variants.find((v) => v.key === variantKey);
+    if (!variant?.idChiTietSanPham) {
+      message.error("Biến thể chưa được lưu, không thể upload ảnh");
+      return;
+    }
+
+    try {
+      const response = await baseUrl.post(
+        `/anh/${variant.idChiTietSanPham}/single`,
+        { imageUrl: uploadedImage.url }
+      );
+
+      if (response.data.success) {
+        const imgUrl = uploadedImage.url || response.data.data.imageUrl;
+        setVariants((prev) =>
+          prev.map((v) =>
+            v.key === variantKey
+              ? { ...v, imageUrl: imgUrl, imageId: response.data.data.id }
+              : v
+          )
+        );
+        message.success("Đã lưu ảnh cho biến thể");
+      }
+    } catch (error) {
+      message.error("Lỗi khi lưu ảnh");
+    }
+  };
+
+  const handleDeleteImage = async (variantKey) => {
+    const variant = variants.find((v) => v.key === variantKey);
+    if (!variant?.imageId) return;
+
+    try {
+      await baseUrl.delete(`/anh/${variant.imageId}`);
+      setVariants((prev) =>
+        prev.map((v) =>
+          v.key === variantKey ? { ...v, imageUrl: null, imageId: null } : v
+        )
+      );
+      message.success("Đã xóa ảnh");
+    } catch (error) {
+      message.error("Lỗi khi xóa ảnh");
+    }
+  };
+
+  const isEditing = (record) => record.key === editingKey;
 
   const handleEdit = (record) => {
     form.setFieldsValue({
@@ -224,6 +228,29 @@ export default function ProductDetail({
       message.error(error.message || "Lỗi khi cập nhật biến thể");
     }
   };
+
+  const handleQuickUpdate = async (key, field, value, apiFunction) => {
+    try {
+      const variant = variants.find((v) => v.key === key);
+      if (!variant?.idChiTietSanPham) return;
+
+      const updatedVariants = variants.map((v) =>
+        v.key === key ? { ...v, [field]: value } : v
+      );
+      setVariants(updatedVariants);
+
+      const result = await apiFunction(variant.idChiTietSanPham, value);
+      if (!result.success) throw new Error(result.error);
+    } catch (error) {
+      message.error(error.message || `Lỗi khi cập nhật ${field}`);
+    }
+  };
+
+  const handleQuickQuantityChange = (key, value) =>
+    handleQuickUpdate(key, "soLuong", value, capNhatSoLuong);
+
+  const handleQuickPriceChange = (key, value) =>
+    handleQuickUpdate(key, "donGia", parseFloat(value), capNhatGia);
 
   const handleDelete = async (record) => {
     try {
@@ -282,72 +309,47 @@ export default function ProductDetail({
     });
   };
 
-  const handleQuickUpdate = async (key, field, value, apiFunction) => {
-    try {
-      const variant = variants.find((v) => v.key === key);
-      if (!variant?.idChiTietSanPham) return;
-
-      const updatedVariants = variants.map((v) =>
-        v.key === key ? { ...v, [field]: value } : v
-      );
-      setVariants(updatedVariants);
-
-      const result = await apiFunction(variant.idChiTietSanPham, value);
-      if (!result.success) throw new Error(result.error);
-    } catch (error) {
-      message.error(error.message || `Lỗi khi cập nhật ${field}`);
-    }
-  };
-
-  const handleQuickQuantityChange = (key, value) =>
-    handleQuickUpdate(key, "soLuong", value, capNhatSoLuong);
-
-  const handleQuickPriceChange = (key, value) =>
-    handleQuickUpdate(key, "donGia", parseFloat(value), capNhatGia);
-
-const handleTaoSanPham = () => {
-  const variantsWithMissingPrice = variants.filter(
-    (v) => !v.donGia || v.donGia <= 0
-  );
-  if (variantsWithMissingPrice.length > 0) {
-    message.error(
-      `Có ${variantsWithMissingPrice.length} biến thể chưa có đơn giá`
+  const handleTaoSanPham = () => {
+    const variantsWithMissingPrice = variants.filter(
+      (v) => !v.donGia || v.donGia <= 0
     );
-    return;
-  }
+    if (variantsWithMissingPrice.length > 0) {
+      message.error(
+        `Có ${variantsWithMissingPrice.length} biến thể chưa có đơn giá`
+      );
+      return;
+    }
 
-  if (variants.length === 0) {
-    message.error("Không có biến thể nào để tạo sản phẩm");
-    return;
-  }
+    if (variants.length === 0) {
+      message.error("Không có biến thể nào để tạo sản phẩm");
+      return;
+    }
 
-  const totalQuantity = variants.reduce(
-    (total, v) => total + (v.soLuong || 0),
-    0
-  );
-  const totalValue = variants.reduce(
-    (total, v) => total + v.donGia * (v.soLuong || 0),
-    0
-  );
+    const totalQuantity = variants.reduce(
+      (total, v) => total + (v.soLuong || 0),
+      0
+    );
+    const totalValue = variants.reduce(
+      (total, v) => total + v.donGia * (v.soLuong || 0),
+      0
+    );
 
-  const handleConfirm = () => {
-    console.log("🎯 Bắt đầu tạo sản phẩm với các biến thể:", variants);
-    
-    message.success(`Đã tạo thành công ${variants.length} biến thể sản phẩm!`);
-    
-    handleReset();
+    const handleConfirm = () => {
+      console.log("🎯 Bắt đầu tạo sản phẩm với các biến thể:", variants);
+      message.success(`Đã tạo thành công ${variants.length} biến thể sản phẩm!`);
+      handleReset();
+    };
+
+    onShowConfirmModal?.({
+      totalVariants: variants.length,
+      totalQuantity,
+      totalValue,
+      variantsWithStock: variants.filter((v) => v.soLuong > 0).length,
+      variantsData: variants,
+      isPreview: false,
+      onConfirm: handleConfirm,
+    });
   };
-
-  onShowConfirmModal?.({
-    totalVariants: variants.length,
-    totalQuantity,
-    totalValue,
-    variantsWithStock: variants.filter((v) => v.soLuong > 0).length,
-    variantsData: variants,
-    isPreview: false,
-    onConfirm: handleConfirm 
-  });
-};
 
   const handleReset = () => {
     setVariants([]);
@@ -362,8 +364,6 @@ const handleTaoSanPham = () => {
     onChange: setSelectedRowKeys,
     type: "checkbox",
   };
-
-  const isEditing = (record) => record.key === editingKey;
 
   const renderEditableCell = (record, dataIndex, component, rules = []) => {
     const editable = isEditing(record);
@@ -380,7 +380,13 @@ const handleTaoSanPham = () => {
     {
       title: "STT",
       key: "stt",
-      render: (_, __, index) => index + 1,
+      render: (_, __, index) => (
+        <div className="flex items-center justify-center">
+          <span className="text-gray-600">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+        </div>
+      ),
       width: 60,
       align: "center",
     },
@@ -390,16 +396,20 @@ const handleTaoSanPham = () => {
       width: 120,
       align: "center",
       render: (_, record) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+        <div className="flex flex-col gap-2 items-center">
           {record.imageUrl ? (
             <>
               <Image
                 src={record.imageUrl}
-                width={200}
-                height={200}
-                style={{ objectFit: 'cover', borderRadius: 4, border: '1px solid #d9d9d9' }}
+                width={80}
+                height={80}
+                style={{
+                  objectFit: "cover",
+                  borderRadius: 4,
+                  border: "1px solid #d9d9d9",
+                }}
                 preview={{
-                  mask: <EyeOutlined />
+                  mask: <EyeOutlined />,
                 }}
               />
               <Popconfirm
@@ -416,7 +426,9 @@ const handleTaoSanPham = () => {
             </>
           ) : (
             <CloudinaryUpload
-              onUploadSuccess={(img) => handleUploadImageForVariant(record.key, img)}
+              onUploadSuccess={(img) =>
+                handleUploadImageForVariant(record.key, img)
+              }
               maxFiles={1}
             />
           )}
@@ -428,6 +440,7 @@ const handleTaoSanPham = () => {
       dataIndex: "tenSanPham",
       key: "tenSanPham",
       width: 200,
+      render: (text) => <span className="font-medium text-gray-900">{text}</span>,
     },
     {
       title: "MÀU SẮC",
@@ -443,6 +456,7 @@ const handleTaoSanPham = () => {
       key: "tenKichThuoc",
       align: "center",
       width: 100,
+      render: (text) => <span className="text-gray-700">{text}</span>,
     },
     {
       title: "CỔ ÁO",
@@ -450,6 +464,7 @@ const handleTaoSanPham = () => {
       key: "tenCoAo",
       align: "center",
       width: 100,
+      render: (text) => <span className="text-gray-700">{text}</span>,
     },
     {
       title: "TAY ÁO",
@@ -457,13 +472,7 @@ const handleTaoSanPham = () => {
       key: "tenTayAo",
       align: "center",
       width: 100,
-    },
-    {
-      title: "TRỌNG LƯỢNG",
-      dataIndex: "trongLuong",
-      key: "trongLuong",
-      align: "center",
-      width: 120,
+      render: (text) => <span className="text-gray-700">{text}</span>,
     },
     {
       title: "SỐ LƯỢNG",
@@ -485,7 +494,7 @@ const handleTaoSanPham = () => {
         ),
     },
     {
-      title: "ĐƠN GIÁ (VNĐ)",
+      title: "ĐƠN GIÁ",
       dataIndex: "donGia",
       key: "donGia",
       align: "center",
@@ -499,10 +508,11 @@ const handleTaoSanPham = () => {
             value={record.donGia}
             onChange={(value) => handleQuickPriceChange(record.key, value)}
             formatter={(value) =>
-              `₫ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+              `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
             }
-            parser={(value) => value.replace(/₫\s?|(,*)/g, "")}
-            style={{ width: 120 }}
+            parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+            addonAfter="₫"
+            style={{ width: 130 }}
           />,
           [{ required: true, message: "Vui lòng nhập đơn giá" }]
         ),
@@ -519,7 +529,9 @@ const handleTaoSanPham = () => {
           isEditing(record) ? (
             <Input placeholder="Mô tả" />
           ) : (
-            <span>{record.moTa || "Chưa có mô tả"}</span>
+            <span className="text-gray-600">
+              {record.moTa || "Chưa có mô tả"}
+            </span>
           )
         ),
     },
@@ -537,6 +549,7 @@ const handleTaoSanPham = () => {
               size="small"
               onClick={() => handleSave(record.key)}
               icon={<SaveOutlined />}
+              className="text-green-500"
             >
               Lưu
             </Button>
@@ -558,6 +571,7 @@ const handleTaoSanPham = () => {
               onClick={() => handleEdit(record)}
               icon={<EditOutlined />}
               disabled={editingKey !== ""}
+              className="text-green-500"
             >
               Sửa
             </Button>
@@ -579,11 +593,11 @@ const handleTaoSanPham = () => {
   ];
 
   return (
-    <div className="bg-white min-h-[500px] px-5 py-[32px]">
-      <div className="flex justify-between items-center mb-5">
-        <p className="text-[#E67E22] font-bold text-[18px] mb-4">
+    <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
+      <div className="bg-[#E67E22] text-white px-6 py-3 flex justify-between items-center">
+        <h2 className="text-lg font-bold">
           Chi tiết biến thể ({variants.length} biến thể)
-        </p>
+        </h2>
         {selectedRowKeys.length > 0 && (
           <Popconfirm
             title="Xác nhận xóa"
@@ -592,65 +606,59 @@ const handleTaoSanPham = () => {
             okText="Có"
             cancelText="Không"
           >
-            <Button
-              type="primary"
-              danger
-              icon={<DeleteOutlined />}
-              size="small"
-            >
+            <button className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm">
               Xóa đã chọn ({selectedRowKeys.length})
-            </Button>
+            </button>
           </Popconfirm>
         )}
       </div>
 
-      <Form form={form} component={false}>
-        <Table
-          components={{
-            body: {
-              cell: (props) => (
-                <td {...props} className="ant-table-cell">
-                  {props.children}
-                </td>
-              ),
-            },
-          }}
-          rowSelection={rowSelection}
-          columns={columns}
-          dataSource={variants}
-          rowKey="key"
-          bordered
-          pagination={{
-            pageSize: 5,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} của ${total} biến thể`,
-          }}
-          scroll={{ x: 1800 }}
-          locale={{
-            emptyText:
-              "Chưa có biến thể nào. Hãy tạo biến thể để hiển thị ở đây.",
-          }}
-        />
-      </Form>
+      <div className="p-6">
+        <Form form={form} component={false}>
+          <Table
+            components={{
+              body: {
+                cell: (props) => (
+                  <td {...props} className="ant-table-cell">
+                    {props.children}
+                  </td>
+                ),
+              },
+            }}
+            rowSelection={rowSelection}
+            columns={columns}
+            dataSource={variants}
+            rowKey="key"
+            bordered
+            pagination={{
+              pageSize: 5,
+              showSizeChanger: true,
+              pageSizeOptions: ["5", "10", "20"],
+              showQuickJumper: true,
+              showTotal: (total, range) =>
+                `${range[0]}-${range[1]} của ${total} biến thể`,
+            }}
+            scroll={{ x: 1800 }}
+            locale={{
+              emptyText:
+                "Chưa có biến thể nào. Hãy tạo biến thể để hiển thị ở đây.",
+            }}
+          />
+        </Form>
 
-      <div className="flex flex-col items-end pr-3 gap-4 mt-6">
-        <div className="flex gap-4">
+        <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={handleReset}
-            className="border border-[#E67E22] text-[#E67E22] rounded px-6 h-8 cursor-pointer hover:bg-[#E67E22] hover:text-white transition-colors"
+            className="border border-[#E67E22] text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-[#E67E22] hover:text-white transition-colors font-medium"
           >
             Nhập lại
           </button>
           <button
             onClick={handleTaoSanPham}
             disabled={variants.length === 0 || loading}
-            className="bg-[#E67E22] text-white rounded px-6 h-8 cursor-pointer hover:bg-[#d4721f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-[#E67E22] text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            {loading
-              ? "⏳ Đang tạo..."
-              : `Tạo sản phẩm (${variants.length})`}
+            {loading ? "⏳ Đang tạo..." : `Tạo sản phẩm (${variants.length})`}
           </button>
         </div>
       </div>
@@ -660,7 +668,7 @@ const handleTaoSanPham = () => {
         footer={null}
         onCancel={() => setPreviewOpen(false)}
       >
-        <img alt="preview" style={{ width: '100%' }} src={previewImage} />
+        <img alt="preview" style={{ width: "100%" }} src={previewImage} />
       </Modal>
     </div>
   );
