@@ -70,7 +70,7 @@ export const importFromExcel = async (
         hoTen: item["Tên khách hàng"],
         sdt: item["Số điện thoại"],
         email: item["Email"],
-        ngaySinh: item["Ngày sinh (yyyy-mm-dd)"] || null,
+        ngaySinh: item["Ngày sinh (yyyy-mm-dd) vd: 2000-01-30"] || null,
         gioiTinh: item["Giới tính (1: nam, 0: nữ)"] == 1,
       };
 
