@@ -66,6 +66,14 @@ export default function Product() {
     }
   };
 
+  // Hàm xử lý khi ấn nút Sửa
+  const handleEditProduct = (record) => {
+    messageApi.info({
+      content: "Tính năng cập nhật sản phẩm đang được cập nhật, xin vui lòng thử lại ở phiên bản tới! ",
+      duration: 3,
+    });
+  };
+
   const rowSelection = {
     selectedRowKeys,
     onChange: (newSelectedRowKeys, selectedRows) => {
@@ -587,7 +595,7 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
           <Button
             type="link"
             icon={<EditOutlined />}
-            onClick={() => setEditingUser(record)}
+            onClick={() => handleEditProduct(record)}
             className="text-green-500 p-0"
           >
             Sửa
