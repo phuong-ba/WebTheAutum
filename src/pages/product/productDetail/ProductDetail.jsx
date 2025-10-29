@@ -36,6 +36,8 @@ export default function ProductDetail({
   const [previewImage, setPreviewImage] = useState("");
   const [editingKey, setEditingKey] = useState("");
   const [form] = Form.useForm();
+  const [quickInputModal, setQuickInputModal] = useState(false);
+  const [quickInputForm] = Form.useForm();
 
   useEffect(() => {
     if (!Array.isArray(bienTheList) || bienTheList.length === 0) {
@@ -252,6 +254,56 @@ export default function ProductDetail({
   const handleQuickPriceChange = (key, value) =>
     handleQuickUpdate(key, "donGia", parseFloat(value), capNhatGia);
 
+  const handleQuickInputAll = async (values) => {
+    try {
+      const { soLuong, donGia } = values;
+
+      if (selectedRowKeys.length === 0) {
+        message.warning("Vui lòng chọn ít nhất một biến thể để áp dụng");
+        return;
+      }
+
+      const updatedVariants = variants.map((v) => {
+        if (selectedRowKeys.includes(v.key)) {
+          return {
+            ...v,
+            soLuong: soLuong !== undefined ? soLuong : v.soLuong,
+            donGia: donGia !== undefined ? donGia : v.donGia,
+          };
+        }
+        return v;
+      });
+
+      setVariants(updatedVariants);
+
+      const updatePromises = selectedRowKeys.map(async (key) => {
+        const variant = updatedVariants.find((v) => v.key === key);
+        if (!variant?.idChiTietSanPham) return;
+
+        const promises = [];
+        if (soLuong !== undefined) {
+          promises.push(capNhatSoLuong(variant.idChiTietSanPham, soLuong));
+        }
+        if (donGia !== undefined) {
+          promises.push(
+            capNhatGia(variant.idChiTietSanPham, parseFloat(donGia))
+          );
+        }
+        return Promise.all(promises);
+      });
+
+      await Promise.all(updatePromises);
+
+      message.success(
+        `Đã cập nhật ${selectedRowKeys.length} biến thể thành công`
+      );
+      setQuickInputModal(false);
+      quickInputForm.resetFields();
+    } catch (error) {
+      message.error("Lỗi khi cập nhật hàng loạt");
+    }
+  };
+
   const handleDelete = async (record) => {
     try {
       if (record.idChiTietSanPham) {
@@ -336,7 +388,9 @@ export default function ProductDetail({
 
     const handleConfirm = () => {
       console.log("🎯 Bắt đầu tạo sản phẩm với các biến thể:", variants);
-      message.success(`Đã tạo thành công ${variants.length} biến thể sản phẩm!`);
+      message.success(
+        `Đã tạo thành công ${variants.length} biến thể sản phẩm!`
+      );
       handleReset();
     };
 
@@ -440,7 +494,9 @@ export default function ProductDetail({
       dataIndex: "tenSanPham",
       key: "tenSanPham",
       width: 200,
-      render: (text) => <span className="font-medium text-gray-900">{text}</span>,
+      render: (text) => (
+        <span className="font-medium text-gray-900">{text}</span>
+      ),
     },
     {
       title: "MÀU SẮC",
@@ -598,19 +654,29 @@ export default function ProductDetail({
         <h2 className="text-lg font-bold">
           Chi tiết biến thể ({variants.length} biến thể)
         </h2>
-        {selectedRowKeys.length > 0 && (
-          <Popconfirm
-            title="Xác nhận xóa"
-            description={`Bạn có chắc muốn xóa ${selectedRowKeys.length} biến thể đã chọn?`}
-            onConfirm={handleDeleteMultiple}
-            okText="Có"
-            cancelText="Không"
-          >
-            <button className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm">
-              Xóa đã chọn ({selectedRowKeys.length})
-            </button>
-          </Popconfirm>
-        )}
+        <div className="flex gap-3">
+          {selectedRowKeys.length > 0 && (
+            <>
+              <button
+                onClick={() => setQuickInputModal(true)}
+                className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm"
+              >
+                Nhập nhanh ({selectedRowKeys.length})
+              </button>
+              <Popconfirm
+                title="Xác nhận xóa"
+                description={`Bạn có chắc muốn xóa ${selectedRowKeys.length} biến thể đã chọn?`}
+                onConfirm={handleDeleteMultiple}
+                okText="Có"
+                cancelText="Không"
+              >
+                <button className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm">
+                  Xóa đã chọn ({selectedRowKeys.length})
+                </button>
+              </Popconfirm>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="p-6">
@@ -645,6 +711,127 @@ export default function ProductDetail({
             }}
           />
         </Form>
+
+        <Modal
+          open={previewOpen}
+          footer={null}
+          onCancel={() => setPreviewOpen(false)}
+        >
+          <img alt="preview" style={{ width: "100%" }} src={previewImage} />
+        </Modal>
+
+        <Modal
+          title={
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "20px" }}>⚡</span>
+              <span style={{ fontSize: "18px", fontWeight: "bold" }}>
+                NHẬP NHANH GIÁ & SỐ LƯỢNG
+              </span>
+            </div>
+          }
+          open={quickInputModal}
+          onCancel={() => {
+            setQuickInputModal(false);
+            quickInputForm.resetFields();
+          }}
+          footer={null}
+          width={500}
+          centered
+        >
+          <div
+            style={{
+              background: "#fff7e6",
+              border: "1px solid #ffd591",
+              padding: "12px",
+              borderRadius: "8px",
+              marginBottom: "20px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "8px",
+              }}
+            >
+              <span style={{ fontSize: "16px" }}>ℹ️</span>
+              <span style={{ fontWeight: "bold", color: "#d46b08" }}>
+                Thông tin
+              </span>
+            </div>
+            <p style={{ margin: 0, color: "#8c8c8c", fontSize: "13px" }}>
+              Giá trị sẽ được áp dụng cho{" "}
+              <strong>{selectedRowKeys.length}</strong> biến thể đã chọn. Bỏ
+              trống nếu không muốn thay đổi.
+            </p>
+          </div>
+
+          <Form
+            form={quickInputForm}
+            onFinish={handleQuickInputAll}
+            layout="vertical"
+          >
+            <Form.Item
+              name="soLuong"
+              label={<span style={{ fontWeight: "bold" }}>Số lượng</span>}
+            >
+              <InputNumber
+                min={0}
+                placeholder="Nhập số lượng cho tất cả"
+                style={{ width: "100%" }}
+                size="large"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="donGia"
+              label={<span style={{ fontWeight: "bold" }}>Đơn giá</span>}
+            >
+              <InputNumber
+                min={0}
+                placeholder="Nhập đơn giá cho tất cả"
+                formatter={(value) =>
+                  `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                }
+                parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                addonAfter="₫"
+                style={{ width: "100%" }}
+                size="large"
+              />
+            </Form.Item>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+                marginTop: "24px",
+              }}
+            >
+              <Button
+                onClick={() => {
+                  setQuickInputModal(false);
+                  quickInputForm.resetFields();
+                }}
+                size="large"
+              >
+                Hủy
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                size="large"
+                style={{
+                  background: "#E67E22",
+                  borderColor: "#E67E22",
+                }}
+              >
+                Áp dụng cho {selectedRowKeys.length} biến thể
+              </Button>
+            </div>
+          </Form>
+        </Modal>
 
         <div className="flex justify-end gap-3 mt-6">
           <button
