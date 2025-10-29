@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Table, 
-  Tag, 
-  Space, 
-  Button, 
-  Input, 
-  Select, 
-  DatePicker, 
+import {
+  Table,
+  Tag,
+  Space,
+  Button,
+  Input,
+  Select,
+  DatePicker,
   Card,
   Dropdown,
   Menu,
@@ -15,10 +15,10 @@ import {
   message,
   Checkbox
 } from 'antd';
-import { 
-  SearchOutlined, 
-  ReloadOutlined, 
-  ExportOutlined, 
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  ExportOutlined,
   PrinterOutlined,
   EyeOutlined,
   DownOutlined
@@ -96,38 +96,38 @@ export default function InvoiceManager() {
   };
 
   const handleSearch = async () => {
-  const hasSearchValue =
-    searchParams.searchText.trim() !== '' ||
-    filterParams.trangThai !== undefined ||
-    filterParams.ngayTao !== null ||
-    filterParams.loaiHoaDon !== undefined ||
-    filterParams.hinhThucThanhToan !== undefined;
-  if (!hasSearchValue) {
-    toast.warning('⚠️ Vui lòng nhập hoặc chọn ít nhất một điều kiện tìm kiếm!');
-    return;
-  }
-  const params = {
-    ...searchParams,
-    ...filterParams,
-    ngayTao: filterParams.ngayTao ? filterParams.ngayTao.format('YYYY-MM-DD') : null
+    const hasSearchValue =
+      searchParams.searchText.trim() !== '' ||
+      filterParams.trangThai !== undefined ||
+      filterParams.ngayTao !== null ||
+      filterParams.loaiHoaDon !== undefined ||
+      filterParams.hinhThucThanhToan !== undefined;
+    if (!hasSearchValue) {
+      toast.warning('⚠️ Vui lòng nhập hoặc chọn ít nhất một điều kiện tìm kiếm!');
+      return;
+    }
+    const params = {
+      ...searchParams,
+      ...filterParams,
+      ngayTao: filterParams.ngayTao ? filterParams.ngayTao.format('YYYY-MM-DD') : null
+    };
+    try {
+      setLoading(true);
+      setCurrentPage(1);
+      setCurrentFilters(params);
+      const response = await hoaDonApi.searchAndFilter({
+        ...params,
+        page: 0,
+        size: pageSize
+      });
+      setInvoices(response.data.content || []);
+      setTotalItems(response.data.totalElements || 0);
+    } catch (err) {
+      message.error('Không thể tìm kiếm');
+    } finally {
+      setLoading(false);
+    }
   };
-  try {
-    setLoading(true);
-    setCurrentPage(1);
-    setCurrentFilters(params);
-    const response = await hoaDonApi.searchAndFilter({
-      ...params,
-      page: 0,
-      size: pageSize
-    });
-    setInvoices(response.data.content || []);
-    setTotalItems(response.data.totalElements || 0);
-  } catch (err) {
-    message.error('Không thể tìm kiếm');
-  } finally {
-    setLoading(false);
-  }
-};
 
   const handleReset = () => {
     setSearchParams({ searchText: '' });
@@ -137,84 +137,84 @@ export default function InvoiceManager() {
     fetchInvoices(0, pageSize);
   };
 
-  
-const handleExport = async () => {
-  try {
-    if (!invoices || invoices.length === 0) {
-      toast.warning('⚠️ Không có dữ liệu để xuất!');
-      return;
-    }
-    const loadingToastId = toast.loading('⏳ Đang xuất file Excel...');
-    const response = await hoaDonApi.exportExcel();
-    const blobData = response.data instanceof Blob 
-      ? response.data 
-      : new Blob([response.data], { type: response.headers['content-type'] });
 
-    if (!blobData || blobData.size === 0) {
+  const handleExport = async () => {
+    try {
+      if (!invoices || invoices.length === 0) {
+        toast.warning('⚠️ Không có dữ liệu để xuất!');
+        return;
+      }
+      const loadingToastId = toast.loading('⏳ Đang xuất file Excel...');
+      const response = await hoaDonApi.exportExcel();
+      const blobData = response.data instanceof Blob
+        ? response.data
+        : new Blob([response.data], { type: response.headers['content-type'] });
+
+      if (!blobData || blobData.size === 0) {
+        toast.update(loadingToastId, {
+          render: '❌ Server không trả về dữ liệu hợp lệ!',
+          type: 'error',
+          isLoading: false,
+          autoClose: 3000,
+        });
+        return;
+      }
+      const url = window.URL.createObjectURL(blobData);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `HoaDon_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
       toast.update(loadingToastId, {
-        render: '❌ Server không trả về dữ liệu hợp lệ!',
-        type: 'error',
+        render: '✅ Xuất Excel thành công!',
+        type: 'success',
         isLoading: false,
         autoClose: 3000,
       });
-      return;
+    } catch (err) {
+      console.error('Export error:', err);
+      toast.error('❌ Không thể xuất file Excel!');
+    } finally {
+      setLoading(false);
     }
-    const url = window.URL.createObjectURL(blobData);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `HoaDon_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-
-    toast.update(loadingToastId, {
-      render: '✅ Xuất Excel thành công!',
-      type: 'success',
-      isLoading: false,
-      autoClose: 3000,
-    });
-  } catch (err) {
-    console.error('Export error:', err);
-    toast.error('❌ Không thể xuất file Excel!');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
 
- const handlePrint = async () => {
-  try {
-    if (!invoices || invoices.length === 0) {
-      toast.warning('⚠️ Không có hóa đơn để in!');
-      return;
+  const handlePrint = async () => {
+    try {
+      if (!invoices || invoices.length === 0) {
+        toast.warning('⚠️ Không có hóa đơn để in!');
+        return;
+      }
+      const loadingToast = toast.loading('⏳ Đang tạo file PDF...');
+      setLoading(true);
+
+      const invoiceIds = invoices.map(inv => inv.id);
+      const response = await hoaDonApi.printInvoices(invoiceIds);
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      toast.update(loadingToast, {
+        render: `✅ Đã in ${invoices.length} hóa đơn thành công!`,
+        type: 'success',
+        isLoading: false,
+        autoClose: 3000
+      });
+
+    } catch (err) {
+      console.error(err);
+      toast.error('❌ Không thể in danh sách!');
+    } finally {
+      setLoading(false);
     }
-    const loadingToast = toast.loading('⏳ Đang tạo file PDF...');
-    setLoading(true);
-
-    const invoiceIds = invoices.map(inv => inv.id);
-    const response = await hoaDonApi.printInvoices(invoiceIds);
-    
-    const blob = new Blob([response.data], { type: 'application/pdf' });
-    const url = window.URL.createObjectURL(blob);
-    window.open(url, '_blank');
-  
-    setTimeout(() => window.URL.revokeObjectURL(url), 100);
-    toast.update(loadingToast, {
-      render: `✅ Đã in ${invoices.length} hóa đơn thành công!`,
-      type: 'success',
-      isLoading: false,
-      autoClose: 3000
-    });
-
-  } catch (err) {
-    console.error(err);
-    toast.error('❌ Không thể in danh sách!');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleStatusChange = async (invoiceId, newStatus) => {
     const oldInvoices = [...invoices];
@@ -250,7 +250,7 @@ const handleExport = async () => {
     const page = pagination.current - 1;
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
-    
+
     if (Object.keys(currentFilters).length > 0) {
       handleSearch();
     } else {
@@ -259,49 +259,49 @@ const handleExport = async () => {
   };
 
 
-// ✅ Hàm xử lý click vào trạng thái
-const handleEditTrangThai = (record) => {
-  Modal.confirm({
-    title: "Xác nhận sửa trạng thái",
-    content: `Bạn có muốn sửa trạng thái của hóa đơn #${record.maHoaDon} không?`,
-    okText: "Có",
-    cancelText: "Không",
-    onOk: async () => {
-      try {
-        // 🔧 Gọi API cập nhật trạng thái ở đây
-        await hoaDonApi.updateTrangThai(record.id, { trangThai: "Đã xử lý" });
+  // ✅ Hàm xử lý click vào trạng thái
+  const handleEditTrangThai = (record) => {
+    Modal.confirm({
+      title: "Xác nhận sửa trạng thái",
+      content: `Bạn có muốn sửa trạng thái của hóa đơn #${record.maHoaDon} không?`,
+      okText: "Có",
+      cancelText: "Không",
+      onOk: async () => {
+        try {
+          // 🔧 Gọi API cập nhật trạng thái ở đây
+          await hoaDonApi.updateTrangThai(record.id, { trangThai: "Đã xử lý" });
 
-        toast.success("✅ Cập nhật trạng thái thành công!");
-        fetchInvoices(); // load lại danh sách
-      } catch (err) {
-        console.error(err);
-        toast.error("❌ Lỗi khi cập nhật trạng thái!");
-      }
-    },
-  });
-};
+          toast.success("✅ Cập nhật trạng thái thành công!");
+          fetchInvoices(); // load lại danh sách
+        } catch (err) {
+          console.error(err);
+          toast.error("❌ Lỗi khi cập nhật trạng thái!");
+        }
+      },
+    });
+  };
 
-// ✅ Hàm xử lý click vào dịch vụ
-const handleEditDichVu = (record) => {
-  Modal.confirm({
-    title: "Xác nhận sửa dịch vụ",
-    content: `Bạn có muốn sửa dịch vụ của hóa đơn #${record.maHoaDon} không?`,
-    okText: "Có",
-    cancelText: "Không",
-    onOk: async () => {
-      try {
-        // 🔧 Gọi API cập nhật dịch vụ ở đây
-        await hoaDonApi.updateDichVu(record.id, { dichVu: "Giao tận nơi" });
+  // ✅ Hàm xử lý click vào dịch vụ
+  const handleEditDichVu = (record) => {
+    Modal.confirm({
+      title: "Xác nhận sửa dịch vụ",
+      content: `Bạn có muốn sửa dịch vụ của hóa đơn #${record.maHoaDon} không?`,
+      okText: "Có",
+      cancelText: "Không",
+      onOk: async () => {
+        try {
+          // 🔧 Gọi API cập nhật dịch vụ ở đây
+          await hoaDonApi.updateDichVu(record.id, { dichVu: "Giao tận nơi" });
 
-        toast.success("✅ Cập nhật dịch vụ thành công!");
-        fetchInvoices(); // load lại danh sách
-      } catch (err) {
-        console.error(err);
-        toast.error("❌ Lỗi khi cập nhật dịch vụ!");
-      }
-    },
-  });
-};
+          toast.success("✅ Cập nhật dịch vụ thành công!");
+          fetchInvoices(); // load lại danh sách
+        } catch (err) {
+          console.error(err);
+          toast.error("❌ Lỗi khi cập nhật dịch vụ!");
+        }
+      },
+    });
+  };
 
 
 
@@ -349,7 +349,7 @@ const handleEditDichVu = (record) => {
         const config = getStatusConfig(record.trangThai);
         return (
           <Dropdown overlay={getStatusMenu(record)} trigger={['click']}>
-            <Tag color={config.color} style={{ cursor: 'pointer' }}    onClick={() => handleEditTrangThai(record)}>
+            <Tag color={config.color} style={{ cursor: 'pointer' }} onClick={() => handleEditTrangThai(record)}>
               {config.label} <DownOutlined style={{ fontSize: 10 }} />
             </Tag>
           </Dropdown>
@@ -367,9 +367,9 @@ const handleEditDichVu = (record) => {
             <Menu.Item key="false">💻 Online</Menu.Item>
           </Menu>
         );
-        
+
         const serviceText = record.loaiHoaDon ? '🏪 Tại quầy' : '💻 Online';
-        
+
         return (
           <Dropdown overlay={serviceMenu} trigger={['click']}>
             <Tag style={{ cursor: 'pointer', padding: '4px 8px' }}  >
@@ -391,20 +391,20 @@ const handleEditDichVu = (record) => {
       key: 'ngayTao',
       render: (date) => formatDate(date)
     },
-   {
-  title: 'Tổng tiền',
-  key: 'tongTien',
-  render: (_, record) => {
-    const tongTienSauGiam = record.tongTienSauGiam ?? record.tongTien;
-    const phiShip = record.loaiHoaDon ? 0 : (record.phiVanChuyen || 0); // nếu tại quầy thì 0
-    const tongCong = tongTienSauGiam + phiShip;
-    return (
-      <span style={{ color: '#ff6b35', fontWeight: 600 }}>
-        {formatMoney(tongCong)}
-      </span>
-    );
-  }
-},
+    {
+      title: 'Tổng tiền',
+      key: 'tongTien',
+      render: (_, record) => {
+        const tongTienSauGiam = record.tongTienSauGiam ?? record.tongTien;
+        const phiShip = record.loaiHoaDon ? 0 : (record.phiVanChuyen || 0); // nếu tại quầy thì 0
+        const tongCong = tongTienSauGiam + phiShip;
+        return (
+          <span style={{ color: '#ff6b35', fontWeight: 600 }}>
+            {formatMoney(tongCong)}
+          </span>
+        );
+      }
+    },
 
     {
       title: 'Hành động',
@@ -427,22 +427,43 @@ const handleEditDichVu = (record) => {
   };
 
   return (
-    <div style={{ padding: '24px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Quản lý hóa đơn</h2>
-        <p style={{ color: '#666', margin: '4px 0 0 0' }}>
-          Quản lý và theo dõi tất cả hóa đơn trong hệ thống
-        </p>
+    <div style={{ padding: '24px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+      {/* HEADER MÀU CAM GIỐNG HÌNH 1 */}
+      <div style={{
+        backgroundColor: '#ff8c42',
+        padding: '16px 24px',
+        marginBottom: '24px',
+        borderRadius: '4px'
+      }}>
+        <h2 style={{
+          fontSize: 20,
+          fontWeight: 600,
+          margin: 0,
+          color: '#fff'
+        }}>
+          Quản lý hóa đơn
+        </h2>
       </div>
 
       {/* Search & Filter Card */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card
+        style={{
+          marginBottom: 16,
+          backgroundColor: '#fff',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+        }}
+        bodyStyle={{ padding: '20px' }}
+      >
         <div style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+          <h3 style={{
+            fontSize: 14,
+            fontWeight: 600,
+            marginBottom: 16,
+            color: '#333'
+          }}>
             🔍 Tìm kiếm và lọc dữ liệu
           </h3>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 12 }}>
             <Input
               placeholder="Nhập mã HĐ, tên khách hàng hoặc tên nhân viên..."
@@ -491,12 +512,20 @@ const handleEditDichVu = (record) => {
               <Option value={3}>✅ Đã thanh toán</Option>
               <Option value={4}>❌ Đã hủy</Option>
             </Select>
-            
+
             <Space>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>
                 Nhập lại
               </Button>
-              <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                onClick={handleSearch}
+                style={{
+                  backgroundColor: '#ff8c42',
+                  borderColor: '#ff8c42'
+                }}
+              >
                 Tìm kiếm
               </Button>
             </Space>
@@ -504,42 +533,74 @@ const handleEditDichVu = (record) => {
         </div>
       </Card>
 
-      {/* Action Buttons */}
-      <Space style={{ marginBottom: 16 }}>
-        <Button 
-          icon={<ExportOutlined />} 
-          onClick={handleExport}
-          style={{ borderColor: '#ff6b35', color: '#ff6b35' }}
-        >
-          Xuất dữ liệu
-        </Button>
-        <Button 
-          icon={<PrinterOutlined />} 
-          onClick={handlePrint}
-          type="primary"
-        >
-          In danh sách
-        </Button>
-      </Space>
+      {/* Action Buttons - ĐỔI MÀU VÀ VỊ TRÍ GIỐNG HÌNH 1 */}
+      <div style={{
+        marginBottom: 16,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '16px 24px',
+        backgroundColor: '#ff8c42',
+        borderRadius: '4px 4px 0 0'
+      }}>
+        <h3 style={{
+          fontSize: 16,
+          fontWeight: 600,
+          margin: 0,
+          color: '#fff'
+        }}>
+          Danh sách hóa đơn ({totalItems} hóa đơn)
+        </h3>
+
+        <Space>
+          <Button
+            icon={<ExportOutlined />}
+            onClick={handleExport}
+            style={{
+              backgroundColor: '#fff',
+              borderColor: '#fff',
+              color: '#ff8c42',
+              fontWeight: 500
+            }}
+          >
+            Xuất Excel
+          </Button>
+          <Button
+            icon={<PrinterOutlined />}
+            onClick={handlePrint}
+            style={{
+              backgroundColor: '#fff',
+              borderColor: '#fff',
+              color: '#ff8c42',
+              fontWeight: 500
+            }}
+          >
+            In danh sách
+          </Button>
+        </Space>
+      </div>
 
       {/* Table */}
-      <Table
-        rowSelection={rowSelection}
-        columns={columns}
-        dataSource={invoices}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          current: currentPage,
-          pageSize: pageSize,
-          total: totalItems,
-          showSizeChanger: true,
-          showTotal: (total) => `Tổng: ${total} hóa đơn`,
-          pageSizeOptions: ['5', '10', '20', '50']
-        }}
-        onChange={handleTableChange}
-        scroll={{ x: 1200 }}
-      />
+      <Card bodyStyle={{ padding: 0 }}>
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={invoices}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: totalItems,
+            showSizeChanger: true,
+            showTotal: (total) => `Tổng: ${total} hóa đơn`,
+            pageSizeOptions: ['5', '10', '20', '50']
+          }}
+          onChange={handleTableChange}
+          scroll={{ x: 1200 }}
+        />
+      </Card>
+
     </div>
   );
 }

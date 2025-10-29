@@ -11,6 +11,7 @@ const EditHoaDon = () => {
   const [saving, setSaving] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [invoice, setInvoice] = useState(null);
+const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Form data - CHỈ GIỮ NHỮNG TRƯỜNG CÓ THỂ SỬA
   const [formData, setFormData] = useState({
@@ -108,14 +109,13 @@ const EditHoaDon = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      toast.info('Vui lòng kiểm tra lại thông tin');
-      return;
-    }
+     if (!validateForm()) {
+    toast.info('Vui lòng kiểm tra lại thông tin');
+    return;
+  }
 
-    if (!window.confirm('Xác nhận cập nhật thông tin hóa đơn?')) {
-      return;
-    }
+  // Mở modal xác nhận
+  setShowConfirmModal(true);
 
     try {
       setSaving(true);
@@ -129,26 +129,27 @@ const EditHoaDon = () => {
         ghiChu: formData.ghiChu
       };
 
+
+      
+
       const response = await hoaDonApi.updateHoaDon(id, requestBody);
       const result = response.data;
 
-      if (result.success || response.status === 200) {
-        toast.success('Cập nhật hóa đơn thành công!');
-        navigate(`/DetailHoaDon/${id}`, {
-          state: { refreshData: true }
-        });
-      } else {
-        toast.error('Lỗi: ' + (result.message || 'Không thể cập nhật'));
-      }
-    } catch (error) {
-      console.error('❌ Lỗi update:', error);
-      const errorMsg = error.response?.data?.message || error.message || 'Không thể cập nhật hóa đơn';
-      toast.error('Lỗi: ' + errorMsg);
-    } finally {
-      setSaving(false);
+       if (result.success || response.status === 200) {
+      toast.success('✅ Đã sửa thành công!');
+      navigate(`/DetailHoaDon/${id}`, { state: { refreshData: true } });
+    } else {
+      toast.error('Lỗi: ' + (result.message || 'Không thể cập nhật'));
     }
-  };
-
+  } catch (error) {
+    console.error('❌ Lỗi update:', error);
+    const errorMsg =
+      error.response?.data?.message || error.message || 'Không thể cập nhật hóa đơn';
+    toast.error('Lỗi: ' + errorMsg);
+  } finally {
+    setSaving(false);
+  }
+};
   // ================== HELPER FUNCTIONS ==================
   const formatMoney = (amount) => {
     if (!amount && amount !== 0) return '0 ₫';
@@ -170,7 +171,7 @@ const EditHoaDon = () => {
     if (invoice.phieuGiamGia) {
       const pgg = invoice.phieuGiamGia;
       const loaiGiam = pgg.loaiGiamGia;
-      
+
       if (loaiGiam === 1 || loaiGiam === true) {
         tienGiamGia = tongSanPham * (pgg.giaTriGiamGia / 100);
         if (pgg.mucGiaGiamToiDa && tienGiamGia > pgg.mucGiaGiamToiDa) {
@@ -255,11 +256,10 @@ const EditHoaDon = () => {
                     type="text"
                     value={formData.hoTenKhachHang}
                     onChange={(e) => handleInputChange('hoTenKhachHang', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errors.hoTenKhachHang
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.hoTenKhachHang
                         ? 'border-red-500 focus:ring-red-200'
                         : 'border-gray-300 focus:ring-blue-200'
-                    }`}
+                      }`}
                   />
                   {errors.hoTenKhachHang && (
                     <p className="text-red-500 text-sm mt-1">{errors.hoTenKhachHang}</p>
@@ -274,11 +274,10 @@ const EditHoaDon = () => {
                     type="text"
                     value={formData.sdtKhachHang}
                     onChange={(e) => handleInputChange('sdtKhachHang', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errors.sdtKhachHang
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.sdtKhachHang
                         ? 'border-red-500 focus:ring-red-200'
                         : 'border-gray-300 focus:ring-blue-200'
-                    }`}
+                      }`}
                   />
                   {errors.sdtKhachHang && (
                     <p className="text-red-500 text-sm mt-1">{errors.sdtKhachHang}</p>
@@ -291,11 +290,10 @@ const EditHoaDon = () => {
                     type="email"
                     value={formData.emailKhachHang}
                     onChange={(e) => handleInputChange('emailKhachHang', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errors.emailKhachHang
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.emailKhachHang
                         ? 'border-red-500 focus:ring-red-200'
                         : 'border-gray-300 focus:ring-blue-200'
-                    }`}
+                      }`}
                   />
                   {errors.emailKhachHang && (
                     <p className="text-red-500 text-sm mt-1">{errors.emailKhachHang}</p>
@@ -310,11 +308,10 @@ const EditHoaDon = () => {
                     type="text"
                     value={formData.diaChiKhachHang}
                     onChange={(e) => handleInputChange('diaChiKhachHang', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errors.diaChiKhachHang
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.diaChiKhachHang
                         ? 'border-red-500 focus:ring-red-200'
                         : 'border-gray-300 focus:ring-blue-200'
-                    }`}
+                      }`}
                   />
                   {errors.diaChiKhachHang && (
                     <p className="text-red-500 text-sm mt-1">{errors.diaChiKhachHang}</p>
@@ -340,14 +337,19 @@ const EditHoaDon = () => {
                     <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg border bg-white">
                       <img
                         src={
-                          product.hinhAnh ||
-                          product.anhSanPham ||
-                          product.sanPham?.anhSanPham ||
-                          "https://via.placeholder.com/100x100?text=No+Image"
+                          (product.anhUrls && product.anhUrls.length > 0)
+                            ? product.anhUrls[0]
+                            : product.hinhAnh ||
+                            product.anhSanPham ||
+                            product.sanPham?.anh ||
+                            product.sanPham?.hinhAnh ||
+                            product.sanPham?.anhSanPham ||
+                            "https://via.placeholder.com/100x100?text=No+Image"
                         }
-                        alt={product.tenSanPham}
-                        className="w-full h-full object-cover"
+                        alt={product.tenSanPham || product.sanPham?.tenSanPham || "Sản phẩm"}
+                        className="w-full h-full object-cover rounded-md border border-gray-200"
                       />
+
                     </div>
 
                     {/* Thông tin sản phẩm */}
@@ -422,7 +424,7 @@ const EditHoaDon = () => {
                 )}
               </div>
             </div>
-   
+
 
             {/* Ghi chú - CÓ THỂ SỬA */}
             <div className="mb-6">
@@ -438,7 +440,7 @@ const EditHoaDon = () => {
               />
             </div>
 
-          
+
 
             {/* Buttons */}
             <div className="flex justify-end gap-3">
