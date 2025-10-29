@@ -211,7 +211,7 @@ const adminRouters = [
         ),
       },
       {
-        path: "update-user",
+        path: "update-user/:id",
         element: (
           <LazyLoad>
             <UpdateUser />
