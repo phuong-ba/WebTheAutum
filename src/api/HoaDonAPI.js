@@ -102,6 +102,11 @@ const hoaDonApi = {
     return axios.get(`${API_URL}/${id}/lich-su`);
   },
 
+  // Trong file api/HoaDonAPI.js
+sendEmail: (id, data) => {
+  return axios.post(`${API_URL}/send-email/${id}`, data);
+},
+
 };
 
 export default hoaDonApi;
