@@ -14,7 +14,10 @@ import {
   Row,
   Col,
   Typography,
-  Empty
+  Empty,
+  Modal,  // Đảm bảo có import này
+  Input,  // Thêm Input
+  Form
 } from 'antd';
 import {
   EditOutlined,
@@ -42,6 +45,9 @@ const DetailHoaDon = () => {
   const [error, setError] = useState(null);
   const [canEdit, setCanEdit] = useState(false);
   const [lichSuHoaDon, setLichSuHoaDon] = useState([]);
+  const [emailModalVisible, setEmailModalVisible] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailForm] = Form.useForm();
 
   useEffect(() => {
     fetchInvoiceDetail();
@@ -114,6 +120,47 @@ const DetailHoaDon = () => {
     navigate(`/bill/edit/${id}`);
   };
 
+
+  const handleSendEmail = () => {
+    // Set email mặc định từ khách hàng
+    emailForm.setFieldsValue({
+      email: invoice.emailKhachHang || '',
+      subject: `Hóa đơn #${invoice.maHoaDon}`,
+      message: `Kính gửi ${invoice.tenKhachHang},\n\nCảm ơn quý khách đã mua hàng tại cửa hàng chúng tôi.\nĐính kèm là hóa đơn chi tiết cho đơn hàng #${invoice.maHoaDon}.\n\nTrân trọng,\nAutumn Store`
+    });
+    setEmailModalVisible(true);
+  };
+
+  const handleEmailSubmit = async (values) => {
+    try {
+      setSendingEmail(true);
+
+      // Gọi API gửi email
+      const response = await hoaDonApi.sendEmail(id, {
+        email: values.email,
+        subject: values.subject,
+        message: values.message
+      });
+
+      message.success('✅ Đã gửi email thành công!');
+      setEmailModalVisible(false);
+      emailForm.resetFields();
+
+    } catch (error) {
+      console.error('Lỗi gửi email:', error);
+      message.error('❌ Không thể gửi email. Vui lòng thử lại!');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleCancelEmail = () => {
+    setEmailModalVisible(false);
+    emailForm.resetFields();
+  };
+
+
+
   const formatMoney = (amount) => {
     if (!amount && amount !== 0) return '0 ₫';
     return new Intl.NumberFormat('vi-VN', {
@@ -156,55 +203,69 @@ const DetailHoaDon = () => {
 
   // Columns cho bảng sản phẩm
   const productColumns = [
-  {
-    title: 'Sản phẩm',
-    key: 'product',
-    render: (_, record) => (
-      <Space align="start">
-        {/* Hiển thị ảnh đầu tiên trong anhUrls */}
-        <img
-          src={
-            record.anhUrls && record.anhUrls.length > 0
-              ? record.anhUrls[0]
-              : 'https://res.cloudinary.com/dzkmm8yop/image/upload/v1761673563/ao-thun-basic-trang-1.jpg_cca2kl.avif'
-          }
-          alt={record.tenSanPham}
-          style={{
-            width: 60,
-            height: 60,
-            objectFit: 'cover',
-            borderRadius: 8,
-            border: '1px solid #f0f0f0'
-          }}
-        />
+    {
+      title: 'Sản phẩm',
+      key: 'product',
+      render: (_, record) => (
+        <Space align="start">
+          {record.anhUrls && record.anhUrls.length > 0 ? (
+            <img
+              src={record.anhUrls[0]}
+              alt={record.tenSanPham}
+              style={{
+                width: 60,
+                height: 60,
+                objectFit: 'cover',
+                borderRadius: 8,
+                border: '1px solid #f0f0f0'
+              }}
+            />
+          ) : (
+            <div style={{
+              width: 60,
+              height: 60,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 8,
+              border: '1px solid #f0f0f0',
+              backgroundColor: '#fafafa',
+              color: '#999',
+              fontSize: 12,
+              textAlign: 'center',
+              padding: 2
+            }}>
+              Chưa có ảnh
+            </div>
+          )}
 
-        <div>
-          <div style={{ fontWeight: 500 }}>{record.tenSanPham}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            <span>Màu: {record.mauSac || '—'}</span> | <span>Size: {record.kichThuoc || '—'}</span>
-          </Text>
-        </div>
-      </Space>
-    )
-  },
-  {
-    title: 'Giá bán',
-    dataIndex: 'giaBan',
-    key: 'giaBan',
-    render: (value) => value.toLocaleString('vi-VN') + ' ₫'
-  },
-  {
-    title: 'Số lượng',
-    dataIndex: 'soLuong',
-    key: 'soLuong'
-  },
-  {
-    title: 'Thành tiền',
-    dataIndex: 'thanhTien',
-    key: 'thanhTien',
-    render: (value) => value.toLocaleString('vi-VN') + ' ₫'
-  }
-];
+          <div>
+            <div style={{ fontWeight: 500 }}>{record.tenSanPham}</div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              <span>Màu: {record.mauSac || '—'}</span> | <span>Size: {record.kichThuoc || '—'}</span>
+            </Text>
+          </div>
+        </Space>
+      )
+    },
+    {
+      title: 'Giá bán',
+      dataIndex: 'giaBan',
+      key: 'giaBan',
+      render: (value) => value.toLocaleString('vi-VN') + ' ₫'
+    },
+    {
+      title: 'Số lượng',
+      dataIndex: 'soLuong',
+      key: 'soLuong'
+    },
+    {
+      title: 'Thành tiền',
+      dataIndex: 'thanhTien',
+      key: 'thanhTien',
+      render: (value) => value.toLocaleString('vi-VN') + ' ₫'
+    }
+  ];
 
 
 
@@ -253,12 +314,12 @@ const DetailHoaDon = () => {
       </div>
     );
   }
-
+  console.log(productColumns);
   if (!invoice) return null;
 
   return (
     <div style={{ padding: 24, backgroundColor: '#f5f5f5', minHeight: '100vh' }} className="detail-hoadon">
-     <div style={{ maxWidth: 1400, margin: '0 auto' }} className="print-area">
+      <div style={{ maxWidth: 1400, margin: '0 auto' }} className="print-area">
         {/* Header */}
         <Card className="no-print" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -291,7 +352,8 @@ const DetailHoaDon = () => {
               </Button>
               <Button
                 icon={<MailOutlined />}
-                onClick={() => {/* Thêm logic gửi email */ }}
+                onClick={handleSendEmail}
+                disabled={!invoice.emailKhachHang || invoice.emailKhachHang === 'N/A'}
               >
                 Gửi email
               </Button>
@@ -352,11 +414,7 @@ const DetailHoaDon = () => {
                       <Text type="secondary">Phương thức thanh toán:</Text>
                       <div>
                         <Text>
-                          {invoice.hinhThucThanhToan === '0'
-                            ? 'Thanh toán khi nhận hàng (COD)'
-                            : invoice.hinhThucThanhToan === '1'
-                              ? 'Chuyển khoản'
-                              : 'N/A'}
+                          {invoice.hinhThucThanhToan || 'N/A'}
                         </Text>
                       </div>
                     </div>
@@ -480,8 +538,73 @@ const DetailHoaDon = () => {
         </Row>
       </div>
 
+      {/* Modal gửi email */}
+      <Modal
+        title={<Space><MailOutlined /> Gửi hóa đơn qua email</Space>}
+        open={emailModalVisible}
+        onCancel={handleCancelEmail}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={emailForm}
+          layout="vertical"
+          onFinish={handleEmailSubmit}
+        >
+          <Form.Item
+            label="Email người nhận"
+            name="email"
+            rules={[
+              { required: true, message: 'Vui lòng nhập email!' },
+              { type: 'email', message: 'Email không hợp lệ!' }
+            ]}
+          >
+            <Input
+              placeholder="example@email.com"
+              prefix={<MailOutlined />}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="Tiêu đề"
+            name="subject"
+            rules={[{ required: true, message: 'Vui lòng nhập tiêu đề!' }]}
+          >
+            <Input placeholder="Tiêu đề email" />
+          </Form.Item>
+
+          <Form.Item
+            label="Nội dung"
+            name="message"
+            rules={[{ required: true, message: 'Vui lòng nhập nội dung!' }]}
+          >
+            <Input.TextArea
+              rows={6}
+              placeholder="Nội dung email..."
+            />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Space>
+              <Button onClick={handleCancelEmail}>
+                Hủy
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={sendingEmail}
+                icon={<MailOutlined />}
+              >
+                Gửi email
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+
       {/* Print styles */}
-    <style>{`
+      <style>{`
   @media print {
     /* Ẩn toàn bộ layout khung ngoài */
     header, footer, nav, aside,
