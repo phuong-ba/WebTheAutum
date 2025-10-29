@@ -13,6 +13,7 @@ import {
   Card,
   Tooltip,
   Modal,
+  Select,
 } from "antd";
 import {
   PlusOutlined,
@@ -43,7 +44,7 @@ export default function Customer() {
   const [importing, setImporting] = useState(false);
   const [messageApi, messageContextHolder] = message.useMessage();
   const [modal, contextHolder] = Modal.useModal();
-
+  const { Option } = Select;
   const pageSize = 5;
 
   // 🔹 Gọi API lấy danh sách và sắp xếp theo ngày sửa / ngày tạo giảm dần
@@ -338,15 +339,14 @@ export default function Customer() {
                   onChange={(e) => setSearchKeyword(e.target.value)}
                   className="border rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
                 />
-
                 <select
                   value={filterTrangThai}
                   onChange={(e) => setFilterTrangThai(e.target.value)}
                   className="border rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
                 >
                   <option value="all">Tất cả trạng thái</option>
-                  <option value="active">Kích hoạt</option>
-                  <option value="inactive">Đã hủy</option>
+                  <option value="active">Hoạt động</option>
+                  <option value="inactive">Ngừng hoạt động</option>
                 </select>
               </div>
 
@@ -392,12 +392,7 @@ export default function Customer() {
                 </button>
 
                 <button
-                  onClick={() => {
-                    const link = document.createElement("a");
-                    link.href = "/mau_khach_hang.xlsx";
-                    link.download = "mau_khach_hang.xlsx";
-                    link.click();
-                  }}
+                  onClick={downloadTemplate}
                   className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
                 >
                   Tải mẫu Excel
