@@ -7,7 +7,7 @@ import { useNavigate, useParams } from "react-router";
 import UploadAvartar from "../../components/UploadAvartar";
 import UserBreadcrumb from "./UserBreadcrumb";
 import axios from "axios";
-import { nhanVienById } from "@/services/nhanVienService";
+import { nhanVienById, updateNhanVien } from "@/services/nhanVienService";
 
 const { Option } = Select;
 
@@ -28,8 +28,13 @@ export default function UpdateUser() {
   useEffect(() => {
     dispatch(fetchAllChucVu());
     fetchProvinces();
-    fetchUserData();
   }, [dispatch]);
+
+  useEffect(() => {
+    if (provinces.length > 0 && id) {
+      fetchUserData();
+    }
+  }, [provinces, id]);
 
   const fetchProvinces = async () => {
     try {
@@ -44,28 +49,68 @@ export default function UpdateUser() {
       fetchUserData();
     }
   }, [id]);
+
   const fetchUserData = async () => {
     if (!id) return;
     try {
       setLoading(true);
       const user = await dispatch(nhanVienById(Number(id))).unwrap();
-      const userInfo = user.data; // <-- lấy đúng object
-
+      console.log("🚀 ~ fetchUserData ~ user:", user);
+      const userInfo = user.data;
+      console.log(userInfo);
       setUserData(userInfo);
+
+      let provinceCode = undefined;
+      let wardCode = undefined;
+      let shortAddress = userInfo.diaChi || "";
+
+      if (userInfo.diaChi) {
+        const parts = userInfo.diaChi.split(",").map((p) => p.trim());
+        const cityName = parts[parts.length - 1];
+        const wardName = parts[parts.length - 2];
+
+        const foundProvince = provinces.find(
+          (p) => p.name.toLowerCase() === cityName?.toLowerCase()
+        );
+        if (foundProvince) {
+          provinceCode = foundProvince.code;
+          const res = await axios.get(`${API_BASE}/p/${provinceCode}?depth=2`);
+          const wardList = res.data.wards || [];
+          setWards(wardList);
+
+          // Tìm code phường/xã
+          const foundWard = wardList.find(
+            (w) => w.name.toLowerCase() === wardName?.toLowerCase()
+          );
+          if (foundWard) wardCode = foundWard.code;
+
+          shortAddress = shortAddress
+            .replace(wardName, "")
+            .replace(cityName, "")
+            .split(",") // tách ra theo dấu phẩy
+            .map((part) => part.trim()) // loại bỏ khoảng trắng thừa
+            .filter(Boolean)
+            .join(", ");
+        }
+      }
+
       form.setFieldsValue({
         maNhanVien: userInfo.maNhanVien,
         tenNhanVien: userInfo.hoTen,
         gioiTinh: userInfo.gioiTinh ? "Nam" : "Nữ",
         soDienThoai: userInfo.sdt,
-        diaChi: userInfo.diaChi,
+        cccd: userInfo.cccd,
+        diaChi: shortAddress,
         email: userInfo.email,
         chucVu: userInfo.chucVuId,
-        hinhAnh: userInfo.hinhAnh,
         ngaySinh: userInfo.ngaySinh ? dayjs(userInfo.ngaySinh) : null,
+        province: provinceCode,
+        ward: wardCode,
+        hinhAnh: userInfo.hinhAnh,
       });
+
       setImageUrl(userInfo.hinhAnh || null);
     } catch (error) {
-      console.log(error);
       messageApi.error("Không tải được dữ liệu nhân viên");
     } finally {
       setLoading(false);
@@ -91,7 +136,8 @@ export default function UpdateUser() {
         gioiTinh: values.gioiTinh === "Nam",
         sdt: values.soDienThoai,
         diaChi: values.diaChi,
-        email: userData.email,
+        cccd: values.cccd || userData.cccd,
+        email: values.email || userData.email,
         chucVuId: values.chucVu,
         ngaySinh: values.ngaySinh?.toISOString(),
         trangThai: true,
@@ -100,10 +146,9 @@ export default function UpdateUser() {
       };
 
       await dispatch(updateNhanVien({ id: userData.id, nhanvien: payload }));
-      messageApi.success("Cập nhật nhân viên thành công!");
       setTimeout(() => navigate("/user"), 800);
+      messageApi.success("Cập nhật nhân viên thành công!");
     } catch (error) {
-      console.log(error);
       messageApi.error("Cập nhật thất bại! Vui lòng thử lại.");
     }
   };
@@ -173,14 +218,12 @@ export default function UpdateUser() {
                     </Form.Item>
                   </Col>
                   <Col flex="1">
-                    <Form.Item name="chucVu" label="Chức vụ">
-                      <Select placeholder="Chọn chức vụ">
-                        {data?.map((cv) => (
-                          <Option key={cv.id} value={cv.id}>
-                            {cv.tenChucVu}
-                          </Option>
-                        ))}
-                      </Select>
+                    <Form.Item
+                      name="cccd"
+                      label="Căn cước công dân"
+                      rules={[{ required: true, message: "Nhập CCCD" }]}
+                    >
+                      <Input placeholder="Nhập căn cước công dân" />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -232,6 +275,20 @@ export default function UpdateUser() {
                       </Select>
                     </Form.Item>
                   </Col>
+                </Row>
+                <Row gutter={16} wrap className="gap-10 ">
+                  <Col flex="1">
+                    <Form.Item name="chucVu" label="Chức vụ">
+                      <Select placeholder="Chọn chức vụ">
+                        {data?.map((cv) => (
+                          <Option key={cv.id} value={cv.id}>
+                            {cv.tenChucVu}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                  <Col flex="1"></Col>
                 </Row>
 
                 <div className="flex justify-end pr-3 gap-4">

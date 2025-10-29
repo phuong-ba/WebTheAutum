@@ -9,10 +9,12 @@ export default function TableChiTietSanPham({
   onSelectChange,
   loaiGiamGia,
   giaTriGiam,
+  onDataChange,
+  giaTriGiamToiThieu,
 }) {
+
   const dispatch = useDispatch();
   const [data, setData] = useState([]);
-  console.log("🚀 ~ TableChiTietSanPham ~ data:", data);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -45,6 +47,9 @@ export default function TableChiTietSanPham({
         });
 
         setData(products);
+
+        // Gửi dữ liệu lên parent
+        onDataChange?.(products);
       } catch (err) {
         console.error(err);
         message.error("Không thể tải chi tiết sản phẩm!");
@@ -116,7 +121,6 @@ export default function TableChiTietSanPham({
     },
     { title: "Mô tả", dataIndex: "moTa", render: (val) => val || "-" },
   ];
-  console.log("🚀 ~ TableChiTietSanPham ~ columns:", columns);
 
   return (
     <div className="mt-4">

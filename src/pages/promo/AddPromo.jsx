@@ -33,7 +33,7 @@ export default function AddPromo() {
   const editingItem = location.state?.dotGiamGia || null;
   const [selectedSanPhamKeys, setSelectedSanPhamKeys] = useState([]);
   const [selectedChiTietKeys, setSelectedChiTietKeys] = useState({});
-
+  const [chiTietSanPhamData, setChiTietSanPhamData] = useState({});
   const [loaiGiamGia, setLoaiGiamGia] = useState(
     form.getFieldValue("loaiGiamGia") || "Tiền mặt"
   );
@@ -60,17 +60,42 @@ export default function AddPromo() {
     }
   }, [giaTriGiamState, loaiGiamGia]);
 
+  console.log("🚀 ~ AddPromo ~ chiTietSanPhamData:", chiTietSanPhamData);
+  useEffect(() => {
+    if (loaiGiamGia === "Phần trăm") {
+      let tongGiam = 0;
+      Object.values(chiTietSanPhamData).forEach((chiTietArr) => {
+        chiTietArr.forEach((item) => {
+          tongGiam += item.giaBan * (giaTriGiamState / 100);
+        });
+      });
+
+      // Nếu vượt quá 100, đặt về 0
+      if (giaTriGiamState > 100) {
+        tongGiam = 0;
+      }
+
+      form.setFieldsValue({ giaTriToiThieu: tongGiam });
+      setGiaTriToiThieuState(tongGiam);
+    } else {
+      form.setFieldsValue({ giaTriToiThieu: giaTriGiamState });
+      setGiaTriToiThieuState(giaTriGiamState);
+    }
+  }, [chiTietSanPhamData, giaTriGiamState, loaiGiamGia]);
   useEffect(() => {
     const fetchData = async () => {
+      console.log("🚀 ~ fetchData ~ editingItem:", editingItem);
       if (editingItem) {
         try {
           const res = await dispatch(
             getSanPhamTheoDot(editingItem.id)
           ).unwrap();
           const sanPhamIds = res.data.map((sp) => sp.sanPhamId);
+          console.log("🚀 ~ fetchData ~ sanPhamIds:", sanPhamIds);
           setSelectedSanPhamKeys(sanPhamIds);
 
           const chiTietMap = {};
+          console.log("🚀 ~ fetchData ~ chiTietMap:", chiTietMap);
           res.data.forEach((sp) => {
             chiTietMap[sp.sanPhamId] = sp.chiTietIds;
           });
@@ -96,7 +121,6 @@ export default function AddPromo() {
     fetchData();
   }, [editingItem, dispatch]);
 
-  // Disabled date helpers
   const disabledDateBeforeToday = (current) =>
     current && current < now.startOf("day");
   const disabledEndDate = (current, startDate) => {
@@ -111,13 +135,22 @@ export default function AddPromo() {
   const handleSanPhamSelectChange = (keys) => {
     setSelectedSanPhamKeys(keys);
 
-    // Xóa chi tiết các sản phẩm bị bỏ chọn
+    // Xóa chi tiết các sản phẩm bị bỏ chọn trong selectedChiTietKeys
     setSelectedChiTietKeys((prev) => {
       const newChiTiet = {};
       keys.forEach((id) => {
         if (prev[id]) newChiTiet[id] = prev[id];
       });
       return newChiTiet;
+    });
+
+    // Xóa chiTietSanPhamData cho sản phẩm bị bỏ chọn
+    setChiTietSanPhamData((prev) => {
+      const newData = {};
+      keys.forEach((id) => {
+        if (prev[id]) newData[id] = prev[id];
+      });
+      return newData;
     });
   };
 
@@ -263,7 +296,22 @@ export default function AddPromo() {
               <Form.Item
                 name="giaTriGiam"
                 label="Giá trị"
-                rules={[{ required: true, message: "Nhập giá trị giảm" }]}
+                rules={[
+                  { required: true, message: "Nhập giá trị giảm" },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      const loaiGiam = getFieldValue("loaiGiamGia");
+                      if (loaiGiam === "Phần trăm") {
+                        if (value < 0 || value > 100) {
+                          return Promise.reject(
+                            new Error("Giá trị giảm % phải từ 0 đến 100")
+                          );
+                        }
+                      }
+                      return Promise.resolve();
+                    },
+                  }),
+                ]}
               >
                 <Input
                   placeholder="Nhập giá trị giảm"
@@ -273,19 +321,17 @@ export default function AddPromo() {
               </Form.Item>
             </Col>
 
-            <Col span={8}>
-              <Form.Item name="giaTriToiThieu" label="Số tiền giảm">
-                <Input
-                  placeholder={
-                    loaiGiamGia === "Phần trăm"
-                      ? "Tự tính theo % giảm"
-                      : "Nhập số tiền giảm"
-                  }
-                  disabled={loaiGiamGia === "Phần trăm"}
-                  value={giaTriToiThieuState}
-                />
-              </Form.Item>
-            </Col>
+            {loaiGiamGia === "Phần trăm" && (
+              <Col span={8}>
+                <Form.Item name="giaTriToiThieu" label="Số tiền giảm">
+                  <Input
+                    placeholder="Tự tính theo % giảm"
+                    value={giaTriToiThieuState}
+                    disabled
+                  />
+                </Form.Item>
+              </Col>
+            )}
           </Row>
 
           <TableSanPham
@@ -299,12 +345,19 @@ export default function AddPromo() {
                 key={sanPhamId}
                 sanPhamId={sanPhamId}
                 selectedRowKeys={selectedChiTietKeys[sanPhamId] || []}
-                loaiGiamGia={form.getFieldValue("loaiGiamGia")}
-                giaTriGiam={form.getFieldValue("giaTriGiam")}
+                loaiGiamGia={loaiGiamGia}
+                giaTriGiam={giaTriGiamState}
+                giaTriGiamToiThieu={form.getFieldValue("giaTriToiThieu")}
                 onSelectChange={(keys) =>
                   setSelectedChiTietKeys((prev) => ({
                     ...prev,
                     [sanPhamId]: keys,
+                  }))
+                }
+                onDataChange={(data) =>
+                  setChiTietSanPhamData((prev) => ({
+                    ...prev,
+                    [sanPhamId]: data,
                   }))
                 }
               />
@@ -315,7 +368,9 @@ export default function AddPromo() {
               selectedRowKeys={[]}
               loaiGiamGia={form.getFieldValue("loaiGiamGia")}
               giaTriGiam={form.getFieldValue("giaTriGiam")}
+              giaTriGiamToiThieu={form.getFieldValue("giaTriToiThieu")}
               onSelectChange={() => {}}
+              onDataChange={() => {}}
             />
           )}
 
