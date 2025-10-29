@@ -12,7 +12,6 @@ export default function TableChiTietSanPham({
   onDataChange,
   giaTriGiamToiThieu,
 }) {
-
   const dispatch = useDispatch();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -48,7 +47,6 @@ export default function TableChiTietSanPham({
 
         setData(products);
 
-        // Gửi dữ liệu lên parent
         onDataChange?.(products);
       } catch (err) {
         console.error(err);
@@ -119,7 +117,6 @@ export default function TableChiTietSanPham({
       dataIndex: "giaBanSauGiam",
       render: (val) => val?.toLocaleString() + "₫" || "-",
     },
-    { title: "Mô tả", dataIndex: "moTa", render: (val) => val || "-" },
   ];
 
   return (

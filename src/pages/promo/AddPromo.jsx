@@ -19,6 +19,7 @@ import {
 } from "@/services/dotGiamGiaService";
 import TableSanPham from "./TableSanPham";
 import TableChiTietSanPham from "./TableChiTietSanPham";
+import PromoBreadcrumb from "./PromoBreadcrumb";
 
 const { Option } = Select;
 
@@ -131,11 +132,9 @@ export default function AddPromo() {
     );
   };
 
-  // Khi chọn/bỏ chọn sản phẩm
   const handleSanPhamSelectChange = (keys) => {
     setSelectedSanPhamKeys(keys);
 
-    // Xóa chi tiết các sản phẩm bị bỏ chọn trong selectedChiTietKeys
     setSelectedChiTietKeys((prev) => {
       const newChiTiet = {};
       keys.forEach((id) => {
@@ -144,7 +143,6 @@ export default function AddPromo() {
       return newChiTiet;
     });
 
-    // Xóa chiTietSanPhamData cho sản phẩm bị bỏ chọn
     setChiTietSanPhamData((prev) => {
       const newData = {};
       keys.forEach((id) => {
@@ -154,7 +152,6 @@ export default function AddPromo() {
     });
   };
 
-  // Submit form
   const handleSubmit = async (values) => {
     const start = dayjs(values.ngayBatDau);
     const end = dayjs(values.ngayKetThuc);
@@ -217,179 +214,228 @@ export default function AddPromo() {
     <>
       {contextHolder}
       {modalContextHolder}
-
-      <div className="bg-white flex flex-col gap-3 px-10 py-[20px]">
-        <h1 className="font-bold text-4xl text-[#E67E22]">
-          {editingItem ? "Cập nhật đợt giảm giá" : "Thêm mới đợt giảm giá"}
-        </h1>
-      </div>
-
-      <div className="bg-white rounded-xl mx-6 my-6 py-5 px-10">
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={onFinish}
-          onFinishFailed={() =>
-            messageApi.error("Vui lòng nhập đầy đủ thông tin!")
-          }
-        >
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="tenDot"
-                label="Tên đợt giảm giá"
-                rules={[{ required: true, message: "Vui lòng nhập tên đợt" }]}
-              >
-                <Input placeholder="Nhập tên đợt giảm giá" />
-              </Form.Item>
-            </Col>
-
-            <Col span={8}>
-              <Form.Item
-                name="ngayBatDau"
-                label="Ngày bắt đầu"
-                rules={[{ required: true, message: "Chọn ngày bắt đầu" }]}
-              >
-                <DatePicker
-                  className="w-full"
-                  disabledDate={disabledDateBeforeToday}
-                />
-              </Form.Item>
-            </Col>
-
-            <Col span={8}>
-              <Form.Item
-                name="ngayKetThuc"
-                label="Ngày kết thúc"
-                dependencies={["ngayBatDau"]}
-                rules={[{ required: true, message: "Chọn ngày kết thúc" }]}
-              >
-                <DatePicker
-                  className="w-full"
-                  disabledDate={(current) =>
-                    disabledEndDate(current, form.getFieldValue("ngayBatDau"))
-                  }
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="loaiGiamGia"
-                label="Loại giảm giá"
-                rules={[{ required: true }]}
-              >
-                <Select
-                  placeholder="Chọn loại"
-                  onChange={(val) => setLoaiGiamGia(val)}
-                  value={loaiGiamGia}
-                >
-                  <Option value="Phần trăm">Phần trăm</Option>
-                  <Option value="Tiền mặt">Tiền mặt</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-
-            <Col span={8}>
-              <Form.Item
-                name="giaTriGiam"
-                label="Giá trị"
-                rules={[
-                  { required: true, message: "Nhập giá trị giảm" },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      const loaiGiam = getFieldValue("loaiGiamGia");
-                      if (loaiGiam === "Phần trăm") {
-                        if (value < 0 || value > 100) {
-                          return Promise.reject(
-                            new Error("Giá trị giảm % phải từ 0 đến 100")
-                          );
-                        }
-                      }
-                      return Promise.resolve();
-                    },
-                  }),
-                ]}
-              >
-                <Input
-                  placeholder="Nhập giá trị giảm"
-                  value={giaTriGiamState}
-                  onChange={(e) => setGiaTriGiamState(Number(e.target.value))}
-                />
-              </Form.Item>
-            </Col>
-
-            {loaiGiamGia === "Phần trăm" && (
-              <Col span={8}>
-                <Form.Item name="giaTriToiThieu" label="Số tiền giảm">
-                  <Input
-                    placeholder="Tự tính theo % giảm"
-                    value={giaTriToiThieuState}
-                    disabled
-                  />
-                </Form.Item>
-              </Col>
-            )}
-          </Row>
-
-          <TableSanPham
-            selectedRowKeys={selectedSanPhamKeys}
-            onSelectChange={handleSanPhamSelectChange}
-          />
-
-          {selectedSanPhamKeys.length > 0 ? (
-            selectedSanPhamKeys.map((sanPhamId) => (
-              <TableChiTietSanPham
-                key={sanPhamId}
-                sanPhamId={sanPhamId}
-                selectedRowKeys={selectedChiTietKeys[sanPhamId] || []}
-                loaiGiamGia={loaiGiamGia}
-                giaTriGiam={giaTriGiamState}
-                giaTriGiamToiThieu={form.getFieldValue("giaTriToiThieu")}
-                onSelectChange={(keys) =>
-                  setSelectedChiTietKeys((prev) => ({
-                    ...prev,
-                    [sanPhamId]: keys,
-                  }))
-                }
-                onDataChange={(data) =>
-                  setChiTietSanPhamData((prev) => ({
-                    ...prev,
-                    [sanPhamId]: data,
-                  }))
-                }
-              />
-            ))
-          ) : (
-            <TableChiTietSanPham
-              sanPhamId={null}
-              selectedRowKeys={[]}
-              loaiGiamGia={form.getFieldValue("loaiGiamGia")}
-              giaTriGiam={form.getFieldValue("giaTriGiam")}
-              giaTriGiamToiThieu={form.getFieldValue("giaTriToiThieu")}
-              onSelectChange={() => {}}
-              onDataChange={() => {}}
-            />
-          )}
-
-          <div className="flex justify-center gap-4 border-t pt-4 mt-6">
-            <button
-              type="button"
-              onClick={() => navigate("/promo")}
-              className="border border-[#E67E22] text-[#E67E22] rounded px-6 py-2 hover:bg-[#E67E22] hover:text-white"
-            >
-              Quay lại
-            </button>
-            <button
-              type="submit"
-              className="bg-[#E67E22] text-white rounded px-6 py-2 hover:bg-[#cf6a12]"
-            >
-              {editingItem ? "Cập nhật" : "Thêm"}
-            </button>
+      <div className="p-6 flex flex-col gap-12">
+        <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+          <div className="font-bold text-4xl text-[#E67E22]">
+            Quản lý đợt giảm giá
           </div>
-        </Form>
+          <PromoBreadcrumb />
+        </div>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-3">
+            <div className="font-bold text-2xl text-[#E67E22]">
+              {editingItem ? "Cập nhật đợt giảm giá" : "Thêm mới đợt giảm giá"}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl mx-6 my-6 py-5 px-10">
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={onFinish}
+              onFinishFailed={() =>
+                messageApi.error("Vui lòng nhập đầy đủ thông tin!")
+              }
+            >
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item
+                    name="tenDot"
+                    label="Tên đợt giảm giá"
+                    rules={[
+                      { required: true, message: "Vui lòng nhập tên đợt" },
+                    ]}
+                  >
+                    <Input placeholder="Nhập tên đợt giảm giá" />
+                  </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                  <Form.Item
+                    name="ngayBatDau"
+                    label="Ngày bắt đầu"
+                    rules={[{ required: true, message: "Chọn ngày bắt đầu" }]}
+                  >
+                    <DatePicker
+                      className="w-full"
+                      disabledDate={disabledDateBeforeToday}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                  <Form.Item
+                    name="ngayKetThuc"
+                    label="Ngày kết thúc"
+                    dependencies={["ngayBatDau"]}
+                    rules={[{ required: true, message: "Chọn ngày kết thúc" }]}
+                  >
+                    <DatePicker
+                      className="w-full"
+                      disabledDate={(current) =>
+                        disabledEndDate(
+                          current,
+                          form.getFieldValue("ngayBatDau")
+                        )
+                      }
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item
+                    name="loaiGiamGia"
+                    label="Loại giảm giá"
+                    rules={[
+                      { required: true, message: "Chưa chọn loại giảm giá" },
+                    ]}
+                  >
+                    <Select
+                      placeholder="Chọn loại"
+                      onChange={(val) => setLoaiGiamGia(val)}
+                      value={loaiGiamGia}
+                    >
+                      <Option value="Phần trăm">Phần trăm</Option>
+                      <Option value="Tiền mặt">Tiền mặt</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                  <Form.Item
+                    name="giaTriGiam"
+                    label="Giá trị"
+                    rules={[
+                      { required: true, message: "Nhập giá trị giảm" },
+                      ({ getFieldValue }) => ({
+                        validator(_, value) {
+                          const loaiGiam = getFieldValue("loaiGiamGia");
+                          if (loaiGiam === "Phần trăm") {
+                            if (value < 0 || value > 100) {
+                              return Promise.reject(
+                                new Error("Giá trị giảm % phải từ 0 đến 100")
+                              );
+                            }
+                          }
+                          return Promise.resolve();
+                        },
+                      }),
+                    ]}
+                  >
+                    <Input
+                      placeholder="Nhập giá trị giảm"
+                      value={giaTriGiamState}
+                      onChange={(e) =>
+                        setGiaTriGiamState(Number(e.target.value))
+                      }
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                  <Form.Item name="giaTriToiThieu" label="Số tiền giảm">
+                    <Input
+                      placeholder="Tự tính theo % giảm"
+                      value={giaTriToiThieuState}
+                      disabled
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <TableSanPham
+                selectedRowKeys={selectedSanPhamKeys}
+                onSelectChange={handleSanPhamSelectChange}
+              />
+              {selectedSanPhamKeys.length > 0 && (
+                <div className="flex justify-end gap-3 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newChiTiet = {};
+                      selectedSanPhamKeys.forEach((id) => {
+                        const data = chiTietSanPhamData[id] || [];
+                        newChiTiet[id] = data.map((item) => item.id);
+                      });
+                      setSelectedChiTietKeys(newChiTiet);
+                      messageApi.success("Đã chọn tất cả chi tiết sản phẩm");
+                    }}
+                    className="border border-green-600 text-green-600 rounded px-4 py-1 hover:bg-green-600 hover:text-white"
+                  >
+                    Chọn tất cả
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleared = {};
+                      selectedSanPhamKeys.forEach((id) => {
+                        cleared[id] = [];
+                      });
+                      setSelectedChiTietKeys(cleared);
+                      messageApi.info("Đã bỏ chọn tất cả chi tiết sản phẩm");
+                    }}
+                    className="border border-red-600 text-red-600 rounded px-4 py-1 hover:bg-red-600 hover:text-white"
+                  >
+                    Bỏ chọn tất cả
+                  </button>
+                </div>
+              )}
+              {selectedSanPhamKeys.length > 0 ? (
+                selectedSanPhamKeys.map((sanPhamId) => (
+                  <TableChiTietSanPham
+                    key={sanPhamId}
+                    sanPhamId={sanPhamId}
+                    selectedRowKeys={selectedChiTietKeys[sanPhamId] || []}
+                    loaiGiamGia={loaiGiamGia}
+                    giaTriGiam={giaTriGiamState}
+                    giaTriGiamToiThieu={form.getFieldValue("giaTriToiThieu")}
+                    onSelectChange={(keys) =>
+                      setSelectedChiTietKeys((prev) => ({
+                        ...prev,
+                        [sanPhamId]: keys,
+                      }))
+                    }
+                    onDataChange={(data) =>
+                      setChiTietSanPhamData((prev) => ({
+                        ...prev,
+                        [sanPhamId]: data,
+                      }))
+                    }
+                  />
+                ))
+              ) : (
+                <TableChiTietSanPham
+                  sanPhamId={null}
+                  selectedRowKeys={[]}
+                  loaiGiamGia={form.getFieldValue("loaiGiamGia")}
+                  giaTriGiam={form.getFieldValue("giaTriGiam")}
+                  giaTriGiamToiThieu={form.getFieldValue("giaTriToiThieu")}
+                  onSelectChange={() => {}}
+                  onDataChange={() => {}}
+                />
+              )}
+
+              <div className="flex justify-center gap-4 border-t pt-4 mt-6">
+                <button
+                  type="button"
+                  onClick={() => navigate("/promo")}
+                  className="border border-[#E67E22] text-[#E67E22] rounded px-6 py-2 hover:bg-[#E67E22] hover:text-white"
+                >
+                  Quay lại
+                </button>
+                <button
+                  type="submit"
+                  className="bg-[#E67E22] text-white rounded px-6 py-2 hover:bg-[#cf6a12]"
+                >
+                  {editingItem ? "Cập nhật" : "Thêm"}
+                </button>
+              </div>
+            </Form>
+          </div>
+        </div>
       </div>
     </>
   );
