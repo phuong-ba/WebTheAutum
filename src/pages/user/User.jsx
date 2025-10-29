@@ -8,7 +8,13 @@ import {
 } from "@/services/nhanVienService";
 import FliterUser from "./FliterUser";
 import { useNavigate } from "react-router";
-import { LockKeyIcon, LockOpenIcon, PencilIcon } from "@phosphor-icons/react";
+import {
+  LockKeyIcon,
+  LockOpenIcon,
+  PencilIcon,
+  ToggleLeftIcon,
+  ToggleRightIcon,
+} from "@phosphor-icons/react";
 import dayjs from "dayjs";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -122,9 +128,9 @@ export default function User() {
         <Space size="middle">
           <a onClick={() => handleChangeStatus(record)}>
             {record.trangThai ? (
-              <LockKeyIcon size={24} color="#E67E22" />
+              <ToggleRightIcon weight="fill" size={30} color="#E67E22" />
             ) : (
-              <LockOpenIcon size={24} color="#00A96C" />
+              <ToggleLeftIcon weight="fill" size={30} color="#00A96C" />
             )}
           </a>
           <a
@@ -144,7 +150,6 @@ export default function User() {
       ),
     },
   ];
-  console.log("🚀 ~ handleExportExcel ~ data:", data);
   const handleExportExcel = () => {
     if (!data || data.length === 0) {
       messageApi.warning("Không có dữ liệu để xuất!");

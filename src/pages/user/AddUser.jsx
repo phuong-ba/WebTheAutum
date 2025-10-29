@@ -151,7 +151,6 @@ export default function AddUser() {
   };
 
   const onFinish = (values) => {
-    console.log("Form validated values:", values);
     setPendingValues(values);
     setConfirmModalVisible(true);
   };
@@ -178,6 +177,7 @@ export default function AddUser() {
       email: values.Email,
       chucVuId: values.ChucVu,
       ngaySinh: values.NgaySinh,
+      cccd: values.cccd,
       hinhAnh: imageUrl,
       matKhau: values.MatKhau || "123456",
       trangThai: true,
