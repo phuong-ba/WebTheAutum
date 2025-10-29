@@ -91,14 +91,14 @@ export default function FilterUser() {
             <div className="flex justify-end gap-4 pr-3">
               <button
                 onClick={handleReset}
-                className="bg-white text-[#E67E22] border rounded px-6 py-2 cursor-pointer
+                className="bg-white text-[#E67E22] border border-gray-400 rounded px-6 py-2 cursor-pointer
               active:bg-[#A0522D] active:text-white transition-colors font-medium"
               >
                 Nhập lại
               </button>
               <button
                 htmlType="submit"
-                className="bg-[#E67E22] text-white border rounded px-6 py-2 cursor-pointer 
+                className="bg-[#E67E22] text-white border border-gray-400 rounded px-6 py-2 cursor-pointer 
              hover:border-[#d35400] active:bg-[#A0522D] active:text-white transition-colors font-medium"
               >
                 Tìm kiếm

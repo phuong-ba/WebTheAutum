@@ -339,9 +339,9 @@ export default function Discount() {
 
           <a onClick={() => handleChangeStatus(record)}>
             {record.trangThai ? (
-              <ToggleRightIcon weight="fill" size={30} color="#E67E22" />
+              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
             ) : (
-              <ToggleLeftIcon weight="fill" size={30} color="#00A96C" />
+              <ToggleLeftIcon weight="fill" size={30} color="#E67E22" />
             )}
           </a>
         </Space>
@@ -367,18 +367,18 @@ export default function Discount() {
               Danh sách phiếu giảm
             </div>
             <div className="flex gap-3">
-              <button
+              <div
                 onClick={() => navigate("/add-discount")}
-                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] active:border-[#d35400] transition-colors font-medium"
+                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] active:border-[#d35400] transition-colors font-bold"
               >
                 Thêm mới
-              </button>
-              <button
+              </div>
+              <div
                 onClick={handleExportExcel}
-                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-bold"
               >
-                Xuất EXCEL
-              </button>
+                Xuất Excel
+              </div>
             </div>
           </div>
 
