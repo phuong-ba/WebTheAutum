@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import FliterDiscount from "./FliterDiscount";
 import DiscountBreadcrumb from "@/components/DiscountBreadcrumb";
+import { Eye } from "lucide-react";
 
 export default function Discount() {
   const dispatch = useDispatch();
@@ -327,9 +328,9 @@ export default function Discount() {
               navigate("/update-discount", { state: { phieuGiamGia: record } });
             }}
           >
-            <PencilIcon
-              size={24}
-              color={record.trangThai === false ? "#ccc" : "#E67E22"}
+            <Eye
+              size={20}
+              color={record.trangThai === false ? "#ccc" : "#00A96C"}
               style={{
                 cursor: record.trangThai === false ? "not-allowed" : "pointer",
               }}
@@ -338,9 +339,9 @@ export default function Discount() {
 
           <a onClick={() => handleChangeStatus(record)}>
             {record.trangThai ? (
-              <ToggleRightIcon size={24} color="#00A96C" />
+              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
             ) : (
-              <ToggleLeftIcon size={24} color="#E67E22" />
+              <ToggleLeftIcon weight="fill" size={30} color="#E67E22" />
             )}
           </a>
         </Space>
@@ -352,47 +353,49 @@ export default function Discount() {
     <>
       {contextHolder}
       {messageContextHolder}
-      <div className="bg-white flex flex-col gap-3 px-10 py-[20px]">
-        <h1 className="font-bold text-4xl text-[#E67E22]">
-          Quản lý phiếu giảm giá
-        </h1>
-        <DiscountBreadcrumb />
-      </div>
-      <FliterDiscount />
-      <div className="bg-white min-h-[500px] px-5 py-[32px]">
-        <div className="flex justify-between items-center mb-5">
-          <p className="text-[#E67E22] font-bold text-[18px] mb-4">
-            Danh sách phiếu giảm giá
-          </p>
-          <div className="flex gap-3">
-            <button
-              onClick={() => navigate("/add-discount")}
-              className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
-            >
-              Thêm mới
-            </button>
-            <button
-              onClick={handleExportExcel}
-              className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
-            >
-              Xuất EXCEL
-            </button>
+      <div className="p-6 flex flex-col gap-10">
+        <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+          <div className="font-bold text-4xl text-[#E67E22]">
+            Quản lý phiếu giảm giá
           </div>
+          <DiscountBreadcrumb />
         </div>
+        <FliterDiscount />
+        <div className="bg-white min-h-[500px] rounded-lg shadow overflow-hidden">
+          <div className="flex justify-between items-center bg-[#E67E22] px-6 py-3 rounded-tl-lg rounded-tr-lg">
+            <div className="text-white font-bold text-2xl">
+              Danh sách phiếu giảm
+            </div>
+            <div className="flex gap-3">
+              <div
+                onClick={() => navigate("/add-discount")}
+                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] active:border-[#d35400] transition-colors font-bold"
+              >
+                Thêm mới
+              </div>
+              <div
+                onClick={handleExportExcel}
+                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-bold"
+              >
+                Xuất Excel
+              </div>
+            </div>
+          </div>
 
-        <Table
-          columns={columns}
-          dataSource={data}
-          rowKey="id"
-          bordered
-          loading={loading}
-          pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            onChange: (page, pageSize) =>
-              setPagination({ current: page, pageSize }),
-          }}
-        />
+          <Table
+            columns={columns}
+            dataSource={data}
+            rowKey="id"
+            bordered
+            loading={loading}
+            pagination={{
+              current: pagination.current,
+              pageSize: pagination.pageSize,
+              onChange: (page, pageSize) =>
+                setPagination({ current: page, pageSize }),
+            }}
+          />
+        </div>
       </div>
     </>
   );
