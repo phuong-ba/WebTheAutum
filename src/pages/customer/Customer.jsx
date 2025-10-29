@@ -26,7 +26,6 @@ import {
 import { khachHangApi } from "/src/api/khachHangApi";
 import { diaChiApi } from "/src/api/diaChiApi";
 import CustomerForm from "../customer/CustomerForm";
-import "./CustomerPage.css";
 
 import {
   downloadTemplate,
@@ -454,7 +453,9 @@ export default function Customer() {
           {/* Bảng danh sách */}
           <Card
             title={
-              <span style={{ fontSize: "18px", fontWeight: 600 }}>
+              <span
+                style={{ fontSize: "18px", fontWeight: 600, color: "#e67e22" }}
+              >
                 Danh Sách Khách Hàng
               </span>
             }
