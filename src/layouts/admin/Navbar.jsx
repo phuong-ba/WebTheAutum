@@ -54,11 +54,6 @@ export default function Navbar() {
       icon: <AppstoreOutlined />,
       label: "Quản lý khách hàng",
     },
-    {
-      key: "/customer",
-      icon: <AppstoreOutlined />,
-      label: "Quản lý khach hàng",
-    },
   ];
 
   const [collapsed, setCollapsed] = useState(false);
