@@ -18,8 +18,9 @@ import AddUser from "@/pages/user/AddUser";
 import UpdateUser from "@/pages/user/UpdateUser";
 import AddDiscount from "@/pages/discount/AddDiscount";
 
-import CreatePromo from "@/pages/promo/CreatePromo";
-import ListDotGiamGiaPage from "@/pages/promo/ListDotGiamGiaPage";
+import Promo from "@/pages/promo/Promo";
+import AddPromo from "@/pages/promo/AddPromo";
+
 import ProductDetailPage from "@/pages/product/ProductDetailPage";
 import MultiProductDetailPage from "@/pages/product/MultiProductDetailPage";
 import DetailHoaDon from "@/pages/bill/DetailHoaDon";
@@ -65,16 +66,16 @@ const adminRouters = [
           </LazyLoad>
         ),
       },
-       {
-        path: "DetailHoaDon/:id",  // ⭐ THÊM ROUTE MỚI
+      {
+        path: "DetailHoaDon/:id", // ⭐ THÊM ROUTE MỚI
         element: (
           <LazyLoad>
             <DetailHoaDon />
           </LazyLoad>
         ),
       },
-       {
-        path: "bill/edit/:id",  // ⭐ ROUTE SỬA HÓA ĐƠN
+      {
+        path: "bill/edit/:id", // ⭐ ROUTE SỬA HÓA ĐƠN
         element: (
           <LazyLoad>
             <EditHoaDon />
@@ -149,15 +150,23 @@ const adminRouters = [
         path: "promo",
         element: (
           <LazyLoad>
-            <ListDotGiamGiaPage />
+            <Promo />
           </LazyLoad>
         ),
       },
       {
-        path: "promo/create", // route tạo mới
+        path: "add-promo",
         element: (
           <LazyLoad>
-            <CreatePromo />
+            <AddPromo />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "update-promo",
+        element: (
+          <LazyLoad>
+            <AddPromo />
           </LazyLoad>
         ),
       },
@@ -202,7 +211,7 @@ const adminRouters = [
         ),
       },
       {
-        path: "update-user",
+        path: "update-user/:id",
         element: (
           <LazyLoad>
             <UpdateUser />

@@ -25,13 +25,13 @@ import {
 } from "@ant-design/icons";
 import { khachHangApi } from "/src/api/khachHangApi";
 import { diaChiApi } from "/src/api/diaChiApi";
-import CustomerForm from "../customer/CustomerForm";
-
+import CustomerBreadcrumb from "../customer/CustomerBreadcrumb";
 import {
   downloadTemplate,
   importFromExcel,
   exportToExcel,
 } from "/src/pages/customer/excelCustomerUtils";
+import CustomerForm from "./CustomerForm";
 export default function Customer() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -306,206 +306,157 @@ export default function Customer() {
   ];
 
   return (
-    <div
-      style={{
-        padding: 30,
-        background: "#fff",
-        fontSize: "16px",
-        lineHeight: 1.6,
-      }}
-    >
+    <>
       {contextHolder}
       {messageContextHolder}
-      {mode === "table" && (
-        <>
-          {/* Filter + Action */}
-          <Card
-            title={
-              <span
-                style={{ color: "#e67e22", fontSize: "30px", fontWeight: 600 }}
-              >
-                Quản lý khách hàng
-              </span>
-            }
-            style={{
-              marginBottom: 16,
-              borderRadius: 12,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-            }}
-          >
-            <Row gutter={[16, 16]}>
-              <Col span={10}>
-                <Input
-                  placeholder="Mã, tên, email, SĐT..."
+
+      {mode === "table" ? (
+        // ==== Giao diện bảng khách hàng ====
+        <div className="p-6 flex flex-col gap-10">
+          {/* ==== PHẦN TIÊU ĐỀ ==== */}
+          <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+            <div className="font-bold text-4xl text-[#E67E22]">
+              Quản lý khách hàng
+            </div>
+            <div className="text-gray-500 text-sm">
+              <CustomerBreadcrumb />
+            </div>
+          </div>
+
+          {/* ==== BỘ LỌC KHÁCH HÀNG ==== */}
+          <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+            <div className="bg-[#E67E22] px-6 py-3 text-white font-bold text-lg rounded-tl-lg rounded-tr-lg">
+              Bộ lọc khách hàng
+            </div>
+
+            <div className="p-6 flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <input
+                  type="text"
+                  placeholder="Nhập mã, tên, email, số điện thoại..."
                   value={searchKeyword}
                   onChange={(e) => setSearchKeyword(e.target.value)}
-                  style={{ borderRadius: 8, fontSize: 15 }}
+                  className="border rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
                 />
-              </Col>
-            </Row>
-            <Row
-              gutter={[16, 16]}
-              align="middle"
-              style={{ marginTop: 14, marginBottom: 4 }}
-            >
-              <Col xs={24}>
-                <span style={{ fontSize: 16 }}>
-                  Tổng số khách hàng:{" "}
-                  <b style={{ color: "#e67e22", fontSize: 17 }}>
-                    {filteredData.length}
-                  </b>
-                </span>
-              </Col>
-            </Row>
-            <Row
-              gutter={[16, 16]}
-              justify="space-between"
-              align="middle"
-              style={{
-                marginTop: 8,
-                borderTop: "1px solid #f0f0f0",
-                paddingTop: 10,
-              }}
-            >
-              <Col xs={24} md={12}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontWeight: 500, fontSize: 15 }}>
-                    Trạng thái:
-                  </span>
-                  <Radio.Group
-                    value={filterTrangThai}
-                    onChange={(e) => setFilterTrangThai(e.target.value)}
-                  >
-                    <Radio value="all" style={{ fontSize: 15 }}>
-                      Tất cả
-                    </Radio>
-                    <Radio value="active" style={{ fontSize: 15 }}>
-                      Kích hoạt
-                    </Radio>
-                    <Radio value="inactive" style={{ fontSize: 15 }}>
-                      Hủy kích hoạt
-                    </Radio>
-                  </Radio.Group>
-                </div>
-              </Col>
-              <Col xs={24} md={12} style={{ textAlign: "right" }}>
-                <Space wrap>
-                  <Button
-                    className="btn-orange-hover"
-                    icon={<PlusOutlined />}
-                    onClick={handleAdd}
-                  >
-                    Thêm Khách Hàng
-                  </Button>
-                  <Button
-                    className="btn-orange-hover"
-                    onClick={() => exportToExcel(customers)}
-                    icon={<FileExcelOutlined />}
-                  >
-                    Xuất Excel
-                  </Button>
-                  <Button
-                    className="btn-orange-hover"
-                    loading={importing}
-                    onClick={() =>
-                      document.getElementById("importExcel").click()
-                    }
-                    icon={<CloudUploadOutlined />}
-                  >
-                    {importing ? "Đang nhập..." : "Nhập từ Excel"}
-                  </Button>
-                  <input
-                    id="importExcel"
-                    type="file"
-                    accept=".xlsx, .xls"
-                    style={{ display: "none" }}
-                    onChange={(e) =>
-                      importFromExcel(
-                        e.target.files[0],
-                        khachHangApi,
-                        diaChiApi,
-                        fetchCustomers,
-                        setImporting
-                      )
-                    }
-                  />
-                  <Button
-                    className="btn-orange-hover"
-                    onClick={() => downloadTemplate(diaChiApi)}
-                    icon={<DownloadOutlined />}
-                  >
-                    Tải mẫu Excel
-                  </Button>
-                  <Button
-                    className="btn-orange-hover"
-                    onClick={() => {
-                      setSearchKeyword("");
-                      setFilterTrangThai("all");
-                    }}
-                  >
-                    Đặt lại bộ lọc
-                  </Button>
-                </Space>
-              </Col>
-            </Row>
-          </Card>
 
-          {/* Bảng danh sách */}
-          <Card
-            title={
-              <span
-                style={{ fontSize: "18px", fontWeight: 600, color: "#e67e22" }}
-              >
-                Danh Sách Khách Hàng
-              </span>
-            }
-            style={{
-              borderRadius: 12,
-              boxShadow: "0 3px 10px rgba(0,0,0,0.08)",
-            }}
-          >
+                <select
+                  value={filterTrangThai}
+                  onChange={(e) => setFilterTrangThai(e.target.value)}
+                  className="border rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
+                >
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="active">Kích hoạt</option>
+                  <option value="inactive">Đã hủy</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4">
+                <button
+                  onClick={() => {
+                    setSearchKeyword("");
+                    setFilterTrangThai("all");
+                  }}
+                  className="bg-gray-100 text-gray-700 rounded px-6 py-2 hover:bg-gray-200 transition-colors"
+                >
+                  Nhập lại
+                </button>
+
+                <button className="bg-[#E67E22] text-white rounded px-6 py-2 hover:bg-[#d35400] transition-colors">
+                  Tìm kiếm
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ==== DANH SÁCH KHÁCH HÀNG ==== */}
+          <div className="bg-white min-h-[500px] rounded-lg shadow overflow-hidden">
+            <div className="flex justify-between items-center bg-[#E67E22] px-6 py-3 rounded-tl-lg rounded-tr-lg">
+              <div className="text-white font-bold text-2xl">
+                Danh sách khách hàng
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAdd}
+                  className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] active:border-[#d35400] transition-colors font-medium"
+                >
+                  Thêm mới
+                </button>
+
+                <button
+                  onClick={() => exportToExcel(customers)}
+                  disabled={!customers || customers.length === 0}
+                  className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+                >
+                  Xuất Excel
+                </button>
+
+                <button
+                  onClick={() => {
+                    const link = document.createElement("a");
+                    link.href = "/mau_khach_hang.xlsx";
+                    link.download = "mau_khach_hang.xlsx";
+                    link.click();
+                  }}
+                  className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+                >
+                  Tải mẫu Excel
+                </button>
+
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  hidden
+                  id="importExcel"
+                  onChange={(e) =>
+                    importFromExcel(
+                      e.target.files[0],
+                      khachHangApi,
+                      diaChiApi,
+                      fetchCustomers,
+                      setImporting
+                    )
+                  }
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    document.getElementById("importExcel")?.click()
+                  }
+                  className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+                >
+                  Thêm từ Excel
+                </button>
+              </div>
+            </div>
+
             <Table
               columns={columns}
               dataSource={filteredData}
               rowKey="id"
-              loading={loading}
+              bordered
               pagination={{
                 current: currentPage,
-                pageSize,
+                pageSize: 5,
                 onChange: setCurrentPage,
                 total: filteredData.length,
-                showSizeChanger: false,
                 position: ["bottomCenter"],
               }}
-              style={{ fontSize: "16px" }}
             />
-          </Card>
-        </>
-      )}
-
-      {mode === "form" && (
+          </div>
+        </div>
+      ) : (
+        // ==== Giao diện form thêm/sửa khách hàng ====
         <CustomerForm
           customer={editCustomer}
           onCancel={() => setMode("table")}
-          onSuccess={async (newCustomer) => {
+          onSuccess={() => {
+            fetchCustomers();
             setMode("table");
-
-            const isEdit = !!editCustomer;
-
-            if (newCustomer) {
-              message.success(
-                isEdit
-                  ? "Cập nhật khách hàng thành công"
-                  : "Thêm khách hàng mới thành công"
-              );
-
-              await fetchCustomers();
-            } else {
-              await fetchCustomers();
-            }
           }}
         />
       )}
-    </div>
+    </>
   );
 }

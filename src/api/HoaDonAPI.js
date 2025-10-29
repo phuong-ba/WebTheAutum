@@ -10,17 +10,15 @@ const hoaDonApi = {
     });
   },
 
-  
- getDetail: (id) => {
-  return axios.get(`${API_URL}/detail/${id}`); 
-},
+  getDetail: (id) => {
+    return axios.get(`${API_URL}/detail/${id}`);
+  },
 
-
- // ✅ Kiểm tra có thể sửa không
+  // ✅ Kiểm tra có thể sửa không
   canEdit: (id) => {
     return axios.get(`${API_URL}/${id}/can-edit`);
   },
-  
+
   // ✅ Cập nhật hóa đơn
   updateHoaDon: (id, data) => {
     return axios.put(`${API_URL}/${id}`, data);
@@ -31,7 +29,6 @@ const hoaDonApi = {
     return axios.get(`${API_URL}/${id}`);
   },
 
-
   // Cập nhật hóa đơn
   update(id, hoaDon) {
     return axios.put(`${API_URL}/${id}`, hoaDon, {
@@ -41,18 +38,17 @@ const hoaDonApi = {
     });
   },
 
-
   // Tìm kiếm/Lọc hóa đơn
   searchAndFilter(params) {
     const cleanParams = {};
-    
+
     Object.keys(params).forEach(key => {
       const value = params[key];
       if (value !== null && value !== undefined && value !== '') {
         cleanParams[key] = value;
       }
     });
-    
+
     console.log('📤 Gửi params:', cleanParams);
 
     return axios.get(`${API_URL}`, {
@@ -74,31 +70,37 @@ const hoaDonApi = {
     });
   },
 
-
-    // ⭐ THÊM METHOD NÀY
+  // ⭐ Generate mã hóa đơn
   generateMaHoaDon() {
     return axios.get(`${API_URL}/generate-ma`);
   },
 
-  
-  // ✅ Lấy danh sách phiếu giảm giá (điều chỉnh theo API của bạn)
+  // ✅ Lấy danh sách phiếu giảm giá
   getAllPhieuGiamGia: () => {
     return axios.get('http://localhost:8080/api/phieu-giam-gia');
   },
 
-   getAllProducts: () => {
+  getAllProducts: () => {
     return axios.get('http://localhost:8080/api/chi-tiet-san-pham');
   },
 
-updateStatus(id, trangThai) {
-  return axios.put(`${API_URL}/${id}/trang-thai`, null, {
-    params: { trangThai: trangThai }
-  });
-}
+  // ✅ Cập nhật trạng thái
+  updateStatus(id, trangThai) {
+    return axios.put(`${API_URL}/${id}/trang-thai`, null, {
+      params: { trangThai: trangThai }
+    });
+  },
 
+  // ⭐ FIX: Cập nhật dịch vụ (loaiHoaDon)
+  updateService: (invoiceId, loaiHoaDon) => {
+    return axios.put(`${API_URL}/${invoiceId}/service`, {
+      loaiHoaDon
+    });
+  },
 
-
-
+ getLichSu: (id) => {
+    return axios.get(`${API_URL}/${id}/lich-su`);
+  },
 
 };
 

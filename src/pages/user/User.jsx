@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Space, Table, Tag, message, Modal } from "antd";
+import { Space, Table, Tag, message, Modal, Button } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchNhanVien,
@@ -8,10 +8,17 @@ import {
 } from "@/services/nhanVienService";
 import FliterUser from "./FliterUser";
 import { useNavigate } from "react-router";
-import { LockKeyIcon, LockOpenIcon, PencilIcon } from "@phosphor-icons/react";
+import {
+  LockKeyIcon,
+  LockOpenIcon,
+  PencilIcon,
+  ToggleLeftIcon,
+  ToggleRightIcon,
+} from "@phosphor-icons/react";
 import dayjs from "dayjs";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import UserBreadcrumb from "./UserBreadcrumb";
 
 export default function User() {
   const dispatch = useDispatch();
@@ -121,9 +128,9 @@ export default function User() {
         <Space size="middle">
           <a onClick={() => handleChangeStatus(record)}>
             {record.trangThai ? (
-              <LockKeyIcon size={24} color="#E67E22" />
+              <ToggleRightIcon weight="fill" size={30} color="#E67E22" />
             ) : (
-              <LockOpenIcon size={24} color="#00A96C" />
+              <ToggleLeftIcon weight="fill" size={30} color="#00A96C" />
             )}
           </a>
           <a
@@ -134,7 +141,7 @@ export default function User() {
                 );
                 return;
               }
-              navigate("/update-user", { state: { user: record } });
+              navigate(`/update-user/${record.id}`);
             }}
           >
             <PencilIcon size={24} />
@@ -143,7 +150,6 @@ export default function User() {
       ),
     },
   ];
-  console.log("🚀 ~ handleExportExcel ~ data:", data);
   const handleExportExcel = () => {
     if (!data || data.length === 0) {
       messageApi.warning("Không có dữ liệu để xuất!");
@@ -191,8 +197,8 @@ export default function User() {
 
   const handleImportExcel = async (file) => {
     try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const dataExcel = await file.arrayBuffer();
+      const workbook = XLSX.read(dataExcel);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
@@ -201,28 +207,88 @@ export default function User() {
         return;
       }
 
-      for (const row of rows) {
-        const payload = {
-          hoTen: row.HoTen?.trim() || "",
-          gioiTinh: row.GioiTinh?.toLowerCase() === "nam",
-          sdt: row.SoDienThoai?.trim() || "",
-          email: row.Email?.trim() || "",
-          diaChi: row.DiaChi?.trim() || "",
-          ngaySinh: row.NgaySinh
-            ? dayjs(row.NgaySinh, ["DD/MM/YYYY", "YYYY-MM-DD"]).toISOString()
-            : null,
-          chucVuId: Number(row.ChucVuId) || null,
-        };
+      let errorCount = 0;
 
-        await dispatch(addNhanVien(payload));
+      // Lấy danh sách email và sdt hiện có trong hệ thống
+      const existingEmails = new Set(data.map((item) => item.email));
+      const existingSdts = new Set(data.map((item) => item.sdt));
+
+      const emailsSet = new Set(); // kiểm tra trùng trong file
+      const sdtSet = new Set(); // kiểm tra trùng trong file
+
+      for (const [index, row] of rows.entries()) {
+        const hoTen = String(row.HoTen ?? "").trim();
+        const gioiTinh = String(row.GioiTinh ?? "").toLowerCase() === "nam";
+        const sdt = String(row.SoDienThoai ?? "").trim();
+        const email = String(row.Email ?? "").trim();
+        const diaChi = String(row.DiaChi ?? "").trim();
+        const ngaySinh = row.NgaySinh
+          ? dayjs(row.NgaySinh, ["DD/MM/YYYY", "YYYY-MM-DD"]).toISOString()
+          : null;
+
+        let rowHasError = false;
+
+        // Kiểm tra email
+        if (!email) {
+          messageApi.error(`Dòng ${index + 1}: Email không được để trống`);
+          rowHasError = true;
+        } else if (emailsSet.has(email)) {
+          messageApi.error(`Dòng ${index + 1}: Email trùng trong file`);
+          rowHasError = true;
+        } else if (existingEmails.has(email)) {
+          messageApi.error(
+            `Dòng ${index + 1}: Email đã tồn tại trong hệ thống`
+          );
+          rowHasError = true;
+        } else {
+          emailsSet.add(email);
+        }
+
+        // Kiểm tra sđt
+        if (!sdt.startsWith("0")) {
+          messageApi.error(
+            `Dòng ${index + 1}: Số điện thoại phải bắt đầu bằng số 0`
+          );
+          rowHasError = true;
+        } else if (sdtSet.has(sdt)) {
+          messageApi.error(`Dòng ${index + 1}: Số điện thoại trùng trong file`);
+          rowHasError = true;
+        } else if (existingSdts.has(sdt)) {
+          messageApi.error(
+            `Dòng ${index + 1}: Số điện thoại đã tồn tại trong hệ thống`
+          );
+          rowHasError = true;
+        } else {
+          sdtSet.add(sdt);
+        }
+
+        if (rowHasError) {
+          errorCount++;
+          continue;
+        }
+
+        const payload = { hoTen, gioiTinh, sdt, email, diaChi, ngaySinh };
+
+        try {
+          await dispatch(addNhanVien(payload)).unwrap();
+          existingEmails.add(email);
+          existingSdts.add(sdt);
+          messageApi.success(`Dòng ${index + 1} thêm thành công`);
+        } catch (error) {
+          errorCount++;
+          const msg =
+            error?.response?.data?.message ||
+            error?.payload?.message ||
+            error?.message ||
+            "Lỗi thêm nhân viên";
+          messageApi.error(`Dòng ${index + 1}: ${msg}`);
+        }
       }
 
-      messageApi.success("Nhập nhân viên từ Excel thành công!");
       dispatch(fetchNhanVien());
-      form.resetFields();
     } catch (error) {
       console.error(error);
-      // messageApi.error("Lỗi khi đọc file Excel!");
+      messageApi.error("Lỗi khi đọc file Excel!");
     }
   };
 
@@ -230,64 +296,69 @@ export default function User() {
     <>
       {contextHolder}
       {messageContextHolder}
-      <div className="bg-white flex flex-col gap-3 px-10 py-[20px]">
-        <h1 className="font-bold text-4xl text-[#E67E22]">Quản lý nhân viên</h1>
-      </div>
-
-      <FliterUser />
-
-      <div className="bg-white min-h-[500px] px-5 py-[32px]">
-        <div className="flex justify-between items-center mb-5">
-          <p className="text-[#E67E22] font-bold text-[18px] mb-4">
-            Danh sách nhân viên
-          </p>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => navigate("/add-user")}
-              className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
-            >
-              Thêm mới
-            </button>
-
-            <button
-              onClick={handleExportExcel}
-              className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
-            >
-              Xuất Excel
-            </button>
-
-            <input
-              type="file"
-              accept=".xlsx, .xls"
-              hidden
-              ref={fileInputRef}
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) handleImportExcel(file);
-                e.target.value = "";
-              }}
-            />
-
-            <button
-              type="button"
-              onClick={() =>
-                fileInputRef.current && fileInputRef.current.click()
-              }
-              className="border border-[#E67E22] text-[#E67E22] rounded px-10 h-8 cursor-pointer active:bg-[#E67E22] active:text-white"
-            >
-              Thêm Excel
-            </button>
+      <div className="p-6 flex flex-col gap-10">
+        <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+          <div className="font-bold text-4xl text-[#E67E22]">
+            Quản lý nhân viên
           </div>
+          <UserBreadcrumb />
         </div>
 
-        <Table
-          columns={columns}
-          dataSource={data}
-          rowKey="id"
-          bordered
-          pagination={{ pageSize: 10 }}
-        />
+        <FliterUser />
+
+        <div className="bg-white min-h-[500px] rounded-lg shadow overflow-hidden">
+          <div className="flex justify-between items-center bg-[#E67E22] px-6 py-3 rounded-tl-lg rounded-tr-lg ">
+            <div className="text-white font-bold text-2xl">
+              Danh sách nhân viên
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => navigate("/add-user")}
+                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] active:border-[#d35400] transition-colors font-medium"
+              >
+                Thêm mới
+              </button>
+
+              <button
+                onClick={handleExportExcel}
+                disabled={!data || data.length === 0}
+                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+              >
+                Xuất Excel
+              </button>
+
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                hidden
+                ref={fileInputRef}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) handleImportExcel(file);
+                  e.target.value = "";
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  fileInputRef.current && fileInputRef.current.click()
+                }
+                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+              >
+                Thêm Excel
+              </button>
+            </div>
+          </div>
+
+          <Table
+            columns={columns}
+            dataSource={data}
+            rowKey="id"
+            bordered
+            pagination={{ pageSize: 10 }}
+          />
+        </div>
       </div>
     </>
   );
