@@ -9,9 +9,6 @@ import {
 import FliterUser from "./FliterUser";
 import { useNavigate } from "react-router";
 import {
-  LockKeyIcon,
-  LockOpenIcon,
-  PencilIcon,
   PencilLineIcon,
   ToggleLeftIcon,
   ToggleRightIcon,

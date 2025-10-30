@@ -7,6 +7,12 @@ import {
 } from "@/services/dotGiamGiaService";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router";
+import {
+  ExportOutlined,
+  PlusSquareOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 
 const { Option } = Select;
 
@@ -115,27 +121,27 @@ export default function FilterPromo({ handleExportExcel }) {
                 onClick={handleReset}
                 className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
               >
-                Nhập lại
+                <ReloadOutlined /> Nhập lại
               </div>
               <div
                 onClick={() => form.submit()}
                 className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
               >
+                <SearchOutlined />
                 Tìm kiếm
               </div>
-              <div className="flex gap-3">
-                <div
-                  onClick={() => navigate("/admin/add-promo")}
-                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
-                >
-                  Thêm mới
-                </div>
-                <div
-                  onClick={handleExportExcel}
-                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
-                >
-                  Xuất Excel
-                </div>
+
+              <div
+                onClick={() => navigate("/admin/add-promo")}
+                className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
+              >
+                <PlusSquareOutlined /> Thêm mới
+              </div>
+              <div
+                onClick={handleExportExcel}
+                className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
+              >
+                <ExportOutlined /> Xuất Excel
               </div>
             </div>
           </Form>

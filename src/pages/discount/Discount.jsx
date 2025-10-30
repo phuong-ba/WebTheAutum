@@ -356,7 +356,7 @@ export default function Discount() {
     <>
       {contextHolder}
       {messageContextHolder}
-      <div className="p-6 flex flex-col gap-10">
+      <div className="p-6 flex flex-col gap-5">
         <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
           <div className="font-bold text-4xl text-[#E67E22]">
             Quản lý phiếu giảm giá
