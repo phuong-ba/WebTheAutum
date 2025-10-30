@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Space, Table, Tag, Modal, message, Breadcrumb } from "antd";
+import { Space, Table, Tag, Modal, message, Breadcrumb, Button } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router";
 import dayjs from "dayjs";
@@ -13,10 +13,12 @@ import {
   ToggleLeftIcon,
   ToggleRightIcon,
   PencilIcon,
+  PencilLineIcon,
 } from "@phosphor-icons/react";
 import FliterDiscount from "./FliterDiscount";
-import DiscountBreadcrumb from "@/components/DiscountBreadcrumb";
+import DiscountBreadcrumb from "@/pages/discount/DiscountBreadcrumb";
 import { Eye } from "lucide-react";
+import { ExclamationCircleFilled } from "@ant-design/icons";
 
 export default function Discount() {
   const dispatch = useDispatch();
@@ -24,11 +26,16 @@ export default function Discount() {
   const navigate = useNavigate();
   const [messageApi, messageContextHolder] = message.useMessage();
   const [modal, contextHolder] = Modal.useModal();
-
+  const [isModalVisible, setIsModalVisible] = React.useState(false);
+  const [selectedRecord, setSelectedRecord] = React.useState(null);
+  console.log("🚀 ~ Discount ~ selectedRecord:", selectedRecord);
   useEffect(() => {
     dispatch(fetchPhieuGiamGia());
   }, [dispatch]);
-
+  const showCustomModal = (record) => {
+    setSelectedRecord(record);
+    setIsModalVisible(true);
+  };
   useEffect(() => {
     if (!data || data.length === 0) return;
     const now = dayjs();
@@ -70,50 +77,46 @@ export default function Discount() {
     })();
   }, [data, dispatch, messageApi]);
 
-  const handleChangeStatus = (record) => {
+  const handleConfirmChangeStatus = async () => {
+    if (!selectedRecord) return;
+
     const now = dayjs();
-    const start = dayjs(record.ngayBatDau);
-    const end = dayjs(record.ngayKetThuc);
-    let canChange = true;
-    let message = "";
-    if (!record.trangThai && end.isBefore(now, "day")) {
-      canChange = false;
-      message = "Không thể kích hoạt phiếu đã hết hạn";
+    const start = dayjs(selectedRecord.ngayBatDau);
+    const end = dayjs(selectedRecord.ngayKetThuc);
+
+    // Kiểm tra điều kiện hợp lệ
+    if (!selectedRecord.trangThai && end.isBefore(now, "day")) {
+      messageApi.warning("Không thể kích hoạt phiếu đã hết hạn");
+      return;
     } else if (start.isAfter(now, "day")) {
-      canChange = false;
-      message = "Không thể thay đổi trạng thái phiếu chưa đến ngày bắt đầu";
-    }
-    if (!canChange) {
-      messageApi.warning(message);
+      messageApi.warning(
+        "Không thể thay đổi trạng thái phiếu chưa đến ngày bắt đầu"
+      );
       return;
     }
-    const action = record.trangThai ? "Kết thúc" : "Kích hoạt";
-    const newStatus = !record.trangThai;
-    modal.confirm({
-      title: `Xác nhận ${action}`,
-      content: `Bạn có chắc muốn ${action} phiếu "${record.tenChuongTrinh}" không?`,
-      okText: action,
-      cancelText: "Hủy",
-      okButtonProps: { danger: action === "Kết thúc" },
-      async onOk() {
-        try {
-          const result = await dispatch(
-            changeStatusPhieuGiamGia({ id: record.id, trangThai: newStatus })
-          );
-          if (changeStatusPhieuGiamGia.fulfilled.match(result)) {
-            messageApi.success(`Đã ${action} phiếu giảm giá thành công!`);
-            dispatch(fetchPhieuGiamGia());
-          } else {
-            const payload = result.payload || "Cập nhật trạng thái thất bại";
-            throw new Error(payload);
-          }
-        } catch (err) {
-          console.error("Lỗi khi cập nhật trạng thái:", err);
-          const msg = err?.message || "Cập nhật trạng thái thất bại";
-          messageApi.error(msg);
-        }
-      },
-    });
+
+    try {
+      await dispatch(
+        changeStatusPhieuGiamGia({
+          id: selectedRecord.id,
+          trangThai: !selectedRecord.trangThai,
+        })
+      );
+
+      messageApi.success(
+        selectedRecord.trangThai
+          ? "Kết thúc phiếu giảm giá thành công!"
+          : "Kích hoạt phiếu giảm giá thành công!"
+      );
+
+      dispatch(fetchPhieuGiamGia());
+    } catch (error) {
+      console.error("Lỗi khi cập nhật trạng thái:", error);
+      messageApi.error("Thao tác thất bại!");
+    } finally {
+      setIsModalVisible(false);
+      setSelectedRecord(null);
+    }
   };
 
   const handleExportExcel = () => {
@@ -319,30 +322,30 @@ export default function Discount() {
       align: "center",
       render: (_, record) => (
         <Space size="middle">
+          {record.trangThai && (
+            <a onClick={() => showCustomModal(record)}>
+              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
+            </a>
+          )}
           <a
             onClick={() => {
               if (record.trangThai === false) {
                 messageApi.warning("Không thể chỉnh sửa phiếu giảm giá!");
                 return;
               }
-              navigate("/admin/update-discount", { state: { phieuGiamGia: record } });
+              navigate("/admin/update-discount", {
+                state: { phieuGiamGia: record },
+              });
             }}
           >
-            <Eye
-              size={20}
-              color={record.trangThai === false ? "#ccc" : "#00A96C"}
+            <PencilLineIcon
+              size={24}
+              weight="fill"
+              color={record.trangThai ? "#E67E22" : "#ccc"}
               style={{
-                cursor: record.trangThai === false ? "not-allowed" : "pointer",
+                cursor: record.trangThai ? "pointer" : "not-allowed",
               }}
             />
-          </a>
-
-          <a onClick={() => handleChangeStatus(record)}>
-            {record.trangThai ? (
-              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
-            ) : (
-              <ToggleLeftIcon weight="fill" size={30} color="#E67E22" />
-            )}
           </a>
         </Space>
       ),
@@ -360,26 +363,13 @@ export default function Discount() {
           </div>
           <DiscountBreadcrumb />
         </div>
-        <FliterDiscount />
+        <FliterDiscount handleExportExcel={handleExportExcel} />
         <div className="bg-white min-h-[500px] rounded-lg shadow overflow-hidden">
           <div className="flex justify-between items-center bg-[#E67E22] px-6 py-3 rounded-tl-lg rounded-tr-lg">
             <div className="text-white font-bold text-2xl">
               Danh sách phiếu giảm
             </div>
-            <div className="flex gap-3">
-              <div
-                onClick={() => navigate("/add-discount")}
-                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] active:border-[#d35400] transition-colors font-bold"
-              >
-                Thêm mới
-              </div>
-              <div
-                onClick={handleExportExcel}
-                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-bold"
-              >
-                Xuất Excel
-              </div>
-            </div>
+            <div className="flex gap-3"></div>
           </div>
 
           <Table
@@ -397,6 +387,48 @@ export default function Discount() {
           />
         </div>
       </div>
+      <Modal
+        open={isModalVisible}
+        onCancel={() => setIsModalVisible(false)}
+        footer={null}
+        centered
+        closable={false}
+      >
+        <div className="flex flex-col items-center gap-4 p-4">
+          <ExclamationCircleFilled style={{ fontSize: 64, color: "#faad14" }} />
+          <h2 className="text-xl font-bold text-center">
+            {selectedRecord?.trangThai
+              ? "Xác nhận kết thúc phiếu"
+              : "Xác nhận mở phiếu"}
+          </h2>
+          <p className="text-gray-600 text-center">
+            Bạn có chắc muốn{" "}
+            <span className="font-semibold">
+              {selectedRecord?.trangThai ? "Kết thúc phiếu" : "Mở phiếu"}
+            </span>{" "}
+            "<strong>{selectedRecord?.tenChuongTrinh}</strong>" không?
+          </p>
+
+          <div className="flex justify-center gap-6 mt-6 w-full">
+            <Button
+              size="large"
+              className="w-40"
+              onClick={() => setIsModalVisible(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              type={selectedRecord?.trangThai ? "primary" : "default"}
+              danger={selectedRecord?.trangThai}
+              size="large"
+              className="w-40"
+              onClick={handleConfirmChangeStatus}
+            >
+              {selectedRecord?.trangThai ? "Khóa" : "Mở khóa"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

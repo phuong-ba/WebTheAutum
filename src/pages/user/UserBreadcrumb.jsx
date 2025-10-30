@@ -10,18 +10,18 @@ export default function UserBreadcrumb() {
 
   if (path === "/admin/user") {
     items = [
-      { title: <Link to="/">Trang chủ</Link> },
+      { title: <Link to="/admin/">Trang chủ</Link> },
       { title: "Quản lý nhân viên" },
     ];
   } else if (path === "/admin/add-user") {
     items = [
-      { title: <Link to="/#">Trang chủ</Link> },
+      { title: <Link to="/admin/#">Trang chủ</Link> },
       { title: <Link to="/admin/user">Quản lý nhân viên</Link> },
       { title: "Thêm nhân viên" },
     ];
   } else if (path === "/admin/update-user") {
     items = [
-      { title: <Link to="/#">Trang chủ</Link> },
+      { title: <Link to="/admin/#">Trang chủ</Link> },
       { title: <Link to="/admin/user">Quản lý nhân viên</Link> },
       { title: "Cập nhật nhân viên" },
     ];

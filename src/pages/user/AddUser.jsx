@@ -159,7 +159,6 @@ export default function AddUser() {
   const handleConfirmAdd = async () => {
     setConfirmModalVisible(false);
     const values = pendingValues;
-
     const provinceName =
       provinces.find((p) => p.code === values.province)?.name || "";
     const wardName = wards.find((w) => w.code === values.ward)?.name || "";
@@ -399,7 +398,7 @@ export default function AddUser() {
                 <div className="flex justify-end pr-3 gap-4">
                   <div
                     onClick={() => form.resetFields()}
-                    className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
+                    className="hover:text-white text-black font-semibold rounded-md px-6 py-2 cursor-pointer bg-gray-400  hover:bg-amber-700 active:bg-cyan-800 select-none"
                   >
                     Nhập lại
                   </div>
@@ -407,7 +406,7 @@ export default function AddUser() {
                   <div
                     onClick={handleButtonClick}
                     disabled={ocrLoading}
-                    className={`border text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none ${
+                    className={`hover:text-white text-black font-semibold rounded-md px-6 py-2 cursor-pointer bg-gray-400  hover:bg-amber-700 active:bg-cyan-800 select-none ${
                       ocrLoading
                         ? "bg-[#E67E22] text-white cursor-not-allowed"
                         : "text-[#E67E22]"
@@ -419,7 +418,7 @@ export default function AddUser() {
                     type="button"
                     onClick={() => setCameraVisible(true)}
                     disabled={ocrLoadingCam}
-                    className={`border text-white bg-gray-400 font-bold rounded-md px-6 py-2 cursor-pointer flex items-center gap-2 hover:bg-amber-700 active:bg-cyan-800 select-none ${
+                    className={`hover:text-white text-black font-semibold bg-gray-400  rounded-md px-6 py-2 cursor-pointer flex items-center gap-2 hover:bg-amber-700 active:bg-cyan-800 select-none ${
                       ocrLoadingCam
                         ? "bg-[#E67E22] text-white cursor-not-allowed"
                         : "text-[#E67E22]"
@@ -442,7 +441,7 @@ export default function AddUser() {
 
                   <div
                     type="submit"
-                    className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
+                    className="bg-[#E67E22] hover:text-white text-black rounded-md px-6 py-2 cursor-pointer font-semibold hover:bg-amber-700 active:bg-cyan-800 select-none"
                     onClick={async () => {
                       try {
                         const values = await form.validateFields();
