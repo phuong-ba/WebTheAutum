@@ -7,6 +7,8 @@ import {
 } from "@ant-design/icons";
 import { useParams, useNavigate } from "react-router-dom";
 import baseUrl from "@/api/instance";
+import { PlusOutlined } from "@ant-design/icons";
+import { Modal, Form, Select } from "antd";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -15,6 +17,12 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(false);
   const [productData, setProductData] = useState(null);
   const pageSize = 10;
+  const [addVariantModal, setAddVariantModal] = useState(false);
+  const [addVariantForm] = Form.useForm();
+  const [dropdownData, setDropdownData] = useState({
+    mauSacs: [],
+    kichThuocs: [],
+  });
 
   console.log("📦 Product ID từ URL:", id);
 
@@ -42,8 +50,49 @@ export default function ProductDetailPage() {
     }
   };
 
+  const fetchDropdownData = async () => {
+    try {
+      const [mauSacRes, kichThuocRes] = await Promise.all([
+        baseUrl.get("mau-sac/playlist"),
+        baseUrl.get("kich-thuoc/playlist"),
+      ]);
+
+      setDropdownData({
+        mauSacs: mauSacRes.data?.data || [],
+        kichThuocs: kichThuocRes.data?.data || [],
+      });
+    } catch (error) {
+      message.error("Lỗi tải danh sách thuộc tính");
+    }
+  };
+
+  const handleAddNewVariant = async (values) => {
+    try {
+      const requestData = {
+        idSanPham: productData.id,
+        idMauSacs: values.idMauSacs,
+        idKichThuoc: values.idKichThuoc,
+      };
+
+      const response = await baseUrl.post(
+        "/chi-tiet-san-pham/tao-bien-the-cho-san-pham",
+        requestData
+      );
+
+      if (response.data.success) {
+        message.success("Thêm biến thể thành công!");
+        setAddVariantModal(false);
+        addVariantForm.resetFields();
+        fetchProductDetail();
+      }
+    } catch (error) {
+      message.error("Lỗi khi thêm biến thể");
+    }
+  };
+
   useEffect(() => {
     fetchProductDetail();
+    fetchDropdownData();
   }, [id]);
 
   const productColumns = [
@@ -138,32 +187,41 @@ export default function ProductDetailPage() {
       align: "center",
       render: (_, record) => {
         const imageUrl = record.anhs?.[0]?.duongDanAnh;
-    
+
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              alignItems: "center",
+            }}
+          >
             {imageUrl ? (
               <>
                 <Image
                   src={imageUrl}
                   width={120}
                   height={120}
-                  style={{ 
-                    objectFit: 'cover', 
-                    borderRadius: 4, 
-                    border: '1px solid #d9d9d9' 
+                  style={{
+                    objectFit: "cover",
+                    borderRadius: 4,
+                    border: "1px solid #d9d9d9",
                   }}
                   preview={{
-                    mask: <EyeOutlined />
+                    mask: <EyeOutlined />,
                   }}
                 />
               </>
             ) : (
-              <div 
+              <div
                 className="flex flex-col items-center justify-center bg-gray-50 border border-dashed border-gray-300 rounded"
                 style={{ width: 120, height: 120 }}
               >
                 <span className="text-gray-400 text-sm">No Image</span>
-                <span className="text-gray-500 text-xs">({record.tenMauSac})</span>
+                <span className="text-gray-500 text-xs">
+                  ({record.tenMauSac})
+                </span>
               </div>
             )}
           </div>
@@ -299,7 +357,7 @@ export default function ProductDetailPage() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex justify-between items-center mb-6">
         <div className="text-sm text-gray-600">
-        <span
+          <span
             className="cursor-pointer hover:text-[#E67E22]"
             onClick={() => navigate("/")}
           >
@@ -345,6 +403,13 @@ export default function ProductDetailPage() {
           <div className="text-white">
             Mã sản phẩm: <Tag color="orange">{productData.maSanPham}</Tag>
           </div>
+          <Button
+            icon={<PlusOutlined />}
+            onClick={() => navigate(`/add-variant/${productData.id}`)}
+            className="bg-white text-[#E67E22] border-white hover:bg-gray-100"
+          >
+            Thêm biến thể mới
+          </Button>
         </div>
         <Table
           columns={variantColumns}
