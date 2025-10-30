@@ -968,7 +968,7 @@ export default function AddProduct() {
           <span className="mx-2">/</span>
           <span
             className="cursor-pointer hover:text-[#E67E22]"
-            onClick={() => navigate("/product")}
+            onClick={() => navigate("/admin/product")}
           >
             Quản lý sản phẩm
           </span>

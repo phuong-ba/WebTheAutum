@@ -11,12 +11,9 @@ import {
   Statistic,
 } from "antd";
 import { useDispatch, useSelector } from "react-redux";
-import { ToggleLeftIcon, ToggleRightIcon } from "@phosphor-icons/react";
+import { ToggleLeftIcon, ToggleRightIcon, PencilLineIcon, EyeIcon } from "@phosphor-icons/react";
 import {
   EyeOutlined,
-  EditOutlined,
-  ShoppingOutlined,
-  DownloadOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router";
 import baseUrl from "@/api/instance";
@@ -639,13 +636,11 @@ export default function Product() {
       width: 130,
       render: (value) =>
         value ? (
-          <Tag color="green" className="px-3 py-1 font-medium">
-            Đang hoạt động
+          <Tag color="#E9FBF4" style={{ border: "1px solid #00A96C" }}>
+            <div className="text-[#00A96C] ">Đang hoạt động</div>
           </Tag>
         ) : (
-          <Tag color="red" className="px-3 py-1 font-medium">
-            Ngừng hoạt động
-          </Tag>
+          <Tag color="red">Ngừng hoạt động</Tag>
         ),
     },
     {
@@ -657,19 +652,15 @@ export default function Product() {
         <Space size="middle">
           <Button
             type="link"
-            icon={<EyeOutlined />}
+            icon={<EyeIcon size={24}/>}
             onClick={() => navigate(`/admin/detail-product/${record.id}`)}
-            className="text-blue-500 p-0"
           >
-            Xem
           </Button>
           <Button
             type="link"
-            icon={<EditOutlined />}
+            icon={<PencilLineIcon size={24} weight="fill" color="#E67E22" />}
             onClick={() => handleEditProduct(record)}
-            className="text-green-500 p-0"
           >
-            Sửa
           </Button>
           <a
             onClick={(e) => {
@@ -684,9 +675,9 @@ export default function Product() {
             {statusLoading === record.id ? (
               <span>...</span>
             ) : record.trangThai ? (
-              <ToggleRightIcon size={24} color="#00A96C" />
+              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
             ) : (
-              <ToggleLeftIcon size={24} color="#E67E22" />
+              <ToggleLeftIcon weight="fill" size={30} color="#c5c5c5" />
             )}
           </a>
         </Space>
@@ -761,6 +752,8 @@ export default function Product() {
               }
             }}
             onFilter={handleFilter}
+            handleExportExcel={handleExportExcel}
+            products={products}
           />
         </div>
       </div>
@@ -772,28 +765,13 @@ export default function Product() {
           </div>
           <div className="flex gap-4">
             {selectedRowKeys.length > 0 && (
-              <button
+              <div
                 onClick={handleViewMultipleDetails}
-                className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium"
+                className="rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-white transition-colors font-medium text-[#E67E22] bg-white font-semibold active:bg-cyan-800" 
               >
                 Xem {selectedRowKeys.length} sản phẩm
-              </button>
+              </div>
             )}
-
-            <button
-              onClick={handleExportExcel}
-              disabled={!products || products.length === 0}
-              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Xuất Excel
-            </button>
-
-            <button
-              onClick={() => navigate("/admin/add-product")}
-              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Thêm sản phẩm
-            </button>
           </div>
         </div>
 

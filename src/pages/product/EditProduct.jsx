@@ -229,7 +229,7 @@ export default function EditProduct() {
       message.success("Cập nhật sản phẩm và biến thể thành công!");
       
       setTimeout(() => {
-        navigate(`/detail-product/${id}`);
+        navigate(`/admin/detail-product/${id}`);
       }, 1000);
 
     } catch (error) {
@@ -638,7 +638,7 @@ export default function EditProduct() {
           )}
         </Card>
 
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-4 mt-4">
           <Button
             size="large"
             onClick={() => navigate(-1)}

@@ -6,12 +6,14 @@ import {
   searchPhieuGiamGia,
 } from "@/services/phieuGiamGiaService";
 import dayjs from "dayjs";
+import { useNavigate } from "react-router";
 
 const { Option } = Select;
 
-export default function FliterDiscount() {
+export default function FliterDiscount({ handleExportExcel }) {
   const [form] = Form.useForm();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const handleSearch = (values) => {
     const query = {
@@ -119,14 +121,30 @@ export default function FliterDiscount() {
             </Row>
 
             <div className="flex justify-end gap-4 pr-3">
-              <Button onClick={handleReset}>Nhập lại</Button>
-              <Button
-                htmlType="submit"
-                type="primary"
-                style={{ background: "#E67E22", borderColor: "#E67E22" }}
+              <div
+                onClick={handleReset}
+                className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
+              >
+                Nhập lại
+              </div>
+              <div
+                onClick={() => form.submit()}
+                className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
               >
                 Tìm kiếm
-              </Button>
+              </div>
+              <div
+                onClick={() => navigate("/admin/add-discount")}
+                className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
+              >
+                Thêm mới
+              </div>
+              <div
+                onClick={handleExportExcel}
+                className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
+              >
+                Xuất Excel
+              </div>
             </div>
           </Form>
         </div>

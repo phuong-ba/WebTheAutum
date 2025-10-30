@@ -2,11 +2,17 @@ import React, { useEffect, useState } from "react";
 import { Form, Input, Select, Row, Col, Button } from "antd";
 import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import baseUrl from "@/api/instance";
+import { useNavigate } from "react-router";
 
 const { Option } = Select;
 
-export default function FliterProduct({ onFilter }) {
+export default function FliterProduct({
+  onFilter,
+  handleExportExcel,
+  products,
+}) {
   const [form] = Form.useForm();
+  const navigate = useNavigate();
   const [dropdownData, setDropdownData] = useState({
     nhaSanXuats: [],
     chatLieus: [],
@@ -181,24 +187,36 @@ export default function FliterProduct({ onFilter }) {
             </Form.Item>
           </Col>
 
-          <Col xs={24} sm={12} md={8}>
-          </Col>
+          <Col xs={24} sm={12} md={8}></Col>
         </Row>
 
-        <div className="flex justify-end pr-3 gap-4">
-          <button
-            type="button"
+        <div className="flex justify-end gap-4 pr-3">
+          <div
             onClick={onReset}
-            className="border border-[#E67E22] text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-[#E67E22] hover:text-white transition-colors"
+            className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
           >
             Nhập lại
-          </button>
-          <button
-            className="bg-[#E67E22] text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] transition-colors"
+          </div>
+          <div
+            onClick={() => form.submit()}
+            className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
             type="submit"
           >
             Tìm kiếm
-          </button>
+          </div>
+          <div
+              onClick={() => navigate("/admin/add-product")}
+              className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
+            >
+              Thêm sản phẩm
+            </div>
+          <div
+            onClick={handleExportExcel}
+            disabled={!products || products.length === 0}
+            className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
+          >
+            Xuất Excel
+          </div>
         </div>
       </Form>
     </div>
