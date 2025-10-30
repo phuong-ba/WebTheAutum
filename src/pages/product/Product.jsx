@@ -67,7 +67,7 @@ export default function Product() {
   };
 
   const handleEditProduct = (record) => {
-    navigate(`/edit-product/${record.id}`);
+    navigate(`/admin/edit-product/${record.id}`);
   };
 
   const rowSelection = {

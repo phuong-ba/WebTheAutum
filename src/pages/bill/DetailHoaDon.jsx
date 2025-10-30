@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Card,
   Descriptions,
@@ -117,7 +117,7 @@ const DetailHoaDon = () => {
   };
 
   const handleEdit = () => {
-    navigate(`/bill/edit/${id}`);
+    navigate(`/admin/bill/edit/${id}`);
   };
 
 
@@ -336,6 +336,7 @@ const DetailHoaDon = () => {
                 >
                   Chỉnh sửa
                 </Button>
+                
               ) : (
                 <Button
                   icon={<LockOutlined />}

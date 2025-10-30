@@ -137,7 +137,7 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
 
        if (result.success || response.status === 200) {
       toast.success('✅ Đã sửa thành công!');
-      navigate(`/DetailHoaDon/${id}`, { state: { refreshData: true } });
+      navigate(`/admin/DetailHoaDon/${id}`, { state: { refreshData: true } });
     } else {
       toast.error('Lỗi: ' + (result.message || 'Không thể cập nhật'));
     }
@@ -446,7 +446,7 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => navigate(`/DetailHoaDon/${id}`)}
+                onClick={() => navigate(`/admin/DetailHoaDon/${id}`)}
                 className="px-6 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 font-medium transition-all"
               >
                 Hủy
