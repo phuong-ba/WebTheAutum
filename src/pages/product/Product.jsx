@@ -682,7 +682,7 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
             {selectedRowKeys.length > 0 && (
               <button
                 onClick={handleViewMultipleDetails}
-                className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium"
+                className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium"
               >
                 Xem {selectedRowKeys.length} sản phẩm
               </button>
@@ -691,14 +691,14 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
             <button
               onClick={handleExportExcel}
               disabled={!products || products.length === 0}
-              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Xuất Excel
             </button>
 
             <button
               onClick={() => navigate("/add-product")}
-              className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Thêm sản phẩm
             </button>
