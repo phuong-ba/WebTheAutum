@@ -8,21 +8,21 @@ export default function DiscountBreadcrumb() {
 
   let items = [];
 
-  if (path === "/discount") {
+  if (path === "/admin/discount") {
     items = [
-      { title: <Link to="/#">Trang chủ</Link> },
+      { title: <Link to="/admin/#">Trang chủ</Link> },
       { title: "Quản lý phiếu giảm giá" },
     ];
-  } else if (path === "/add-discount") {
+  } else if (path === "/admin/add-discount") {
     items = [
-      { title: <Link to="/#">Trang chủ</Link> },
-      { title: <Link to="/discount">Quản lý phiếu giảm giá</Link> },
+      { title: <Link to="/admin/#">Trang chủ</Link> },
+      { title: <Link to="/admin/discount">Quản lý phiếu giảm giá</Link> },
       { title: "Thêm phiếu giảm giá" },
     ];
-  } else if (path === "/update-discount") {
+  } else if (path === "/admin/update-discount") {
     items = [
-      { title: <Link to="/#">Trang chủ</Link> },
-      { title: <Link to="/discount">Quản lý phiếu giảm giá</Link> },
+      { title: <Link to="/admin/#">Trang chủ</Link> },
+      { title: <Link to="/admin/discount">Quản lý phiếu giảm giá</Link> },
       { title: "Cập nhật phiếu giảm giá" },
     ];
   }

@@ -22,8 +22,9 @@ import { fetchAllKhachHang } from "@/services/khachHangService";
 import TextArea from "antd/es/input/TextArea";
 import TableKhachHang from "./TableKhachHang";
 import { getKhachHangTheoPhieuGiam } from "@/services/phieuGiamGiaService";
-import DiscountBreadcrumb from "@/components/DiscountBreadcrumb";
+import DiscountBreadcrumb from "@/pages/discount/DiscountBreadcrumb";
 import { prependItem } from "@/redux/slices/phieuGiamGiaSlice";
+import { SealPercentIcon, UserCirclePlusIcon } from "@phosphor-icons/react";
 
 const { Option } = Select;
 
@@ -38,6 +39,7 @@ export default function AddDiscount() {
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [trangThai, setTrangThai] = useState(editingItem?.trangThai ?? true);
   const [modal, contextHolder] = Modal.useModal();
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
 
   const currentDate = dayjs();
 
@@ -161,22 +163,8 @@ export default function AddDiscount() {
       );
       return;
     }
-    const isUpdate = !!editingItem;
-    const action = isUpdate ? "Cập nhật" : "Thêm";
-    const colorDanger = isUpdate;
-
-    modal.confirm({
-      title: `Xác nhận ${action}`,
-      content: `Bạn có chắc muốn ${action.toLowerCase()} phiếu giảm giá "${
-        values.tenChuongTrinh || editingItem?.tenChuongTrinh || "mới"
-      }" không?`,
-      okText: action,
-      cancelText: "Hủy",
-      okButtonProps: { danger: colorDanger },
-      async onOk() {
-        await handleSubmit(values);
-      },
-    });
+    setConfirmModalVisible(true);
+    form.__submitValues = values; // Lưu tạm giá trị form để dùng khi nhấn Đồng ý
   };
 
   return (
@@ -191,10 +179,10 @@ export default function AddDiscount() {
           <DiscountBreadcrumb />
         </div>
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-3">
-            <p className="font-bold text-2xl text-[#E67E22]">
+          <div className="px-6 py-3 bg-[#E67E22]">
+            <div className="font-bold text-2xl text-white">
               {editingItem ? "Cập nhật khuyến mại" : "Thêm mới khuyến mại"}
-            </p>
+            </div>
           </div>
 
           <div className="px-10 py-5">
@@ -473,15 +461,15 @@ export default function AddDiscount() {
               )}
 
               <div className="flex justify-center pr-3 gap-4 border-t border-slate-300 py-3 mt-6">
-                <button
+                <div
                   type="button"
-                  onClick={() => navigate("/discount")}
-                  className="border border-[#E67E22] text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-[#E67E22] hover:text-white"
+                  onClick={() => navigate("/admin/discount")}
+                  className=" text-white bg-gray-400 font-semibold rounded-md px-6 py-2 cursor-pointer flex items-center gap-2 hover:bg-amber-700 hover:text-white active:bg-cyan-800 select-none"
                 >
                   Quay lại
-                </button>
+                </div>
 
-                <button
+                <div
                   type="button"
                   onClick={() => {
                     form.resetFields();
@@ -489,22 +477,69 @@ export default function AddDiscount() {
                     setTrangThai(true);
                     setKieu(0);
                   }}
-                  className="border border-[#E67E22] text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-[#E67E22] hover:text-white"
+                  className=" text-white bg-gray-400 font-semibold rounded-md px-6 py-2 cursor-pointer flex items-center gap-2 hover:bg-amber-700 hover:text-white active:bg-cyan-800 select-none"
                 >
                   Nhập lại
-                </button>
+                </div>
 
-                <button
-                  type="submit"
-                  className="bg-[#E67E22] text-white rounded px-6 py-2 cursor-pointer hover:bg-[#cf6a12]"
+                <div
+                  onClick={async () => {
+                    try {
+                      const values = await form.validateFields();
+                      onFinish(values);
+                    } catch (error) {
+                      messageApi.error("Vui lòng nhập đầy đủ thông tin!");
+                    }
+                  }}
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-semibold hover:bg-amber-700  active:bg-cyan-800 select-none"
                 >
                   {editingItem ? "Cập nhật" : "Thêm"}
-                </button>
+                </div>
               </div>
             </Form>
           </div>
         </div>
       </div>
+      <Modal
+        open={confirmModalVisible}
+        onCancel={() => setConfirmModalVisible(false)}
+        footer={null}
+        width={450}
+        centered
+        closable={false}
+      >
+        <div className="flex flex-col items-center gap-4 p-4">
+          <div className="text-xl font-bold mb-2 text-[#E67E22]">
+            Xác nhận {editingItem ? "cập nhật" : "thêm"} phiếu giảm giá
+          </div>
+          <SealPercentIcon size={120} style={{ color: "#E67E22" }} />
+          <div className="text-gray-600 mb-4 text-center">
+            Bạn có chắc chắn muốn {editingItem ? "cập nhật" : "thêm"} phiếu giảm
+            giá này không?
+          </div>
+
+          <div className="flex justify-center gap-6 w-full">
+            <div
+              className="w-40 cursor-pointer text-center py-3 rounded-xl bg-[#b8b8b8] font-bold text-white hover:bg-amber-600 active:bg-rose-900 shadow"
+              onClick={() => setConfirmModalVisible(false)}
+            >
+              Hủy
+            </div>
+            <div
+              className="w-40 cursor-pointer text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+              onClick={async () => {
+                const values = form.__submitValues;
+                if (values) {
+                  await handleSubmit(values);
+                }
+                setConfirmModalVisible(false);
+              }}
+            >
+              Đồng ý
+            </div>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }
