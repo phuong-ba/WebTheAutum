@@ -62,19 +62,20 @@ export default function AddPromo() {
   }, [giaTriGiamState, loaiGiamGia]);
 
   console.log("🚀 ~ AddPromo ~ chiTietSanPhamData:", chiTietSanPhamData);
+
   useEffect(() => {
     if (loaiGiamGia === "Phần trăm") {
       let tongGiam = 0;
-      Object.values(chiTietSanPhamData).forEach((chiTietArr) => {
-        chiTietArr.forEach((item) => {
-          tongGiam += item.giaBan * (giaTriGiamState / 100);
-        });
+      Object.entries(chiTietSanPhamData).forEach(([spId, chiTietArr]) => {
+        const selectedIds = selectedChiTietKeys[spId] || [];
+        chiTietArr
+          .filter((item) => selectedIds.includes(item.id))
+          .forEach((item) => {
+            tongGiam += item.giaBan * (giaTriGiamState / 100);
+          });
       });
 
-      // Nếu vượt quá 100, đặt về 0
-      if (giaTriGiamState > 100) {
-        tongGiam = 0;
-      }
+      if (giaTriGiamState > 100) tongGiam = 0;
 
       form.setFieldsValue({ giaTriToiThieu: tongGiam });
       setGiaTriToiThieuState(tongGiam);
@@ -82,7 +83,8 @@ export default function AddPromo() {
       form.setFieldsValue({ giaTriToiThieu: giaTriGiamState });
       setGiaTriToiThieuState(giaTriGiamState);
     }
-  }, [chiTietSanPhamData, giaTriGiamState, loaiGiamGia]);
+  }, [chiTietSanPhamData, selectedChiTietKeys, giaTriGiamState, loaiGiamGia]);
+
   useEffect(() => {
     const fetchData = async () => {
       console.log("🚀 ~ fetchData ~ editingItem:", editingItem);
@@ -102,7 +104,6 @@ export default function AddPromo() {
           });
           setSelectedChiTietKeys(chiTietMap);
 
-          // Fill form
           form.setFieldsValue({
             tenDot: editingItem.tenDot,
             ngayBatDau: dayjs(editingItem.ngayBatDau),
@@ -111,6 +112,9 @@ export default function AddPromo() {
             giaTriGiam: editingItem.giaTriGiam,
             giaTriToiThieu: editingItem.giaTriToiThieu,
           });
+          setLoaiGiamGia(editingItem.loaiGiamGia ? "Tiền mặt" : "Phần trăm");
+          setGiaTriGiamState(editingItem.giaTriGiam);
+          setGiaTriToiThieuState(editingItem.giaTriToiThieu);
         } catch (err) {
           console.error(err);
           messageApi.error(
@@ -375,6 +379,16 @@ export default function AddPromo() {
                         cleared[id] = [];
                       });
                       setSelectedChiTietKeys(cleared);
+                      setChiTietSanPhamData((prev) => {
+                        const newData = {};
+                        selectedSanPhamKeys.forEach((id) => {
+                          newData[id] = (prev[id] || []).map((item) => ({
+                            ...item,
+                            giaBan: 0,
+                          }));
+                        });
+                        return newData;
+                      });
                       messageApi.info("Đã bỏ chọn tất cả chi tiết sản phẩm");
                     }}
                     className="border border-red-600 text-red-600 rounded px-4 py-1 hover:bg-red-600 hover:text-white"

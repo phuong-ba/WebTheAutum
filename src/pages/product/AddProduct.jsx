@@ -16,17 +16,82 @@ import {
   Button,
 } from "antd";
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ProductDetail from "./productDetail/ProductDetail";
 import baseUrl from "@/api/instance";
 
 const { Option } = Select;
 
+// Constants
+const MODAL_TITLES = {
+  nhaSanXuat: "hãng",
+  xuatXu: "xuất xứ",
+  chatLieu: "chất liệu",
+  kieuDang: "kiểu dáng",
+  coAo: "cổ áo",
+  tayAo: "tay áo",
+  kichThuoc: "kích thước",
+  mauSac: "màu sắc",
+};
+
+const API_ENDPOINTS = {
+  nhaSanXuat: "/nha-san-xuat/add",
+  xuatXu: "/xuat-xu/add",
+  chatLieu: "/chat-lieu/add",
+  kieuDang: "/kieu-dang/add",
+  coAo: "/co-ao/add",
+  tayAo: "/tay-ao/add",
+  kichThuoc: "/kich-thuoc/add",
+  mauSac: "/mau-sac/add",
+};
+
+const PAYLOAD_MAPPINGS = {
+  nhaSanXuat: (ten, ma) => ({
+    tenNhaSanXuat: ten,
+    maNhaSanXuat: ma,
+  }),
+  xuatXu: (ten, ma) => ({
+    tenXuatXu: ten,
+    maXuatXu: ma,
+  }),
+  chatLieu: (ten, ma) => ({
+    tenChatLieu: ten,
+    maChatLieu: ma,
+  }),
+  kieuDang: (ten, ma) => ({
+    tenKieuDang: ten,
+    maKieuDang: ma,
+  }),
+  coAo: (ten, ma) => ({
+    tenCoAo: ten,
+    maCoAo: ma,
+  }),
+  tayAo: (ten, ma) => ({
+    tenTayAo: ten,
+    maTayAo: ma,
+  }),
+  kichThuoc: (ten, ma) => ({
+    tenKichThuoc: ten,
+    maKichThuoc: ma,
+  }),
+  mauSac: (ten, ma) => ({
+    tenMauSac: ten,
+    maMauSac: ma,
+  }),
+};
+
 export default function AddProduct() {
+  // State Management
   const [form] = Form.useForm();
   const [openModal, setOpenModal] = useState(false);
   const [modalType, setModalType] = useState("");
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [confirmModalData, setConfirmModalData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [bienTheList, setBienTheList] = useState([]);
+  const [loadingTaoSanPham, setLoadingTaoSanPham] = useState(false);
+  const navigate = useNavigate();
+
   const [dropdownData, setDropdownData] = useState({
     nhaSanXuats: [],
     xuatXus: [],
@@ -37,21 +102,8 @@ export default function AddProduct() {
     kichThuocs: [],
     mauSacs: [],
   });
-  const [loading, setLoading] = useState(false);
-  const [bienTheList, setBienTheList] = useState([]);
-  const [loadingTaoSanPham, setLoadingTaoSanPham] = useState(false);
 
-  const MODAL_TITLES = {
-    nhaSanXuat: "hãng",
-    xuatXu: "xuất xứ",
-    chatLieu: "chất liệu",
-    kieuDang: "kiểu dáng",
-    coAo: "cổ áo",
-    tayAo: "tay áo",
-    kichThuoc: "kích thước",
-    mauSac: "màu sắc",
-  };
-
+  // Data Fetching
   const fetchDropdownData = async () => {
     setLoading(true);
     try {
@@ -88,6 +140,7 @@ export default function AddProduct() {
     }
   };
 
+  // API Functions
   const previewBienTheAPI = async (requestData) => {
     try {
       const response = await baseUrl.post(
@@ -130,132 +183,7 @@ export default function AddProduct() {
     }
   };
 
-  const handleOpenModal = (type) => {
-    setModalType(type);
-    setOpenModal(true);
-  };
-
-  const handleAddNew = async (values) => {
-    try {
-      console.log(`🎯 Bắt đầu thêm mới ${modalType}:`, values);
-
-      if (!values.ten || !values.ten.trim()) {
-        message.error(`Vui lòng nhập tên ${getModalTitle()}`);
-        return;
-      }
-
-      if (!values.ma || !values.ma.trim()) {
-        message.error(`Vui lòng nhập mã ${getModalTitle()}`);
-        return;
-      }
-
-      const ten = values.ten.trim();
-      const ma = values.ma.trim().toUpperCase();
-
-      console.log(`📝 Dữ liệu đã chuẩn hóa:`, { ten, ma, modalType });
-
-      const apiEndpoints = {
-        nhaSanXuat: "/nha-san-xuat/add",
-        xuatXu: "/xuat-xu/add",
-        chatLieu: "/chat-lieu/add",
-        kieuDang: "/kieu-dang/add",
-        coAo: "/co-ao/add",
-        tayAo: "/tay-ao/add",
-        kichThuoc: "/kich-thuoc/add",
-        mauSac: "/mau-sac/add",
-      };
-
-      const endpoint = apiEndpoints[modalType];
-      if (!endpoint) {
-        message.error("Không tìm thấy endpoint API");
-        return;
-      }
-
-      console.log(`🔗 Endpoint: ${endpoint}`);
-
-      const payloadMappings = {
-        nhaSanXuat: {
-          tenNhaSanXuat: ten,
-          maNhaSanXuat: ma,
-        },
-        xuatXu: {
-          tenXuatXu: ten,
-          maXuatXu: ma,
-        },
-        chatLieu: {
-          tenChatLieu: ten,
-          maChatLieu: ma,
-        },
-        kieuDang: {
-          tenKieuDang: ten,
-          maKieuDang: ma,
-        },
-        coAo: {
-          tenCoAo: ten,
-          maCoAo: ma,
-        },
-        tayAo: {
-          tenTayAo: ten,
-          maTayAo: ma,
-        },
-        kichThuoc: {
-          tenKichThuoc: ten,
-          maKichThuoc: ma,
-        },
-        mauSac: {
-          tenMauSac: ten,
-          maMauSac: ma,
-        },
-      };
-
-      const payload = payloadMappings[modalType];
-
-      if (!payload) {
-        message.error("Không tìm thấy mapping payload");
-        return;
-      }
-
-      console.log("📦 Payload gửi đi:", payload);
-
-      const response = await baseUrl.post(endpoint, payload);
-
-      console.log("✅ Response từ server:", response.data);
-
-      if (response.data) {
-        message.success(`Thêm mới ${getModalTitle()} "${ten}" thành công`);
-        await fetchDropdownData();
-        setOpenModal(false);
-      } else {
-        message.error("Thêm mới thất bại");
-      }
-    } catch (error) {
-      console.error(`💥 Lỗi khi thêm mới ${modalType}:`, error);
-
-      if (error.response?.data) {
-        const errorData = error.response.data;
-
-        if (
-          errorData.message &&
-          errorData.message.includes("UNIQUE KEY constraint")
-        ) {
-          message.error(
-            `Mã hoặc tên ${getModalTitle()} đã tồn tại. Vui lòng chọn giá trị khác.`
-          );
-        } else if (errorData.errors) {
-          Object.values(errorData.errors).forEach((errMsg) => {
-            message.error(errMsg);
-          });
-        } else if (errorData.message) {
-          message.error(errorData.message);
-        } else {
-          message.error("Lỗi server không xác định");
-        }
-      } else {
-        message.error("Lỗi kết nối đến server");
-      }
-    }
-  };
-
+  // Helper Functions
   const getModalTitle = () => MODAL_TITLES[modalType] || "thuộc tính";
 
   const getTenThuocTinh = (type, id) => {
@@ -284,6 +212,81 @@ export default function AddProduct() {
       : "";
   };
 
+  // Modal Handlers
+  const handleOpenModal = (type) => {
+    setModalType(type);
+    setOpenModal(true);
+  };
+
+  const handleAddNew = async (values) => {
+    try {
+      console.log(`🎯 Bắt đầu thêm mới ${modalType}:`, values);
+
+      if (!values.ten?.trim()) {
+        message.error(`Vui lòng nhập tên ${getModalTitle()}`);
+        return;
+      }
+
+      if (!values.ma?.trim()) {
+        message.error(`Vui lòng nhập mã ${getModalTitle()}`);
+        return;
+      }
+
+      const ten = values.ten.trim();
+      const ma = values.ma.trim().toUpperCase();
+
+      const endpoint = API_ENDPOINTS[modalType];
+      if (!endpoint) {
+        message.error("Không tìm thấy endpoint API");
+        return;
+      }
+
+      const payloadBuilder = PAYLOAD_MAPPINGS[modalType];
+      if (!payloadBuilder) {
+        message.error("Không tìm thấy mapping payload");
+        return;
+      }
+
+      const payload = payloadBuilder(ten, ma);
+
+      const response = await baseUrl.post(endpoint, payload);
+
+      if (response.data) {
+        message.success(`Thêm mới ${getModalTitle()} "${ten}" thành công`);
+        await fetchDropdownData();
+        setOpenModal(false);
+      } else {
+        message.error("Thêm mới thất bại");
+      }
+    } catch (error) {
+      console.error(`💥 Lỗi khi thêm mới ${modalType}:`, error);
+      handleApiError(error, getModalTitle());
+    }
+  };
+
+  const handleApiError = (error, modalTitle) => {
+    if (error.response?.data) {
+      const errorData = error.response.data;
+
+      if (errorData.message?.includes("UNIQUE KEY constraint")) {
+        message.error(
+          `Mã hoặc tên ${modalTitle} đã tồn tại. Vui lòng chọn giá trị khác.`
+        );
+      } else if (errorData.errors) {
+        Object.values(errorData.errors).forEach((errMsg) => {
+          message.error(errMsg);
+        });
+      } else if (errorData.message) {
+        message.error(errorData.message);
+      } else {
+        message.error("Lỗi server không xác định");
+      }
+    } else {
+      message.error("Lỗi kết nối đến server");
+    }
+  };
+
+  // Product Variant Handlers
   const handleTaoBienThe = async () => {
     try {
       const formValues = await form.validateFields();
@@ -333,16 +336,9 @@ export default function AddProduct() {
         trongLuong: formValues.trongLuong,
       };
 
-      console.log(
-        "🔍 Gọi API preview với data:",
-        JSON.stringify(requestData, null, 2)
-      );
-
       const previewResponse = await previewBienTheAPI(requestData);
 
       if (previewResponse.success && previewResponse.data) {
-        console.log("✅ Preview thành công:", previewResponse.data);
-
         setConfirmModalData({
           ...previewResponse.data,
           formData: requestData,
@@ -360,6 +356,92 @@ export default function AddProduct() {
     }
   };
 
+  const handleConfirmCreateProduct = async () => {
+    if (!confirmModalData) return;
+
+    setLoadingTaoSanPham(true);
+    try {
+      if (confirmModalData.isPreview) {
+        const createResponse = await createBienTheAPI(
+          confirmModalData.formData
+        );
+
+        if (createResponse.success && Array.isArray(createResponse.data)) {
+          const enhancedBienTheData = createResponse.data.map(
+            (bienThe, index) => {
+              const formValues = confirmModalData.formData;
+              const tenMauSac =
+                bienThe.tenMauSac ||
+                getTenThuocTinh("mauSac", bienThe.idMauSac);
+              return {
+                ...bienThe,
+                tenSanPham: formValues.tenSanPham,
+                tenCoAo: getTenThuocTinh("coAo", formValues.idCoAo),
+                tenTayAo: getTenThuocTinh("tayAo", formValues.idTayAo),
+                tenKichThuoc: getTenThuocTinh(
+                  "kichThuoc",
+                  formValues.idKichThuoc
+                ),
+                trongLuong: formValues.trongLuong,
+                tenMauSac: tenMauSac,
+                soLuong: bienThe.soLuongTon || 0,
+                donGia: bienThe.giaBan || 0,
+                moTa: bienThe.moTa || "",
+              };
+            }
+          );
+
+          setBienTheList(enhancedBienTheData);
+          message.success(
+            `✅ Đã tạo ${enhancedBienTheData.length} biến thể thành công!`
+          );
+          setConfirmModalOpen(false);
+          setConfirmModalData(null);
+        } else {
+          const errorMessage =
+            createResponse.message || "Lỗi không xác định khi tạo biến thể";
+          if (createResponse.errors) {
+            Object.values(createResponse.errors).forEach((errMsg) => {
+              message.error(errMsg);
+            });
+          } else {
+            message.error(errorMessage);
+          }
+          throw new Error(errorMessage);
+        }
+      } else {
+        message.success(
+          `✅ Đã tạo thành công sản phẩm với ${confirmModalData.totalVariants} biến thể!`
+        );
+        resetAllToInitialState();
+        setConfirmModalOpen(false);
+        setConfirmModalData(null);
+      }
+    } catch (error) {
+      console.error("💥 Lỗi khi xác nhận:", error);
+      handleCreateProductError(error);
+    } finally {
+      setLoadingTaoSanPham(false);
+    }
+  };
+
+  const handleCreateProductError = (error) => {
+    if (error.message.includes("rollback-only")) {
+      message.error(
+        "Lỗi transaction: Dữ liệu không hợp lệ hoặc bị trùng lặp. Vui lòng kiểm tra lại thông tin."
+      );
+    } else if (error.message.includes("UNIQUE")) {
+      message.error(
+        "Lỗi: Mã sản phẩm hoặc thông tin đã tồn tại trong hệ thống."
+      );
+    } else if (error.response?.status === 400) {
+      message.error("Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại.");
+    } else {
+      message.error(error.message || "Lỗi khi xác nhận tạo sản phẩm");
+    }
+  };
+
+  // Reset Functions
   const resetAllToInitialState = () => {
     form.resetFields();
     setBienTheList([]);
@@ -375,100 +457,7 @@ export default function AddProduct() {
     setConfirmModalOpen(true);
   };
 
-  const handleConfirmCreateProduct = async () => {
-    if (!confirmModalData) return;
-  
-    setLoadingTaoSanPham(true);
-    try {
-      if (confirmModalData.isPreview) {
-        console.log(
-          "🎯 Gọi API create thật với data:",
-          confirmModalData.formData
-        );
-  
-        const createResponse = await createBienTheAPI(
-          confirmModalData.formData
-        );
-  
-        if (createResponse.success && Array.isArray(createResponse.data)) {
-          console.log("✅ Create thành công:", createResponse.data);
-  
-          const enhancedBienTheData = createResponse.data.map(
-            (bienThe, index) => {
-              const formValues = confirmModalData.formData;
-              return {
-                ...bienThe,
-                tenSanPham: formValues.tenSanPham,
-                tenCoAo: getTenThuocTinh("coAo", formValues.idCoAo),
-                tenTayAo: getTenThuocTinh("tayAo", formValues.idTayAo),
-                tenKichThuoc: getTenThuocTinh(
-                  "kichThuoc",
-                  formValues.idKichThuoc
-                ),
-                trongLuong: formValues.trongLuong,
-                tenMauSac: getTenThuocTinh("mauSac", bienThe.idMauSac),
-                soLuong: bienThe.soLuongTon || 0,
-                donGia: bienThe.giaBan || 0,
-                moTa: bienThe.moTa || "",
-              };
-            }
-          );
-  
-          setBienTheList(enhancedBienTheData);
-
-          message.success(
-            `✅ Đã tạo ${enhancedBienTheData.length} biến thể thành công!`
-          );
-  
-          setConfirmModalOpen(false);
-          setConfirmModalData(null);
-        } else {
-          const errorMessage =
-            createResponse.message || "Lỗi không xác định khi tạo biến thể";
-  
-          if (createResponse.errors) {
-            Object.values(createResponse.errors).forEach((errMsg) => {
-              message.error(errMsg);
-            });
-          } else {
-            message.error(errorMessage);
-          }
-  
-          throw new Error(errorMessage);
-        }
-      } else {
-        console.log("🎯 Tạo sản phẩm thành công với các biến thể:", confirmModalData.variantsData);
-        
-        message.success(`✅ Đã tạo thành công sản phẩm với ${confirmModalData.totalVariants} biến thể!`);
-        
-        resetAllToInitialState();
-        
-        setConfirmModalOpen(false);
-        setConfirmModalData(null);
-      }
-      
-    } catch (error) {
-      console.error("💥 Lỗi khi xác nhận:", error);
-  
-      if (error.message.includes("rollback-only")) {
-        message.error(
-          "Lỗi transaction: Dữ liệu không hợp lệ hoặc bị trùng lặp. Vui lòng kiểm tra lại thông tin."
-        );
-      } else if (error.message.includes("UNIQUE")) {
-        message.error(
-          "Lỗi: Mã sản phẩm hoặc thông tin đã tồn tại trong hệ thống."
-        );
-      } else if (error.response?.status === 400) {
-        message.error("Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại.");
-      } else {
-        message.error(error.message || "Lỗi khi xác nhận tạo sản phẩm");
-      }
-      
-    } finally {
-      setLoadingTaoSanPham(false);
-    }
-  };
-
+  // UI Components
   const tagRender = (props) => {
     const { label, closable, onClose } = props;
     return (
@@ -500,28 +489,31 @@ export default function AddProduct() {
 
   const ConfirmCreateProductModal = () => {
     if (!confirmModalData) return null;
-  
+
     const isPreview = confirmModalData.isPreview;
-    
     const formData = confirmModalData.formData;
-    
+
     const getDisplayValue = (type, id) => {
       if (!id) return "Chưa chọn";
       return getTenThuocTinh(type, id);
     };
-  
+
     const renderMauSacs = () => {
       if (!formData?.idMauSacs || formData.idMauSacs.length === 0) {
         return "Chưa chọn";
       }
-      return formData.idMauSacs.map(id => getDisplayValue("mauSac", id)).join(", ");
+      return formData.idMauSacs
+        .map((id) => getDisplayValue("mauSac", id))
+        .join(", ");
     };
-  
+
     return (
       <Modal
         title={
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <CheckCircleOutlined style={{ fontSize: "24px", color: "#52c41a" }} />
+            <CheckCircleOutlined
+              style={{ fontSize: "24px", color: "#52c41a" }}
+            />
             <span style={{ fontSize: "18px", fontWeight: "bold" }}>
               {isPreview ? "XÁC NHẬN TẠO BIẾN THỂ" : "XÁC NHẬN TẠO SẢN PHẨM"}
             </span>
@@ -551,268 +543,382 @@ export default function AddProduct() {
         width={700}
         centered
       >
-        <div style={{ padding: "20px 0" }}>
-          {isPreview ? (
-            <>
-              <p style={{ 
-                fontSize: "15px", 
-                marginBottom: "20px", 
-                color: "#595959",
-                textAlign: "center"
-              }}>
-                Bạn sắp tạo <strong style={{ color: "#E67E22" }}>{confirmModalData.totalVariants}</strong> biến thể
-              </p>
-  
-              <div style={{ marginBottom: "20px" }}>
-                <div style={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  marginBottom: "12px",
-                  padding: "8px 12px",
-                  background: "#E67E22",
-                  borderRadius: "6px",
-                  color: "white"
-                }}>
-                  <span style={{ fontWeight: "bold", fontSize: "14px" }}>📦 THÔNG TIN SẢN PHẨM CHÍNH</span>
-                </div>
-                <div style={{ 
-                  background: "#f8f9fa", 
-                  padding: "16px", 
-                  borderRadius: "8px",
-                  border: "1px solid #e9ecef"
-                }}>
-                  <Row gutter={[16, 12]}>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Tên sản phẩm:</strong>
-                      </div>
-                      <div style={{ color: "#E67E22", fontWeight: "500" }}>
-                        {formData?.tenSanPham || "Chưa có"}
-                      </div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Mã sản phẩm:</strong>
-                      </div>
-                      <div style={{ color: "#28a745", fontWeight: "500" }}>
-                        {confirmModalData.maSanPham || "Sẽ được tạo tự động"}
-                      </div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Hãng:</strong>
-                      </div>
-                      <div>{getDisplayValue("nhaSanXuat", formData?.idNhaSanXuat)}</div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Xuất xứ:</strong>
-                      </div>
-                      <div>{getDisplayValue("xuatXu", formData?.idXuatXu)}</div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Chất liệu:</strong>
-                      </div>
-                      <div>{getDisplayValue("chatLieu", formData?.idChatLieu)}</div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Kiểu dáng:</strong>
-                      </div>
-                      <div>{getDisplayValue("kieuDang", formData?.idKieuDang)}</div>
-                    </Col>
-                  </Row>
-                </div>
-              </div>
-  
-              <div style={{ marginBottom: "20px" }}>
-                <div style={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  marginBottom: "12px",
-                  padding: "8px 12px",
-                  background: "#28a745",
-                  borderRadius: "6px",
-                  color: "white"
-                }}>
-                  <span style={{ fontWeight: "bold", fontSize: "14px" }}>🎨 THÔNG TIN BIẾN THỂ</span>
-                </div>
-                <div style={{ 
-                  background: "#f6ffed", 
-                  border: "1px solid #b7eb8f", 
-                  padding: "16px", 
-                  borderRadius: "8px" 
-                }}>
-                  <Row gutter={[16, 12]}>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Màu sắc:</strong>
-                      </div>
-                      <div style={{ color: "#dc3545" }}>
-                        {renderMauSacs()}
-                      </div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Kích thước:</strong>
-                      </div>
-                      <div>{getDisplayValue("kichThuoc", formData?.idKichThuoc)}</div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Trọng lượng:</strong>
-                      </div>
-                      <div style={{ color: "#fd7e14", fontWeight: "500" }}>
-                        {formData?.trongLuong || "Chưa nhập"}
-                      </div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Cổ áo:</strong>
-                      </div>
-                      <div>{getDisplayValue("coAo", formData?.idCoAo)}</div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Tay áo:</strong>
-                      </div>
-                      <div>{getDisplayValue("tayAo", formData?.idTayAo)}</div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: "8px" }}>
-                        <strong style={{ color: "#495057" }}>Số biến thể:</strong>
-                      </div>
-                      <div>
-                        <Tag color="blue" style={{ fontSize: "14px", padding: "4px 8px" }}>
-                          {confirmModalData.totalVariants} biến thể
-                        </Tag>
-                      </div>
-                    </Col>
-                  </Row>
-                </div>
-              </div>
-  
-              <div style={{ 
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                padding: "20px",
-                borderRadius: "12px",
-                color: "white",
-                textAlign: "center",
-                marginBottom: "20px"
-              }}>
-                <div style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "15px" }}>
-                  📊 TÓM TẮT TỔNG QUAN
-                </div>
-                <Row gutter={16}>
-                  <Col span={8}>
-                    <div style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "5px" }}>
-                      {confirmModalData.totalVariants}
-                    </div>
-                    <div style={{ fontSize: "12px", opacity: 0.9 }}>Tổng biến thể</div>
-                  </Col>
-                  <Col span={8}>
-                    <div style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "5px" }}>
-                      {formData?.idMauSacs?.length || 0}
-                    </div>
-                    <div style={{ fontSize: "12px", opacity: 0.9 }}>Màu sắc</div>
-                  </Col>
-                  <Col span={8}>
-                    <div style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "5px", lineHeight: "1.3" }}>
-                      {formData?.tenSanPham || "Chưa có tên"}
-                    </div>
-                    <div style={{ fontSize: "12px", opacity: 0.9 }}>Tên sản phẩm</div>
-                  </Col>
-                </Row>
-              </div>
-            </>
-          ) : (
-            <>
-              <p style={{ fontSize: "15px", marginBottom: "20px", color: "#595959" }}>
-                Bạn đang chuẩn bị tạo sản phẩm chính thức với các thông tin sau:
-              </p>
-  
-              <div style={{ 
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                padding: "20px",
-                borderRadius: "12px",
-                marginBottom: "20px",
-                color: "white",
-              }}>
-                <div style={{ 
-                  display: "grid", 
-                  gridTemplateColumns: "1fr 1fr 1fr", 
-                  gap: "15px", 
-                  textAlign: "center" 
-                }}>
-                  <div>
-                    <div style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "5px" }}>
-                      {confirmModalData.totalVariants}
-                    </div>
-                    <div style={{ fontSize: "13px", opacity: 0.9 }}>Tổng biến thể</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "5px" }}>
-                      {confirmModalData.totalQuantity}
-                    </div>
-                    <div style={{ fontSize: "13px", opacity: 0.9 }}>Tổng số lượng</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "5px" }}>
-                      {new Intl.NumberFormat("vi-VN").format(confirmModalData.totalValue)}₫
-                    </div>
-                    <div style={{ fontSize: "13px", opacity: 0.9 }}>Giá trị tồn kho</div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-  
-          <div style={{
-            background: "#fff7e6",
-            border: "2px solid #ffd591",
-            borderLeft: "5px solid #fa8c16",
-            padding: "15px",
-            borderRadius: "8px",
-          }}>
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              fontWeight: "bold", 
-              color: "#d46b08", 
-              marginBottom: "8px" 
-            }}>
-              <span style={{ marginRight: "8px" }}>⚠️</span>
-              LƯU Ý QUAN TRỌNG
-            </div>
-            <ul style={{
-              margin: 0,
-              paddingLeft: "20px",
-              color: "#8c8c8c",
-              fontSize: "13px",
-              lineHeight: "1.6",
-            }}>
-              <li>
-                {isPreview
-                  ? "Biến thể sẽ được tạo với số lượng = 0 và giá = 0 mặc định"
-                  : "Sản phẩm sẽ được lưu vào hệ thống chính thức"}
-              </li>
-              <li>Bạn có thể cập nhật số lượng và giá sau khi tạo</li>
-              <li>Thao tác này không thể hoàn tác</li>
-              {isPreview && (
-                <li>Mỗi biến thể sẽ có mã vạch tự động sinh</li>
-              )}
-            </ul>
-          </div>
-        </div>
+        <ConfirmModalContent
+          isPreview={isPreview}
+          formData={formData}
+          confirmModalData={confirmModalData}
+          getDisplayValue={getDisplayValue}
+          renderMauSacs={renderMauSacs}
+        />
       </Modal>
     );
   };
 
+  const ConfirmModalContent = ({
+    isPreview,
+    formData,
+    confirmModalData,
+    getDisplayValue,
+    renderMauSacs,
+  }) => {
+    if (isPreview) {
+      return (
+        <PreviewModalContent
+          formData={formData}
+          confirmModalData={confirmModalData}
+          getDisplayValue={getDisplayValue}
+          renderMauSacs={renderMauSacs}
+        />
+      );
+    }
+
+    return <FinalConfirmModalContent confirmModalData={confirmModalData} />;
+  };
+
+  const PreviewModalContent = ({
+    formData,
+    confirmModalData,
+    getDisplayValue,
+    renderMauSacs,
+  }) => (
+    <div style={{ padding: "20px 0" }}>
+      <p
+        style={{
+          fontSize: "15px",
+          marginBottom: "20px",
+          color: "#595959",
+          textAlign: "center",
+        }}
+      >
+        Bạn sắp tạo{" "}
+        <strong style={{ color: "#E67E22" }}>
+          {confirmModalData.totalVariants}
+        </strong>{" "}
+        biến thể
+      </p>
+
+      <ProductInfoSection
+        formData={formData}
+        getDisplayValue={getDisplayValue}
+      />
+      <VariantInfoSection
+        formData={formData}
+        confirmModalData={confirmModalData}
+        getDisplayValue={getDisplayValue}
+        renderMauSacs={renderMauSacs}
+      />
+      <SummarySection formData={formData} confirmModalData={confirmModalData} />
+      <ImportantNote isPreview={true} />
+    </div>
+  );
+
+  const FinalConfirmModalContent = ({ confirmModalData }) => (
+    <div style={{ padding: "20px 0" }}>
+      <p style={{ fontSize: "15px", marginBottom: "20px", color: "#595959" }}>
+        Bạn đang chuẩn bị tạo sản phẩm chính thức với các thông tin sau:
+      </p>
+
+      <SummaryStats
+        totalVariants={confirmModalData.totalVariants}
+        totalQuantity={confirmModalData.totalQuantity}
+        totalValue={confirmModalData.totalValue}
+      />
+
+      <ImportantNote isPreview={false} />
+    </div>
+  );
+
+  const ProductInfoSection = ({ formData, getDisplayValue }) => (
+    <div style={{ marginBottom: "20px" }}>
+      <SectionHeader title="📦 THÔNG TIN SẢN PHẨM CHÍNH" color="#E67E22" />
+      <div
+        style={{
+          background: "#f8f9fa",
+          padding: "16px",
+          borderRadius: "8px",
+          border: "1px solid #e9ecef",
+        }}
+      >
+        <Row gutter={[16, 12]}>
+          <Col span={12}>
+            <Field
+              label="Tên sản phẩm:"
+              value={formData?.tenSanPham || "Chưa có"}
+              highlight
+            />
+          </Col>
+          <Col span={12}>
+            <Field
+              label="Mã sản phẩm:"
+              value={confirmModalData.maSanPham || "Sẽ được tạo tự động"}
+              success
+            />
+          </Col>
+          <Col span={12}>
+            <Field
+              label="Hãng:"
+              value={getDisplayValue("nhaSanXuat", formData?.idNhaSanXuat)}
+            />
+          </Col>
+          <Col span={12}>
+            <Field
+              label="Xuất xứ:"
+              value={getDisplayValue("xuatXu", formData?.idXuatXu)}
+            />
+          </Col>
+          <Col span={12}>
+            <Field
+              label="Chất liệu:"
+              value={getDisplayValue("chatLieu", formData?.idChatLieu)}
+            />
+          </Col>
+          <Col span={12}>
+            <Field
+              label="Kiểu dáng:"
+              value={getDisplayValue("kieuDang", formData?.idKieuDang)}
+            />
+          </Col>
+        </Row>
+      </div>
+    </div>
+  );
+
+  const VariantInfoSection = ({
+    formData,
+    confirmModalData,
+    getDisplayValue,
+    renderMauSacs,
+  }) => (
+    <div style={{ marginBottom: "20px" }}>
+      <SectionHeader title="🎨 THÔNG TIN BIẾN THỂ" color="#28a745" />
+      <div
+        style={{
+          background: "#f6ffed",
+          border: "1px solid #b7eb8f",
+          padding: "16px",
+          borderRadius: "8px",
+        }}
+      >
+        <Row gutter={[16, 12]}>
+          <Col span={12}>
+            <Field label="Màu sắc:" value={renderMauSacs()} error />
+          </Col>
+          <Col span={12}>
+            <Field
+              label="Kích thước:"
+              value={getDisplayValue("kichThuoc", formData?.idKichThuoc)}
+            />
+          </Col>
+          <Col span={12}>
+            <Field
+              label="Trọng lượng:"
+              value={formData?.trongLuong || "Chưa nhập"}
+              warning
+            />
+          </Col>
+          <Col span={12}>
+            <Field
+              label="Cổ áo:"
+              value={getDisplayValue("coAo", formData?.idCoAo)}
+            />
+          </Col>
+          <Col span={12}>
+            <Field
+              label="Tay áo:"
+              value={getDisplayValue("tayAo", formData?.idTayAo)}
+            />
+          </Col>
+          <Col span={12}>
+            <Field
+              label="Số biến thể:"
+              value={
+                <Tag
+                  color="blue"
+                  style={{ fontSize: "14px", padding: "4px 8px" }}
+                >
+                  {confirmModalData.totalVariants} biến thể
+                </Tag>
+              }
+            />
+          </Col>
+        </Row>
+      </div>
+    </div>
+  );
+
+  const SummarySection = ({ formData, confirmModalData }) => (
+    <div
+      style={{
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        padding: "20px",
+        borderRadius: "12px",
+        color: "white",
+        textAlign: "center",
+        marginBottom: "20px",
+      }}
+    >
+      <div
+        style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "15px" }}
+      >
+        📊 TÓM TẮT TỔNG QUAN
+      </div>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Stat value={confirmModalData.totalVariants} label="Tổng biến thể" />
+        </Col>
+        <Col span={8}>
+          <Stat value={formData?.idMauSacs?.length || 0} label="Màu sắc" />
+        </Col>
+        <Col span={8}>
+          <ProductName value={formData?.tenSanPham || "Chưa có tên"} />
+        </Col>
+      </Row>
+    </div>
+  );
+
+  const SummaryStats = ({ totalVariants, totalQuantity, totalValue }) => (
+    <div
+      style={{
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        padding: "20px",
+        borderRadius: "12px",
+        marginBottom: "20px",
+        color: "white",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: "15px",
+          textAlign: "center",
+        }}
+      >
+        <Stat value={totalVariants} label="Tổng biến thể" large />
+        <Stat value={totalQuantity} label="Tổng số lượng" large />
+        <Stat
+          value={new Intl.NumberFormat("vi-VN").format(totalValue) + "₫"}
+          label="Giá trị tồn kho"
+        />
+      </div>
+    </div>
+  );
+
+  const ImportantNote = ({ isPreview }) => (
+    <div
+      style={{
+        background: "#fff7e6",
+        border: "2px solid #ffd591",
+        borderLeft: "5px solid #fa8c16",
+        padding: "15px",
+        borderRadius: "8px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          fontWeight: "bold",
+          color: "#d46b08",
+          marginBottom: "8px",
+        }}
+      >
+        <span style={{ marginRight: "8px" }}>⚠️</span>
+        LƯU Ý QUAN TRỌNG
+      </div>
+      <ul
+        style={{
+          margin: 0,
+          paddingLeft: "20px",
+          color: "#8c8c8c",
+          fontSize: "13px",
+          lineHeight: "1.6",
+        }}
+      >
+        <li>
+          {isPreview
+            ? "Biến thể sẽ được tạo với số lượng = 0 và giá = 0 mặc định"
+            : "Sản phẩm sẽ được lưu vào hệ thống chính thức"}
+        </li>
+        <li>Bạn có thể cập nhật số lượng và giá sau khi tạo</li>
+        <li>Thao tác này không thể hoàn tác</li>
+        {isPreview && <li>Mỗi biến thể sẽ có mã vạch tự động sinh</li>}
+      </ul>
+    </div>
+  );
+
+  // Reusable UI Components
+  const SectionHeader = ({ title, color }) => (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        marginBottom: "12px",
+        padding: "8px 12px",
+        background: color,
+        borderRadius: "6px",
+        color: "white",
+      }}
+    >
+      <span style={{ fontWeight: "bold", fontSize: "14px" }}>{title}</span>
+    </div>
+  );
+
+  const Field = ({ label, value, highlight, success, error, warning }) => {
+    let style = {};
+    if (highlight) style = { color: "#E67E22", fontWeight: "500" };
+    if (success) style = { color: "#28a745", fontWeight: "500" };
+    if (error) style = { color: "#dc3545" };
+    if (warning) style = { color: "#fd7e14", fontWeight: "500" };
+
+    return (
+      <div style={{ marginBottom: "8px" }}>
+        <div style={{ marginBottom: "8px" }}>
+          <strong style={{ color: "#495057" }}>{label}</strong>
+        </div>
+        <div style={style}>{value}</div>
+      </div>
+    );
+  };
+
+  const Stat = ({ value, label, large = false }) => (
+    <div>
+      <div
+        style={{
+          fontSize: large ? "32px" : "28px",
+          fontWeight: "bold",
+          marginBottom: "5px",
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: large ? "13px" : "12px", opacity: 0.9 }}>
+        {label}
+      </div>
+    </div>
+  );
+
+  const ProductName = ({ value }) => (
+    <div>
+      <div
+        style={{
+          fontSize: "14px",
+          fontWeight: "bold",
+          marginBottom: "5px",
+          lineHeight: "1.3",
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: "12px", opacity: 0.9 }}>Tên sản phẩm</div>
+    </div>
+  );
+
+  // Form Sections
   const renderProductInfo = () => (
     <>
       <Row gutter={16} wrap>
-        <Col span={12}>
+        <Col span={9}>
           <Form.Item
             name="tenSanPham"
             label="Tên sản phẩm"
@@ -830,34 +936,10 @@ export default function AddProduct() {
 
       <Row gutter={[16, 16]} wrap>
         {[
-          {
-            name: "idNhaSanXuat",
-            label: "Hãng",
-            placeholder: "Chọn hãng",
-            type: "nhaSanXuat",
-            span: 6,
-          },
-          {
-            name: "idXuatXu",
-            label: "Xuất xứ",
-            placeholder: "Chọn xuất xứ",
-            type: "xuatXu",
-            span: 6,
-          },
-          {
-            name: "idChatLieu",
-            label: "Chất liệu",
-            placeholder: "Chọn chất liệu",
-            type: "chatLieu",
-            span: 6,
-          },
-          {
-            name: "idKieuDang",
-            label: "Kiểu dáng",
-            placeholder: "Chọn kiểu dáng",
-            type: "kieuDang",
-            span: 6,
-          },
+          { name: "idNhaSanXuat", label: "Hãng", type: "nhaSanXuat", span: 6 },
+          { name: "idXuatXu", label: "Xuất xứ", type: "xuatXu", span: 6 },
+          { name: "idChatLieu", label: "Chất liệu", type: "chatLieu", span: 6 },
+          { name: "idKieuDang", label: "Kiểu dáng", type: "kieuDang", span: 6 },
         ].map((field, index) => (
           <Col xs={24} sm={12} md={field.span} key={index}>
             <Form.Item
@@ -866,12 +948,12 @@ export default function AddProduct() {
               rules={[
                 {
                   required: true,
-                  message: `Vui lòng ${field.placeholder.toLowerCase()}`,
+                  message: `Vui lòng chọn ${field.label.toLowerCase()}`,
                 },
               ]}
             >
               <Select
-                placeholder={field.placeholder}
+                placeholder={`Chọn ${field.label.toLowerCase()}`}
                 loading={loading}
                 showSearch
                 optionFilterProp="children"
@@ -951,13 +1033,31 @@ export default function AddProduct() {
             </Select>
           </Form.Item>
         </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Form.Item
+            name="trongLuong"
+            label="Trọng lượng"
+            rules={[
+              {
+                required: true,
+                message: "Vui lòng nhập trọng lượng",
+              },
+            ]}
+          >
+            <Input
+              placeholder="Nhập trọng lượng (VD: 200g, 0.5kg)"
+              suffix={<span className="text-gray-400 text-xs">g/kg</span>}
+              size="middle"
+            />
+          </Form.Item>
+        </Col>
       </Row>
     </>
   );
 
   const renderVariantInfo = () => (
     <Row gutter={[16, 16]} wrap>
-      <Col xs={24} sm={12} md={8}>
+      <Col xs={24} sm={12} md={12}>
         <Form.Item
           name="idMauSacs"
           label="Màu sắc"
@@ -987,7 +1087,7 @@ export default function AddProduct() {
         </Form.Item>
       </Col>
 
-      <Col xs={24} sm={12} md={8}>
+      <Col xs={24} sm={12} md={12}>
         <Form.Item
           name="idKichThuoc"
           label="Kích thước"
@@ -1014,177 +1114,74 @@ export default function AddProduct() {
           </Select>
         </Form.Item>
       </Col>
-
-      <Col xs={24} sm={12} md={8}>
-        <Form.Item
-          name="trongLuong"
-          label="Trọng lượng"
-          rules={[
-            {
-              required: true,
-              message: "Vui lòng nhập trọng lượng",
-            },
-          ]}
-        >
-          <Input
-            placeholder="Nhập trọng lượng (VD: 200g, 0.5kg)"
-            suffix={<span className="text-gray-400 text-xs">g/kg</span>}
-            size="middle"
-          />
-        </Form.Item>
-      </Col>
     </Row>
   );
 
+  // Effects
   useEffect(() => {
     fetchDropdownData();
   }, []);
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div className="text-sm text-gray-600">
+          <span
+            className="cursor-pointer hover:text-[#E67E22]"
+            onClick={() => navigate("/")}
+          >
+            Trang chủ
+          </span>
+          <span className="mx-2">/</span>
+          <span
+            className="cursor-pointer hover:text-[#E67E22]"
+            onClick={() => navigate("/product")}
+          >
+            Quản lý sản phẩm
+          </span>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900 font-medium">Thêm sản phẩm mới</span>
+        </div>
+      </div>
+
       <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
         <div className="bg-[#E67E22] text-white px-6 py-3">
           <h2 className="text-lg font-bold">Thêm sản phẩm mới</h2>
         </div>
 
         <div className="p-6">
-          <div className="border-b border-amber-400 mb-6 pb-3">
-            <p className="font-bold text-[#E67E22] text-[16px]">
-              Thông tin sản phẩm
-            </p>
-          </div>
-
+          <SectionHeaderUI title="Thông tin sản phẩm" />
           <Form form={form} layout="vertical" autoComplete="off">
             {renderProductInfo()}
 
             <div className="border-t border-gray-200 mt-6 pt-6">
-              <div className="border-b border-amber-400 mb-6 pb-3">
-                <p className="font-bold text-[#E67E22] text-[16px]">
-                  Thông tin biến thể
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Chọn màu sắc để tạo biến thể
-                </p>
-              </div>
+              <SectionHeaderUI
+                title="Thông tin biến thể"
+                subtitle="Chọn màu sắc để tạo biến thể"
+              />
               {renderVariantInfo()}
 
-              <Form.Item shouldUpdate>
-                {() => {
-                  const formValues = form.getFieldsValue();
-                  const colorCount = formValues.idMauSacs?.length || 0;
-                  const totalCombinations = colorCount;
-
-                  return totalCombinations > 0 ? (
-                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-blue-700 font-medium">
-                        Sẽ tạo{" "}
-                        <span className="font-bold">{totalCombinations}</span>{" "}
-                        biến thể
-                        {colorCount > 1 ? ` theo ${colorCount} màu sắc` : ""}
-                      </p>
-                    </div>
-                  ) : null;
-                }}
-              </Form.Item>
+              <VariantCounter form={form} />
             </div>
           </Form>
         </div>
       </div>
 
-      <Modal
-        title={`Thêm mới ${getModalTitle()}`}
+      <AddAttributeModal
         open={openModal}
         onCancel={() => setOpenModal(false)}
-        footer={null}
-        width={500}
-      >
-        <Form onFinish={handleAddNew} layout="vertical" className="mt-4">
-          <Form.Item
-            name="ten"
-            label={`Tên ${getModalTitle()}`}
-            rules={[
-              {
-                required: true,
-                message: `Vui lòng nhập tên ${getModalTitle()}`,
-              },
-              {
-                min: 2,
-                message: `Tên ${getModalTitle()} phải có ít nhất 2 ký tự`,
-              },
-            ]}
-          >
-            <Input placeholder={`Nhập tên ${getModalTitle()}`} size="middle" />
-          </Form.Item>
-          <Form.Item
-            name="ma"
-            label={`Mã ${getModalTitle()}`}
-            rules={[
-              {
-                required: true,
-                message: `Vui lòng nhập mã ${getModalTitle()}`,
-              },
-              {
-                min: 2,
-                message: `Mã ${getModalTitle()} phải có ít nhất 2 ký tự`,
-              },
-              {
-                pattern: /^[A-Z0-9]+$/,
-                message: "Mã chỉ được chứa chữ cái in hoa và số",
-              },
-            ]}
-          >
-            <Input
-              placeholder={`Nhập mã ${getModalTitle()}`}
-              style={{ textTransform: "uppercase" }}
-              onInput={(e) => {
-                e.target.value = e.target.value.toUpperCase();
-              }}
-              size="middle"
-            />
-          </Form.Item>
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              type="default"
-              onClick={() => setOpenModal(false)}
-              size="middle"
-              className="border-gray-300 text-gray-600 hover:border-gray-400"
-            >
-              Hủy
-            </Button>
-            <Button
-              type="default"
-              htmlType="submit"
-              size="middle"
-              className="bg-[#E67E22] border-[#E67E22] hover:bg-[#d35400] hover:border-[#d35400] text-white"
-            >
-              Thêm mới
-            </Button>
-          </div>
-        </Form>
-      </Modal>
+        modalType={modalType}
+        getModalTitle={getModalTitle}
+        onFinish={handleAddNew}
+      />
 
       <ConfirmCreateProductModal />
 
-      <div className="flex justify-end gap-3 mb-6">
-        <Button
-          type="default"
-          icon={<ReloadOutlined />}
-          onClick={resetAllToInitialState}
-          size="middle"
-          className="border-gray-300 text-gray-600 hover:border-gray-400"
-        >
-          Nhập lại
-        </Button>
-        <Button
-          type="default"
-          onClick={handleTaoBienThe}
-          size="middle"
-          className="bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white font-medium"
-          loading={loadingTaoSanPham}
-        >
-          Tạo biến thể
-        </Button>
-      </div>
+      <ActionButtons
+        onReset={resetAllToInitialState}
+        onTaoBienThe={handleTaoBienThe}
+        loading={loadingTaoSanPham}
+      />
 
       <ProductDetail
         bienTheList={bienTheList}
@@ -1192,6 +1189,137 @@ export default function AddProduct() {
         onResetCallback={resetAllToInitialState}
         onShowConfirmModal={handleShowConfirmModal}
       />
-    </>
+    </div>
   );
 }
+
+// Additional UI Components
+const SectionHeaderUI = ({ title, subtitle }) => (
+  <div className="border-b border-amber-400 mb-6 pb-3">
+    <p className="font-bold text-[#E67E22] text-[16px]">{title}</p>
+    {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+  </div>
+);
+
+const VariantCounter = ({ form }) => (
+  <Form.Item shouldUpdate>
+    {() => {
+      const formValues = form.getFieldsValue();
+      const colorCount = formValues.idMauSacs?.length || 0;
+      const totalCombinations = colorCount;
+
+      return totalCombinations > 0 ? (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-blue-700 font-medium">
+            Sẽ tạo <span className="font-bold">{totalCombinations}</span> biến
+            thể
+            {colorCount > 1 ? ` theo ${colorCount} màu sắc` : ""}
+          </p>
+        </div>
+      ) : null;
+    }}
+  </Form.Item>
+);
+
+const AddAttributeModal = ({
+  open,
+  onCancel,
+  modalType,
+  getModalTitle,
+  onFinish,
+}) => (
+  <Modal
+    title={`Thêm mới ${getModalTitle()}`}
+    open={open}
+    onCancel={onCancel}
+    footer={null}
+    width={500}
+  >
+    <Form onFinish={onFinish} layout="vertical" className="mt-4">
+      <Form.Item
+        name="ten"
+        label={`Tên ${getModalTitle()}`}
+        rules={[
+          {
+            required: true,
+            message: `Vui lòng nhập tên ${getModalTitle()}`,
+          },
+          {
+            min: 2,
+            message: `Tên ${getModalTitle()} phải có ít nhất 2 ký tự`,
+          },
+        ]}
+      >
+        <Input placeholder={`Nhập tên ${getModalTitle()}`} size="middle" />
+      </Form.Item>
+      <Form.Item
+        name="ma"
+        label={`Mã ${getModalTitle()}`}
+        rules={[
+          {
+            required: true,
+            message: `Vui lòng nhập mã ${getModalTitle()}`,
+          },
+          {
+            min: 2,
+            message: `Mã ${getModalTitle()} phải có ít nhất 2 ký tự`,
+          },
+          {
+            pattern: /^[A-Z0-9]+$/,
+            message: "Mã chỉ được chứa chữ cái in hoa và số",
+          },
+        ]}
+      >
+        <Input
+          placeholder={`Nhập mã ${getModalTitle()}`}
+          style={{ textTransform: "uppercase" }}
+          onInput={(e) => {
+            e.target.value = e.target.value.toUpperCase();
+          }}
+          size="middle"
+        />
+      </Form.Item>
+      <div className="flex justify-end gap-3 pt-4">
+        <Button
+          type="default"
+          onClick={onCancel}
+          size="middle"
+          className="border-gray-300 text-gray-600 hover:border-gray-400"
+        >
+          Hủy
+        </Button>
+        <Button
+          type="default"
+          htmlType="submit"
+          size="middle"
+          className="bg-[#E67E22] border-[#E67E22] hover:bg-[#d35400] hover:border-[#d35400] text-white"
+        >
+          Thêm mới
+        </Button>
+      </div>
+    </Form>
+  </Modal>
+);
+
+const ActionButtons = ({ onReset, onTaoBienThe, loading }) => (
+  <div className="flex justify-end gap-3 mb-6">
+    <Button
+      type="default"
+      icon={<ReloadOutlined />}
+      onClick={onReset}
+      size="middle"
+      className="border-gray-300 text-gray-600 hover:border-gray-400"
+    >
+      Nhập lại
+    </Button>
+    <Button
+      type="default"
+      onClick={onTaoBienThe}
+      size="middle"
+      className="bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white font-medium"
+      loading={loading}
+    >
+      Tạo biến thể
+    </Button>
+  </div>
+);
