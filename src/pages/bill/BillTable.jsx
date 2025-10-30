@@ -3,7 +3,6 @@ import { Table, Tag, Button, Space, Dropdown, Menu } from "antd";
 import { EyeOutlined, DownOutlined } from "@ant-design/icons";
 import { toast } from "react-toastify";
 
-// ==================== UTILITY FUNCTIONS ====================
 const formatMoney = (value) => {
   if (!value && value !== 0) return "0 ₫";
   return new Intl.NumberFormat("vi-VN", {
@@ -41,9 +40,6 @@ export default function BillTable({
   onServiceChange,
   onViewDetail,
 }) {
-  // ========== DROPDOWN MENU HÀM ==========
-
-  // Menu trạng thái
   const getStatusMenu = (record) => (
     <Menu
       onClick={({ key }) => {
@@ -59,20 +55,6 @@ export default function BillTable({
     </Menu>
   );
 
-  // Menu loại hóa đơn
-  const getServiceMenu = (record) => (
-    <Menu
-      onClick={({ key }) => {
-        onServiceChange(record.id, key === "true");
-        toast.success("Cập nhật loại hóa đơn thành công!");
-      }}
-    >
-      <Menu.Item key="true"> Tại quầy</Menu.Item>
-      <Menu.Item key="false"> Online</Menu.Item>
-    </Menu>
-  );
-
-  // ========== CẤU HÌNH CỘT BẢNG ==========
   const columns = [
     {
       title: "STT",
@@ -86,7 +68,6 @@ export default function BillTable({
       dataIndex: "maHoaDon",
       key: "maHoaDon",
       align: "center",
-      width: 120,
       render: (text, record) => text || record.id,
     },
     {
@@ -101,58 +82,18 @@ export default function BillTable({
       align: "left",
       render: (_, record) => record.nhanVien?.hoTen || "—",
     },
-    {
-      title: "TRẠNG THÁI",
-      key: "trangThai",
-      align: "center",
-      width: 160,
-      render: (_, record) => {
-        const config = getStatusConfig(record.trangThai);
-        return (
-          <Dropdown overlay={getStatusMenu(record)} trigger={["click"]}>
-            <Tag
-              color={config.color}
-              style={{
-                cursor: "pointer",
-                border: `1px solid ${config.color}`,
-                backgroundColor: `${config.color}15`,
-              }}
-            >
-              <span style={{ color: config.color }}>{config.label}</span>{" "}
-              
-            </Tag>
-          </Dropdown>
-        );
-      },
-    },
+
     {
       title: "LOẠI HÓA ĐƠN",
       key: "loaiHoaDon",
-      align: "center",
-      width: 120,
-      render: (_, record) => {
-        const serviceText = record.loaiHoaDon ? " Tại quầy" : " Online";
-        return (
-          <Dropdown overlay={getServiceMenu(record)} trigger={["click"]}>
-            <Tag
-              style={{
-                cursor: "pointer",
-                
-                border: "1px solid #ccc",
-                backgroundColor: "#f9f9f9",
-              }}
-            >
-              {serviceText} 
-            </Tag>
-          </Dropdown>
-        );
-      },
+      align: "left",
+      render: (_, record) => (record.loaiHoaDon ? "Tại quầy" : "Online"),
     },
     {
       title: "HÌNH THỨC TT",
       dataIndex: "hinhThucThanhToan",
       key: "hinhThucThanhToan",
-      align: "center",
+      align: "left",
       render: (text) => text || "—",
     },
     {
@@ -178,10 +119,32 @@ export default function BillTable({
       },
     },
     {
+      title: "TRẠNG THÁI",
+      key: "trangThai",
+      align: "center",
+      width: 160,
+      render: (_, record) => {
+        const config = getStatusConfig(record.trangThai);
+        return (
+          <Dropdown overlay={getStatusMenu(record)} trigger={["click"]}>
+            <Tag
+              color={config.color}
+              style={{
+                cursor: "pointer",
+                border: `1px solid ${config.color}`,
+                backgroundColor: `${config.color}15`,
+              }}
+            >
+              <span style={{ color: config.color }}>{config.label}</span>{" "}
+            </Tag>
+          </Dropdown>
+        );
+      },
+    },
+    {
       title: "HÀNH ĐỘNG",
       key: "action",
       align: "center",
-      width: 100,
       render: (_, record) => (
         <Space size="middle">
           <Button
@@ -194,7 +157,6 @@ export default function BillTable({
     },
   ];
 
-  // ========== TABLE ==========
   const rowSelection = {
     selectedRowKeys,
     onChange: (keys) => setSelectedRowKeys(keys),
