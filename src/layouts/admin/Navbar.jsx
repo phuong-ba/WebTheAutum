@@ -22,7 +22,6 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const items = [
-    { key: "/", icon: <IconHome />, label: "Trang chủ" },
     {
       key: "/statistical",
       icon: <IconStatistical />,
@@ -53,11 +52,6 @@ export default function Navbar() {
       key: "/customer",
       icon: <AppstoreOutlined />,
       label: "Quản lý khách hàng",
-    },
-    {
-      key: "/customer",
-      icon: <AppstoreOutlined />,
-      label: "Quản lý khach hàng",
     },
   ];
 

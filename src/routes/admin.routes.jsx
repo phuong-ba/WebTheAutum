@@ -11,17 +11,21 @@ import Category from "@/pages/category/Category";
 import Collection from "@/pages/collection/Collection";
 import Warehouse from "@/pages/warehouse/Warehouse";
 import Discount from "@/pages/discount/Discount";
-import Promo from "@/pages/promo/Promo";
-
 import User from "@/pages/user/User";
 import AddProduct from "@/pages/product/AddProduct";
 import Customer from "@/pages/customer/Customer";
 import AddUser from "@/pages/user/AddUser";
 import UpdateUser from "@/pages/user/UpdateUser";
 import AddDiscount from "@/pages/discount/AddDiscount";
+
+import Promo from "@/pages/promo/Promo";
+import AddPromo from "@/pages/promo/AddPromo";
+
 import ProductDetailPage from "@/pages/product/ProductDetailPage";
 import MultiProductDetailPage from "@/pages/product/MultiProductDetailPage";
 import EditProduct from "@/pages/product/EditProduct";
+import DetailHoaDon from "@/pages/bill/DetailHoaDon";
+import EditHoaDon from "@/pages/bill/EditHoaDon";
 
 const contentStyle = {
   padding: 50,
@@ -60,6 +64,22 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <Bill />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "DetailHoaDon/:id", // ⭐ THÊM ROUTE MỚI
+        element: (
+          <LazyLoad>
+            <DetailHoaDon />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "bill/edit/:id", // ⭐ ROUTE SỬA HÓA ĐƠN
+        element: (
+          <LazyLoad>
+            <EditHoaDon />
           </LazyLoad>
         ),
       },
@@ -136,6 +156,22 @@ const adminRouters = [
         ),
       },
       {
+        path: "add-promo",
+        element: (
+          <LazyLoad>
+            <AddPromo />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "update-promo",
+        element: (
+          <LazyLoad>
+            <AddPromo />
+          </LazyLoad>
+        ),
+      },
+      {
         path: "add-product",
         element: (
           <LazyLoad>
@@ -180,7 +216,7 @@ const adminRouters = [
         ),
       },
       {
-        path: "update-user",
+        path: "update-user/:id",
         element: (
           <LazyLoad>
             <UpdateUser />

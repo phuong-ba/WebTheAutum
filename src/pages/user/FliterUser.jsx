@@ -32,7 +32,6 @@ export default function FilterUser() {
       )
     );
 
-    console.log("Search query:", cleanQuery);
     dispatch(searchNhanVien(cleanQuery));
   };
 
@@ -42,59 +41,72 @@ export default function FilterUser() {
   };
 
   return (
-    <div className="px-10 py-[20px] bg-white my-10">
-      <Form
-        form={form}
-        layout="vertical"
-        autoComplete="off"
-        onFinish={handleSearch}
-      >
-        <Row gutter={16}>
-          <Col flex="1">
-            <Form.Item name="keyword" label="Từ khóa tìm kiếm">
-              <Input placeholder="Nhập mã, tên, email, sđt, địa chỉ..." />
-            </Form.Item>
-          </Col>
-
-          <Col flex="1">
-            <Form.Item name="gioiTinh" label="Giới tính">
-              <Select placeholder="Chọn giới tính" allowClear>
-                <Option value={true}>Nam</Option>
-                <Option value={false}>Nữ</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-
-          <Col flex="1">
-            <Form.Item name="chucVu" label="Chức vụ">
-              <Select placeholder="Chọn chức vụ" allowClear>
-                <Option value="1">Quản lý</Option>
-                <Option value="2">Nhân viên</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-
-          <Col flex="1">
-            <Form.Item name="trangThai" label="Trạng thái">
-              <Select placeholder="Chọn trạng thái" allowClear>
-                <Option value={true}>Hoạt động</Option>
-                <Option value={false}>Ngưng hoạt động</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-
-        <div className="flex justify-end gap-4 pr-3">
-          <Button onClick={handleReset}>Nhập lại</Button>
-          <Button
-            htmlType="submit"
-            type="primary"
-            style={{ background: "#E67E22", borderColor: "#E67E22" }}
-          >
-            Tìm kiếm
-          </Button>
+    <>
+      <div className=" bg-white  rounded-lg shadow overflow-hidden">
+        <div className="bg-[#E67E22] text-white px-6 py-2">
+          <div className="font-bold text-2xl text-white ">Bộ Lọc Nhân Viên</div>
         </div>
-      </Form>
-    </div>
+        <div className="px-6 py-3">
+          <Form
+            form={form}
+            layout="vertical"
+            autoComplete="off"
+            onFinish={handleSearch}
+          >
+            <Row gutter={16}>
+              <Col flex="1">
+                <Form.Item name="keyword" label="Từ khóa tìm kiếm">
+                  <Input placeholder="Nhập mã, tên, email, sđt, địa chỉ..." />
+                </Form.Item>
+              </Col>
+
+              <Col flex="1">
+                <Form.Item name="gioiTinh" label="Giới tính">
+                  <Select placeholder="Chọn giới tính" allowClear>
+                    <Option value={true}>Nam</Option>
+                    <Option value={false}>Nữ</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+
+              <Col flex="1">
+                <Form.Item name="chucVu" label="Chức vụ">
+                  <Select placeholder="Chọn chức vụ" allowClear>
+                    <Option value="1">Quản lý</Option>
+                    <Option value="2">Nhân viên</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+
+              <Col flex="1">
+                <Form.Item name="trangThai" label="Trạng thái">
+                  <Select placeholder="Chọn trạng thái" allowClear>
+                    <Option value={true}>Hoạt động</Option>
+                    <Option value={false}>Ngưng hoạt động</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <div className="flex justify-end gap-4 pr-3">
+              <button
+                onClick={handleReset}
+                className="bg-white text-[#E67E22] border border-gray-400 rounded px-6 py-2 cursor-pointer
+              active:bg-[#A0522D] active:text-white transition-colors font-medium"
+              >
+                Nhập lại
+              </button>
+              <button
+                htmlType="submit"
+                className="bg-[#E67E22] text-white border border-gray-400 rounded px-6 py-2 cursor-pointer 
+             hover:border-[#d35400] active:bg-[#A0522D] active:text-white transition-colors font-medium"
+              >
+                Tìm kiếm
+              </button>
+            </div>
+          </Form>
+        </div>
+      </div>
+    </>
   );
 }

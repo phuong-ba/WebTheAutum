@@ -9,7 +9,14 @@ export const fetchNhanVien = createAsyncThunk("nhan-vien", async () => {
     throw error.response?.data || "Đã xảy ra lỗi khi lấy dữ liệu";
   }
 });
-
+export const nhanVienById = createAsyncThunk("nhan-vien/id", async (id) => {
+  try {
+    const response = await baseUrl.get(`nhan-vien/detail/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || "Đã xảy ra lỗi khi lấy dữ liệu";
+  }
+});
 export const addNhanVien = createAsyncThunk(
   "nhan-vien/add",
   async (nhanvien) => {

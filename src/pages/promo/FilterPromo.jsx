@@ -2,9 +2,9 @@ import React from "react";
 import { Form, Input, Select, Row, Col, DatePicker, Button } from "antd";
 import { useDispatch } from "react-redux";
 import {
-  fetchPhieuGiamGia,
-  searchPhieuGiamGia,
-} from "@/services/phieuGiamGiaService";
+  fetchDotGiamGia,
+  searchDotGiamGia,
+} from "@/services/dotGiamGiaService";
 import dayjs from "dayjs";
 
 const { Option } = Select;
@@ -40,7 +40,7 @@ export default function FliterDiscount() {
     );
 
     console.log("Search query:", cleanQuery);
-    dispatch(searchPhieuGiamGia(cleanQuery));
+    dispatch(searchDotGiamGia(cleanQuery));
   };
 
   const convertLoaiGiamGiaToBoolean = (loaiGiamGia) => {
@@ -51,16 +51,14 @@ export default function FliterDiscount() {
 
   const handleReset = () => {
     form.resetFields();
-    dispatch(fetchPhieuGiamGia());
+    dispatch(fetchDotGiamGia());
   };
 
   return (
     <>
       <div className=" bg-white  rounded-lg shadow overflow-hidden">
         <div className="bg-[#E67E22] text-white px-6 py-2">
-          <div className="font-bold text-2xl text-white ">
-            Bộ Lọc Phiếu Giảm
-          </div>
+          <div className="font-bold text-2xl text-white ">Bộ Lọc Đợt Giảm</div>
         </div>
         <div className="px-6 py-3">
           <Form
@@ -91,15 +89,6 @@ export default function FliterDiscount() {
 
             <Row gutter={16}>
               <Col flex="1">
-                <Form.Item name="kieu" label="Kiểu">
-                  <Select placeholder="Chọn kiểu" allowClear>
-                    <Option value={0}>Công khai</Option>
-                    <Option value={1}>Cá nhân</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-
-              <Col flex="1">
                 <Form.Item name="loaiGiamGia" label="Loại giảm giá">
                   <Select placeholder="Chọn loại giảm giá" allowClear>
                     <Option value="Phần trăm">Phần trăm</Option>
@@ -116,6 +105,7 @@ export default function FliterDiscount() {
                   </Select>
                 </Form.Item>
               </Col>
+              <Col flex="1"></Col>
             </Row>
 
             <div className="flex justify-end gap-4 pr-3">
