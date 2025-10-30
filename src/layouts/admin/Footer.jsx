@@ -11,5 +11,6 @@ export default function Footer() {
         Email: cskh@theautumn.vn | Hotline: 1900 363 JQK
       </p>
     </div>
+
   );
 }
