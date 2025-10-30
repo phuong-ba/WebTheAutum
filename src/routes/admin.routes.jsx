@@ -201,7 +201,7 @@ const adminRouters = [
         element: <EditProduct />,
       },
       {
-        path : "/add-variant/:idSanPham",
+        path: "add-variant/:idSanPham",
         element: <AddVariant />,
       },
       {
