@@ -23,6 +23,7 @@ import AddPromo from "@/pages/promo/AddPromo";
 
 import ProductDetailPage from "@/pages/product/ProductDetailPage";
 import MultiProductDetailPage from "@/pages/product/MultiProductDetailPage";
+import EditProduct from "@/pages/product/EditProduct";
 import DetailHoaDon from "@/pages/bill/DetailHoaDon";
 import EditHoaDon from "@/pages/bill/EditHoaDon";
 
@@ -193,6 +194,10 @@ const adminRouters = [
             <MultiProductDetailPage />
           </LazyLoad>
         ),
+      },
+      {
+        path: "/edit-product/:id",
+        element: <EditProduct />,
       },
       {
         path: "user",

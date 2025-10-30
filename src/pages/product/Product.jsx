@@ -66,6 +66,10 @@ export default function Product() {
     }
   };
 
+  const handleEditProduct = (record) => {
+    navigate(`/edit-product/${record.id}`);
+  };
+
   const rowSelection = {
     selectedRowKeys,
     onChange: (newSelectedRowKeys, selectedRows) => {
@@ -587,7 +591,7 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
           <Button
             type="link"
             icon={<EditOutlined />}
-            onClick={() => setEditingUser(record)}
+            onClick={() => handleEditProduct(record)}
             className="text-green-500 p-0"
           >
             Sửa
@@ -647,31 +651,6 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
           <span className="mx-2">/</span>
           <span className="text-gray-900 font-medium">Quản lý sản phẩm</span>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="text-center shadow-sm">
-          <Statistic
-            title="Tổng sản phẩm"
-            value={totalProducts}
-            prefix={<ShoppingOutlined />}
-            valueStyle={{ color: "#E67E22" }}
-          />
-        </Card>
-        <Card className="text-center shadow-sm">
-          <Statistic
-            title="Tổng số lượng"
-            value={totalQuantity}
-            valueStyle={{ color: "#52c41a" }}
-          />
-        </Card>
-        <Card className="text-center shadow-sm">
-          <Statistic
-            title="Sản phẩm đang hoạt động"
-            value={activeProducts}
-            valueStyle={{ color: "#1890ff" }}
-          />
-        </Card>
       </div>
 
       <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
