@@ -23,33 +23,37 @@ export default function Navbar() {
   const location = useLocation();
   const items = [
     {
-      key: "/statistical",
+      key: "/admin/statistical",
       icon: <IconStatistical />,
       label: "Báo cáo & Thống kê",
     },
-    { key: "/sell", icon: <IconBook />, label: "Quản lý bán hàng" },
-    { key: "/bill", icon: <IconAlign />, label: "Quản lý hóa đơn" },
+    { key: "/admin/sell", icon: <IconBook />, label: "Quản lý bán hàng" },
+    { key: "/admin/bill", icon: <IconAlign />, label: "Quản lý hóa đơn" },
     {
       key: "sub1",
       label: "Quản lý sản phẩm",
       icon: <IconProduct />,
       children: [
-        { key: "/product", label: "Danh mục sản phẩm" },
-        { key: "/category", label: "Danh mục" },
-        { key: "/collection", label: "Bộ sưu tập" },
-        { key: "/warehouse", label: "Kho hàng" },
+        { key: "/admin/product", label: "Danh mục sản phẩm" },
+        { key: "/admin/category", label: "Danh mục" },
+        { key: "/admin/collection", label: "Bộ sưu tập" },
+        { key: "/admin/warehouse", label: "Kho hàng" },
       ],
     },
     {
-      key: "/discount",
+      key: "/admin/discount",
       icon: <IconDiscount />,
       label: "Quản lý phiếu giảm giá",
     },
 
-    { key: "/promo", icon: <IconDiscount />, label: "Quản lý đợt giảm giá" },
-    { key: "/user", icon: <AppstoreOutlined />, label: "Quản lý nhân viên" },
+    { key: "/admin/promo", icon: <IconDiscount />, label: "Quản lý đợt giảm giá" },
     {
-      key: "/customer",
+      key: "/admin/user",
+      icon: <AppstoreOutlined />,
+      label: "Quản lý nhân viên",
+    },
+    {
+      key: "/admin/customer",
       icon: <AppstoreOutlined />,
       label: "Quản lý khách hàng",
     },

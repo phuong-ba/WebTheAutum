@@ -13,6 +13,7 @@ import {
   ToggleLeftIcon,
   ToggleRightIcon,
   PencilIcon,
+  PencilLineIcon,
 } from "@phosphor-icons/react";
 import FilterPromo from "./FilterPromo";
 import PromoBreadcrumb from "./PromoBreadcrumb";
@@ -262,6 +263,13 @@ export default function Promo() {
       align: "center",
       render: (_, record) => (
         <Space size="middle">
+          <a onClick={() => handleChangeStatus(record)}>
+            {record.trangThai ? (
+              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
+                         ) : (
+                           <ToggleLeftIcon weight="fill" size={30} color="#c5c5c5" />
+            )}
+          </a>
           <a
             onClick={() => {
               if (!record.trangThai) {
@@ -273,21 +281,14 @@ export default function Promo() {
               });
             }}
           >
-            <PencilIcon
+            <PencilLineIcon
               size={24}
+              weight="fill"
               color={record.trangThai ? "#E67E22" : "#ccc"}
               style={{
                 cursor: record.trangThai ? "pointer" : "not-allowed",
               }}
             />
-          </a>
-
-          <a onClick={() => handleChangeStatus(record)}>
-            {record.trangThai ? (
-              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
-            ) : (
-              <ToggleLeftIcon weight="fill" size={30} color="#E67E22" />
-            )}
           </a>
         </Space>
       ),
