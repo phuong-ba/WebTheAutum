@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Form, Input, Select, Row, Col, message, DatePicker, Spin } from "antd";
+import {
+  Form,
+  Input,
+  Select,
+  Row,
+  Col,
+  message,
+  DatePicker,
+  Spin,
+  Modal,
+} from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAllChucVu } from "@/services/chucVuService";
 import dayjs from "dayjs";
@@ -8,12 +18,14 @@ import UploadAvartar from "../../components/UploadAvartar";
 import UserBreadcrumb from "./UserBreadcrumb";
 import axios from "axios";
 import { nhanVienById, updateNhanVien } from "@/services/nhanVienService";
+import { ExclamationCircleFilled } from "@ant-design/icons";
 
 const { Option } = Select;
 
 export default function UpdateUser() {
   const dispatch = useDispatch();
   const { data } = useSelector((state) => state.chucvu);
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [imageUrl, setImageUrl] = useState(null);
   const [messageApi, contextHolder] = message.useMessage();
@@ -22,6 +34,7 @@ export default function UpdateUser() {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [provinces, setProvinces] = useState([]);
+
   const [wards, setWards] = useState([]);
   const API_BASE = "https://provinces.open-api.vn/api/v2";
 
@@ -152,7 +165,15 @@ export default function UpdateUser() {
       messageApi.error("Cập nhật thất bại! Vui lòng thử lại.");
     }
   };
-
+  const handleConfirmUpdate = async () => {
+    try {
+      const values = await form.validateFields();
+      await onFinish(values);
+      setConfirmModalVisible(false);
+    } catch (error) {
+      messageApi.error("Vui lòng kiểm tra lại thông tin!");
+    }
+  };
   if (loading) return <Spin className="mt-10" size="large" />;
 
   return (
@@ -292,26 +313,64 @@ export default function UpdateUser() {
                 </Row>
 
                 <div className="flex justify-end pr-3 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/user")}
-                    className="border border-[#E67E22] text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-[#E67E22] hover:text-white"
+                  <div
+                    onClick={() => navigate("/admin/user")}
+                    className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
                   >
                     Hủy
-                  </button>
+                  </div>
 
-                  <button
-                    type="submit"
-                    className="bg-[#E67E22] text-white rounded px-6 py-2 cursor-pointer hover:bg-[#cf6d16]"
+                  <div
+                    onClick={() => setConfirmModalVisible(true)}
+                    className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold 
+  hover:bg-amber-700 active:bg-cyan-800 select-none transition-all duration-200 shadow-md 
+  hover:shadow-lg active:shadow-xl active:scale-95"
                   >
                     Cập nhật
-                  </button>
+                  </div>
                 </div>
               </Form>
             </div>
           </div>
         </div>
       </div>
+      <Modal
+        open={confirmModalVisible}
+        onCancel={() => setConfirmModalVisible(false)}
+        footer={null}
+        width={450}
+        centered
+        closable={false}
+      >
+        <div className="flex flex-col items-center gap-4 p-4">
+          <div className="text-2xl font-bold mb-2 text-[#E67E22]">
+            Xác nhận cập nhật nhân viên
+          </div>
+          <ExclamationCircleFilled
+              style={{ fontSize: 64, color: "#faad14" }}
+            />
+          <div className="text-gray-600 mb-4 text-center">
+            Bạn có chắc chắn muốn{" "}
+            <strong className="text-[#E67E22]">cập nhật</strong> thông tin nhân
+            viên này không?
+          </div>
+
+          <div className="flex justify-center gap-6  w-full">
+            <div
+              className="w-40 cursor-pointer select-none  text-center py-3 rounded-xl bg-[#b8b8b8] font-bold text-white   hover:bg-amber-600 active:bg-rose-900 border  active:border-[#808080] shadow "
+              onClick={() => setConfirmModalVisible(false)}
+            >
+              Hủy
+            </div>
+            <div
+              className="w-40 cursor-pointer select-none  text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white   hover:bg-amber-600 active:bg-cyan-800 border  active:border-[#808080] shadow"
+              onClick={handleConfirmUpdate}
+            >
+              Đồng ý
+            </div>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }
