@@ -21,6 +21,7 @@ import UpdateUser from "@/pages/user/UpdateUser";
 import AddDiscount from "@/pages/discount/AddDiscount";
 import ProductDetailPage from "@/pages/product/ProductDetailPage";
 import MultiProductDetailPage from "@/pages/product/MultiProductDetailPage";
+import EditProduct from "@/pages/product/EditProduct";
 
 const contentStyle = {
   padding: 50,
@@ -157,6 +158,10 @@ const adminRouters = [
             <MultiProductDetailPage />
           </LazyLoad>
         ),
+      },
+      {
+        path: "/edit-product/:id",
+        element: <EditProduct />,
       },
       {
         path: "user",

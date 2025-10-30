@@ -66,12 +66,8 @@ export default function Product() {
     }
   };
 
-  // Hàm xử lý khi ấn nút Sửa
   const handleEditProduct = (record) => {
-    messageApi.info({
-      content: "Tính năng cập nhật sản phẩm đang được cập nhật, xin vui lòng thử lại ở phiên bản tới! ",
-      duration: 3,
-    });
+    navigate(`/edit-product/${record.id}`);
   };
 
   const rowSelection = {
