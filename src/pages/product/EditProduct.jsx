@@ -273,13 +273,16 @@ export default function EditProduct() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden mb-6">
+        <div className="font-bold text-4xl text-[#E67E22]">
+          Quản lý sản phẩm
+        </div>
         <div className="text-sm text-gray-600">
           <span className="cursor-pointer hover:text-[#E67E22]" onClick={() => navigate("/")}>
             Trang chủ
           </span>
           <span className="mx-2">/</span>
-          <span className="cursor-pointer hover:text-[#E67E22]" onClick={() => navigate("/product")}>
+          <span className="cursor-pointer hover:text-[#E67E22]" onClick={() => navigate("/admin/product")}>
             Quản lý sản phẩm
           </span>
           <span className="mx-2">/</span>
@@ -287,10 +290,6 @@ export default function EditProduct() {
             Sửa sản phẩm: {productData.tenSanPham}
           </span>
         </div>
-
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
-          Quay lại
-        </Button>
       </div>
 
       <Form
@@ -301,7 +300,7 @@ export default function EditProduct() {
       >
         <Card className="shadow-md mb-6">
           <div className="bg-[#E67E22] text-white px-6 py-3 -mx-6 -mt-6 mb-6">
-            <h2 className="text-lg font-bold">📝 Thông tin sản phẩm chính</h2>
+            <div className="font-bold text-2xl text-white">📝 Thông tin sản phẩm chính</div>
             <p className="text-sm mt-1 text-white/90">Mã sản phẩm: {productData.maSanPham}</p>
           </div>
 
@@ -456,7 +455,7 @@ export default function EditProduct() {
           <div className="bg-[#E67E22] text-white px-6 py-3 -mx-6 -mt-6 mb-6">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-lg font-bold">🎨 Danh sách biến thể sản phẩm</h2>
+                <div className="font-bold text-2xl text-white">🎨 Danh sách biến thể sản phẩm</div>
                 <p className="text-sm mt-1 text-white/90">
                   Tổng cộng: {variants.length} biến thể
                 </p>

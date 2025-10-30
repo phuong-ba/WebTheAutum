@@ -325,7 +325,7 @@ export default function Discount() {
                 messageApi.warning("Không thể chỉnh sửa phiếu giảm giá!");
                 return;
               }
-              navigate("/update-discount", { state: { phieuGiamGia: record } });
+              navigate("/admin/update-discount", { state: { phieuGiamGia: record } });
             }}
           >
             <Eye

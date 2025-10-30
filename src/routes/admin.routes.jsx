@@ -49,7 +49,7 @@ const LazyLoad = ({ children }) => {
 };
 const adminRouters = [
   {
-    path: "/",
+    path: "/admin",
     element: <AdminLayout />,
     children: [
       {
@@ -197,11 +197,11 @@ const adminRouters = [
         ),
       },
       {
-        path: "/edit-product/:id",
+        path: "edit-product/:id",
         element: <EditProduct />,
       },
       {
-        path : "/add-variant/:idSanPham",
+        path: "add-variant/:idSanPham",
         element: <AddVariant />,
       },
       {

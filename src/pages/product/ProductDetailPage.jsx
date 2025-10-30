@@ -355,7 +355,10 @@ export default function ProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+        <div className="font-bold text-4xl text-[#E67E22]">
+          Quản lý sản phẩm
+        </div>
         <div className="text-sm text-gray-600">
           <span
             className="cursor-pointer hover:text-[#E67E22]"
@@ -375,15 +378,11 @@ export default function ProductDetailPage() {
             Chi tiết sản phẩm: {productData.tenSanPham}
           </span>
         </div>
-
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
-          Quay lại
-        </Button>
       </div>
 
-      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
+      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden mt-6">
         <div className="bg-[#E67E22] text-white px-6 py-3">
-          <h2 className="text-lg font-bold">Thông tin sản phẩm chính</h2>
+          <div className="font-bold text-2xl text-white">Thông tin sản phẩm chính</div>
         </div>
         <Table
           columns={productColumns}
@@ -397,9 +396,9 @@ export default function ProductDetailPage() {
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="bg-[#E67E22] text-white px-6 py-3 flex justify-between items-center">
-          <h2 className="text-lg font-bold">
+          <div className="font-bold text-2xl text-white">
             Danh sách biến thể sản phẩm ({variantDataSource.length} biến thể)
-          </h2>
+          </div>
           <div className="text-white">
             Mã sản phẩm: <Tag color="orange">{productData.maSanPham}</Tag>
           </div>

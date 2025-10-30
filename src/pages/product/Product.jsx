@@ -49,13 +49,19 @@ export default function Product() {
 
   const changeStatusSanPham = async ({ id, trangThai }) => {
     try {
-      console.log("🟡 Calling API:", `san-pham/update-trang-thai/${id}?trangThai=${trangThai}`);
+      console.log(
+        "🟡 Calling API:",
+        `san-pham/update-trang-thai/${id}?trangThai=${trangThai}`
+      );
       const response = await baseUrl.put(
         `san-pham/update-trang-thai/${id}?trangThai=${trangThai}`
       );
       console.log("✅ API Response:", response.data);
 
-      if (response.data && response.data.message === "Cập nhập trạng thái thành công") {
+      if (
+        response.data &&
+        response.data.message === "Cập nhập trạng thái thành công"
+      ) {
         return { success: true, message: response.data.message };
       }
 
@@ -67,7 +73,7 @@ export default function Product() {
   };
 
   const handleEditProduct = (record) => {
-    navigate(`/edit-product/${record.id}`);
+    navigate(`/admin/edit-product/${record.id}`);
   };
 
   const rowSelection = {
@@ -89,7 +95,7 @@ export default function Product() {
 
   const handleExportExcel = async () => {
     const dataToExport = filteredData || products;
-    
+
     if (!dataToExport || dataToExport.length === 0) {
       messageApi.warning("Không có dữ liệu để xuất Excel");
       return;
@@ -100,72 +106,83 @@ export default function Product() {
       console.log("📊 Bắt đầu xuất Excel...");
 
       const excelData = dataToExport.map((product, index) => ({
-        'STT': index + 1,
-        'Mã sản phẩm': product.maSanPham || '',
-        'Tên sản phẩm': product.tenSanPham || '',
-        'Hãng': product.tenNhaSanXuat || '',
-        'Kiểu dáng': product.tenKieuDang || '',
-        'Chất liệu': product.tenChatLieu || '',
-        'Xuất xứ': product.tenXuatXu || '',
-        'Số lượng': product.tongSoLuong || 0,
-        'Giá thấp nhất': formatPriceForExcel(product.giaThapNhat),
-        'Giá cao nhất': formatPriceForExcel(product.giaCaoNhat),
-        'Trạng thái': product.trangThai ? 'Đang hoạt động' : 'Ngừng hoạt động',
-        'Ngày tạo': formatDate(product.ngayTao),
-        'Ngày sửa': formatDate(product.ngaySua),
+        STT: index + 1,
+        "Mã sản phẩm": product.maSanPham || "",
+        "Tên sản phẩm": product.tenSanPham || "",
+        Hãng: product.tenNhaSanXuat || "",
+        "Kiểu dáng": product.tenKieuDang || "",
+        "Chất liệu": product.tenChatLieu || "",
+        "Xuất xứ": product.tenXuatXu || "",
+        "Số lượng": product.tongSoLuong || 0,
+        "Giá thấp nhất": formatPriceForExcel(product.giaThapNhat),
+        "Giá cao nhất": formatPriceForExcel(product.giaCaoNhat),
+        "Trạng thái": product.trangThai ? "Đang hoạt động" : "Ngừng hoạt động",
+        "Ngày tạo": formatDate(product.ngayTao),
+        "Ngày sửa": formatDate(product.ngaySua),
       }));
 
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(excelData);
-      
+
       const columnWidths = [
-        { wch: 5 }, { wch: 12 }, { wch: 30 }, { wch: 15 },
-        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 },
-        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+        { wch: 5 },
+        { wch: 12 },
+        { wch: 30 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 10 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
       ];
-      worksheet['!cols'] = columnWidths;
+      worksheet["!cols"] = columnWidths;
 
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Danh sách sản phẩm');
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách sản phẩm");
 
-      const excelBuffer = XLSX.write(workbook, { 
-        bookType: 'xlsx', 
-        type: 'array' 
+      const excelBuffer = XLSX.write(workbook, {
+        bookType: "xlsx",
+        type: "array",
       });
-      
-      const dataBlob = new Blob([excelBuffer], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+
+      const dataBlob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
 
       const timestamp = new Date().getTime();
       const fileName = `danh-sach-san-pham-${timestamp}.xlsx`;
 
       saveAs(dataBlob, fileName);
-      
+
       console.log("✅ Xuất Excel thành công:", fileName);
-      messageApi.success(`Đã xuất file Excel thành công! (${dataToExport.length} sản phẩm)`);
-      
+      messageApi.success(
+        `Đã xuất file Excel thành công! (${dataToExport.length} sản phẩm)`
+      );
     } catch (error) {
-      console.error('❌ Lỗi xuất Excel:', error);
-      messageApi.error('Lỗi khi xuất file Excel: ' + error.message);
+      console.error("❌ Lỗi xuất Excel:", error);
+      messageApi.error("Lỗi khi xuất file Excel: " + error.message);
     } finally {
       setExportLoading(false);
     }
   };
 
   const formatPriceForExcel = (price) => {
-    if (!price) return '0 ₫';
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
+    if (!price) return "0 ₫";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
     }).format(price);
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
     try {
-      return new Date(dateString).toLocaleDateString('vi-VN');
+      return new Date(dateString).toLocaleDateString("vi-VN");
     } catch (error) {
-      return '';
+      return "";
     }
   };
 
@@ -175,30 +192,36 @@ export default function Product() {
       const queryParams = new URLSearchParams();
 
       Object.keys(filters).forEach((key) => {
-        if (filters[key] !== undefined && filters[key] !== null && filters[key] !== "") {
+        if (
+          filters[key] !== undefined &&
+          filters[key] !== null &&
+          filters[key] !== ""
+        ) {
           queryParams.append(key, filters[key]);
         }
       });
 
-      console.log("🔍 FILTER REQUEST:", `san-pham/filter?${queryParams.toString()}`);
+      console.log(
+        "🔍 FILTER REQUEST:",
+        `san-pham/filter?${queryParams.toString()}`
+      );
 
-      const response = await baseUrl.get(`san-pham/filter?${queryParams.toString()}`);
+      const response = await baseUrl.get(
+        `san-pham/filter?${queryParams.toString()}`
+      );
 
       console.log("📦 FILTER RESPONSE:", response.data);
 
       let resultData = [];
-      
+
       if (response.data) {
         if (response.data.success && response.data.data) {
           resultData = response.data.data;
-        } 
-        else if (Array.isArray(response.data.data)) {
+        } else if (Array.isArray(response.data.data)) {
           resultData = response.data.data;
-        }
-        else if (Array.isArray(response.data)) {
+        } else if (Array.isArray(response.data)) {
           resultData = response.data;
-        }
-        else if (response.data.data) {
+        } else if (response.data.data) {
           console.warn("⚠️ Data không phải array:", response.data.data);
           resultData = [];
         }
@@ -207,7 +230,7 @@ export default function Product() {
       console.log("✅ PROCESSED DATA:", {
         isArray: Array.isArray(resultData),
         length: resultData.length,
-        data: resultData.slice(0, 3) 
+        data: resultData.slice(0, 3),
       });
 
       if (!Array.isArray(resultData)) {
@@ -215,30 +238,30 @@ export default function Product() {
         messageApi.error("Dữ liệu trả về không đúng định dạng");
         resultData = [];
       }
-        
+
       setFilteredData(resultData);
       setCurrentFilters(filters);
-      
+
       const startIndex = pageNo * pageSize;
       const endIndex = startIndex + pageSize;
       const pagedData = resultData.slice(startIndex, endIndex);
-      
+
       console.log("📄 CLIENT PAGING:", {
         total: resultData.length,
         page: pageNo,
         pageSize: pageSize,
         showing: pagedData.length,
         startIndex,
-        endIndex
+        endIndex,
       });
-      
+
       setProducts(pagedData);
       setPagination({
         current: pageNo + 1,
         pageSize: pageSize,
         total: resultData.length,
       });
-      
+
       if (resultData.length > 0) {
         messageApi.success(`Tìm thấy ${resultData.length} sản phẩm`);
       } else {
@@ -246,10 +269,13 @@ export default function Product() {
       }
     } catch (error) {
       console.error("💥 FILTER ERROR:", error);
-      messageApi.error("Lỗi tìm kiếm sản phẩm: " + (error.response?.data?.message || error.message));
+      messageApi.error(
+        "Lỗi tìm kiếm sản phẩm: " +
+          (error.response?.data?.message || error.message)
+      );
       setProducts([]);
       setFilteredData(null);
-      setPagination(prev => ({ ...prev, total: 0 }));
+      setPagination((prev) => ({ ...prev, total: 0 }));
     } finally {
       setLoading(false);
     }
@@ -265,13 +291,15 @@ export default function Product() {
 
     modal.confirm({
       title: `Xác nhận ${action}`,
-      content: `Bạn có chắc muốn ${action.toLowerCase()} "${record.tenSanPham}"?`,
+      content: `Bạn có chắc muốn ${action.toLowerCase()} "${
+        record.tenSanPham
+      }"?`,
       okText: action,
       cancelText: "Hủy",
       async onOk() {
         setStatusLoading(record.id);
         const originalStatus = record.trangThai;
-        
+
         setProducts((prev) =>
           prev.map((item) =>
             item.id === record.id ? { ...item, trangThai: newStatus } : item
@@ -284,21 +312,31 @@ export default function Product() {
             trangThai: newStatus,
           });
 
-          const isSuccess = result?.success === true || result?.message?.includes("thành công");
+          const isSuccess =
+            result?.success === true || result?.message?.includes("thành công");
 
           if (isSuccess) {
             messageApi.success(`${action} thành công!`);
             setTimeout(() => {
               if (filteredData && Object.keys(currentFilters).length > 0) {
-                fetchProducts(pagination.current - 1, pagination.pageSize, currentFilters);
+                fetchProducts(
+                  pagination.current - 1,
+                  pagination.pageSize,
+                  currentFilters
+                );
               } else {
-                fetchProductsWithPaging(pagination.current - 1, pagination.pageSize);
+                fetchProductsWithPaging(
+                  pagination.current - 1,
+                  pagination.pageSize
+                );
               }
             }, 500);
           } else {
             setProducts((prev) =>
               prev.map((item) =>
-                item.id === record.id ? { ...item, trangThai: originalStatus } : item
+                item.id === record.id
+                  ? { ...item, trangThai: originalStatus }
+                  : item
               )
             );
             messageApi.error(result?.message || "Cập nhật trạng thái thất bại");
@@ -307,7 +345,9 @@ export default function Product() {
           console.error("🔴 Lỗi API:", err);
           setProducts((prev) =>
             prev.map((item) =>
-              item.id === record.id ? { ...item, trangThai: originalStatus } : item
+              item.id === record.id
+                ? { ...item, trangThai: originalStatus }
+                : item
             )
           );
           messageApi.error(err.response?.data?.message || "Có lỗi xảy ra");
@@ -318,93 +358,105 @@ export default function Product() {
     });
   };
 
-const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
-  setLoading(true);
-  try {
-    console.log("📄 Loading products with paging:", { pageNo, pageSize });
+  const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
+    setLoading(true);
+    try {
+      console.log("📄 Loading products with paging:", { pageNo, pageSize });
 
-    const response = await baseUrl.get(
-      `san-pham/playlist/paging?pageNo1=${pageNo}&pageSize1=${pageSize}`
-    );
+      const response = await baseUrl.get(
+        `san-pham/playlist/paging?pageNo1=${pageNo}&pageSize1=${pageSize}`
+      );
 
-    console.log("📦 PAGING RESPONSE:", response.data);
+      console.log("📦 PAGING RESPONSE:", response.data);
 
-    console.log("🔍 RESPONSE STRUCTURE:", {
-      data: response.data,
-      hasData: !!response.data,
-      hasSuccess: response.data?.success,
-      hasDataField: !!response.data?.data,
-      dataFieldType: typeof response.data?.data,
-      isArray: Array.isArray(response.data?.data),
-      dataKeys: response.data?.data ? Object.keys(response.data.data) : 'no data'
-    });
+      console.log("🔍 RESPONSE STRUCTURE:", {
+        data: response.data,
+        hasData: !!response.data,
+        hasSuccess: response.data?.success,
+        hasDataField: !!response.data?.data,
+        dataFieldType: typeof response.data?.data,
+        isArray: Array.isArray(response.data?.data),
+        dataKeys: response.data?.data
+          ? Object.keys(response.data.data)
+          : "no data",
+      });
 
-    let productsData = [];
-    let totalItems = 0;
+      let productsData = [];
+      let totalItems = 0;
 
-    if (response.data) {
-      if (response.data.data && Array.isArray(response.data.data.data)) {
-        productsData = response.data.data.data;
-        totalItems = response.data.data.totalItems || response.data.data.totalElements || productsData.length;
-        console.log("✅ Case 1 - data.data.data array");
-      }
-      else if (Array.isArray(response.data.data)) {
-        productsData = response.data.data;
-        totalItems = productsData.length;
-        console.log("✅ Case 2 - data.data array");
-      }
-      else if (Array.isArray(response.data)) {
-        productsData = response.data;
-        totalItems = productsData.length;
-        console.log("✅ Case 3 - response.data array");
-      }
-      else if (response.data.data && response.data.data.content && Array.isArray(response.data.data.content)) {
-        productsData = response.data.data.content;
-        totalItems = response.data.data.totalElements || response.data.data.totalItems || productsData.length;
-        console.log("✅ Case 4 - data.data.content array");
-      }
-      else if (response.data.data) {
-        console.warn("⚠️ Unknown data structure:", response.data.data);
-        const dataObj = response.data.data;
-        if (dataObj.data && Array.isArray(dataObj.data)) {
-          productsData = dataObj.data;
-          totalItems = dataObj.totalItems || dataObj.totalElements || productsData.length;
-        } else if (Array.isArray(dataObj)) {
-          productsData = dataObj;
+      if (response.data) {
+        if (response.data.data && Array.isArray(response.data.data.data)) {
+          productsData = response.data.data.data;
+          totalItems =
+            response.data.data.totalItems ||
+            response.data.data.totalElements ||
+            productsData.length;
+          console.log("✅ Case 1 - data.data.data array");
+        } else if (Array.isArray(response.data.data)) {
+          productsData = response.data.data;
           totalItems = productsData.length;
+          console.log("✅ Case 2 - data.data array");
+        } else if (Array.isArray(response.data)) {
+          productsData = response.data;
+          totalItems = productsData.length;
+          console.log("✅ Case 3 - response.data array");
+        } else if (
+          response.data.data &&
+          response.data.data.content &&
+          Array.isArray(response.data.data.content)
+        ) {
+          productsData = response.data.data.content;
+          totalItems =
+            response.data.data.totalElements ||
+            response.data.data.totalItems ||
+            productsData.length;
+          console.log("✅ Case 4 - data.data.content array");
+        } else if (response.data.data) {
+          console.warn("⚠️ Unknown data structure:", response.data.data);
+          const dataObj = response.data.data;
+          if (dataObj.data && Array.isArray(dataObj.data)) {
+            productsData = dataObj.data;
+            totalItems =
+              dataObj.totalItems ||
+              dataObj.totalElements ||
+              productsData.length;
+          } else if (Array.isArray(dataObj)) {
+            productsData = dataObj;
+            totalItems = productsData.length;
+          }
         }
       }
+
+      console.log("✅ FINAL PROCESSED DATA:", {
+        productsCount: productsData.length,
+        totalItems: totalItems,
+        sample: productsData.slice(0, 2),
+      });
+
+      setFilteredData(null);
+      setCurrentFilters({});
+
+      setProducts(productsData);
+      setPagination({
+        current: (pageNo || 0) + 1,
+        pageSize: pageSize,
+        total: totalItems,
+      });
+    } catch (error) {
+      console.error("❌ Lỗi tải sản phẩm:", error);
+      messageApi.error(
+        error.response?.data?.message || "Lỗi tải danh sách sản phẩm"
+      );
+      setProducts([]);
+      setPagination((prev) => ({ ...prev, total: 0 }));
+    } finally {
+      setLoading(false);
     }
-
-    console.log("✅ FINAL PROCESSED DATA:", {
-      productsCount: productsData.length,
-      totalItems: totalItems,
-      sample: productsData.slice(0, 2)
-    });
-
-    setFilteredData(null);
-    setCurrentFilters({});
-    
-    setProducts(productsData);
-    setPagination({
-      current: (pageNo || 0) + 1,
-      pageSize: pageSize,
-      total: totalItems,
-    });
-
-  } catch (error) {
-    console.error("❌ Lỗi tải sản phẩm:", error);
-    messageApi.error(error.response?.data?.message || "Lỗi tải danh sách sản phẩm");
-    setProducts([]);
-    setPagination(prev => ({ ...prev, total: 0 }));
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleFilter = (filterValues) => {
     console.log("🎯 Filter raw:", filterValues);
-    
+
     const cleanedFilters = Object.keys(filterValues).reduce((acc, key) => {
       const value = filterValues[key];
       if (value !== undefined && value !== null && value !== "") {
@@ -435,7 +487,7 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
       messageApi.warning("Chỉ có thể xem tối đa 10 sản phẩm cùng lúc");
       return;
     }
-    navigate(`/detail-products/${selectedRowKeys.join(",")}`);
+    navigate(`/admin/detail-products/${selectedRowKeys.join(",")}`);
   };
 
   useEffect(() => {
@@ -443,10 +495,18 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
     fetchProductsWithPaging(0, pagination.pageSize);
   }, []);
 
-  const totalProducts = Math.max(0, filteredData ? filteredData.length : (pagination.total || 0));
+  const totalProducts = Math.max(
+    0,
+    filteredData ? filteredData.length : pagination.total || 0
+  );
   const dataForStats = filteredData || products || [];
-  const totalQuantity = dataForStats.reduce((sum, p) => sum + (Number(p.tongSoLuong) || 0), 0);
-  const activeProducts = dataForStats.filter((p) => Boolean(p.trangThai)).length;
+  const totalQuantity = dataForStats.reduce(
+    (sum, p) => sum + (Number(p.tongSoLuong) || 0),
+    0
+  );
+  const activeProducts = dataForStats.filter((p) =>
+    Boolean(p.trangThai)
+  ).length;
 
   const columns = [
     {
@@ -456,7 +516,7 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
         const currentPage = Number(pagination.current) || 1;
         const pageSize = Number(pagination.pageSize) || 5;
         const stt = (currentPage - 1) * pageSize + index + 1;
-        
+
         return (
           <div className="flex items-center justify-center">
             <span className="text-gray-600">
@@ -472,41 +532,43 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
       title: "TÊN SẢN PHẨM",
       dataIndex: "tenSanPham",
       key: "tenSanPham",
-      render: (text) => <span className="font-medium text-gray-900">{text || 'N/A'}</span>,
+      render: (text) => (
+        <span className="font-medium text-gray-900">{text || "N/A"}</span>
+      ),
     },
     {
       title: "MÃ SẢN PHẨM",
       dataIndex: "maSanPham",
       key: "maSanPham",
-      render: (text) => <Tag color="blue">{text || 'N/A'}</Tag>,
+      render: (text) => <Tag color="blue">{text || "N/A"}</Tag>,
     },
     {
       title: "HÃNG",
       dataIndex: "tenNhaSanXuat",
       key: "tenNhaSanXuat",
       align: "center",
-      render: (text) => text || 'N/A',
+      render: (text) => text || "N/A",
     },
     {
       title: "KIỂU DÁNG",
       dataIndex: "tenKieuDang",
       key: "tenKieuDang",
       align: "center",
-      render: (text) => text || 'N/A',
+      render: (text) => text || "N/A",
     },
     {
       title: "CHẤT LIỆU",
       dataIndex: "tenChatLieu",
       key: "tenChatLieu",
       align: "center",
-      render: (text) => text || 'N/A',
+      render: (text) => text || "N/A",
     },
     {
       title: "XUẤT XỨ",
       dataIndex: "tenXuatXu",
       key: "tenXuatXu",
       align: "center",
-      render: (text) => text || 'N/A',
+      render: (text) => text || "N/A",
     },
     {
       title: "SỐ LƯỢNG",
@@ -518,10 +580,15 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
         const qty = Number(quantity) || 0;
         return (
           <div className="text-center">
-            <span className={`font-bold text-lg ${
-              qty === 0 ? "text-red-500" :
-              qty < 10 ? "text-orange-500" : "text-green-500"
-            }`}>
+            <span
+              className={`font-bold text-lg ${
+                qty === 0
+                  ? "text-red-500"
+                  : qty < 10
+                  ? "text-orange-500"
+                  : "text-green-500"
+              }`}
+            >
               {qty}
             </span>
             {record.chiTietSanPhams && (
@@ -553,9 +620,13 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
         }
         return (
           <div className="text-center">
-            <div className="font-semibold text-green-600">{formatPrice(record.giaThapNhat)}</div>
+            <div className="font-semibold text-green-600">
+              {formatPrice(record.giaThapNhat)}
+            </div>
             <div className="text-gray-400 text-xs">─</div>
-            <div className="font-semibold text-green-600">{formatPrice(record.giaCaoNhat)}</div>
+            <div className="font-semibold text-green-600">
+              {formatPrice(record.giaCaoNhat)}
+            </div>
           </div>
         );
       },
@@ -568,9 +639,13 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
       width: 130,
       render: (value) =>
         value ? (
-          <Tag color="green" className="px-3 py-1 font-medium">Đang hoạt động</Tag>
+          <Tag color="green" className="px-3 py-1 font-medium">
+            Đang hoạt động
+          </Tag>
         ) : (
-          <Tag color="red" className="px-3 py-1 font-medium">Ngừng hoạt động</Tag>
+          <Tag color="red" className="px-3 py-1 font-medium">
+            Ngừng hoạt động
+          </Tag>
         ),
     },
     {
@@ -583,7 +658,7 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
           <Button
             type="link"
             icon={<EyeOutlined />}
-            onClick={() => navigate(`/detail-product/${record.id}`)}
+            onClick={() => navigate(`/admin/detail-product/${record.id}`)}
             className="text-blue-500 p-0"
           >
             Xem
@@ -621,12 +696,12 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
 
   const handleTableChange = (newPagination) => {
     console.log("🔄 Table change:", newPagination);
-    
+
     if (filteredData && filteredData.length > 0) {
       const startIndex = (newPagination.current - 1) * newPagination.pageSize;
       const endIndex = startIndex + newPagination.pageSize;
       const pagedData = filteredData.slice(startIndex, endIndex);
-      
+
       setProducts(pagedData);
       setPagination({
         current: newPagination.current,
@@ -634,7 +709,10 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
         total: filteredData.length,
       });
     } else {
-      fetchProductsWithPaging(newPagination.current - 1, newPagination.pageSize);
+      fetchProductsWithPaging(
+        newPagination.current - 1,
+        newPagination.pageSize
+      );
     }
   };
 
@@ -642,20 +720,27 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
     <div className="min-h-screen bg-gray-50 p-6">
       {messageContextHolder}
       {contextHolder}
-
-      <div className="flex justify-between items-center mb-6">
-        <div className="text-sm text-gray-600">
-          <span className="cursor-pointer hover:text-[#E67E22]" onClick={() => navigate("/")}>
-            Trang chủ
-          </span>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium">Quản lý sản phẩm</span>
+      <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+        <div className="font-bold text-4xl text-[#E67E22]">
+          Quản lý sản phẩm
+        </div>
+        <div className="flex justify-between items-center mb-2">
+          <div className="text-sm text-gray-600">
+            <span
+              className="cursor-pointer hover:text-[#E67E22]"
+              onClick={() => navigate("/")}
+            >
+              Trang chủ
+            </span>
+            <span className="mx-2">/</span>
+            <span className="text-gray-900 font-medium">Quản lý sản phẩm</span>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
+      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden mt-6">
         <div className="bg-[#E67E22] text-white px-6 py-3">
-          <h2 className="text-lg font-bold">Bộ lọc sản phẩm</h2>
+          <div className="font-bold text-2xl text-white">Bộ lọc sản phẩm</div>
         </div>
         <div className="p-4">
           <FliterProduct
@@ -663,9 +748,16 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
             onFinishUpdate={() => {
               setEditingUser(null);
               if (filteredData && Object.keys(currentFilters).length > 0) {
-                fetchProducts(pagination.current - 1, pagination.pageSize, currentFilters);
+                fetchProducts(
+                  pagination.current - 1,
+                  pagination.pageSize,
+                  currentFilters
+                );
               } else {
-                fetchProductsWithPaging(pagination.current - 1, pagination.pageSize);
+                fetchProductsWithPaging(
+                  pagination.current - 1,
+                  pagination.pageSize
+                );
               }
             }}
             onFilter={handleFilter}
@@ -675,9 +767,9 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="bg-[#E67E22] text-white px-6 py-3 flex justify-between items-center">
-          <h2 className="text-lg font-bold">
+          <div className="font-bold text-2xl text-white">
             Danh sách sản phẩm ({totalProducts} sản phẩm)
-          </h2>
+          </div>
           <div className="flex gap-4">
             {selectedRowKeys.length > 0 && (
               <button
@@ -697,7 +789,7 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
             </button>
 
             <button
-              onClick={() => navigate("/add-product")}
+              onClick={() => navigate("/admin/add-product")}
               className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Thêm sản phẩm
@@ -718,8 +810,8 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
             showSizeChanger: true,
             pageSizeOptions: ["5", "10", "20"],
             showTotal: (total, range) => {
-              const from = (range[0] || 0);
-              const to = (range[1] || 0);
+              const from = range[0] || 0;
+              const to = range[1] || 0;
               return `${from}-${to} của ${total} sản phẩm`;
             },
           }}

@@ -655,8 +655,7 @@ export default function AddProduct() {
           color: "#d46b08",
           marginBottom: "8px",
         }}
-      >
-      </div>
+      ></div>
       <ul
         style={{
           margin: 0,
@@ -955,7 +954,10 @@ export default function AddProduct() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+        <div className="font-bold text-4xl text-[#E67E22]">
+          Quản lý sản phẩm
+        </div>
         <div className="text-sm text-gray-600">
           <span
             className="cursor-pointer hover:text-[#E67E22]"
@@ -971,13 +973,13 @@ export default function AddProduct() {
             Quản lý sản phẩm
           </span>
           <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium">Thêm sản phẩm mới</span>
+          <span className="text-gray-900 font-medium">Thêm sản phẩm</span>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
+      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden mt-6">
         <div className="bg-[#E67E22] text-white px-6 py-3">
-          <h2 className="text-lg font-bold">Thêm sản phẩm mới</h2>
+          <div className="font-bold text-2xl text-white">Thêm sản phẩm mới</div>
         </div>
 
         <div className="p-6">

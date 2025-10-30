@@ -20,6 +20,7 @@ import dayjs from "dayjs";
 import axios from "axios";
 import UserBreadcrumb from "./UserBreadcrumb";
 import Webcam from "react-webcam";
+import { UserCirclePlusIcon } from "@phosphor-icons/react";
 const { Option } = Select;
 
 export default function AddUser() {
@@ -188,7 +189,7 @@ export default function AddUser() {
       messageApi.success("Thêm nhân viên thành công!");
       form.resetFields();
       dispatch(fetchNhanVien());
-      setTimeout(() => navigate("/user"), 800);
+      setTimeout(() => navigate("/admin/user"), 800);
     } catch {
       messageApi.error("Thêm thất bại!");
     }
@@ -205,16 +206,13 @@ export default function AddUser() {
           <UserBreadcrumb />
         </div>
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-3">
-            <div className="font-bold text-2xl text-[#E67E22]">
-              Thêm nhân viên
-            </div>
+          <div className="px-6 py-3 bg-[#E67E22]">
+            <div className="font-bold text-2xl text-white ">Thêm nhân viên</div>
           </div>
           <div className="bg-white border-t border-slate-300">
             <UploadAvartar onUploaded={setImageUrl} />
             <div className="px-10 pb-5 ">
               <Form form={form} layout="vertical" onFinish={onFinish}>
-                {/* ... các Form.Item như bạn có ... */}
                 <Row gutter={16} wrap className="gap-10">
                   <Col flex="1">
                     <Form.Item
@@ -398,34 +396,30 @@ export default function AddUser() {
                   </Col>
                 </Row>
 
-                {/* Buttons */}
                 <div className="flex justify-end pr-3 gap-4">
-                  <button
-                    type="button"
+                  <div
                     onClick={() => form.resetFields()}
-                    className="border border-[#E67E22] text-[#E67E22] rounded px-6 py-2 cursor-pointer"
+                    className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
                   >
                     Nhập lại
-                  </button>
+                  </div>
 
-                  {/* Quét CCCD upload */}
-                  <button
-                    type="button"
+                  <div
                     onClick={handleButtonClick}
                     disabled={ocrLoading}
-                    className={`border border-[#E67E22] rounded px-6 py-2 cursor-pointer ${
+                    className={`border text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none ${
                       ocrLoading
                         ? "bg-[#E67E22] text-white cursor-not-allowed"
                         : "text-[#E67E22]"
                     }`}
                   >
                     {ocrLoading ? "Đang quét..." : "Quét CCCD (ảnh)"}
-                  </button>
-                  <button
+                  </div>
+                  <div
                     type="button"
                     onClick={() => setCameraVisible(true)}
                     disabled={ocrLoadingCam}
-                    className={`border border-[#E67E22] rounded px-6 py-2 cursor-pointer flex items-center gap-2 ${
+                    className={`border text-white bg-gray-400 font-bold rounded-md px-6 py-2 cursor-pointer flex items-center gap-2 hover:bg-amber-700 active:bg-cyan-800 select-none ${
                       ocrLoadingCam
                         ? "bg-[#E67E22] text-white cursor-not-allowed"
                         : "text-[#E67E22]"
@@ -433,7 +427,7 @@ export default function AddUser() {
                   >
                     <CameraOutlined />
                     {ocrLoadingCam ? "Đang quét..." : "Quét CCCD (camera)"}
-                  </button>
+                  </div>
                   <input
                     type="file"
                     accept="image/*"
@@ -446,9 +440,9 @@ export default function AddUser() {
                     }}
                   />
 
-                  <button
+                  <div
                     type="submit"
-                    className="bg-[#E67E22] text-white rounded px-6 py-2 cursor-pointer"
+                    className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
                     onClick={async () => {
                       try {
                         const values = await form.validateFields();
@@ -460,7 +454,7 @@ export default function AddUser() {
                     }}
                   >
                     Thêm mới
-                  </button>
+                  </div>
                 </div>
               </Form>
             </div>
@@ -468,21 +462,39 @@ export default function AddUser() {
         </div>
       </div>
       <Modal
-        title={
-          <div className="flex items-center gap-2">
-            <ExclamationCircleOutlined style={{ color: "#faad14" }} />
-            Xác nhận thêm nhân viên
-          </div>
-        }
         open={confirmModalVisible}
         onCancel={() => setConfirmModalVisible(false)}
-        onOk={handleConfirmAdd}
-        okText="Đồng ý"
-        cancelText="Hủy"
-        okButtonProps={{ style: { backgroundColor: "#E67E22" } }}
+        footer={null}
+        width={450}
+        centered
+        closable={false}
       >
-        <p>Bạn có chắc chắn muốn thêm nhân viên này không?</p>
-      </Modal>{" "}
+        <div className="flex flex-col items-center gap-4 p-4">
+          <div className="text-2xl font-bold mb-2 text-[#E67E22]">
+            Xác nhận thêm nhân viên
+          </div>
+          <UserCirclePlusIcon size={120} style={{ color: "#00A96C" }} />
+          <div className="text-gray-600 mb-4">
+            Bạn có chắc chắn muốn thêm nhân viên này không?
+          </div>
+
+          <div className="flex justify-center gap-6  w-full">
+            <div
+              className="w-40 cursor-pointer select-none  text-center py-3 rounded-xl bg-[#b8b8b8] font-bold text-white   hover:bg-amber-600 active:bg-rose-900 border  active:border-[#808080] shadow "
+              onClick={() => setConfirmModalVisible(false)}
+            >
+              Hủy
+            </div>
+            <div
+              className="w-40 cursor-pointer select-none  text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white   hover:bg-amber-600 active:bg-cyan-800 border  active:border-[#808080] shadow"
+              onClick={handleConfirmAdd}
+            >
+              Đồng ý
+            </div>
+          </div>
+        </div>
+      </Modal>
+
       <Modal
         open={cameraVisible}
         onCancel={() => setCameraVisible(false)}

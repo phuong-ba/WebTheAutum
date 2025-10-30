@@ -651,9 +651,9 @@ export default function ProductDetail({
   return (
     <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
       <div className="bg-[#E67E22] text-white px-6 py-3 flex justify-between items-center">
-        <h2 className="text-lg font-bold">
+        <div className="font-bold text-2xl text-white">
           Chi tiết biến thể ({variants.length} biến thể)
-        </h2>
+        </div>
         <div className="flex gap-3">
           {selectedRowKeys.length > 0 && (
             <>
