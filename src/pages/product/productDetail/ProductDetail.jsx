@@ -755,7 +755,6 @@ export default function ProductDetail({
                 marginBottom: "8px",
               }}
             >
-              <span style={{ fontSize: "16px" }}>ℹ️</span>
               <span style={{ fontWeight: "bold", color: "#d46b08" }}>
                 Thông tin
               </span>

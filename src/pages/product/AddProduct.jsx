@@ -22,7 +22,6 @@ import baseUrl from "@/api/instance";
 
 const { Option } = Select;
 
-// Constants
 const MODAL_TITLES = {
   nhaSanXuat: "hãng",
   xuatXu: "xuất xứ",
@@ -81,7 +80,6 @@ const PAYLOAD_MAPPINGS = {
 };
 
 export default function AddProduct() {
-  // State Management
   const [form] = Form.useForm();
   const [openModal, setOpenModal] = useState(false);
   const [modalType, setModalType] = useState("");
@@ -103,7 +101,6 @@ export default function AddProduct() {
     mauSacs: [],
   });
 
-  // Data Fetching
   const fetchDropdownData = async () => {
     setLoading(true);
     try {
@@ -140,7 +137,6 @@ export default function AddProduct() {
     }
   };
 
-  // API Functions
   const previewBienTheAPI = async (requestData) => {
     try {
       const response = await baseUrl.post(
@@ -183,7 +179,6 @@ export default function AddProduct() {
     }
   };
 
-  // Helper Functions
   const getModalTitle = () => MODAL_TITLES[modalType] || "thuộc tính";
 
   const getTenThuocTinh = (type, id) => {
@@ -212,7 +207,6 @@ export default function AddProduct() {
       : "";
   };
 
-  // Modal Handlers
   const handleOpenModal = (type) => {
     setModalType(type);
     setOpenModal(true);
@@ -286,7 +280,6 @@ export default function AddProduct() {
     }
   };
 
-  // Product Variant Handlers
   const handleTaoBienThe = async () => {
     try {
       const formValues = await form.validateFields();
@@ -596,18 +589,6 @@ export default function AddProduct() {
         </strong>{" "}
         biến thể
       </p>
-
-      <ProductInfoSection
-        formData={formData}
-        getDisplayValue={getDisplayValue}
-      />
-      <VariantInfoSection
-        formData={formData}
-        confirmModalData={confirmModalData}
-        getDisplayValue={getDisplayValue}
-        renderMauSacs={renderMauSacs}
-      />
-      <SummarySection formData={formData} confirmModalData={confirmModalData} />
       <ImportantNote isPreview={true} />
     </div>
   );
@@ -625,154 +606,6 @@ export default function AddProduct() {
       />
 
       <ImportantNote isPreview={false} />
-    </div>
-  );
-
-  const ProductInfoSection = ({ formData, getDisplayValue }) => (
-    <div style={{ marginBottom: "20px" }}>
-      <SectionHeader title="📦 THÔNG TIN SẢN PHẨM CHÍNH" color="#E67E22" />
-      <div
-        style={{
-          background: "#f8f9fa",
-          padding: "16px",
-          borderRadius: "8px",
-          border: "1px solid #e9ecef",
-        }}
-      >
-        <Row gutter={[16, 12]}>
-          <Col span={12}>
-            <Field
-              label="Tên sản phẩm:"
-              value={formData?.tenSanPham || "Chưa có"}
-              highlight
-            />
-          </Col>
-          <Col span={12}>
-            <Field
-              label="Mã sản phẩm:"
-              value={confirmModalData.maSanPham || "Sẽ được tạo tự động"}
-              success
-            />
-          </Col>
-          <Col span={12}>
-            <Field
-              label="Hãng:"
-              value={getDisplayValue("nhaSanXuat", formData?.idNhaSanXuat)}
-            />
-          </Col>
-          <Col span={12}>
-            <Field
-              label="Xuất xứ:"
-              value={getDisplayValue("xuatXu", formData?.idXuatXu)}
-            />
-          </Col>
-          <Col span={12}>
-            <Field
-              label="Chất liệu:"
-              value={getDisplayValue("chatLieu", formData?.idChatLieu)}
-            />
-          </Col>
-          <Col span={12}>
-            <Field
-              label="Kiểu dáng:"
-              value={getDisplayValue("kieuDang", formData?.idKieuDang)}
-            />
-          </Col>
-        </Row>
-      </div>
-    </div>
-  );
-
-  const VariantInfoSection = ({
-    formData,
-    confirmModalData,
-    getDisplayValue,
-    renderMauSacs,
-  }) => (
-    <div style={{ marginBottom: "20px" }}>
-      <SectionHeader title="🎨 THÔNG TIN BIẾN THỂ" color="#28a745" />
-      <div
-        style={{
-          background: "#f6ffed",
-          border: "1px solid #b7eb8f",
-          padding: "16px",
-          borderRadius: "8px",
-        }}
-      >
-        <Row gutter={[16, 12]}>
-          <Col span={12}>
-            <Field label="Màu sắc:" value={renderMauSacs()} error />
-          </Col>
-          <Col span={12}>
-            <Field
-              label="Kích thước:"
-              value={getDisplayValue("kichThuoc", formData?.idKichThuoc)}
-            />
-          </Col>
-          <Col span={12}>
-            <Field
-              label="Trọng lượng:"
-              value={formData?.trongLuong || "Chưa nhập"}
-              warning
-            />
-          </Col>
-          <Col span={12}>
-            <Field
-              label="Cổ áo:"
-              value={getDisplayValue("coAo", formData?.idCoAo)}
-            />
-          </Col>
-          <Col span={12}>
-            <Field
-              label="Tay áo:"
-              value={getDisplayValue("tayAo", formData?.idTayAo)}
-            />
-          </Col>
-          <Col span={12}>
-            <Field
-              label="Số biến thể:"
-              value={
-                <Tag
-                  color="blue"
-                  style={{ fontSize: "14px", padding: "4px 8px" }}
-                >
-                  {confirmModalData.totalVariants} biến thể
-                </Tag>
-              }
-            />
-          </Col>
-        </Row>
-      </div>
-    </div>
-  );
-
-  const SummarySection = ({ formData, confirmModalData }) => (
-    <div
-      style={{
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        padding: "20px",
-        borderRadius: "12px",
-        color: "white",
-        textAlign: "center",
-        marginBottom: "20px",
-      }}
-    >
-      <div
-        style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "15px" }}
-      >
-        📊 TÓM TẮT TỔNG QUAN
-      </div>
-      <Row gutter={16}>
-        <Col span={8}>
-          <Stat value={confirmModalData.totalVariants} label="Tổng biến thể" />
-        </Col>
-        <Col span={8}>
-          <Stat value={formData?.idMauSacs?.length || 0} label="Màu sắc" />
-        </Col>
-        <Col span={8}>
-          <ProductName value={formData?.tenSanPham || "Chưa có tên"} />
-        </Col>
-      </Row>
     </div>
   );
 
@@ -823,8 +656,6 @@ export default function AddProduct() {
           marginBottom: "8px",
         }}
       >
-        <span style={{ marginRight: "8px" }}>⚠️</span>
-        LƯU Ý QUAN TRỌNG
       </div>
       <ul
         style={{
