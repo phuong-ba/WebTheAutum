@@ -118,57 +118,57 @@ const DetailHoaDon = () => {
   };
 
   const handlePrint = () => {
-  const printArea = document.querySelector(".print-area");
-  const clone = printArea.cloneNode(true);
+    const printArea = document.querySelector(".print-area");
+    const clone = printArea.cloneNode(true);
 
-  // ÉP 2 card nằm ngang (rất quan trọng)
-  const row = clone.querySelector(".customer-payment-row");
-  if (row) {
-    row.style.display = "flex";
-    row.style.flexDirection = "row";
-    row.style.justifyContent = "space-between";
-    row.style.alignItems = "stretch";
-    row.style.gap = "20px";
-    row.style.marginBottom = "20px";
+    // ÉP 2 card nằm ngang (rất quan trọng)
+    const row = clone.querySelector(".customer-payment-row");
+    if (row) {
+      row.style.display = "flex";
+      row.style.flexDirection = "row";
+      row.style.justifyContent = "space-between";
+      row.style.alignItems = "stretch";
+      row.style.gap = "20px";
+      row.style.marginBottom = "20px";
 
-    row.querySelectorAll(".ant-col").forEach((col) => {
-      col.style.flex = "1";
-      col.style.maxWidth = "48%";
-      col.style.width = "48%";
-      col.style.boxSizing = "border-box";
-      col.style.padding = "0 8px";
-    });
+      row.querySelectorAll(".ant-col").forEach((col) => {
+        col.style.flex = "1";
+        col.style.maxWidth = "48%";
+        col.style.width = "48%";
+        col.style.boxSizing = "border-box";
+        col.style.padding = "0 8px";
+      });
 
-    // Tăng kích thước card khi in
-    row.querySelectorAll(".ant-card").forEach((card) => {
-      card.style.border = "1px solid #ddd";
-      card.style.boxShadow = "none";
-      card.style.margin = "0";
-      card.style.pageBreakInside = "avoid";
-    });
+      // Tăng kích thước card khi in
+      row.querySelectorAll(".ant-card").forEach((card) => {
+        card.style.border = "1px solid #ddd";
+        card.style.boxShadow = "none";
+        card.style.margin = "0";
+        card.style.pageBreakInside = "avoid";
+      });
 
-    row.querySelectorAll(".ant-card-head").forEach((head) => {
-      head.style.padding = "10px 12px";
-      head.style.fontSize = "14px";
-      head.style.fontWeight = "bold";
-    });
+      row.querySelectorAll(".ant-card-head").forEach((head) => {
+        head.style.padding = "10px 12px";
+        head.style.fontSize = "14px";
+        head.style.fontWeight = "bold";
+      });
 
-    row.querySelectorAll(".ant-card-body").forEach((body) => {
-      body.style.padding = "12px";
-      body.style.fontSize = "13px";
-    });
-  }
+      row.querySelectorAll(".ant-card-body").forEach((body) => {
+        body.style.padding = "12px";
+        body.style.fontSize = "13px";
+      });
+    }
 
-  // TĂNG ZOOM TOÀN BỘ NỘI DUNG KHI IN
-  const printContent = clone;
-  printContent.style.zoom = "0.9"; // Tăng 30%
-  printContent.style.transform = "scale(0.9)";
-  printContent.style.transformOrigin = "top left";
-  printContent.style.width = "calc(100% / 0.9)"; // Bù lại để không bị tràn
+    // TĂNG ZOOM TOÀN BỘ NỘI DUNG KHI IN
+    const printContent = clone;
+    printContent.style.zoom = "0.9"; // Tăng 30%
+    printContent.style.transform = "scale(0.9)";
+    printContent.style.transformOrigin = "top left";
+    printContent.style.width = "calc(100% / 0.9)"; // Bù lại để không bị tràn
 
-  const printWindow = window.open("", "_blank", "width=1000,height=600");
+    const printWindow = window.open("", "_blank", "width=1000,height=600");
 
-  printWindow.document.write(`
+    printWindow.document.write(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -254,17 +254,16 @@ const DetailHoaDon = () => {
 </html>
   `);
 
-  printWindow.document.close();
+    printWindow.document.close();
 
-  printWindow.onload = () => {
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      setTimeout(() => printWindow.close(), 500);
-    }, 300);
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        setTimeout(() => printWindow.close(), 500);
+      }, 300);
+    };
   };
-};
-
 
   const handleEdit = () => {
     navigate(`/admin/bill/edit/${id}`);
