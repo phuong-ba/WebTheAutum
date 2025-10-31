@@ -58,8 +58,8 @@ export default function AddressSelect({ form, editingAddress, setQuanList }) {
       <Col span={8}>
         <Form.Item
           name="tenDiaChi"
-          label="Tên địa chỉ"
-          rules={[{ required: true, message: "Nhập tên địa chỉ!" }]}
+          label="Loại địa chỉ"
+          rules={[{ required: true, message: "Nhập loại địa chỉ!" }]}
         >
           <Input placeholder="Ví dụ: Nhà riêng, Công ty..." />
         </Form.Item>

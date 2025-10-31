@@ -325,7 +325,7 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
             <Col span={12}>
               <Form.Item
                 name="hoTen"
-                label={<span className="font-semibold">* Tên khách hàng</span>}
+                label={<span className="font-semibold">Tên khách hàng</span>}
                 rules={[{ required: true, message: "Nhập tên khách hàng!" }]}
               >
                 <Input placeholder="Nhập tên khách hàng" />
@@ -335,7 +335,7 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
             <Col span={12}>
               <Form.Item
                 name="sdt"
-                label={<span className="font-semibold">* Số điện thoại</span>}
+                label={<span className="font-semibold">Số điện thoại</span>}
                 rules={[
                   { required: true, message: "Nhập số điện thoại!" },
                   { pattern: /^[0-9]{9,11}$/, message: "SĐT không hợp lệ!" },
@@ -367,7 +367,7 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
             <Col span={12}>
               <Form.Item
                 name="gioiTinh"
-                label={<span className="font-semibold">* Giới tính</span>}
+                label={<span className="font-semibold">Giới tính</span>}
                 rules={[{ required: true, message: "Chọn giới tính!" }]}
               >
                 <Radio.Group>
@@ -380,7 +380,7 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
             <Col span={12}>
               <Form.Item
                 name="ngaySinh"
-                label={<span className="font-semibold">* Ngày sinh</span>}
+                label={<span className="font-semibold">Ngày sinh</span>}
                 rules={[{ required: true, message: "Chọn ngày sinh!" }]}
               >
                 <DatePicker
