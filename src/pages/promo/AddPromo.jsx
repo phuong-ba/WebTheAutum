@@ -20,7 +20,7 @@ import {
 import TableSanPham from "./TableSanPham";
 import TableChiTietSanPham from "./TableChiTietSanPham";
 import PromoBreadcrumb from "./PromoBreadcrumb";
-import { PercentIcon, UserCirclePlusIcon } from "@phosphor-icons/react";
+import { SealPercentIcon } from "@phosphor-icons/react";
 
 const { Option } = Select;
 
@@ -360,7 +360,7 @@ export default function AddPromo() {
                       setSelectedChiTietKeys(newChiTiet);
                       messageApi.success("Đã chọn tất cả chi tiết sản phẩm");
                     }}
-                    className="border border-green-600 text-green-600 rounded px-4 py-1 hover:bg-green-600 hover:text-white"
+                    className="bg-green-600 text-white border border-green-600 rounded px-4 py-1 hover:bg-white hover:text-green-600 transition duration-200"
                   >
                     Chọn tất cả
                   </button>
@@ -385,7 +385,7 @@ export default function AddPromo() {
                       });
                       messageApi.info("Đã bỏ chọn tất cả chi tiết sản phẩm");
                     }}
-                    className="border border-red-600 text-red-600 rounded px-4 py-1 hover:bg-red-600 hover:text-white"
+                    className="bg-red-600 text-white border border-red-600 rounded px-4 py-1 hover:bg-white hover:text-red-600 transition duration-200"
                   >
                     Bỏ chọn tất cả
                   </button>
@@ -464,7 +464,7 @@ export default function AddPromo() {
           <div className="text-2xl font-bold mb-2 text-[#E67E22]">
             Xác nhận {editingItem ? "cập nhật" : "thêm"} đợt giảm giá
           </div>
-          <PercentIcon size={120} style={{ color: "#00A96C" }} />
+          <SealPercentIcon size={120} style={{ color: "#E67E22" }} />
           <div className="text-gray-600 mb-4 text-center">
             Bạn có chắc chắn muốn {editingItem ? "cập nhật" : "thêm"} đợt giảm
             giá này không?
