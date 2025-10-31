@@ -651,9 +651,9 @@ export default function ProductDetail({
   return (
     <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
       <div className="bg-[#E67E22] text-white px-6 py-3 flex justify-between items-center">
-        <h2 className="text-lg font-bold">
+        <div className="font-bold text-2xl text-white">
           Chi tiết biến thể ({variants.length} biến thể)
-        </h2>
+        </div>
         <div className="flex gap-3">
           {selectedRowKeys.length > 0 && (
             <>
@@ -755,7 +755,6 @@ export default function ProductDetail({
                 marginBottom: "8px",
               }}
             >
-              <span style={{ fontSize: "16px" }}>ℹ️</span>
               <span style={{ fontWeight: "bold", color: "#d46b08" }}>
                 Thông tin
               </span>
@@ -834,19 +833,19 @@ export default function ProductDetail({
         </Modal>
 
         <div className="flex justify-end gap-3 mt-6">
-          <button
+          <div
             onClick={handleReset}
-            className="border border-[#E67E22] text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-[#E67E22] hover:text-white transition-colors font-medium"
+            className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
           >
             Nhập lại
-          </button>
-          <button
+          </div>
+          <div
             onClick={handleTaoSanPham}
             disabled={variants.length === 0 || loading}
-            className="bg-[#E67E22] text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
           >
             {loading ? "⏳ Đang tạo..." : `Tạo sản phẩm (${variants.length})`}
-          </button>
+          </div>
         </div>
       </div>
 
