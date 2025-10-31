@@ -7,6 +7,13 @@ import {
 } from "@/services/phieuGiamGiaService";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router";
+import {
+  ExportOutlined,
+  PlusSquareOutlined,
+  PrinterOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 
 const { Option } = Select;
 
@@ -125,25 +132,25 @@ export default function FliterDiscount({ handleExportExcel }) {
                 onClick={handleReset}
                 className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
               >
-                Nhập lại
+                <ReloadOutlined /> Nhập lại
               </div>
               <div
                 onClick={() => form.submit()}
                 className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
               >
-                Tìm kiếm
+                <SearchOutlined /> Tìm kiếm
               </div>
               <div
                 onClick={() => navigate("/admin/add-discount")}
                 className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
               >
-                Thêm mới
+                <PlusSquareOutlined /> Thêm mới
               </div>
               <div
                 onClick={handleExportExcel}
                 className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
               >
-                Xuất Excel
+                <ExportOutlined /> Xuất Excel
               </div>
             </div>
           </Form>

@@ -727,6 +727,22 @@ export default function Product() {
                 Xem {selectedRowKeys.length} sản phẩm
               </div>
             )}
+
+
+            <button
+              onClick={handleExportExcel}
+              disabled={!products || products.length === 0}
+              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Xuất Excel
+            </button>
+
+            <button
+              onClick={() => navigate("/admin/add-product")}
+              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Thêm sản phẩm
+            </button>
           </div>
         </div>
 

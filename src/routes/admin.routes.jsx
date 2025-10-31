@@ -69,7 +69,7 @@ const adminRouters = [
         ),
       },
       {
-        path: "DetailHoaDon/:id", // ⭐ THÊM ROUTE MỚI
+        path: "detail-bill/:id",
         element: (
           <LazyLoad>
             <DetailHoaDon />
@@ -77,7 +77,7 @@ const adminRouters = [
         ),
       },
       {
-        path: "bill/edit/:id", // ⭐ ROUTE SỬA HÓA ĐƠN
+        path: "bill/edit/:id",
         element: (
           <LazyLoad>
             <EditHoaDon />
