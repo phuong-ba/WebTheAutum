@@ -20,6 +20,7 @@ import {
 import TableSanPham from "./TableSanPham";
 import TableChiTietSanPham from "./TableChiTietSanPham";
 import PromoBreadcrumb from "./PromoBreadcrumb";
+import { SealPercentIcon } from "@phosphor-icons/react";
 
 const { Option } = Select;
 
@@ -30,6 +31,7 @@ export default function AddPromo() {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const [modal, modalContextHolder] = Modal.useModal();
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
 
   const editingItem = location.state?.dotGiamGia || null;
   const [selectedSanPhamKeys, setSelectedSanPhamKeys] = useState([]);
@@ -62,19 +64,20 @@ export default function AddPromo() {
   }, [giaTriGiamState, loaiGiamGia]);
 
   console.log("🚀 ~ AddPromo ~ chiTietSanPhamData:", chiTietSanPhamData);
+
   useEffect(() => {
     if (loaiGiamGia === "Phần trăm") {
       let tongGiam = 0;
-      Object.values(chiTietSanPhamData).forEach((chiTietArr) => {
-        chiTietArr.forEach((item) => {
-          tongGiam += item.giaBan * (giaTriGiamState / 100);
-        });
+      Object.entries(chiTietSanPhamData).forEach(([spId, chiTietArr]) => {
+        const selectedIds = selectedChiTietKeys[spId] || [];
+        chiTietArr
+          .filter((item) => selectedIds.includes(item.id))
+          .forEach((item) => {
+            tongGiam += item.giaBan * (giaTriGiamState / 100);
+          });
       });
 
-      // Nếu vượt quá 100, đặt về 0
-      if (giaTriGiamState > 100) {
-        tongGiam = 0;
-      }
+      if (giaTriGiamState > 100) tongGiam = 0;
 
       form.setFieldsValue({ giaTriToiThieu: tongGiam });
       setGiaTriToiThieuState(tongGiam);
@@ -82,7 +85,8 @@ export default function AddPromo() {
       form.setFieldsValue({ giaTriToiThieu: giaTriGiamState });
       setGiaTriToiThieuState(giaTriGiamState);
     }
-  }, [chiTietSanPhamData, giaTriGiamState, loaiGiamGia]);
+  }, [chiTietSanPhamData, selectedChiTietKeys, giaTriGiamState, loaiGiamGia]);
+
   useEffect(() => {
     const fetchData = async () => {
       console.log("🚀 ~ fetchData ~ editingItem:", editingItem);
@@ -102,7 +106,6 @@ export default function AddPromo() {
           });
           setSelectedChiTietKeys(chiTietMap);
 
-          // Fill form
           form.setFieldsValue({
             tenDot: editingItem.tenDot,
             ngayBatDau: dayjs(editingItem.ngayBatDau),
@@ -111,6 +114,9 @@ export default function AddPromo() {
             giaTriGiam: editingItem.giaTriGiam,
             giaTriToiThieu: editingItem.giaTriToiThieu,
           });
+          setLoaiGiamGia(editingItem.loaiGiamGia ? "Tiền mặt" : "Phần trăm");
+          setGiaTriGiamState(editingItem.giaTriGiam);
+          setGiaTriToiThieuState(editingItem.giaTriToiThieu);
         } catch (err) {
           console.error(err);
           messageApi.error(
@@ -190,7 +196,7 @@ export default function AddPromo() {
         setSelectedSanPhamKeys([]);
         setSelectedChiTietKeys({});
       }
-      setTimeout(() => navigate("/promo"), 800);
+      setTimeout(() => navigate("/admin/promo"), 800);
     } catch (err) {
       console.error(err);
       messageApi.error(isUpdate ? "Cập nhật thất bại!" : "Thêm thất bại!");
@@ -198,16 +204,8 @@ export default function AddPromo() {
   };
 
   const onFinish = (values) => {
-    const action = editingItem ? "Cập nhật" : "Thêm";
-    modal.confirm({
-      title: `Xác nhận ${action}`,
-      content: `Bạn có chắc muốn ${action.toLowerCase()} đợt giảm giá này không?`,
-      okText: action,
-      cancelText: "Hủy",
-      async onOk() {
-        await handleSubmit(values);
-      },
-    });
+    setConfirmModalVisible(true);
+    form.__submitValues = values; // Lưu tạm giá trị form để dùng khi nhấn Đồng ý
   };
 
   return (
@@ -222,8 +220,8 @@ export default function AddPromo() {
           <PromoBreadcrumb />
         </div>
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-3">
-            <div className="font-bold text-2xl text-[#E67E22]">
+          <div className="px-6 py-3 bg-[#E67E22]">
+            <div className="font-bold text-2xl text-white">
               {editingItem ? "Cập nhật đợt giảm giá" : "Thêm mới đợt giảm giá"}
             </div>
           </div>
@@ -362,7 +360,7 @@ export default function AddPromo() {
                       setSelectedChiTietKeys(newChiTiet);
                       messageApi.success("Đã chọn tất cả chi tiết sản phẩm");
                     }}
-                    className="border border-green-600 text-green-600 rounded px-4 py-1 hover:bg-green-600 hover:text-white"
+                    className="bg-green-600 text-white border border-green-600 rounded px-4 py-1 hover:bg-white hover:text-green-600 transition duration-200"
                   >
                     Chọn tất cả
                   </button>
@@ -375,9 +373,19 @@ export default function AddPromo() {
                         cleared[id] = [];
                       });
                       setSelectedChiTietKeys(cleared);
+                      setChiTietSanPhamData((prev) => {
+                        const newData = {};
+                        selectedSanPhamKeys.forEach((id) => {
+                          newData[id] = (prev[id] || []).map((item) => ({
+                            ...item,
+                            giaBan: 0,
+                          }));
+                        });
+                        return newData;
+                      });
                       messageApi.info("Đã bỏ chọn tất cả chi tiết sản phẩm");
                     }}
-                    className="border border-red-600 text-red-600 rounded px-4 py-1 hover:bg-red-600 hover:text-white"
+                    className="bg-red-600 text-white border border-red-600 rounded px-4 py-1 hover:bg-white hover:text-red-600 transition duration-200"
                   >
                     Bỏ chọn tất cả
                   </button>
@@ -419,24 +427,71 @@ export default function AddPromo() {
               )}
 
               <div className="flex justify-center gap-4 border-t pt-4 mt-6">
-                <button
+                <div
                   type="button"
-                  onClick={() => navigate("/promo")}
-                  className="border border-[#E67E22] text-[#E67E22] rounded px-6 py-2 hover:bg-[#E67E22] hover:text-white"
+                  onClick={() => navigate("/admin/promo")}
+                  className=" text-black bg-gray-400 font-semibold rounded-md px-6 py-2 cursor-pointer flex items-center gap-2 hover:bg-amber-700 hover:text-white active:bg-cyan-800 select-none"
                 >
                   Quay lại
-                </button>
-                <button
-                  type="submit"
-                  className="bg-[#E67E22] text-white rounded px-6 py-2 hover:bg-[#cf6a12]"
+                </div>
+                <div
+                  onClick={async () => {
+                    try {
+                      const values = await form.validateFields();
+                      onFinish(values);
+                    } catch (error) {
+                      messageApi.error("Vui lòng nhập đầy đủ thông tin!");
+                    }
+                  }}
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-semibold hover:bg-amber-700  active:bg-cyan-800 select-none"
                 >
                   {editingItem ? "Cập nhật" : "Thêm"}
-                </button>
+                </div>
               </div>
             </Form>
           </div>
         </div>
       </div>
+      <Modal
+        open={confirmModalVisible}
+        onCancel={() => setConfirmModalVisible(false)}
+        footer={null}
+        width={450}
+        centered
+        closable={false}
+      >
+        <div className="flex flex-col items-center gap-4 p-4">
+          <div className="text-2xl font-bold mb-2 text-[#E67E22]">
+            Xác nhận {editingItem ? "cập nhật" : "thêm"} đợt giảm giá
+          </div>
+          <SealPercentIcon size={120} style={{ color: "#E67E22" }} />
+          <div className="text-gray-600 mb-4 text-center">
+            Bạn có chắc chắn muốn {editingItem ? "cập nhật" : "thêm"} đợt giảm
+            giá này không?
+          </div>
+
+          <div className="flex justify-center gap-6 w-full">
+            <div
+              className="w-40 cursor-pointer text-center py-3 rounded-xl bg-[#b8b8b8] font-bold text-white hover:bg-amber-600 active:bg-rose-900 shadow"
+              onClick={() => setConfirmModalVisible(false)}
+            >
+              Hủy
+            </div>
+            <div
+              className="w-40 cursor-pointer text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+              onClick={async () => {
+                const values = form.__submitValues;
+                if (values) {
+                  await handleSubmit(values);
+                }
+                setConfirmModalVisible(false);
+              }}
+            >
+              Đồng ý
+            </div>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

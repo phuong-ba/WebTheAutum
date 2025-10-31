@@ -1,70 +1,54 @@
 import React, { useEffect, useState } from "react";
-import {
-  Table,
-  Button,
-  Space,
-  Tag,
-  message,
-  Row,
-  Col,
-  Input,
-  Radio,
-  Switch,
-  Card,
-  Tooltip,
-  Modal,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  FileExcelOutlined,
-  CloudUploadOutlined,
-  DownloadOutlined,
-  LockOutlined,
-  UnlockOutlined,
-} from "@ant-design/icons";
+import { Table, Space, Tag, message, Modal, Select } from "antd";
+import { ToggleLeft, ToggleRight, PencilLine } from "@phosphor-icons/react";
 import { khachHangApi } from "/src/api/khachHangApi";
 import { diaChiApi } from "/src/api/diaChiApi";
-import CustomerForm from "../customer/CustomerForm";
 import {
   downloadTemplate,
   importFromExcel,
   exportToExcel,
 } from "/src/pages/customer/excelCustomerUtils";
+import CustomerForm from "./CustomerForm";
+import ConfirmModal from "./ConfirmModal";
+import CustomerBreadcrumb from "./CustomerBreadcrumb";
+
 export default function Customer() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [editCustomer, setEditCustomer] = useState(null);
   const [mode, setMode] = useState("table");
+  const [editCustomer, setEditCustomer] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [filterTrangThai, setFilterTrangThai] = useState("all");
-  const [importing, setImporting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    visible: false,
+    type: null,
+    record: null,
+    loading: false,
+  });
   const [messageApi, messageContextHolder] = message.useMessage();
-  const [modal, contextHolder] = Modal.useModal();
-
   const pageSize = 5;
 
-  // 🔹 Gọi API lấy danh sách và sắp xếp theo ngày sửa / ngày tạo giảm dần
+  // 🔹 Cấu hình message
+  useEffect(() => {
+    message.config({ top: "45%", duration: 2, maxCount: 3 });
+  }, []);
+
+  // 🔹 Gọi API
   const fetchCustomers = async () => {
     setLoading(true);
     try {
       const res = await khachHangApi.getAll();
-
-      // 🔸 Ưu tiên ngày sửa nếu có, nếu không có thì dùng ngày tạo
       const sorted = Array.isArray(res)
-        ? [...res].sort((a, b) => {
-            const dateA = new Date(a.ngaySua || a.ngayTao);
-            const dateB = new Date(b.ngaySua || b.ngayTao);
-            return dateB - dateA; // giảm dần
-          })
-        : [res];
-
+        ? [...res].sort(
+            (a, b) =>
+              new Date(b.ngaySua || b.ngayTao) -
+              new Date(a.ngaySua || a.ngayTao)
+          )
+        : [];
       setCustomers(sorted);
-      return sorted;
-    } catch (err) {
+    } catch {
       message.error("Không thể tải danh sách khách hàng");
-      return [];
     } finally {
       setLoading(false);
     }
@@ -74,132 +58,71 @@ export default function Customer() {
     fetchCustomers();
   }, []);
 
-  const handleAdd = () => {
-    setEditCustomer(null);
-    setMode("form");
-  };
-
-  const handleEdit = (record) => {
-    setEditCustomer(record);
-    setMode("form");
-  };
-
-  // Khai báo cấu hình message để hiện ở góc phải
-  message.config({
-    duration: 1,
-    maxCount: 3,
-  });
-
-  const toggleStatus = async (record) => {
-    if (record.trangThai) {
-      modal.confirm({
-        title: "Xác nhận khóa",
-        content: `Bạn có chắc muốn khóa khách hàng "${record.hoTen}" không?`,
-        okText: "Khóa",
-        cancelText: "Hủy",
-        okButtonProps: { danger: true },
-        onOk: async () => {
-          try {
-            const updatedCustomer = {
-              ...record,
-              trangThai: false,
-            };
-            await khachHangApi.update(record.id, updatedCustomer);
-
-            messageApi.open({
-              type: "success",
-              content: (
-                <div style={{ fontSize: "16px", fontWeight: 600 }}>
-                  Đã khóa khách hàng{" "}
-                  <span style={{ color: "#1677ff" }}>{record.hoTen}</span>
-                </div>
-              ),
-              duration: 2,
-              style: {
-                position: "fixed",
-                right: 20,
-                top: 80,
-                minWidth: 280,
-                padding: "12px 16px",
-                borderRadius: "10px",
-                fontSize: "16px",
-              },
-            });
-
-            fetchCustomers();
-          } catch (err) {
-            messageApi.open({
-              type: "error",
-              content: "Khóa khách hàng thất bại!",
-              duration: 2,
-              style: {
-                position: "fixed",
-                right: 20,
-                top: 80,
-              },
-            });
-          }
+  // 🔹 Mở modal xác nhận
+  const openConfirmModal = (type, record = null) => {
+    if (type === "edit" && record && !record.trangThai) {
+      Modal.warning({
+        centered: true,
+        title: "Không thể cập nhật!",
+        content: (
+          <>
+            Khách hàng <strong>{record.hoTen}</strong> đã bị khóa và không thể
+            chỉnh sửa.
+          </>
+        ),
+        okText: "Đã hiểu",
+        okButtonProps: {
+          style: { backgroundColor: "#E67E22", borderColor: "#E67E22" },
         },
       });
-    } else {
-      modal.confirm({
-        title: "Xác nhận mở khóa",
-        content: `Bạn có chắc muốn mở khóa khách hàng "${record.hoTen}" không?`,
-        okText: "Mở khóa",
-        cancelText: "Hủy",
-        onOk: async () => {
-          try {
-            const updatedCustomer = {
-              ...record,
-              trangThai: true,
-            };
-            await khachHangApi.update(record.id, updatedCustomer);
+      return;
+    }
 
-            messageApi.open({
-              type: "success",
-              content: (
-                <div style={{ fontSize: "16px", fontWeight: 600 }}>
-                  Đã mở khóa khách hàng{" "}
-                  <span style={{ color: "#1677ff" }}>{record.hoTen}</span>
-                </div>
-              ),
-              duration: 2,
-              style: {
-                position: "fixed",
-                right: 20,
-                top: 80,
-                minWidth: 280,
-                padding: "12px 16px",
-                borderRadius: "10px",
-                fontSize: "16px",
-              },
-            });
+    setConfirmModal({ visible: true, type, record, loading: false });
+  };
 
-            fetchCustomers();
-          } catch (err) {
-            messageApi.open({
-              type: "error",
-              content: "Mở khóa khách hàng thất bại!",
-              duration: 2,
-              style: {
-                position: "fixed",
-                right: 20,
-                top: 80,
-              },
-            });
-          }
-        },
+  // 🔹 Xử lý xác nhận (bản gọn, không thanh màu)
+  const handleConfirm = async () => {
+    const { type, record } = confirmModal;
+    try {
+      setConfirmModal((prev) => ({ ...prev, loading: true }));
+
+      if (type === "add" || type === "edit") {
+        setEditCustomer(type === "edit" ? record : null);
+        setMode("form");
+      } else if (type === "status") {
+        const updated = { ...record, trangThai: !record.trangThai };
+        await khachHangApi.update(record.id, updated);
+
+        // ✅ Thông báo gọn, mặc định của Ant Design
+        messageApi.success(
+          record.trangThai
+            ? "Khóa khách hàng thành công!"
+            : "Mở khóa khách hàng thành công!"
+        );
+
+        await fetchCustomers();
+      }
+    } catch {
+      messageApi.error("Thao tác thất bại!");
+    } finally {
+      setConfirmModal({
+        visible: false,
+        type: null,
+        record: null,
+        loading: false,
       });
     }
   };
 
-  // 🔹 Lọc và tìm kiếm
+  // 🔹 Lọc dữ liệu
   const filteredData = customers.filter((item) => {
+    const search = searchKeyword.toLowerCase();
     const matchSearch =
-      item.maKhachHang?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      item.hoTen?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      item.email?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      item.sdt?.toLowerCase().includes(searchKeyword.toLowerCase());
+      item.maKhachHang?.toLowerCase().includes(search) ||
+      item.hoTen?.toLowerCase().includes(search) ||
+      item.email?.toLowerCase().includes(search) ||
+      item.sdt?.toLowerCase().includes(search);
 
     const matchStatus =
       filterTrangThai === "all"
@@ -211,303 +134,259 @@ export default function Customer() {
     return matchSearch && matchStatus;
   });
 
-  // 🔹 Cột bảng
+  // 🔹 Cấu hình cột
   const columns = [
     {
       title: "STT",
-      render: (_, __, index) => (currentPage - 1) * pageSize + index + 1,
+      render: (_, __, i) => (currentPage - 1) * pageSize + i + 1,
       align: "center",
     },
     {
-      title: "Mã Khách Hàng",
+      title: "Mã KH",
       dataIndex: "maKhachHang",
-      render: (text) => (
-        <a style={{ color: "#00b96b", fontWeight: 600, fontSize: "16px" }}>
-          {text}
-        </a>
-      ),
     },
-    { title: "Tên Khách Hàng", dataIndex: "hoTen" },
-    { title: "Số Điện Thoại", dataIndex: "sdt" },
+    { title: "Tên KH", dataIndex: "hoTen" },
+    { title: "SĐT", dataIndex: "sdt" },
     { title: "Email", dataIndex: "email" },
     {
-      title: "Địa Chỉ",
+      title: "Địa chỉ",
       render: (r) => {
-        const defaultAddress = r.diaChi?.find((a) => a.trangThai);
-        return defaultAddress
-          ? defaultAddress.diaChiCuThe
-          : r.diaChi?.[0]?.diaChiCuThe || "Không có địa chỉ";
+        const dc = r.diaChi?.find((a) => a.trangThai);
+        return dc
+          ? dc.diaChiCuThe
+          : r.diaChi?.[0]?.diaChiCuThe || "Không có địa chỉ nào";
       },
     },
     {
-      title: "Trạng Thái",
+      title: "Trạng thái",
       align: "center",
       render: (r) =>
         r.trangThai ? (
-          <Tag color="green" style={{ fontSize: 14, padding: "6px 14px" }}>
-            Kích Hoạt
+          <Tag color="#E9FBF4" style={{ border: "1px solid #00A96C" }}>
+            <div className="text-[#00A96C]">Đang hoạt động</div>
           </Tag>
         ) : (
-          <Tag color="red" style={{ fontSize: 14, padding: "6px 14px" }}>
-            Đã Hủy
-          </Tag>
+          <Tag color="red">Ngừng hoạt động</Tag>
         ),
     },
     {
-      title: "Hành Động",
+      title: "Hành động",
       align: "center",
-      render: (_, record) => (
-        <Space size="large">
-          <Tooltip title={record.trangThai ? "Đang kích hoạt" : "Đã khóa"}>
-            {record.trangThai ? (
-              <UnlockOutlined
-                style={{
-                  color: "#e29578",
-                  fontSize: 22,
-                  cursor: "pointer",
-                }}
-                onClick={() => toggleStatus(record)}
-              />
-            ) : (
-              <LockOutlined
-                style={{
-                  color: "#ff4d4f",
-                  fontSize: 22,
-                  cursor: "pointer",
-                }}
-                onClick={() => toggleStatus(record)}
-              />
-            )}
-          </Tooltip>
-
-          <Tooltip
-            title={
-              record.trangThai ? "Chỉnh sửa khách hàng" : "Không thể chỉnh sửa"
-            }
+      render: (_, r) => (
+        <Space>
+          <div
+            onClick={() => openConfirmModal("status", r)}
+            style={{ cursor: "pointer" }}
           >
-            <Button
-              type="text"
-              icon={
-                <EditOutlined
-                  style={{
-                    color: record.trangThai ? "#e67e22" : "#ccc",
-                    fontSize: 20,
-                  }}
-                />
-              }
-              onClick={() => handleEdit(record)}
-              disabled={!record.trangThai}
-            />
-          </Tooltip>
+            {r.trangThai ? (
+              <ToggleRight weight="fill" size={30} color="#00A96C" />
+            ) : (
+              <ToggleLeft weight="fill" size={30} color="#c5c5c5" />
+            )}
+          </div>
+
+          <div
+            onClick={() => openConfirmModal("edit", r)}
+            style={{ cursor: "pointer" }}
+          >
+            <PencilLine size={24} weight="fill" color="#E67E22" />
+          </div>
         </Space>
       ),
     },
   ];
 
+  // 🔹 Hàm dựng tiêu đề & mô tả modal
+  const getModalText = () => {
+    const { type, record } = confirmModal;
+    if (type === "add")
+      return {
+        title: "Xác nhận thêm khách hàng",
+        desc: "Bạn có chắc muốn thêm khách hàng mới không?",
+        btn: "Thêm mới",
+      };
+    if (type === "edit")
+      return {
+        title: "Xác nhận sửa khách hàng",
+        desc: (
+          <>
+            Bạn có chắc muốn sửa khách hàng <strong>{record?.hoTen}</strong>{" "}
+            không?
+          </>
+        ),
+        btn: "Sửa",
+      };
+    if (type === "status")
+      return {
+        title: record?.trangThai
+          ? "Xác nhận khóa khách hàng"
+          : "Xác nhận mở khóa khách hàng",
+        desc: (
+          <>
+            Bạn có chắc muốn{" "}
+            <span className="font-semibold">
+              {record?.trangThai ? "khóa" : "mở khóa"}
+            </span>{" "}
+            khách hàng "<strong>{record?.hoTen}</strong>" không?
+          </>
+        ),
+        btn: record?.trangThai ? "Khóa" : "Mở khóa",
+      };
+  };
+
+  const modalText = getModalText();
+
   return (
-    <div
-      style={{
-        padding: 30,
-        background: "#fff",
-        fontSize: "16px",
-        lineHeight: 1.6,
-      }}
-    >
-      {contextHolder}
+    <>
       {messageContextHolder}
-      {mode === "table" && (
-        <>
-          {/* Filter + Action */}
-          <Card
-            title={
-              <span
-                style={{ color: "#e67e22", fontSize: "30px", fontWeight: 600 }}
-              >
-                Quản lý khách hàng
-              </span>
-            }
-            style={{
-              marginBottom: 16,
-              borderRadius: 12,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-            }}
-          >
-            <Row gutter={[16, 16]}>
-              <Col span={10}>
-                <Input
-                  placeholder="Mã, tên, email, SĐT..."
+
+      {mode === "table" ? (
+        <div className="p-6 flex flex-col gap-10">
+          {/* ==== Header ==== */}
+          <div className="bg-white px-4 py-5 rounded-lg shadow">
+            <div className="font-bold text-4xl text-[#E67E22]">
+              Quản lý khách hàng
+            </div>
+            <div className="text-gray-500 text-sm">
+              <CustomerBreadcrumb />
+            </div>
+          </div>
+
+          {/* ==== Bộ lọc ==== */}
+          <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+            <div className="bg-[#E67E22] px-6 py-3 text-white font-bold text-lg">
+              Bộ lọc khách hàng
+            </div>
+
+            <div className="p-6 flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <input
+                  placeholder="Nhập mã, tên, email, số điện thoại..."
                   value={searchKeyword}
                   onChange={(e) => setSearchKeyword(e.target.value)}
-                  style={{ borderRadius: 8, fontSize: 15 }}
+                  className="border rounded-lg px-4 py-2 w-full focus:ring-2 focus:ring-[#E67E22]"
                 />
-              </Col>
-            </Row>
-            <Row
-              gutter={[16, 16]}
-              align="middle"
-              style={{ marginTop: 14, marginBottom: 4 }}
-            >
-              <Col xs={24}>
-                <span style={{ fontSize: 16 }}>
-                  Tổng số khách hàng:{" "}
-                  <b style={{ color: "#00b96b", fontSize: 17 }}>
-                    {filteredData.length}
-                  </b>
-                </span>
-              </Col>
-            </Row>
-            <Row
-              gutter={[16, 16]}
-              justify="space-between"
-              align="middle"
-              style={{
-                marginTop: 8,
-                borderTop: "1px solid #f0f0f0",
-                paddingTop: 10,
-              }}
-            >
-              <Col xs={24} md={12}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontWeight: 500, fontSize: 15 }}>
-                    Trạng thái:
-                  </span>
-                  <Radio.Group
-                    value={filterTrangThai}
-                    onChange={(e) => setFilterTrangThai(e.target.value)}
-                  >
-                    <Radio value="all" style={{ fontSize: 15 }}>
-                      Tất cả
-                    </Radio>
-                    <Radio value="active" style={{ fontSize: 15 }}>
-                      Kích hoạt
-                    </Radio>
-                    <Radio value="inactive" style={{ fontSize: 15 }}>
-                      Hủy kích hoạt
-                    </Radio>
-                  </Radio.Group>
-                </div>
-              </Col>
-              <Col xs={24} md={12} style={{ textAlign: "right" }}>
-                <Space wrap>
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={handleAdd}
-                    style={{
-                      background: "#00b96b",
-                      borderRadius: 8,
-                      fontWeight: 500,
-                    }}
-                  >
-                    Thêm Khách Hàng
-                  </Button>
-                  <Button
-                    onClick={() => exportToExcel(customers)}
-                    icon={<FileExcelOutlined />}
-                    style={{ borderRadius: 8 }}
-                  >
-                    Xuất Excel
-                  </Button>
-                  <Button
-                    loading={importing}
-                    onClick={() =>
-                      document.getElementById("importExcel").click()
-                    }
-                    icon={<CloudUploadOutlined />}
-                    style={{ borderRadius: 8 }}
-                  >
-                    {importing ? "Đang nhập..." : "Nhập từ Excel"}
-                  </Button>
-                  <input
-                    id="importExcel"
-                    type="file"
-                    accept=".xlsx, .xls"
-                    style={{ display: "none" }}
-                    onChange={(e) =>
-                      importFromExcel(
-                        e.target.files[0],
-                        khachHangApi,
-                        diaChiApi,
-                        fetchCustomers,
-                        setImporting
-                      )
-                    }
-                  />
-                  <Button
-                    onClick={() => downloadTemplate(diaChiApi)}
-                    icon={<DownloadOutlined />}
-                    style={{ borderRadius: 8 }}
-                  >
-                    Tải mẫu Excel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setSearchKeyword("");
-                      setFilterTrangThai("all");
-                    }}
-                    style={{ background: "#f5f5f5", borderRadius: 8 }}
-                  >
-                    Đặt lại bộ lọc
-                  </Button>
-                </Space>
-              </Col>
-            </Row>
-          </Card>
+                <select
+                  value={filterTrangThai}
+                  onChange={(e) => setFilterTrangThai(e.target.value)}
+                  className="border rounded-lg px-4 py-2 w-full focus:ring-2 focus:ring-[#E67E22]"
+                >
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="active">Hoạt động</option>
+                  <option value="inactive">Ngừng hoạt động</option>
+                </select>
+              </div>
 
-          {/* Bảng danh sách */}
-          <Card
-            title={
-              <span style={{ fontSize: "18px", fontWeight: 600 }}>
-                Danh Sách Khách Hàng
-              </span>
-            }
-            style={{
-              borderRadius: 12,
-              boxShadow: "0 3px 10px rgba(0,0,0,0.08)",
-            }}
-          >
+              <div className="flex justify-end gap-3 mt-4 flex-wrap">
+                <div
+                  onClick={() => {
+                    setSearchKeyword("");
+                    setFilterTrangThai("all");
+                  }}
+                  className="bg-gray-400 text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-700"
+                >
+                  Nhập lại
+                </div>
+
+                <div
+                  onClick={() => openConfirmModal("add")}
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
+                >
+                  Thêm mới
+                </div>
+
+                <div
+                  onClick={() => exportToExcel(customers)}
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
+                >
+                  Xuất Excel
+                </div>
+
+                <div
+                  onClick={downloadTemplate}
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
+                >
+                  Tải mẫu Excel
+                </div>
+
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  hidden
+                  id="importExcel"
+                  onChange={(e) =>
+                    importFromExcel(
+                      e.target.files[0],
+                      khachHangApi,
+                      diaChiApi,
+                      fetchCustomers
+                    )
+                  }
+                />
+
+                <div
+                  onClick={() =>
+                    document.getElementById("importExcel")?.click()
+                  }
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
+                >
+                  Thêm từ Excel
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ==== Danh sách ==== */}
+          <div className="bg-white rounded-lg shadow">
+            <div className="flex justify-between items-center bg-[#E67E22] px-6 py-3 rounded-t-lg">
+              <div className="text-white font-bold text-2xl">
+                Danh sách khách hàng
+              </div>
+            </div>
+
             <Table
               columns={columns}
               dataSource={filteredData}
               rowKey="id"
               loading={loading}
+              bordered
               pagination={{
                 current: currentPage,
                 pageSize,
                 onChange: setCurrentPage,
                 total: filteredData.length,
-                showSizeChanger: false,
-                position: ["bottomCenter"],
+                position: ["bottomRight"],
               }}
-              style={{ fontSize: "16px" }}
             />
-          </Card>
-        </>
-      )}
-
-      {mode === "form" && (
+          </div>
+        </div>
+      ) : (
         <CustomerForm
           customer={editCustomer}
           onCancel={() => setMode("table")}
-          onSuccess={async (newCustomer) => {
+          onSuccess={() => {
+            fetchCustomers();
             setMode("table");
-
-            const isEdit = !!editCustomer;
-
-            if (newCustomer) {
-              message.success(
-                isEdit
-                  ? "Cập nhật khách hàng thành công"
-                  : "Thêm khách hàng mới thành công"
-              );
-
-              await fetchCustomers();
-            } else {
-              await fetchCustomers();
-            }
           }}
         />
       )}
-    </div>
+
+      {/* ==== Modal xác nhận ==== */}
+      <ConfirmModal
+        open={confirmModal.visible}
+        onCancel={() =>
+          setConfirmModal({ visible: false, type: null, record: null })
+        }
+        onConfirm={handleConfirm}
+        loading={confirmModal.loading}
+        title={modalText?.title}
+        description={modalText?.desc}
+        confirmText={modalText?.btn}
+        confirmType="primary"
+        confirmDanger={
+          confirmModal.type === "status" && confirmModal.record?.trangThai
+        }
+      />
+    </>
   );
 }

@@ -11,6 +11,7 @@ export default function TableChiTietSanPham({
   giaTriGiam,
   onDataChange,
   giaTriGiamToiThieu,
+  trungIds = [],
 }) {
   const dispatch = useDispatch();
   const [data, setData] = useState([]);
@@ -95,6 +96,24 @@ export default function TableChiTietSanPham({
           </div>
         ),
     },
+    {
+      title: "Trùng",
+      dataIndex: "id",
+      render: (id) => {
+        const soLanTrung = trungIds.filter((trungId) => trungId === id).length;
+
+        return (
+          <span
+            className={
+              soLanTrung > 0 ? "text-orange-500 font-medium" : "text-gray-500"
+            }
+          >
+            Trùng với {soLanTrung} đợt giảm giá
+          </span>
+        );
+      },
+    },
+
     { title: "Màu sắc", dataIndex: "tenMauSac", render: (val) => val || "-" },
     {
       title: "Kích thước",

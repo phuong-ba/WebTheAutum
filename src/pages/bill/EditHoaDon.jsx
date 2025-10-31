@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import hoaDonApi from '../../api/HoaDonAPI';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import hoaDonApi from "../../api/HoaDonAPI";
+import { toast } from "react-toastify";
+import BillBreadcrumb from "./BillBreadcrumb";
+import {
+  ArrowLeftOutlined,
+  InboxOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 
 const EditHoaDon = () => {
   const { id } = useParams();
@@ -11,15 +17,15 @@ const EditHoaDon = () => {
   const [saving, setSaving] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [invoice, setInvoice] = useState(null);
-const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Form data - CHỈ GIỮ NHỮNG TRƯỜNG CÓ THỂ SỬA
   const [formData, setFormData] = useState({
-    hoTenKhachHang: '',
-    sdtKhachHang: '',
-    emailKhachHang: '',
-    diaChiKhachHang: '',
-    ghiChu: ''
+    hoTenKhachHang: "",
+    sdtKhachHang: "",
+    emailKhachHang: "",
+    diaChiKhachHang: "",
+    ghiChu: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -39,8 +45,10 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
       setCanEdit(canEditData);
 
       if (!canEditData) {
-        toast.info('Hóa đơn này không thể sửa! Chỉ có thể sửa hóa đơn ở trạng thái "Chờ xác nhận".');
-        navigate(`/DetailHoaDon/${id}`);
+        toast.info(
+          'Hóa đơn này không thể sửa! Chỉ có thể sửa hóa đơn ở trạng thái "Chờ xác nhận".'
+        );
+        navigate(`/admin/detail-bill/${id}`);
         return;
       }
 
@@ -51,17 +59,16 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
 
       // CHỈ SET NHỮNG TRƯỜNG CÓ THỂ SỬA
       setFormData({
-        hoTenKhachHang: invoiceData.tenKhachHang || '',
-        sdtKhachHang: invoiceData.sdtKhachHang || '',
-        emailKhachHang: invoiceData.emailKhachHang || '',
-        diaChiKhachHang: invoiceData.diaChiKhachHang || '',
-        ghiChu: invoiceData.ghiChu || ''
+        hoTenKhachHang: invoiceData.tenKhachHang || "",
+        sdtKhachHang: invoiceData.sdtKhachHang || "",
+        emailKhachHang: invoiceData.emailKhachHang || "",
+        diaChiKhachHang: invoiceData.diaChiKhachHang || "",
+        ghiChu: invoiceData.ghiChu || "",
       });
-
     } catch (error) {
-      console.error('❌ Lỗi load data:', error);
-      toast.error('Không thể tải dữ liệu hóa đơn');
-      navigate('/bill');
+      console.error("❌ Lỗi load data:", error);
+      toast.error("Không thể tải dữ liệu hóa đơn");
+      navigate("/bill");
     } finally {
       setLoading(false);
     }
@@ -69,36 +76,38 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // ================== HANDLE CHANGES ==================
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
 
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
+      setErrors((prev) => ({ ...prev, [field]: null }));
     }
   };
 
-  // ================== VALIDATION ==================
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.hoTenKhachHang?.trim()) {
-      newErrors.hoTenKhachHang = 'Vui lòng nhập tên khách hàng';
+      newErrors.hoTenKhachHang = "Vui lòng nhập tên khách hàng";
     }
 
     if (!formData.sdtKhachHang?.trim()) {
-      newErrors.sdtKhachHang = 'Vui lòng nhập số điện thoại';
+      newErrors.sdtKhachHang = "Vui lòng nhập số điện thoại";
     } else if (!/^[0-9]{10}$/.test(formData.sdtKhachHang)) {
-      newErrors.sdtKhachHang = 'Số điện thoại không hợp lệ (10 số)';
+      newErrors.sdtKhachHang = "Số điện thoại không hợp lệ (10 số)";
     }
 
-    if (formData.emailKhachHang && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.emailKhachHang)) {
-      newErrors.emailKhachHang = 'Email không hợp lệ';
+    if (
+      formData.emailKhachHang &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.emailKhachHang)
+    ) {
+      newErrors.emailKhachHang = "Email không hợp lệ";
     }
 
     if (!formData.diaChiKhachHang?.trim()) {
-      newErrors.diaChiKhachHang = 'Vui lòng nhập địa chỉ';
+      newErrors.diaChiKhachHang = "Vui lòng nhập địa chỉ";
     }
 
     setErrors(newErrors);
@@ -109,58 +118,55 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-     if (!validateForm()) {
-    toast.info('Vui lòng kiểm tra lại thông tin');
-    return;
-  }
+    if (!validateForm()) {
+      toast.info("Vui lòng kiểm tra lại thông tin");
+      return;
+    }
 
-  // Mở modal xác nhận
-  setShowConfirmModal(true);
+    setShowConfirmModal(true);
 
     try {
       setSaving(true);
 
-      // CHỈ GỬI NHỮNG TRƯỜNG CÓ THỂ SỬA
       const requestBody = {
         hoTenKhachHang: formData.hoTenKhachHang,
         sdtKhachHang: formData.sdtKhachHang,
         emailKhachHang: formData.emailKhachHang,
         diaChiKhachHang: formData.diaChiKhachHang,
-        ghiChu: formData.ghiChu
+        ghiChu: formData.ghiChu,
       };
-
-
-      
 
       const response = await hoaDonApi.updateHoaDon(id, requestBody);
       const result = response.data;
 
-       if (result.success || response.status === 200) {
-      toast.success('✅ Đã sửa thành công!');
-      navigate(`/DetailHoaDon/${id}`, { state: { refreshData: true } });
-    } else {
-      toast.error('Lỗi: ' + (result.message || 'Không thể cập nhật'));
+      if (result.success || response.status === 200) {
+        toast.success("✅ Đã sửa thành công!");
+        navigate(`/admin/detail-bill/${id}`, { state: { refreshData: true } });
+      } else {
+        toast.error("Lỗi: " + (result.message || "Không thể cập nhật"));
+      }
+    } catch (error) {
+      console.error("❌ Lỗi update:", error);
+      const errorMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Không thể cập nhật hóa đơn";
+      toast.error("Lỗi: " + errorMsg);
+    } finally {
+      setSaving(false);
     }
-  } catch (error) {
-    console.error('❌ Lỗi update:', error);
-    const errorMsg =
-      error.response?.data?.message || error.message || 'Không thể cập nhật hóa đơn';
-    toast.error('Lỗi: ' + errorMsg);
-  } finally {
-    setSaving(false);
-  }
-};
-  // ================== HELPER FUNCTIONS ==================
+  };
   const formatMoney = (amount) => {
-    if (!amount && amount !== 0) return '0 ₫';
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
+    if (!amount && amount !== 0) return "0 ₫";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
     }).format(amount);
   };
 
   const tinhTongTien = () => {
-    if (!invoice) return { tongSanPham: 0, tienGiamGia: 0, phiVC: 0, tongCong: 0 };
+    if (!invoice)
+      return { tongSanPham: 0, tienGiamGia: 0, phiVC: 0, tongCong: 0 };
 
     const tongSanPham = (invoice.chiTietSanPhams || []).reduce(
       (sum, ct) => sum + (parseFloat(ct.thanhTien) || 0),
@@ -207,9 +213,11 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
           <span className="text-6xl">🚫</span>
-          <p className="text-red-600 font-semibold text-lg mt-4">Hóa đơn này không thể sửa</p>
+          <p className="text-red-600 font-semibold text-lg mt-4">
+            Hóa đơn này không thể sửa
+          </p>
           <button
-            onClick={() => navigate(`/DetailHoaDon/${id}`)}
+            onClick={() => navigate(`/admin/detail-bill/${id}`)}
             className="mt-6 px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700"
           >
             ← Quay lại
@@ -220,31 +228,39 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="p-6 flex flex-col gap-5">
+      <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+        <div className="font-bold text-4xl text-[#E67E22]">Quản lý hóa đơn</div>
+        <BillBreadcrumb />
+      </div>
+      <div className="">
         <div className="bg-white rounded-lg shadow-sm">
           {/* Header */}
-          <div className="border-b px-6 py-4 flex justify-between items-center">
+          <div className="border-b border-gray-300 px-6 py-4 flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">Sửa thông tin hóa đơn</h2>
-              <p className="text-sm text-gray-500">Mã hóa đơn: {invoice?.maHoaDon}</p>
-              <p className="text-xs text-blue-600 mt-1">
-                ℹ️ Chỉ có thể sửa thông tin khách hàng và ghi chú
+              <h2 className="text-2xl font-bold text-gray-800">
+                Sửa thông tin hóa đơn
+              </h2>
+              <p className="text-sm text-gray-500">
+                Mã hóa đơn: {invoice?.maHoaDon}
+              </p>
+              <p className="text-xs text-yellow-700 mt-1">
+                Chỉ có thể sửa thông tin khách hàng và ghi chú
               </p>
             </div>
-            <button
-              onClick={() => navigate(`/DetailHoaDon/${id}`)}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+            <div
+              onClick={() => navigate(`/admin/detail-bill/${id}`)}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium cursor-pointer"
             >
-              ← Quay lại
-            </button>
+              <ArrowLeftOutlined />
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6">
+          <form id="editForm" onSubmit={handleSubmit} className="p-6">
             {/* Thông tin khách hàng - CÓ THỂ SỬA */}
             <div className="mb-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center text-gray-700">
-                <span className="mr-2">👤</span> Thông tin khách hàng
+                <UserOutlined /> Thông tin khách hàng
               </h3>
 
               <div className="grid grid-cols-2 gap-4">
@@ -255,14 +271,19 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
                   <input
                     type="text"
                     value={formData.hoTenKhachHang}
-                    onChange={(e) => handleInputChange('hoTenKhachHang', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.hoTenKhachHang
-                        ? 'border-red-500 focus:ring-red-200'
-                        : 'border-gray-300 focus:ring-blue-200'
-                      }`}
+                    onChange={(e) =>
+                      handleInputChange("hoTenKhachHang", e.target.value)
+                    }
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                      errors.hoTenKhachHang
+                        ? "border-red-500 focus:ring-red-200"
+                        : "border-gray-300 focus:ring-blue-200"
+                    }`}
                   />
                   {errors.hoTenKhachHang && (
-                    <p className="text-red-500 text-sm mt-1">{errors.hoTenKhachHang}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.hoTenKhachHang}
+                    </p>
                   )}
                 </div>
 
@@ -273,30 +294,42 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
                   <input
                     type="text"
                     value={formData.sdtKhachHang}
-                    onChange={(e) => handleInputChange('sdtKhachHang', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.sdtKhachHang
-                        ? 'border-red-500 focus:ring-red-200'
-                        : 'border-gray-300 focus:ring-blue-200'
-                      }`}
+                    onChange={(e) =>
+                      handleInputChange("sdtKhachHang", e.target.value)
+                    }
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                      errors.sdtKhachHang
+                        ? "border-red-500 focus:ring-red-200"
+                        : "border-gray-300 focus:ring-blue-200"
+                    }`}
                   />
                   {errors.sdtKhachHang && (
-                    <p className="text-red-500 text-sm mt-1">{errors.sdtKhachHang}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.sdtKhachHang}
+                    </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700">Email</label>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">
+                    Email
+                  </label>
                   <input
                     type="email"
                     value={formData.emailKhachHang}
-                    onChange={(e) => handleInputChange('emailKhachHang', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.emailKhachHang
-                        ? 'border-red-500 focus:ring-red-200'
-                        : 'border-gray-300 focus:ring-blue-200'
-                      }`}
+                    onChange={(e) =>
+                      handleInputChange("emailKhachHang", e.target.value)
+                    }
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                      errors.emailKhachHang
+                        ? "border-red-500 focus:ring-red-200"
+                        : "border-gray-300 focus:ring-blue-200"
+                    }`}
                   />
                   {errors.emailKhachHang && (
-                    <p className="text-red-500 text-sm mt-1">{errors.emailKhachHang}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.emailKhachHang}
+                    </p>
                   )}
                 </div>
 
@@ -307,24 +340,30 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
                   <input
                     type="text"
                     value={formData.diaChiKhachHang}
-                    onChange={(e) => handleInputChange('diaChiKhachHang', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${errors.diaChiKhachHang
-                        ? 'border-red-500 focus:ring-red-200'
-                        : 'border-gray-300 focus:ring-blue-200'
-                      }`}
+                    onChange={(e) =>
+                      handleInputChange("diaChiKhachHang", e.target.value)
+                    }
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                      errors.diaChiKhachHang
+                        ? "border-red-500 focus:ring-red-200"
+                        : "border-gray-300 focus:ring-blue-200"
+                    }`}
                   />
                   {errors.diaChiKhachHang && (
-                    <p className="text-red-500 text-sm mt-1">{errors.diaChiKhachHang}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.diaChiKhachHang}
+                    </p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Chi tiết sản phẩm - READONLY */}
             <div className="mb-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center text-gray-700">
-                <span className="mr-2">📦</span> Chi tiết sản phẩm
-                <span className="ml-2 text-xs text-gray-500 font-normal">(Không thể chỉnh sửa)</span>
+                <InboxOutlined /> Chi tiết sản phẩm
+                <span className="ml-2 text-xs text-gray-500 font-normal">
+                  (Không thể chỉnh sửa)
+                </span>
               </h3>
 
               <div className="space-y-3">
@@ -337,19 +376,22 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
                     <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg border bg-white">
                       <img
                         src={
-                          (product.anhUrls && product.anhUrls.length > 0)
+                          product.anhUrls && product.anhUrls.length > 0
                             ? product.anhUrls[0]
                             : product.hinhAnh ||
-                            product.anhSanPham ||
-                            product.sanPham?.anh ||
-                            product.sanPham?.hinhAnh ||
-                            product.sanPham?.anhSanPham ||
-                            "https://via.placeholder.com/100x100?text=No+Image"
+                              product.anhSanPham ||
+                              product.sanPham?.anh ||
+                              product.sanPham?.hinhAnh ||
+                              product.sanPham?.anhSanPham ||
+                              "https://via.placeholder.com/100x100?text=No+Image"
                         }
-                        alt={product.tenSanPham || product.sanPham?.tenSanPham || "Sản phẩm"}
+                        alt={
+                          product.tenSanPham ||
+                          product.sanPham?.tenSanPham ||
+                          "Sản phẩm"
+                        }
                         className="w-full h-full object-cover rounded-md border border-gray-200"
                       />
-
                     </div>
 
                     {/* Thông tin sản phẩm */}
@@ -406,7 +448,7 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
                           </label>
                           <input
                             type="text"
-                            value={product.ghiChu || ''}
+                            value={product.ghiChu || ""}
                             readOnly
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
                             placeholder="Không có"
@@ -417,14 +459,14 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
                   </div>
                 ))}
 
-                {(!invoice?.chiTietSanPhams || invoice.chiTietSanPhams.length === 0) && (
+                {(!invoice?.chiTietSanPhams ||
+                  invoice.chiTietSanPhams.length === 0) && (
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                     <p className="text-gray-500">Không có sản phẩm nào</p>
                   </div>
                 )}
               </div>
             </div>
-
 
             {/* Ghi chú - CÓ THỂ SỬA */}
             <div className="mb-6">
@@ -433,40 +475,39 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
               </label>
               <textarea
                 value={formData.ghiChu}
-                onChange={(e) => handleInputChange('ghiChu', e.target.value)}
+                onChange={(e) => handleInputChange("ghiChu", e.target.value)}
                 rows="3"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
                 placeholder="Nhập ghi chú..."
               />
             </div>
 
-
-
             {/* Buttons */}
             <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => navigate(`/DetailHoaDon/${id}`)}
-                className="px-6 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 font-medium transition-all"
+              <div
+                onClick={() => navigate(`/admin/detail-bill/${id}`)}
+                className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
               >
                 Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-all flex items-center gap-2"
+              </div>
+
+              <div
+                onClick={() =>
+                  document.getElementById("editForm").requestSubmit()
+                }
+                className={`bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-semibold hover:bg-amber-700 active:bg-cyan-800 select-none ${
+                  saving ? "opacity-70 pointer-events-none" : ""
+                }`}
               >
                 {saving ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-2"></div>
                     Đang lưu...
                   </>
                 ) : (
-                  <>
-                    💾 Lưu thay đổi
-                  </>
+                  "Lưu thay đổi"
                 )}
-              </button>
+              </div>
             </div>
           </form>
         </div>
