@@ -67,7 +67,7 @@ export default function Product() {
   };
 
   const handleEditProduct = (record) => {
-    navigate(`/edit-product/${record.id}`);
+    navigate(`/admin/edit-product/${record.id}`);
   };
 
   const rowSelection = {
@@ -697,7 +697,7 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
             </button>
 
             <button
-              onClick={() => navigate("/add-product")}
+              onClick={() => navigate("/admin/add-product")}
               className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Thêm sản phẩm

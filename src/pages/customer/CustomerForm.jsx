@@ -261,7 +261,7 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
   };
 
   const columns = [
-    { title: "Tên địa chỉ", dataIndex: "tenDiaChi" },
+    { title: "Loại địa chỉ", dataIndex: "tenDiaChi" },
     {
       title: "Thành phố",
       dataIndex: "tenTinh",

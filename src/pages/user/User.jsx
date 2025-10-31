@@ -9,9 +9,6 @@ import {
 import FliterUser from "./FliterUser";
 import { useNavigate } from "react-router";
 import {
-  LockKeyIcon,
-  LockOpenIcon,
-  PencilIcon,
   PencilLineIcon,
   ToggleLeftIcon,
   ToggleRightIcon,
@@ -292,53 +289,20 @@ export default function User() {
           <UserBreadcrumb />
         </div>
 
-        <FliterUser />
+        <FliterUser
+          handleExportExcel={handleExportExcel}
+          handleImportExcel={handleImportExcel}
+          fileInputRef={fileInputRef}
+          data={data}
+          navigate={navigate}
+        />
 
         <div className="bg-white min-h-[500px] rounded-lg shadow overflow-hidden">
           <div className="flex justify-between items-center bg-[#E67E22] px-6 py-3 rounded-tl-lg rounded-tr-lg ">
             <div className="text-white font-bold text-2xl">
               Danh sách nhân viên
             </div>
-            <div className="flex gap-3">
-              <div
-                onClick={() => navigate("/admin/add-user")}
-                className="bg-white text-[#E67E22] rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
-              >
-                Thêm mới
-              </div>
-
-              <div
-                onClick={handleExportExcel}
-                disabled={!data || data.length === 0}
-                className="bg-white text-[#E67E22] rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
-              >
-                Xuất Excel
-              </div>
-
-              <input
-                type="file"
-                accept=".xlsx, .xls"
-                hidden
-                ref={fileInputRef}
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) handleImportExcel(file);
-                  e.target.value = "";
-                }}
-              />
-
-              <div
-                type="button"
-                onClick={() =>
-                  fileInputRef.current && fileInputRef.current.click()
-                }
-                className="bg-white text-[#E67E22] rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
-              >
-                Thêm Excel
-              </div>
-            </div>
           </div>
-
           <Table
             columns={columns}
             dataSource={data}
