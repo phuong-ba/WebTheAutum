@@ -144,9 +144,6 @@ export default function Customer() {
     {
       title: "Mã KH",
       dataIndex: "maKhachHang",
-      render: (text) => (
-        <a style={{ color: "#e67e22", fontWeight: 600 }}>{text}</a>
-      ),
     },
     { title: "Tên KH", dataIndex: "hoTen" },
     { title: "SĐT", dataIndex: "sdt" },
@@ -155,7 +152,9 @@ export default function Customer() {
       title: "Địa chỉ",
       render: (r) => {
         const dc = r.diaChi?.find((a) => a.trangThai);
-        return dc ? dc.diaChiCuThe : r.diaChi?.[0]?.diaChiCuThe || "Không có";
+        return dc
+          ? dc.diaChiCuThe
+          : r.diaChi?.[0]?.diaChiCuThe || "Không có địa chỉ nào";
       },
     },
     {
@@ -356,7 +355,7 @@ export default function Customer() {
                 pageSize,
                 onChange: setCurrentPage,
                 total: filteredData.length,
-                position: ["bottomCenter"],
+                position: ["bottomRight"],
               }}
             />
           </div>
