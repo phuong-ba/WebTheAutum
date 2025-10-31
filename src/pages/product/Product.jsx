@@ -609,7 +609,7 @@ export default function Product() {
       align: "center",
       width: 150,
       render: (_, record) => (
-        <Space >
+        <Space>
           <Button
             type="link"
             icon={<EyeIcon size={24} />}
@@ -722,7 +722,7 @@ export default function Product() {
             {selectedRowKeys.length > 0 && (
               <div
                 onClick={handleViewMultipleDetails}
-                className="rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-white transition-colors font-medium text-[#E67E22] bg-white font-semibold active:bg-cyan-800"
+                className="rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-white transition-colors font-medium text-[#E67E22] bg-white  active:bg-cyan-800"
               >
                 Xem {selectedRowKeys.length} sản phẩm
               </div>
