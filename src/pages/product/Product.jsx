@@ -11,10 +11,13 @@ import {
   Statistic,
 } from "antd";
 import { useDispatch, useSelector } from "react-redux";
-import { ToggleLeftIcon, ToggleRightIcon, PencilLineIcon, EyeIcon } from "@phosphor-icons/react";
 import {
-  EyeOutlined,
-} from "@ant-design/icons";
+  ToggleLeftIcon,
+  ToggleRightIcon,
+  PencilLineIcon,
+  EyeIcon,
+} from "@phosphor-icons/react";
+import { EyeOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router";
 import baseUrl from "@/api/instance";
 import * as XLSX from "xlsx";
@@ -187,7 +190,10 @@ export default function Product() {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams();
-
+  
+      queryParams.append("pageNo1", pageNo);
+      queryParams.append("pageSize1", pageSize);
+  
       Object.keys(filters).forEach((key) => {
         if (
           filters[key] !== undefined &&
@@ -197,70 +203,72 @@ export default function Product() {
           queryParams.append(key, filters[key]);
         }
       });
-
+  
       console.log(
         "🔍 FILTER REQUEST:",
         `san-pham/filter?${queryParams.toString()}`
       );
-
+  
       const response = await baseUrl.get(
         `san-pham/filter?${queryParams.toString()}`
       );
-
+  
       console.log("📦 FILTER RESPONSE:", response.data);
-
+  
       let resultData = [];
-
-      if (response.data) {
-        if (response.data.success && response.data.data) {
-          resultData = response.data.data;
-        } else if (Array.isArray(response.data.data)) {
-          resultData = response.data.data;
-        } else if (Array.isArray(response.data)) {
-          resultData = response.data;
-        } else if (response.data.data) {
-          console.warn("⚠️ Data không phải array:", response.data.data);
-          resultData = [];
+      let totalItems = 0;
+  
+      if (response.data && response.data.data) {
+        const responseData = response.data.data;
+        
+        if (responseData.data && Array.isArray(responseData.data)) {
+          resultData = responseData.data;
+          totalItems = responseData.totalElements || (responseData.totalPage * pageSize);
+          console.log("✅ Filter PageableObject:", {
+            items: resultData.length,
+            totalPage: responseData.totalPage,
+            currentPage: responseData.currentPage,
+            totalElements: responseData.totalElements,
+            calculatedTotal: totalItems
+          });
+        }
+        else if (Array.isArray(responseData)) {
+          resultData = responseData;
+          totalItems = resultData.length;
+          console.log("✅ Filter Array:", resultData.length);
         }
       }
-
-      console.log("✅ PROCESSED DATA:", {
+  
+      console.log("✅ PROCESSED FILTER DATA:", {
         isArray: Array.isArray(resultData),
         length: resultData.length,
+        totalItems: totalItems,
         data: resultData.slice(0, 3),
       });
-
+  
       if (!Array.isArray(resultData)) {
         console.error("🔴 Data không phải array:", resultData);
         messageApi.error("Dữ liệu trả về không đúng định dạng");
         resultData = [];
       }
-
-      setFilteredData(resultData);
+  
+      setProducts(resultData);
       setCurrentFilters(filters);
-
-      const startIndex = pageNo * pageSize;
-      const endIndex = startIndex + pageSize;
-      const pagedData = resultData.slice(startIndex, endIndex);
-
-      console.log("📄 CLIENT PAGING:", {
-        total: resultData.length,
-        page: pageNo,
-        pageSize: pageSize,
-        showing: pagedData.length,
-        startIndex,
-        endIndex,
-      });
-
-      setProducts(pagedData);
+      
+      if (Object.keys(filters).length > 0) {
+        setFilteredData(resultData);
+      } else {
+        setFilteredData(null);
+      }
+  
       setPagination({
         current: pageNo + 1,
         pageSize: pageSize,
-        total: resultData.length,
+        total: totalItems,
       });
-
+  
       if (resultData.length > 0) {
-        messageApi.success(`Tìm thấy ${resultData.length} sản phẩm`);
+        messageApi.success(`Tìm thấy ${totalItems} sản phẩm`);
       } else {
         messageApi.info("Không tìm thấy sản phẩm phù hợp");
       }
@@ -314,20 +322,18 @@ export default function Product() {
 
           if (isSuccess) {
             messageApi.success(`${action} thành công!`);
-            setTimeout(() => {
-              if (filteredData && Object.keys(currentFilters).length > 0) {
-                fetchProducts(
-                  pagination.current - 1,
-                  pagination.pageSize,
-                  currentFilters
-                );
-              } else {
-                fetchProductsWithPaging(
-                  pagination.current - 1,
-                  pagination.pageSize
-                );
-              }
-            }, 500);
+            if (Object.keys(currentFilters).length > 0) {
+              fetchProducts(
+                pagination.current - 1,
+                pagination.pageSize,
+                currentFilters
+              );
+            } else {
+              fetchProductsWithPaging(
+                pagination.current - 1,
+                pagination.pageSize
+              );
+            }
           } else {
             setProducts((prev) =>
               prev.map((item) =>
@@ -366,61 +372,27 @@ export default function Product() {
 
       console.log("📦 PAGING RESPONSE:", response.data);
 
-      console.log("🔍 RESPONSE STRUCTURE:", {
-        data: response.data,
-        hasData: !!response.data,
-        hasSuccess: response.data?.success,
-        hasDataField: !!response.data?.data,
-        dataFieldType: typeof response.data?.data,
-        isArray: Array.isArray(response.data?.data),
-        dataKeys: response.data?.data
-          ? Object.keys(response.data.data)
-          : "no data",
-      });
-
       let productsData = [];
       let totalItems = 0;
 
-      if (response.data) {
-        if (response.data.data && Array.isArray(response.data.data.data)) {
-          productsData = response.data.data.data;
+      if (response.data && response.data.data) {
+        const responseData = response.data.data;
+
+        if (responseData.data && Array.isArray(responseData.data)) {
+          productsData = responseData.data;
           totalItems =
-            response.data.data.totalItems ||
-            response.data.data.totalElements ||
-            productsData.length;
-          console.log("✅ Case 1 - data.data.data array");
-        } else if (Array.isArray(response.data.data)) {
-          productsData = response.data.data;
+            responseData.totalElements || responseData.totalPage * pageSize;
+          console.log("✅ Case PageableObject:", {
+            items: productsData.length,
+            totalPage: responseData.totalPage,
+            currentPage: responseData.currentPage,
+            totalElements: responseData.totalElements,
+            calculatedTotal: totalItems,
+          });
+        } else if (Array.isArray(responseData)) {
+          productsData = responseData;
           totalItems = productsData.length;
-          console.log("✅ Case 2 - data.data array");
-        } else if (Array.isArray(response.data)) {
-          productsData = response.data;
-          totalItems = productsData.length;
-          console.log("✅ Case 3 - response.data array");
-        } else if (
-          response.data.data &&
-          response.data.data.content &&
-          Array.isArray(response.data.data.content)
-        ) {
-          productsData = response.data.data.content;
-          totalItems =
-            response.data.data.totalElements ||
-            response.data.data.totalItems ||
-            productsData.length;
-          console.log("✅ Case 4 - data.data.content array");
-        } else if (response.data.data) {
-          console.warn("⚠️ Unknown data structure:", response.data.data);
-          const dataObj = response.data.data;
-          if (dataObj.data && Array.isArray(dataObj.data)) {
-            productsData = dataObj.data;
-            totalItems =
-              dataObj.totalItems ||
-              dataObj.totalElements ||
-              productsData.length;
-          } else if (Array.isArray(dataObj)) {
-            productsData = dataObj;
-            totalItems = productsData.length;
-          }
+          console.log("✅ Case Array:", productsData.length);
         }
       }
 
@@ -432,10 +404,9 @@ export default function Product() {
 
       setFilteredData(null);
       setCurrentFilters({});
-
       setProducts(productsData);
       setPagination({
-        current: (pageNo || 0) + 1,
+        current: pageNo + 1,
         pageSize: pageSize,
         total: totalItems,
       });
@@ -464,15 +435,7 @@ export default function Product() {
 
     console.log("✅ Filter cleaned:", cleanedFilters);
 
-    const hasFilters = Object.keys(cleanedFilters).length > 0;
-
-    if (hasFilters) {
-      fetchProducts(0, pagination.pageSize, cleanedFilters);
-    } else {
-      setFilteredData(null);
-      setCurrentFilters({});
-      fetchProductsWithPaging(0, pagination.pageSize);
-    }
+    fetchProducts(0, pagination.pageSize, cleanedFilters);
   };
 
   const handleViewMultipleDetails = () => {
@@ -492,11 +455,8 @@ export default function Product() {
     fetchProductsWithPaging(0, pagination.pageSize);
   }, []);
 
-  const totalProducts = Math.max(
-    0,
-    filteredData ? filteredData.length : pagination.total || 0
-  );
-  const dataForStats = filteredData || products || [];
+  const totalProducts = pagination.total || 0;
+  const dataForStats = products || [];
   const totalQuantity = dataForStats.reduce(
     (sum, p) => sum + (Number(p.tongSoLuong) || 0),
     0
@@ -652,16 +612,14 @@ export default function Product() {
         <Space size="middle">
           <Button
             type="link"
-            icon={<EyeIcon size={24}/>}
+            icon={<EyeIcon size={24} />}
             onClick={() => navigate(`/admin/detail-product/${record.id}`)}
-          >
-          </Button>
+          ></Button>
           <Button
             type="link"
             icon={<PencilLineIcon size={24} weight="fill" color="#E67E22" />}
             onClick={() => handleEditProduct(record)}
-          >
-          </Button>
+          ></Button>
           <a
             onClick={(e) => {
               e.preventDefault();
@@ -685,25 +643,22 @@ export default function Product() {
     },
   ];
 
-  const handleTableChange = (newPagination) => {
-    console.log("🔄 Table change:", newPagination);
-
-    if (filteredData && filteredData.length > 0) {
-      const startIndex = (newPagination.current - 1) * newPagination.pageSize;
-      const endIndex = startIndex + newPagination.pageSize;
-      const pagedData = filteredData.slice(startIndex, endIndex);
-
-      setProducts(pagedData);
-      setPagination({
-        current: newPagination.current,
-        pageSize: newPagination.pageSize,
-        total: filteredData.length,
-      });
+  const handleTableChange = (newPagination, filters, sorter) => {
+    console.log("🔄 Table change:", {
+      current: newPagination.current,
+      pageSize: newPagination.pageSize,
+      total: newPagination.total
+    });
+  
+    const pageNo = newPagination.current - 1;
+    const pageSize = newPagination.pageSize;
+  
+    if (Object.keys(currentFilters).length > 0) {
+      console.log("📌 Có filter, gọi fetchProducts");
+      fetchProducts(pageNo, pageSize, currentFilters);
     } else {
-      fetchProductsWithPaging(
-        newPagination.current - 1,
-        newPagination.pageSize
-      );
+      console.log("📌 Không filter, gọi fetchProductsWithPaging");
+      fetchProductsWithPaging(pageNo, pageSize);
     }
   };
 
@@ -738,7 +693,7 @@ export default function Product() {
             editingUser={editingUser}
             onFinishUpdate={() => {
               setEditingUser(null);
-              if (filteredData && Object.keys(currentFilters).length > 0) {
+              if (Object.keys(currentFilters).length > 0) {
                 fetchProducts(
                   pagination.current - 1,
                   pagination.pageSize,
@@ -767,7 +722,7 @@ export default function Product() {
             {selectedRowKeys.length > 0 && (
               <div
                 onClick={handleViewMultipleDetails}
-                className="rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-white transition-colors font-medium text-[#E67E22] bg-white font-semibold active:bg-cyan-800" 
+                className="rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-white transition-colors font-medium text-[#E67E22] bg-white font-semibold active:bg-cyan-800"
               >
                 Xem {selectedRowKeys.length} sản phẩm
               </div>
