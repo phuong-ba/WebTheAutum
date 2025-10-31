@@ -66,6 +66,10 @@ export default function Product() {
     }
   };
 
+  const handleEditProduct = (record) => {
+    navigate(`/edit-product/${record.id}`);
+  };
+
   const rowSelection = {
     selectedRowKeys,
     onChange: (newSelectedRowKeys, selectedRows) => {
@@ -587,7 +591,7 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
           <Button
             type="link"
             icon={<EditOutlined />}
-            onClick={() => setEditingUser(record)}
+            onClick={() => handleEditProduct(record)}
             className="text-green-500 p-0"
           >
             Sửa
@@ -649,31 +653,6 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="text-center shadow-sm">
-          <Statistic
-            title="Tổng sản phẩm"
-            value={totalProducts}
-            prefix={<ShoppingOutlined />}
-            valueStyle={{ color: "#E67E22" }}
-          />
-        </Card>
-        <Card className="text-center shadow-sm">
-          <Statistic
-            title="Tổng số lượng"
-            value={totalQuantity}
-            valueStyle={{ color: "#52c41a" }}
-          />
-        </Card>
-        <Card className="text-center shadow-sm">
-          <Statistic
-            title="Sản phẩm đang hoạt động"
-            value={activeProducts}
-            valueStyle={{ color: "#1890ff" }}
-          />
-        </Card>
-      </div>
-
       <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
         <div className="bg-[#E67E22] text-white px-6 py-3">
           <h2 className="text-lg font-bold">Bộ lọc sản phẩm</h2>
@@ -703,7 +682,7 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
             {selectedRowKeys.length > 0 && (
               <button
                 onClick={handleViewMultipleDetails}
-                className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium"
+                className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium"
               >
                 Xem {selectedRowKeys.length} sản phẩm
               </button>
@@ -712,14 +691,14 @@ const fetchProductsWithPaging = async (pageNo = 0, pageSize = 5) => {
             <button
               onClick={handleExportExcel}
               disabled={!products || products.length === 0}
-              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Xuất Excel
             </button>
 
             <button
               onClick={() => navigate("/add-product")}
-              className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Thêm sản phẩm
             </button>

@@ -12,6 +12,7 @@ import {
   LockKeyIcon,
   LockOpenIcon,
   PencilIcon,
+  PencilLineIcon,
   ToggleLeftIcon,
   ToggleRightIcon,
 } from "@phosphor-icons/react";
@@ -19,6 +20,7 @@ import dayjs from "dayjs";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import UserBreadcrumb from "./UserBreadcrumb";
+import { ExclamationCircleFilled } from "@ant-design/icons";
 
 export default function User() {
   const dispatch = useDispatch();
@@ -27,129 +29,40 @@ export default function User() {
   const [modal, contextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
   const fileInputRef = useRef(null);
+  const [isModalVisible, setIsModalVisible] = React.useState(false);
+  const [selectedRecord, setSelectedRecord] = React.useState(null);
 
+  const showCustomModal = (record) => {
+    setSelectedRecord(record);
+    setIsModalVisible(true);
+  };
   useEffect(() => {
     dispatch(fetchNhanVien());
   }, [dispatch]);
 
-  const handleChangeStatus = (record) => {
-    if (record.trangThai) {
-      modal.confirm({
-        title: "Xác nhận khóa",
-        content: `Bạn có chắc muốn khóa nhân viên "${record.hoTen}" không?`,
-        okText: "Khóa",
-        cancelText: "Hủy",
-        okButtonProps: { danger: true },
-        onOk: async () => {
-          try {
-            await dispatch(
-              changeStatusNhanVien({
-                id: record.id,
-                trangThai: false,
-              })
-            );
-            messageApi.success("Khóa nhân viên thành công!");
-            dispatch(fetchNhanVien());
-          } catch (error) {
-            messageApi.error("Khóa nhân viên thất bại!");
-          }
-        },
-      });
-    } else {
-      (async () => {
-        try {
-          await dispatch(
-            changeStatusNhanVien({
-              id: record.id,
-              trangThai: true,
-            })
-          );
-          messageApi.success("Mở khóa nhân viên thành công!");
-          dispatch(fetchNhanVien());
-        } catch (error) {
-          messageApi.error("Mở khóa nhân viên thất bại!");
-        }
-      })();
+  const handleConfirmStatusChange = async () => {
+    if (!selectedRecord) return;
+    try {
+      await dispatch(
+        changeStatusNhanVien({
+          id: selectedRecord.id,
+          trangThai: !selectedRecord.trangThai,
+        })
+      );
+      messageApi.success(
+        selectedRecord.trangThai
+          ? "Khóa nhân viên thành công!"
+          : "Mở khóa nhân viên thành công!"
+      );
+      dispatch(fetchNhanVien());
+    } catch (error) {
+      messageApi.error("Thao tác thất bại!");
+    } finally {
+      setIsModalVisible(false);
+      setSelectedRecord(null);
     }
   };
 
-  const columns = [
-    {
-      title: "STT",
-      key: "stt",
-      render: (_, __, index) => index + 1,
-      width: 60,
-      align: "center",
-    },
-    { title: "MÃ NHÂN VIÊN", dataIndex: "maNhanVien", key: "maNhanVien" },
-    { title: "TÊN NHÂN VIÊN", dataIndex: "hoTen", key: "hoTen" },
-    {
-      title: "GIỚI TÍNH",
-      dataIndex: "gioiTinh",
-      key: "gioiTinh",
-      render: (value) => (value ? "Nam" : "Nữ"),
-      align: "center",
-    },
-    { title: "SỐ ĐIỆN THOẠI", dataIndex: "sdt", key: "sdt" },
-    { title: "ĐỊA CHỈ", dataIndex: "diaChi", key: "diaChi" },
-    { title: "CHỨC VỤ", dataIndex: "chucVuName", key: "chucVuName" },
-    { title: "EMAIL", dataIndex: "email", key: "email" },
-    {
-      title: "NGÀY BẮT ĐẦU",
-      dataIndex: "ngayTao",
-      key: "ngayTao",
-      render: (date) =>
-        new Date(date).toLocaleDateString("vi-VN", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
-      align: "center",
-    },
-    {
-      title: "TRẠNG THÁI",
-      dataIndex: "trangThai",
-      key: "trangThai",
-      render: (value) =>
-        value ? (
-          <Tag color="#E9FBF4" style={{ border: "1px solid #00A96C" }}>
-            <div className="text-[#00A96C] ">Đang hoạt động</div>
-          </Tag>
-        ) : (
-          <Tag color="red">Ngừng hoạt động</Tag>
-        ),
-      align: "center",
-    },
-    {
-      title: "HÀNH ĐỘNG",
-      key: "action",
-      align: "center",
-      render: (_, record) => (
-        <Space size="middle">
-          <a onClick={() => handleChangeStatus(record)}>
-            {record.trangThai ? (
-              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
-            ) : (
-              <ToggleLeftIcon weight="fill" size={30} color="#E67E22" />
-            )}
-          </a>
-          <a
-            onClick={() => {
-              if (!record.trangThai) {
-                messageApi.warning(
-                  "Không thể cập nhật! Nhân viên này đã bị khóa."
-                );
-                return;
-              }
-              navigate(`/update-user/${record.id}`);
-            }}
-          >
-            <PencilIcon size={24} />
-          </a>
-        </Space>
-      ),
-    },
-  ];
   const handleExportExcel = () => {
     if (!data || data.length === 0) {
       messageApi.warning("Không có dữ liệu để xuất!");
@@ -209,12 +122,11 @@ export default function User() {
 
       let errorCount = 0;
 
-      // Lấy danh sách email và sdt hiện có trong hệ thống
       const existingEmails = new Set(data.map((item) => item.email));
       const existingSdts = new Set(data.map((item) => item.sdt));
 
-      const emailsSet = new Set(); // kiểm tra trùng trong file
-      const sdtSet = new Set(); // kiểm tra trùng trong file
+      const emailsSet = new Set();
+      const sdtSet = new Set();
 
       for (const [index, row] of rows.entries()) {
         const hoTen = String(row.HoTen ?? "").trim();
@@ -228,7 +140,6 @@ export default function User() {
 
         let rowHasError = false;
 
-        // Kiểm tra email
         if (!email) {
           messageApi.error(`Dòng ${index + 1}: Email không được để trống`);
           rowHasError = true;
@@ -244,7 +155,6 @@ export default function User() {
           emailsSet.add(email);
         }
 
-        // Kiểm tra sđt
         if (!sdt.startsWith("0")) {
           messageApi.error(
             `Dòng ${index + 1}: Số điện thoại phải bắt đầu bằng số 0`
@@ -292,6 +202,84 @@ export default function User() {
     }
   };
 
+  const columns = [
+    {
+      title: "STT",
+      key: "stt",
+      render: (_, __, index) => index + 1,
+      width: 60,
+      align: "center",
+    },
+    { title: "MÃ NHÂN VIÊN", dataIndex: "maNhanVien", key: "maNhanVien" },
+    { title: "TÊN NHÂN VIÊN", dataIndex: "hoTen", key: "hoTen" },
+    {
+      title: "GIỚI TÍNH",
+      dataIndex: "gioiTinh",
+      key: "gioiTinh",
+      render: (value) => (value ? "Nam" : "Nữ"),
+      align: "center",
+    },
+    { title: "SỐ ĐIỆN THOẠI", dataIndex: "sdt", key: "sdt" },
+    { title: "ĐỊA CHỈ", dataIndex: "diaChi", key: "diaChi" },
+
+    { title: "EMAIL", dataIndex: "email", key: "email" },
+    {
+      title: "NGÀY BẮT ĐẦU",
+      dataIndex: "ngayTao",
+      key: "ngayTao",
+      render: (date) =>
+        new Date(date).toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
+      align: "center",
+    },
+    { title: "CHỨC VỤ", dataIndex: "chucVuName", key: "chucVuName" },
+    {
+      title: "TRẠNG THÁI",
+      dataIndex: "trangThai",
+      key: "trangThai",
+      render: (value) =>
+        value ? (
+          <Tag color="#E9FBF4" style={{ border: "1px solid #00A96C" }}>
+            <div className="text-[#00A96C] ">Đang hoạt động</div>
+          </Tag>
+        ) : (
+          <Tag color="red">Ngừng hoạt động</Tag>
+        ),
+      align: "center",
+    },
+    {
+      title: "HÀNH ĐỘNG",
+      key: "action",
+      align: "center",
+      render: (_, record) => (
+        <Space size="middle">
+          <a onClick={() => showCustomModal(record)}>
+            {record.trangThai ? (
+              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
+            ) : (
+              <ToggleLeftIcon weight="fill" size={30} color="#c5c5c5" />
+            )}
+          </a>
+          <a
+            onClick={() => {
+              if (!record.trangThai) {
+                messageApi.warning(
+                  "Không thể cập nhật! Nhân viên này đã bị khóa."
+                );
+                return;
+              }
+              navigate(`/admin/update-user/${record.id}`);
+            }}
+          >
+            <PencilLineIcon size={24} weight="fill" color="#E67E22" />
+          </a>
+        </Space>
+      ),
+    },
+  ];
   return (
     <>
       {contextHolder}
@@ -313,8 +301,8 @@ export default function User() {
             </div>
             <div className="flex gap-3">
               <div
-                onClick={() => navigate("/add-user")}
-                className="bg-white font-bold text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] active:border-[#d35400] transition-colors "
+                onClick={() => navigate("/admin/add-user")}
+                className="bg-white text-[#E67E22] rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
               >
                 Thêm mới
               </div>
@@ -322,7 +310,7 @@ export default function User() {
               <div
                 onClick={handleExportExcel}
                 disabled={!data || data.length === 0}
-                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-bold"
+                className="bg-white text-[#E67E22] rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
               >
                 Xuất Excel
               </div>
@@ -344,7 +332,7 @@ export default function User() {
                 onClick={() =>
                   fileInputRef.current && fileInputRef.current.click()
                 }
-                className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-bold"
+                className="bg-white text-[#E67E22] rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
               >
                 Thêm Excel
               </div>
@@ -359,6 +347,50 @@ export default function User() {
             pagination={{ pageSize: 10 }}
           />
         </div>
+        <Modal
+          open={isModalVisible}
+          onCancel={() => setIsModalVisible(false)}
+          footer={null}
+          centered
+          closable={false}
+        >
+          <div className="flex flex-col items-center gap-4 p-4">
+            <ExclamationCircleFilled
+              style={{ fontSize: 64, color: "#faad14" }}
+            />
+            <h2 className="text-xl font-bold text-center">
+              {selectedRecord?.trangThai
+                ? "Xác nhận khóa nhân viên"
+                : "Xác nhận mở khóa nhân viên"}
+            </h2>
+            <p className="text-gray-600 text-center">
+              Bạn có chắc muốn{" "}
+              <span className="font-semibold">
+                {selectedRecord?.trangThai ? "khóa" : "mở khóa"}
+              </span>{" "}
+              nhân viên "<strong>{selectedRecord?.hoTen}</strong>" không?
+            </p>
+
+            <div className="flex justify-center gap-6 mt-6 w-full">
+              <Button
+                size="large"
+                className="w-40"
+                onClick={() => setIsModalVisible(false)}
+              >
+                Hủy
+              </Button>
+              <Button
+                type={selectedRecord?.trangThai ? "primary" : "default"}
+                danger={selectedRecord?.trangThai}
+                size="large"
+                className="w-40"
+                onClick={handleConfirmStatusChange}
+              >
+                {selectedRecord?.trangThai ? "Khóa" : "Mở khóa"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </>
   );

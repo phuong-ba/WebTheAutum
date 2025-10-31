@@ -1,72 +1,54 @@
 import React, { useEffect, useState } from "react";
-import {
-  Table,
-  Button,
-  Space,
-  Tag,
-  message,
-  Row,
-  Col,
-  Input,
-  Radio,
-  Switch,
-  Card,
-  Tooltip,
-  Modal,
-  Select,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  FileExcelOutlined,
-  CloudUploadOutlined,
-  DownloadOutlined,
-  LockOutlined,
-  UnlockOutlined,
-} from "@ant-design/icons";
+import { Table, Space, Tag, message, Modal, Select } from "antd";
+import { ToggleLeft, ToggleRight, PencilLine } from "@phosphor-icons/react";
 import { khachHangApi } from "/src/api/khachHangApi";
 import { diaChiApi } from "/src/api/diaChiApi";
-import CustomerBreadcrumb from "../customer/CustomerBreadcrumb";
 import {
   downloadTemplate,
   importFromExcel,
   exportToExcel,
 } from "/src/pages/customer/excelCustomerUtils";
 import CustomerForm from "./CustomerForm";
+import ConfirmModal from "./ConfirmModal";
+import CustomerBreadcrumb from "./CustomerBreadcrumb";
+
 export default function Customer() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [editCustomer, setEditCustomer] = useState(null);
   const [mode, setMode] = useState("table");
+  const [editCustomer, setEditCustomer] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [filterTrangThai, setFilterTrangThai] = useState("all");
-  const [importing, setImporting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    visible: false,
+    type: null,
+    record: null,
+    loading: false,
+  });
   const [messageApi, messageContextHolder] = message.useMessage();
-  const [modal, contextHolder] = Modal.useModal();
-  const { Option } = Select;
   const pageSize = 5;
 
-  // 🔹 Gọi API lấy danh sách và sắp xếp theo ngày sửa / ngày tạo giảm dần
+  // 🔹 Cấu hình message
+  useEffect(() => {
+    message.config({ top: "45%", duration: 2, maxCount: 3 });
+  }, []);
+
+  // 🔹 Gọi API
   const fetchCustomers = async () => {
     setLoading(true);
     try {
       const res = await khachHangApi.getAll();
-
-      // 🔸 Ưu tiên ngày sửa nếu có, nếu không có thì dùng ngày tạo
       const sorted = Array.isArray(res)
-        ? [...res].sort((a, b) => {
-            const dateA = new Date(a.ngaySua || a.ngayTao);
-            const dateB = new Date(b.ngaySua || b.ngayTao);
-            return dateB - dateA; // giảm dần
-          })
-        : [res];
-
+        ? [...res].sort(
+            (a, b) =>
+              new Date(b.ngaySua || b.ngayTao) -
+              new Date(a.ngaySua || a.ngayTao)
+          )
+        : [];
       setCustomers(sorted);
-      return sorted;
-    } catch (err) {
+    } catch {
       message.error("Không thể tải danh sách khách hàng");
-      return [];
     } finally {
       setLoading(false);
     }
@@ -76,132 +58,71 @@ export default function Customer() {
     fetchCustomers();
   }, []);
 
-  const handleAdd = () => {
-    setEditCustomer(null);
-    setMode("form");
-  };
-
-  const handleEdit = (record) => {
-    setEditCustomer(record);
-    setMode("form");
-  };
-
-  // Khai báo cấu hình message để hiện ở góc phải
-  message.config({
-    duration: 1,
-    maxCount: 3,
-  });
-
-  const toggleStatus = async (record) => {
-    if (record.trangThai) {
-      modal.confirm({
-        title: "Xác nhận khóa",
-        content: `Bạn có chắc muốn khóa khách hàng "${record.hoTen}" không?`,
-        okText: "Khóa",
-        cancelText: "Hủy",
-        okButtonProps: { danger: true },
-        onOk: async () => {
-          try {
-            const updatedCustomer = {
-              ...record,
-              trangThai: false,
-            };
-            await khachHangApi.update(record.id, updatedCustomer);
-
-            messageApi.open({
-              type: "success",
-              content: (
-                <div style={{ fontSize: "16px", fontWeight: 600 }}>
-                  Đã khóa khách hàng{" "}
-                  <span style={{ color: "#e57c23" }}>{record.hoTen}</span>
-                </div>
-              ),
-              duration: 2,
-              style: {
-                position: "fixed",
-                right: 20,
-                top: 80,
-                minWidth: 280,
-                padding: "12px 16px",
-                borderRadius: "10px",
-                fontSize: "16px",
-              },
-            });
-
-            fetchCustomers();
-          } catch (err) {
-            messageApi.open({
-              type: "error",
-              content: "Khóa khách hàng thất bại!",
-              duration: 2,
-              style: {
-                position: "fixed",
-                right: 20,
-                top: 80,
-              },
-            });
-          }
+  // 🔹 Mở modal xác nhận
+  const openConfirmModal = (type, record = null) => {
+    if (type === "edit" && record && !record.trangThai) {
+      Modal.warning({
+        centered: true,
+        title: "Không thể cập nhật!",
+        content: (
+          <>
+            Khách hàng <strong>{record.hoTen}</strong> đã bị khóa và không thể
+            chỉnh sửa.
+          </>
+        ),
+        okText: "Đã hiểu",
+        okButtonProps: {
+          style: { backgroundColor: "#E67E22", borderColor: "#E67E22" },
         },
       });
-    } else {
-      modal.confirm({
-        title: "Xác nhận mở khóa",
-        content: `Bạn có chắc muốn mở khóa khách hàng "${record.hoTen}" không?`,
-        okText: "Mở khóa",
-        cancelText: "Hủy",
-        onOk: async () => {
-          try {
-            const updatedCustomer = {
-              ...record,
-              trangThai: true,
-            };
-            await khachHangApi.update(record.id, updatedCustomer);
+      return;
+    }
 
-            messageApi.open({
-              type: "success",
-              content: (
-                <div style={{ fontSize: "16px", fontWeight: 600 }}>
-                  Đã mở khóa khách hàng{" "}
-                  <span style={{ color: "#e57c23" }}>{record.hoTen}</span>
-                </div>
-              ),
-              duration: 2,
-              style: {
-                position: "fixed",
-                right: 20,
-                top: 80,
-                minWidth: 280,
-                padding: "12px 16px",
-                borderRadius: "10px",
-                fontSize: "16px",
-              },
-            });
+    setConfirmModal({ visible: true, type, record, loading: false });
+  };
 
-            fetchCustomers();
-          } catch (err) {
-            messageApi.open({
-              type: "error",
-              content: "Mở khóa khách hàng thất bại!",
-              duration: 2,
-              style: {
-                position: "fixed",
-                right: 20,
-                top: 80,
-              },
-            });
-          }
-        },
+  // 🔹 Xử lý xác nhận (bản gọn, không thanh màu)
+  const handleConfirm = async () => {
+    const { type, record } = confirmModal;
+    try {
+      setConfirmModal((prev) => ({ ...prev, loading: true }));
+
+      if (type === "add" || type === "edit") {
+        setEditCustomer(type === "edit" ? record : null);
+        setMode("form");
+      } else if (type === "status") {
+        const updated = { ...record, trangThai: !record.trangThai };
+        await khachHangApi.update(record.id, updated);
+
+        // ✅ Thông báo gọn, mặc định của Ant Design
+        messageApi.success(
+          record.trangThai
+            ? "Khóa khách hàng thành công!"
+            : "Mở khóa khách hàng thành công!"
+        );
+
+        await fetchCustomers();
+      }
+    } catch {
+      messageApi.error("Thao tác thất bại!");
+    } finally {
+      setConfirmModal({
+        visible: false,
+        type: null,
+        record: null,
+        loading: false,
       });
     }
   };
 
-  // 🔹 Lọc và tìm kiếm
+  // 🔹 Lọc dữ liệu
   const filteredData = customers.filter((item) => {
+    const search = searchKeyword.toLowerCase();
     const matchSearch =
-      item.maKhachHang?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      item.hoTen?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      item.email?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      item.sdt?.toLowerCase().includes(searchKeyword.toLowerCase());
+      item.maKhachHang?.toLowerCase().includes(search) ||
+      item.hoTen?.toLowerCase().includes(search) ||
+      item.email?.toLowerCase().includes(search) ||
+      item.sdt?.toLowerCase().includes(search);
 
     const matchStatus =
       filterTrangThai === "all"
@@ -213,109 +134,117 @@ export default function Customer() {
     return matchSearch && matchStatus;
   });
 
-  // 🔹 Cột bảng
+  // 🔹 Cấu hình cột
   const columns = [
     {
       title: "STT",
-      render: (_, __, index) => (currentPage - 1) * pageSize + index + 1,
+      render: (_, __, i) => (currentPage - 1) * pageSize + i + 1,
       align: "center",
     },
     {
-      title: "Mã Khách Hàng",
+      title: "Mã KH",
       dataIndex: "maKhachHang",
       render: (text) => (
-        <a style={{ color: "#e67e22", fontWeight: 600, fontSize: "16px" }}>
-          {text}
-        </a>
+        <a style={{ color: "#e67e22", fontWeight: 600 }}>{text}</a>
       ),
     },
-    { title: "Tên Khách Hàng", dataIndex: "hoTen" },
-    { title: "Số Điện Thoại", dataIndex: "sdt" },
+    { title: "Tên KH", dataIndex: "hoTen" },
+    { title: "SĐT", dataIndex: "sdt" },
     { title: "Email", dataIndex: "email" },
     {
-      title: "Địa Chỉ",
+      title: "Địa chỉ",
       render: (r) => {
-        const defaultAddress = r.diaChi?.find((a) => a.trangThai);
-        return defaultAddress
-          ? defaultAddress.diaChiCuThe
-          : r.diaChi?.[0]?.diaChiCuThe || "Không có địa chỉ";
+        const dc = r.diaChi?.find((a) => a.trangThai);
+        return dc ? dc.diaChiCuThe : r.diaChi?.[0]?.diaChiCuThe || "Không có";
       },
     },
     {
-      title: "Trạng Thái",
+      title: "Trạng thái",
       align: "center",
       render: (r) =>
         r.trangThai ? (
-          <Tag color="green" style={{ fontSize: 14, padding: "6px 14px" }}>
-            Kích Hoạt
+          <Tag color="#E9FBF4" style={{ border: "1px solid #00A96C" }}>
+            <div className="text-[#00A96C]">Đang hoạt động</div>
           </Tag>
         ) : (
-          <Tag color="red" style={{ fontSize: 14, padding: "6px 14px" }}>
-            Đã Hủy
-          </Tag>
+          <Tag color="red">Ngừng hoạt động</Tag>
         ),
     },
     {
-      title: "Hành Động",
+      title: "Hành động",
       align: "center",
-      render: (_, record) => (
-        <Space size="large">
-          <Tooltip title={record.trangThai ? "Đang kích hoạt" : "Đã khóa"}>
-            {record.trangThai ? (
-              <UnlockOutlined
-                style={{
-                  color: "#e57c23",
-                  fontSize: 22,
-                  cursor: "pointer",
-                }}
-                onClick={() => toggleStatus(record)}
-              />
-            ) : (
-              <LockOutlined
-                style={{
-                  color: "#e90408ff",
-                  fontSize: 22,
-                  cursor: "pointer",
-                }}
-                onClick={() => toggleStatus(record)}
-              />
-            )}
-          </Tooltip>
-
-          <Tooltip
-            title={
-              record.trangThai ? "Chỉnh sửa khách hàng" : "Không thể chỉnh sửa"
-            }
+      render: (_, r) => (
+        <Space>
+          <div
+            onClick={() => openConfirmModal("status", r)}
+            style={{ cursor: "pointer" }}
           >
-            <Button
-              type="text"
-              icon={
-                <EditOutlined
-                  style={{
-                    color: record.trangThai ? "#e67e22" : "#ccc",
-                    fontSize: 20,
-                  }}
-                />
-              }
-              onClick={() => handleEdit(record)}
-              disabled={!record.trangThai}
-            />
-          </Tooltip>
+            {r.trangThai ? (
+              <ToggleRight weight="fill" size={30} color="#00A96C" />
+            ) : (
+              <ToggleLeft weight="fill" size={30} color="#c5c5c5" />
+            )}
+          </div>
+
+          <div
+            onClick={() => openConfirmModal("edit", r)}
+            style={{ cursor: "pointer" }}
+          >
+            <PencilLine size={24} weight="fill" color="#E67E22" />
+          </div>
         </Space>
       ),
     },
   ];
 
+  // 🔹 Hàm dựng tiêu đề & mô tả modal
+  const getModalText = () => {
+    const { type, record } = confirmModal;
+    if (type === "add")
+      return {
+        title: "Xác nhận thêm khách hàng",
+        desc: "Bạn có chắc muốn thêm khách hàng mới không?",
+        btn: "Thêm mới",
+      };
+    if (type === "edit")
+      return {
+        title: "Xác nhận sửa khách hàng",
+        desc: (
+          <>
+            Bạn có chắc muốn sửa khách hàng <strong>{record?.hoTen}</strong>{" "}
+            không?
+          </>
+        ),
+        btn: "Sửa",
+      };
+    if (type === "status")
+      return {
+        title: record?.trangThai
+          ? "Xác nhận khóa khách hàng"
+          : "Xác nhận mở khóa khách hàng",
+        desc: (
+          <>
+            Bạn có chắc muốn{" "}
+            <span className="font-semibold">
+              {record?.trangThai ? "khóa" : "mở khóa"}
+            </span>{" "}
+            khách hàng "<strong>{record?.hoTen}</strong>" không?
+          </>
+        ),
+        btn: record?.trangThai ? "Khóa" : "Mở khóa",
+      };
+  };
+
+  const modalText = getModalText();
+
   return (
     <>
-      {contextHolder}
       {messageContextHolder}
 
       {mode === "table" ? (
-        // ==== Giao diện bảng khách hàng ====
         <div className="p-6 flex flex-col gap-10">
-          {/* ==== PHẦN TIÊU ĐỀ ==== */}
-          <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+          {/* ==== Header ==== */}
+          <div className="bg-white px-4 py-5 rounded-lg shadow">
             <div className="font-bold text-4xl text-[#E67E22]">
               Quản lý khách hàng
             </div>
@@ -324,25 +253,24 @@ export default function Customer() {
             </div>
           </div>
 
-          {/* ==== BỘ LỌC KHÁCH HÀNG ==== */}
+          {/* ==== Bộ lọc ==== */}
           <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
-            <div className="bg-[#E67E22] px-6 py-3 text-white font-bold text-lg rounded-tl-lg rounded-tr-lg">
+            <div className="bg-[#E67E22] px-6 py-3 text-white font-bold text-lg">
               Bộ lọc khách hàng
             </div>
 
             <div className="p-6 flex flex-col gap-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <input
-                  type="text"
                   placeholder="Nhập mã, tên, email, số điện thoại..."
                   value={searchKeyword}
                   onChange={(e) => setSearchKeyword(e.target.value)}
-                  className="border rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
+                  className="border rounded-lg px-4 py-2 w-full focus:ring-2 focus:ring-[#E67E22]"
                 />
                 <select
                   value={filterTrangThai}
                   onChange={(e) => setFilterTrangThai(e.target.value)}
-                  className="border rounded-lg px-4 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
+                  className="border rounded-lg px-4 py-2 w-full focus:ring-2 focus:ring-[#E67E22]"
                 >
                   <option value="all">Tất cả trạng thái</option>
                   <option value="active">Hoạt động</option>
@@ -350,53 +278,37 @@ export default function Customer() {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 mt-4">
-                <button
+              <div className="flex justify-end gap-3 mt-4 flex-wrap">
+                <div
                   onClick={() => {
                     setSearchKeyword("");
                     setFilterTrangThai("all");
                   }}
-                  className="bg-gray-100 text-gray-700 rounded px-6 py-2 hover:bg-gray-200 transition-colors"
+                  className="bg-gray-400 text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-700"
                 >
                   Nhập lại
-                </button>
+                </div>
 
-                <button className="bg-[#E67E22] text-white rounded px-6 py-2 hover:bg-[#d35400] transition-colors">
-                  Tìm kiếm
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* ==== DANH SÁCH KHÁCH HÀNG ==== */}
-          <div className="bg-white min-h-[500px] rounded-lg shadow overflow-hidden">
-            <div className="flex justify-between items-center bg-[#E67E22] px-6 py-3 rounded-tl-lg rounded-tr-lg">
-              <div className="text-white font-bold text-2xl">
-                Danh sách khách hàng
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handleAdd}
-                  className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] active:border-[#d35400] transition-colors font-medium"
+                <div
+                  onClick={() => openConfirmModal("add")}
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
                 >
                   Thêm mới
-                </button>
+                </div>
 
-                <button
+                <div
                   onClick={() => exportToExcel(customers)}
-                  disabled={!customers || customers.length === 0}
-                  className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
                 >
                   Xuất Excel
-                </button>
+                </div>
 
-                <button
+                <div
                   onClick={downloadTemplate}
-                  className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
                 >
                   Tải mẫu Excel
-                </button>
+                </div>
 
                 <input
                   type="file"
@@ -408,21 +320,28 @@ export default function Customer() {
                       e.target.files[0],
                       khachHangApi,
                       diaChiApi,
-                      fetchCustomers,
-                      setImporting
+                      fetchCustomers
                     )
                   }
                 />
 
-                <button
-                  type="button"
+                <div
                   onClick={() =>
                     document.getElementById("importExcel")?.click()
                   }
-                  className="bg-white text-[#E67E22] rounded px-6 py-2 cursor-pointer hover:bg-gray-100 hover:text-[#d35400] transition-colors font-medium"
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
                 >
                   Thêm từ Excel
-                </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ==== Danh sách ==== */}
+          <div className="bg-white rounded-lg shadow">
+            <div className="flex justify-between items-center bg-[#E67E22] px-6 py-3 rounded-t-lg">
+              <div className="text-white font-bold text-2xl">
+                Danh sách khách hàng
               </div>
             </div>
 
@@ -430,10 +349,11 @@ export default function Customer() {
               columns={columns}
               dataSource={filteredData}
               rowKey="id"
+              loading={loading}
               bordered
               pagination={{
                 current: currentPage,
-                pageSize: 5,
+                pageSize,
                 onChange: setCurrentPage,
                 total: filteredData.length,
                 position: ["bottomCenter"],
@@ -442,7 +362,6 @@ export default function Customer() {
           </div>
         </div>
       ) : (
-        // ==== Giao diện form thêm/sửa khách hàng ====
         <CustomerForm
           customer={editCustomer}
           onCancel={() => setMode("table")}
@@ -452,6 +371,23 @@ export default function Customer() {
           }}
         />
       )}
+
+      {/* ==== Modal xác nhận ==== */}
+      <ConfirmModal
+        open={confirmModal.visible}
+        onCancel={() =>
+          setConfirmModal({ visible: false, type: null, record: null })
+        }
+        onConfirm={handleConfirm}
+        loading={confirmModal.loading}
+        title={modalText?.title}
+        description={modalText?.desc}
+        confirmText={modalText?.btn}
+        confirmType="primary"
+        confirmDanger={
+          confirmModal.type === "status" && confirmModal.record?.trangThai
+        }
+      />
     </>
   );
 }

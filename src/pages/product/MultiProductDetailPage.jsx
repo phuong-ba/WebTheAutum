@@ -276,31 +276,6 @@ export default function MultiProductDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 my-4 px-6">
-          <div className="bg-white rounded-lg shadow-md p-4 text-center border-l-4 border-[#E67E22]">
-            <div className="text-3xl font-bold text-[#E67E22]">{productData.tongSoLuong || 0}</div>
-            <div className="text-gray-600 text-sm mt-1">Tổng số lượng</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-4 text-center border-l-4 border-green-500">
-            <div className="text-xl font-bold text-green-600">
-              {formatPrice(productData.giaThapNhat)}
-            </div>
-            <div className="text-gray-600 text-sm mt-1">Giá thấp nhất</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-4 text-center border-l-4 border-red-500">
-            <div className="text-xl font-bold text-red-600">
-              {formatPrice(productData.giaCaoNhat)}
-            </div>
-            <div className="text-gray-600 text-sm mt-1">Giá cao nhất</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-4 text-center border-l-4 border-blue-500">
-            <div className="text-3xl font-bold text-blue-600">
-              {variantDataSource.length}
-            </div>
-            <div className="text-gray-600 text-sm mt-1">Số biến thể</div>
-          </div>
-        </div>
-
         <div className="bg-white rounded-lg shadow-md mb-4 overflow-hidden">
           <div className="bg-gray-100 px-6 py-3 border-b">
             <h3 className="text-md font-semibold text-gray-700">Thông tin chi tiết</h3>
@@ -378,6 +353,13 @@ export default function MultiProductDetailPage() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow">
         <div className="text-sm text-gray-600">
+        <span 
+            className="cursor-pointer hover:text-[#E67E22]"
+            onClick={() => navigate('/')}
+          >
+            Trang chủ
+          </span>
+          <span className="mx-2">/</span>
           <span 
             className="cursor-pointer hover:text-[#E67E22]"
             onClick={() => navigate('/product')}
@@ -398,38 +380,6 @@ export default function MultiProductDetailPage() {
         >
           Quay lại
         </Button>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-2xl font-bold text-[#E67E22] mb-4">
-          📊 Tổng quan {productsData.length} sản phẩm
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg text-center">
-            <div className="text-2xl font-bold text-[#E67E22]">
-              {productsData.reduce((sum, p) => sum + (p.tongSoLuong || 0), 0)}
-            </div>
-            <div className="text-gray-600 text-sm">Tổng số lượng</div>
-          </div>
-          <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg text-center">
-            <div className="text-xl font-bold text-green-600">
-              {formatPrice(Math.min(...productsData.map(p => p.giaThapNhat || Infinity)))}
-            </div>
-            <div className="text-gray-600 text-sm">Giá thấp nhất</div>
-          </div>
-          <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-lg text-center">
-            <div className="text-xl font-bold text-red-600">
-              {formatPrice(Math.max(...productsData.map(p => p.giaCaoNhat || 0)))}
-            </div>
-            <div className="text-gray-600 text-sm">Giá cao nhất</div>
-          </div>
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg text-center">
-            <div className="text-2xl font-bold text-blue-600">
-              {productsData.reduce((sum, p) => sum + (p.chiTietSanPhams?.length || 0), 0)}
-            </div>
-            <div className="text-gray-600 text-sm">Tổng biến thể</div>
-          </div>
-        </div>
       </div>
 
       <div className="space-y-6">

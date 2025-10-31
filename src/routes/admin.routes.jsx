@@ -23,8 +23,10 @@ import AddPromo from "@/pages/promo/AddPromo";
 
 import ProductDetailPage from "@/pages/product/ProductDetailPage";
 import MultiProductDetailPage from "@/pages/product/MultiProductDetailPage";
+import EditProduct from "@/pages/product/EditProduct";
 import DetailHoaDon from "@/pages/bill/DetailHoaDon";
 import EditHoaDon from "@/pages/bill/EditHoaDon";
+import AddVariant from "@/pages/product/AddVariant";
 
 const contentStyle = {
   padding: 50,
@@ -47,7 +49,7 @@ const LazyLoad = ({ children }) => {
 };
 const adminRouters = [
   {
-    path: "/",
+    path: "/admin",
     element: <AdminLayout />,
     children: [
       {
@@ -193,6 +195,14 @@ const adminRouters = [
             <MultiProductDetailPage />
           </LazyLoad>
         ),
+      },
+      {
+        path: "edit-product/:id",
+        element: <EditProduct />,
+      },
+      {
+        path: "add-variant/:idSanPham",
+        element: <AddVariant />,
       },
       {
         path: "user",
