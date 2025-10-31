@@ -84,8 +84,10 @@ export default function FliterProduct({
         autoComplete="off"
         onFinish={onFinish}
       >
+       
+
         <Row gutter={[16, 16]}>
-          <Col span={24}>
+           <Col xs={24} sm={12} md={8}>
             <Form.Item name="searchText" label="Tìm kiếm sản phẩm">
               <Input
                 placeholder="Nhập tên sản phẩm, hãng, chất liệu, kiểu dáng hoặc xuất xứ..."
@@ -94,9 +96,6 @@ export default function FliterProduct({
               />
             </Form.Item>
           </Col>
-        </Row>
-
-        <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={8}>
             <Form.Item name="tenNhaSanXuat" label="Hãng">
               <Select
@@ -138,6 +137,10 @@ export default function FliterProduct({
             </Form.Item>
           </Col>
 
+          
+        </Row>
+
+        <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={8}>
             <Form.Item name="tenKieuDang" label="Kiểu dáng">
               <Select
@@ -156,9 +159,6 @@ export default function FliterProduct({
               </Select>
             </Form.Item>
           </Col>
-        </Row>
-
-        <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={8}>
             <Form.Item name="tenXuatXu" label="Xuất xứ">
               <Select

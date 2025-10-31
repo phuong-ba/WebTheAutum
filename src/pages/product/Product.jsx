@@ -190,10 +190,10 @@ export default function Product() {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams();
-  
+
       queryParams.append("pageNo1", pageNo);
       queryParams.append("pageSize1", pageSize);
-  
+
       Object.keys(filters).forEach((key) => {
         if (
           filters[key] !== undefined &&
@@ -203,70 +203,70 @@ export default function Product() {
           queryParams.append(key, filters[key]);
         }
       });
-  
+
       console.log(
         "🔍 FILTER REQUEST:",
         `san-pham/filter?${queryParams.toString()}`
       );
-  
+
       const response = await baseUrl.get(
         `san-pham/filter?${queryParams.toString()}`
       );
-  
+
       console.log("📦 FILTER RESPONSE:", response.data);
-  
+
       let resultData = [];
       let totalItems = 0;
-  
+
       if (response.data && response.data.data) {
         const responseData = response.data.data;
-        
+
         if (responseData.data && Array.isArray(responseData.data)) {
           resultData = responseData.data;
-          totalItems = responseData.totalElements || (responseData.totalPage * pageSize);
+          totalItems =
+            responseData.totalElements || responseData.totalPage * pageSize;
           console.log("✅ Filter PageableObject:", {
             items: resultData.length,
             totalPage: responseData.totalPage,
             currentPage: responseData.currentPage,
             totalElements: responseData.totalElements,
-            calculatedTotal: totalItems
+            calculatedTotal: totalItems,
           });
-        }
-        else if (Array.isArray(responseData)) {
+        } else if (Array.isArray(responseData)) {
           resultData = responseData;
           totalItems = resultData.length;
           console.log("✅ Filter Array:", resultData.length);
         }
       }
-  
+
       console.log("✅ PROCESSED FILTER DATA:", {
         isArray: Array.isArray(resultData),
         length: resultData.length,
         totalItems: totalItems,
         data: resultData.slice(0, 3),
       });
-  
+
       if (!Array.isArray(resultData)) {
         console.error("🔴 Data không phải array:", resultData);
         messageApi.error("Dữ liệu trả về không đúng định dạng");
         resultData = [];
       }
-  
+
       setProducts(resultData);
       setCurrentFilters(filters);
-      
+
       if (Object.keys(filters).length > 0) {
         setFilteredData(resultData);
       } else {
         setFilteredData(null);
       }
-  
+
       setPagination({
         current: pageNo + 1,
         pageSize: pageSize,
         total: totalItems,
       });
-  
+
       if (resultData.length > 0) {
         messageApi.success(`Tìm thấy ${totalItems} sản phẩm`);
       } else {
@@ -609,17 +609,12 @@ export default function Product() {
       align: "center",
       width: 150,
       render: (_, record) => (
-        <Space size="middle">
+        <Space >
           <Button
             type="link"
             icon={<EyeIcon size={24} />}
             onClick={() => navigate(`/admin/detail-product/${record.id}`)}
-          ></Button>
-          <Button
-            type="link"
-            icon={<PencilLineIcon size={24} weight="fill" color="#E67E22" />}
-            onClick={() => handleEditProduct(record)}
-          ></Button>
+          ></Button>{" "}
           <a
             onClick={(e) => {
               e.preventDefault();
@@ -638,6 +633,11 @@ export default function Product() {
               <ToggleLeftIcon weight="fill" size={30} color="#c5c5c5" />
             )}
           </a>
+          <Button
+            type="link"
+            icon={<PencilLineIcon size={24} weight="fill" color="#E67E22" />}
+            onClick={() => handleEditProduct(record)}
+          ></Button>
         </Space>
       ),
     },
@@ -647,12 +647,12 @@ export default function Product() {
     console.log("🔄 Table change:", {
       current: newPagination.current,
       pageSize: newPagination.pageSize,
-      total: newPagination.total
+      total: newPagination.total,
     });
-  
+
     const pageNo = newPagination.current - 1;
     const pageSize = newPagination.pageSize;
-  
+
     if (Object.keys(currentFilters).length > 0) {
       console.log("📌 Có filter, gọi fetchProducts");
       fetchProducts(pageNo, pageSize, currentFilters);
@@ -727,22 +727,6 @@ export default function Product() {
                 Xem {selectedRowKeys.length} sản phẩm
               </div>
             )}
-
-
-            <button
-              onClick={handleExportExcel}
-              disabled={!products || products.length === 0}
-              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Xuất Excel
-            </button>
-
-            <button
-              onClick={() => navigate("/admin/add-product")}
-              className="border border-white text-white rounded px-6 py-2 cursor-pointer hover:bg-[#d35400] hover:text-[#E67E22] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Thêm sản phẩm
-            </button>
           </div>
         </div>
 
