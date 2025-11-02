@@ -2,12 +2,20 @@ import React from "react";
 import { Form, Input, Select, Row, Col, Button } from "antd";
 import { useDispatch } from "react-redux";
 import { searchNhanVien, fetchNhanVien } from "@/services/nhanVienService";
+import { useNavigate } from "react-router";
+import { ExportOutlined, ImportOutlined, PlusSquareOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
 
-export default function FilterUser() {
+export default function FilterUser({
+  handleExportExcel,
+  handleImportExcel,
+  fileInputRef,
+  data,
+}) {
   const [form] = Form.useForm();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const handleSearch = (values) => {
     const query = {
@@ -89,20 +97,56 @@ export default function FilterUser() {
             </Row>
 
             <div className="flex justify-end gap-4 pr-3">
-              <button
+              <div
                 onClick={handleReset}
-                className="bg-white text-[#E67E22] border rounded px-6 py-2 cursor-pointer
-              active:bg-[#A0522D] active:text-white transition-colors font-medium"
+                className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
               >
-                Nhập lại
-              </button>
-              <button
-                htmlType="submit"
-                className="bg-[#E67E22] text-white border rounded px-6 py-2 cursor-pointer 
-             hover:border-[#d35400] active:bg-[#A0522D] active:text-white transition-colors font-medium"
+                <ReloadOutlined /> Nhập lại
+              </div>
+              <div
+                onClick={() => form.submit()}
+                className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
               >
-                Tìm kiếm
-              </button>
+               <SearchOutlined /> Tìm kiếm
+              </div>
+              <div className="flex gap-3">
+                <div
+                  onClick={() => navigate("/admin/add-user")}
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
+                >
+                  <PlusSquareOutlined /> Thêm mới
+                </div>
+
+                <div
+                  onClick={handleExportExcel}
+                  disabled={!data || data.length === 0}
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
+                >
+                 <ExportOutlined /> Xuất Excel
+                </div>
+
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  hidden
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) handleImportExcel(file);
+                    e.target.value = "";
+                  }}
+                />
+
+                <div
+                  type="button"
+                  onClick={() =>
+                    fileInputRef.current && fileInputRef.current.click()
+                  }
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
+                >
+                  <ImportOutlined /> Thêm Excel
+                </div>
+              </div>
             </div>
           </Form>
         </div>

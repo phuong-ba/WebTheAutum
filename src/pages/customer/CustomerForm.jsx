@@ -28,6 +28,7 @@ import { khachHangApi } from "/src/api/khachHangApi";
 import { diaChiApi } from "/src/api/diaChiApi";
 import AddressSelect from "./AddressSelect";
 import { debounce } from "lodash";
+import CustomerBreadcrumb from "../customer/CustomerBreadcrumb";
 export default function CustomerForm({ customer, onCancel, onSuccess }) {
   const [form] = Form.useForm();
   const [addresses, setAddresses] = useState([]);
@@ -260,7 +261,7 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
   };
 
   const columns = [
-    { title: "Tên địa chỉ", dataIndex: "tenDiaChi" },
+    { title: "Loại địa chỉ", dataIndex: "tenDiaChi" },
     {
       title: "Thành phố",
       dataIndex: "tenTinh",
@@ -304,163 +305,191 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
   ];
 
   return (
-    <div
-      style={{
-        padding: 24,
-        background: "#fff",
-        borderRadius: 12,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-      }}
-    >
+    <div className="p-6 bg-[#f9f9fb] min-h-screen">
       {contextHolder}
-      <h2 style={{ fontWeight: 600, fontSize: 20, marginBottom: 24 }}>
-        {customer ? "Cập nhật khách hàng" : "Thêm khách hàng mới"}
-      </h2>
 
-      <Form layout="vertical" form={form}>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              name="hoTen"
-              label="Tên khách hàng"
-              rules={[{ required: true, message: "Nhập tên khách hàng!" }]}
-            >
-              <Input placeholder="Nhập tên khách hàng" />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="sdt"
-              label="Số điện thoại"
-              rules={[
-                { required: true, message: "Nhập số điện thoại!" },
-                { pattern: /^[0-9]{9,11}$/, message: "SĐT không hợp lệ!" },
-              ]}
-            >
-              <Input
-                placeholder="Nhập số điện thoại"
-                onChange={() => debouncedCheck("sdt")}
-              />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="email"
-              label="Email"
-              rules={[
-                { required: true, message: "Nhập email!" },
-                { type: "email", message: "Email không hợp lệ!" },
-              ]}
-            >
-              <Input
-                placeholder="Nhập email"
-                onChange={() => debouncedCheck("email")}
-              />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="gioiTinh"
-              label="Giới tính"
-              rules={[{ required: true, message: "Chọn giới tính!" }]}
-            >
-              <Radio.Group>
-                <Radio value="Nam">Nam</Radio>
-                <Radio value="Nữ">Nữ</Radio>
-              </Radio.Group>
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="ngaySinh"
-              label="Ngày sinh"
-              rules={[{ required: true, message: "Chọn ngày sinh!" }]}
-            >
-              <DatePicker
-                format="DD/MM/YYYY"
-                style={{ width: "100%" }}
-                placeholder="Chọn ngày sinh"
-              />
-            </Form.Item>
-          </Col>
-        </Row>
+      {/* Header trên cùng */}
+      <div className="bg-white rounded-md shadow-sm border border-gray-100 p-5 mb-6">
+        <h2 className="text-2xl font-bold text-[#E67E22] mb-1">
+          {customer ? "Cập nhật khách hàng" : "Thêm khách hàng mới"}
+        </h2>
+        <p className="text-sm text-gray-500">
+          <CustomerBreadcrumb />
+        </p>
+      </div>
 
-        <Divider />
-
-        <Card
-          title={
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <EnvironmentOutlined style={{ color: "#52c41a" }} />
-              <span>Quản lý địa chỉ ({addresses.length})</span>
-            </div>
-          }
-          extra={
-            !showAddressForm && (
-              <Button
-                icon={<PlusOutlined />}
-                type="primary"
-                onClick={() => {
-                  setShowAddressForm(true);
-                  setEditingAddress(null);
-                }}
+      {/* Form chính */}
+      <div className="bg-white rounded-md shadow-sm border border-gray-100 p-8">
+        <Form layout="vertical" form={form}>
+          <Row gutter={[24, 8]}>
+            <Col span={12}>
+              <Form.Item
+                name="hoTen"
+                label={<span className="font-semibold">Tên khách hàng</span>}
+                rules={[{ required: true, message: "Nhập tên khách hàng!" }]}
               >
-                Thêm địa chỉ
-              </Button>
-            )
-          }
-        >
-          {!showAddressForm ? (
-            <Table
-              dataSource={addresses}
-              columns={columns}
-              rowKey="key"
-              pagination={pagination}
-              onChange={(p) => setPagination(p)}
-              locale={{ emptyText: "Chưa có địa chỉ nào" }}
-            />
-          ) : (
-            <>
-              <Divider />
-              <AddressSelect
-                form={form}
-                editingAddress={editingAddress}
-                setQuanList={setQuanList}
-              />
-              <div style={{ textAlign: "right", marginTop: 8 }}>
+                <Input placeholder="Nhập tên khách hàng" />
+              </Form.Item>
+            </Col>
+
+            <Col span={12}>
+              <Form.Item
+                name="sdt"
+                label={<span className="font-semibold">Số điện thoại</span>}
+                rules={[
+                  { required: true, message: "Nhập số điện thoại!" },
+                  { pattern: /^[0-9]{9,11}$/, message: "SĐT không hợp lệ!" },
+                ]}
+              >
+                <Input
+                  placeholder="Nhập số điện thoại"
+                  onChange={() => debouncedCheck("sdt")}
+                />
+              </Form.Item>
+            </Col>
+
+            <Col span={12}>
+              <Form.Item
+                name="email"
+                label={<span className="font-semibold">Email</span>}
+                rules={[
+                  { required: true, message: "Nhập email!" },
+                  { type: "email", message: "Email không hợp lệ!" },
+                ]}
+              >
+                <Input
+                  placeholder="Nhập email"
+                  onChange={() => debouncedCheck("email")}
+                />
+              </Form.Item>
+            </Col>
+
+            <Col span={12}>
+              <Form.Item
+                name="gioiTinh"
+                label={<span className="font-semibold">Giới tính</span>}
+                rules={[{ required: true, message: "Chọn giới tính!" }]}
+              >
+                <Radio.Group>
+                  <Radio value="Nam">Nam</Radio>
+                  <Radio value="Nữ">Nữ</Radio>
+                </Radio.Group>
+              </Form.Item>
+            </Col>
+
+            <Col span={12}>
+              <Form.Item
+                name="ngaySinh"
+                label={<span className="font-semibold">Ngày sinh</span>}
+                rules={[{ required: true, message: "Chọn ngày sinh!" }]}
+              >
+                <DatePicker
+                  format="DD/MM/YYYY"
+                  style={{ width: "100%" }}
+                  placeholder="Chọn ngày sinh"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* Địa chỉ khách hàng */}
+          <Divider className="my-6" />
+
+          <Card
+            title={
+              <div className="flex items-center gap-2 text-[#E67E22] font-semibold">
+                <EnvironmentOutlined />
+                <span>Địa chỉ khách hàng ({addresses.length})</span>
+              </div>
+            }
+            extra={
+              !showAddressForm && (
                 <Button
+                  icon={<PlusOutlined />}
+                  style={{
+                    backgroundColor: "#E67E22",
+                    color: "white",
+                    border: "none",
+                  }}
                   onClick={() => {
-                    form.resetFields([
-                      "tenDiaChi",
-                      "thanhPho",
-                      "quan",
-                      "diaChiCuThe",
-                    ]);
-                    setShowAddressForm(false);
+                    setShowAddressForm(true);
                     setEditingAddress(null);
                   }}
-                  style={{ marginRight: 8 }}
                 >
-                  Hủy
+                  Thêm địa chỉ
                 </Button>
-                <Button type="primary" onClick={handleAddOrUpdateAddress}>
-                  {editingAddress ? "Cập nhật" : "Lưu địa chỉ"}
-                </Button>
-              </div>
-            </>
-          )}
-        </Card>
+              )
+            }
+            bordered={false}
+            className="shadow-sm rounded-md border border-gray-100"
+          >
+            {!showAddressForm ? (
+              <Table
+                dataSource={addresses}
+                columns={columns}
+                rowKey="key"
+                pagination={pagination}
+                onChange={(p) => setPagination(p)}
+                locale={{ emptyText: "Chưa có địa chỉ nào" }}
+              />
+            ) : (
+              <>
+                <AddressSelect
+                  form={form}
+                  editingAddress={editingAddress}
+                  setQuanList={setQuanList}
+                />
+                <div className="text-right mt-4">
+                  <Button
+                    onClick={() => {
+                      form.resetFields([
+                        "tenDiaChi",
+                        "thanhPho",
+                        "quan",
+                        "diaChiCuThe",
+                      ]);
+                      setShowAddressForm(false);
+                      setEditingAddress(null);
+                    }}
+                    style={{ marginRight: 8 }}
+                  >
+                    Hủy
+                  </Button>
+                  <Button
+                    type="primary"
+                    style={{
+                      backgroundColor: "#E67E22",
+                      border: "none",
+                    }}
+                    onClick={handleAddOrUpdateAddress}
+                  >
+                    {editingAddress ? "Cập nhật" : "Lưu địa chỉ"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </Card>
 
-        <Divider />
+          <Divider className="my-6" />
 
-        <div style={{ textAlign: "right", marginTop: 16 }}>
-          <Button onClick={onCancel} style={{ marginRight: 8 }}>
-            Hủy
-          </Button>
-          <Button type="primary" onClick={handleSubmit}>
-            Lưu khách hàng
-          </Button>
-        </div>
-      </Form>
+          {/* Nút hành động */}
+          <div className="text-right mt-4">
+            <Button onClick={onCancel} style={{ marginRight: 8 }}>
+              Hủy
+            </Button>
+            <Button
+              type="primary"
+              style={{
+                backgroundColor: "#E67E22",
+                border: "none",
+              }}
+              onClick={handleSubmit}
+            >
+              Lưu khách hàng
+            </Button>
+          </div>
+        </Form>
+      </div>
     </div>
   );
 }
