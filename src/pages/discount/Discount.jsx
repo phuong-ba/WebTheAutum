@@ -10,9 +10,7 @@ import {
   fetchPhieuGiamGia,
 } from "@/services/phieuGiamGiaService";
 import {
-  ToggleLeftIcon,
   ToggleRightIcon,
-  PencilIcon,
   PencilLineIcon,
 } from "@phosphor-icons/react";
 import FliterDiscount from "./FliterDiscount";
