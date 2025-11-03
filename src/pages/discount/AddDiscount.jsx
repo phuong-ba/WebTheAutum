@@ -37,7 +37,7 @@ export default function AddDiscount() {
   const editingItem = location.state?.phieuGiamGia || null;
   const [kieu, setKieu] = useState(editingItem?.kieu ?? 0);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
-  const [trangThai, setTrangThai] = useState(editingItem?.trangThai ?? true);
+  const [trangThai, setTrangThai] = useState(editingItem?.trangThai ?? 0);
   const [modal, contextHolder] = Modal.useModal();
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
 
@@ -79,9 +79,10 @@ export default function AddDiscount() {
           ? dayjs(editingItem.ngayKetThuc)
           : null,
         moTa: editingItem.moTa,
+        trangThai: editingItem.trangThai ?? 0,
       });
       setKieu(editingItem.kieu);
-      setTrangThai(editingItem.trangThai);
+      setTrangThai(editingItem.trangThai ?? 0);
     }
   }, [editingItem, form]);
 
@@ -114,8 +115,17 @@ export default function AddDiscount() {
     const end = dayjs(values.ngayKetThuc);
     const isUpdate = !!editingItem;
 
-    let autoTrangThai = true;
-    if (end.isBefore(now, "day")) autoTrangThai = false;
+    let autoTrangThai = 0;
+    if (start.isAfter(now, "day")) {
+    autoTrangThai = 0;
+  } else if (
+    (start.isBefore(now, "day") || start.isSame(now, "day")) &&
+    (end.isAfter(now, "day") || end.isSame(now, "day"))
+  ) {
+    autoTrangThai = 1; 
+  } else if (end.isBefore(now, "day")) {
+    autoTrangThai = 2;
+  }
 
     const payload = {
       maGiamGia: values.maGiamGia,
@@ -149,7 +159,7 @@ export default function AddDiscount() {
         form.resetFields();
         setSelectedCustomers([]);
       }
-      setTimeout(() => navigate("/discount"), 800);
+      setTimeout(() => navigate("/admin/discount"), 800);
     } catch (err) {
       console.error(err);
       messageApi.error(isUpdate ? "Cập nhật thất bại!" : "Thêm thất bại!");

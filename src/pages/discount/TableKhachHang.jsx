@@ -65,6 +65,18 @@ export default function TableKhachHang({ onSelectChange, selectedRowKeys }) {
       key: "ngayMuaGanNhat",
       render: (d) => (d ? dayjs(d).format("DD/MM/YYYY") : "Chưa có"),
     },
+    {
+    title: "Tổng tiền đã mua",
+    dataIndex: "tongTienDaMua",
+    key: "tongTienDaMua",
+    render: (value) =>
+      value != null
+        ? value.toLocaleString("vi-VN", {
+            style: "currency",
+            currency: "VND",
+          })
+        : "0₫",
+  },
   ];
 
   return (

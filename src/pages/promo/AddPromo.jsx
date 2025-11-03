@@ -162,7 +162,14 @@ export default function AddPromo() {
     const start = dayjs(values.ngayBatDau);
     const end = dayjs(values.ngayKetThuc);
     const isUpdate = !!editingItem;
-    let autoTrangThai = !end.isBefore(now, "day");
+     let autoTrangThai;
+    if (now.isBefore(start, "day")) {
+      autoTrangThai = 0; 
+    } else if (now.isAfter(end, "day")) {
+      autoTrangThai = 2; 
+    } else {
+      autoTrangThai = 1; 
+    }
 
     const allChiTietIds = Object.values(selectedChiTietKeys).flat();
     if (allChiTietIds.length === 0) {
