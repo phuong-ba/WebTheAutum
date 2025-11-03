@@ -6,7 +6,7 @@ import {
 } from "@phosphor-icons/react";
 import React, { useRef, useState, useEffect } from "react";
 
-export default function ProductNew() {
+export default function ProductSeller() {
   const scrollRef = useRef(null);
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
@@ -15,7 +15,7 @@ export default function ProductNew() {
     if (scrollRef.current) {
       const firstChild = scrollRef.current.children[0];
       if (!firstChild) return;
-      const itemWidth = firstChild.getBoundingClientRect().width + 20;
+      const itemWidth = firstChild.getBoundingClientRect().width + 20; // 20 = gap
       const { scrollLeft } = scrollRef.current;
       const scrollTo =
         direction === "left" ? scrollLeft - itemWidth : scrollLeft + itemWidth;
@@ -27,7 +27,7 @@ export default function ProductNew() {
     const el = scrollRef.current;
     if (!el) return;
     const atStart = el.scrollLeft <= 0;
-    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 5;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 5; // trừ 5 để tránh sai số
     setShowLeft(!atStart);
     setShowRight(!atEnd);
   };
@@ -64,7 +64,9 @@ export default function ProductNew() {
   return (
     <div className="flex flex-col items-center gap-8">
       <div className="flex flex-col items-center gap-8">
-        <div className="font-bold text-2xl">NEW ARRIVAL</div>
+        <div className="font-bold text-2xl">
+          ĐỘC QUYỀN ONLINE – SALE UPTO 50% ALL ITEMS
+        </div>
         <div className="flex gap-10">
           <div>Danh Mục 1</div>
           <div>Danh Mục 2</div>
@@ -96,7 +98,7 @@ export default function ProductNew() {
             >
               <div className="absolute -top-2 -left-2">
                 <div className="rounded-tr-2xl min-w-[64px] p-1 text-center font-bold bg-[#e7973e] text-sm">
-                  NEW
+                  Best Seller
                 </div>
                 <div className="max-w-2 h-5 border-t-[20px] border-l-[9px] border-t-[#a23a38] border-l-transparent"></div>
               </div>
@@ -118,8 +120,13 @@ export default function ProductNew() {
                 </div>
                 <div className="font-medium text-gray-500">{item.name}</div>
                 <div className="flex justify-between items-center">
-                  <div className="text-md font-bold text-gray-700">
-                    {item.price}
+                  <div className="flex gap-1 items-center justify-center">
+                    <div className="text-md font-bold text-gray-700">
+                      {item.price}
+                    </div>
+                    <div className="text-sm   font-bold text-gray-400 line-through">
+                      {item.price}
+                    </div>
                   </div>
                   <div className="bg-amber-500 p-2 rounded-br-xl rounded-tl-xl hover:bg-amber-100 border border-amber-500">
                     <ShoppingBagIcon size={24} />
