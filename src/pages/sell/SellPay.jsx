@@ -10,7 +10,8 @@ export default function SellPay() {
               <span>Tổng tiền hàng:</span> <span>7.99999 vnd</span>
             </div>
             <div className="flex justify-between font-bold">
-              <span>Giảm giá:</span> <span>-7.99999 vnd</span>
+              <span>Giảm giá:</span>{" "}
+              <span className="text-red-800">-7.99999 vnd</span>
             </div>
             <div className="flex justify-between font-bold">
               <span>Phí vận chuyển:</span> <span>0 vnd</span>
@@ -22,16 +23,16 @@ export default function SellPay() {
           </div>
         </div>
       </div>
-      <div className="flex flex-col gap-2">
-        <div>Phương thức thanh toán</div>
+      <div className="flex flex-col gap-3">
+        <div className="font-bold">Phương thức thanh toán:</div>
         <div className="flex gap-2">
-          <div className=" cursor-pointer select-none  text-center py-3 px-6 rounded-xl bg-[#FFF] font-bold text-amber-600 hover:text-white   hover:bg-amber-600 active:bg-cyan-800 border  active:border-[#808080] active:text-white shadow">
+          <div className=" cursor-pointer select-none  text-center py-2 px-6 rounded-xl bg-[#FFF] font-bold text-amber-600 hover:text-white   hover:bg-amber-600 active:bg-cyan-800 border  active:border-[#808080] active:text-white shadow">
             Chuyển khoản
           </div>
-          <div className=" cursor-pointer select-none  text-center py-3 px-6 rounded-xl bg-[#FFF] font-bold text-amber-600 hover:text-white   hover:bg-amber-600 active:bg-cyan-800 border  active:border-[#808080] active:text-white shadow">
+          <div className=" cursor-pointer select-none  text-center py-2 px-6 rounded-xl bg-[#FFF] font-bold text-amber-600 hover:text-white   hover:bg-amber-600 active:bg-cyan-800 border  active:border-[#808080] active:text-white shadow">
             Tiền mặt
           </div>
-          <div className="cursor-pointer select-none  text-center py-3 px-6 rounded-xl bg-[#FFF] font-bold text-amber-600 hover:text-white   hover:bg-amber-600 active:bg-cyan-800 border  active:border-[#808080] active:text-white shadow">
+          <div className="cursor-pointer select-none  text-center py-2 px-6 rounded-xl bg-[#FFF] font-bold text-amber-600 hover:text-white   hover:bg-amber-600 active:bg-cyan-800 border  active:border-[#808080] active:text-white shadow">
             Cả hai
           </div>
         </div>
