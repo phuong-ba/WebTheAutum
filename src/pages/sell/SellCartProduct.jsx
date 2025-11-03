@@ -9,7 +9,7 @@ export default function SellCartProduct() {
   const imageUrl = "";
 
   // Giả lập dữ liệu giỏ hàng — thay bằng state thực tế của bạn
-  const cartProducts = []; // hoặc [{ id: 1, name: "Áo thun", ... }]
+  const cartProducts = [{ id: 1, name: "Áo thun", }]; // hoặc [{ id: 1, name: "Áo thun", ... }]
 
   const handleDeleteBill = (id) => {
     console.log("Xóa sản phẩm:", id);
