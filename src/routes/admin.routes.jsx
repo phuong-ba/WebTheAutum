@@ -27,6 +27,8 @@ import EditProduct from "@/pages/product/EditProduct";
 import DetailHoaDon from "@/pages/bill/DetailHoaDon";
 import EditHoaDon from "@/pages/bill/EditHoaDon";
 import AddVariant from "@/pages/product/AddVariant";
+import ForgotPassword from "@/pages/auth/ForgotPassword";
+import ResetPassword from "@/pages/auth/ResetPassword";
 
 const contentStyle = {
   padding: 50,
@@ -251,6 +253,22 @@ const adminRouters = [
     element: (
       <LazyLoad>
         <Register />
+      </LazyLoad>
+    ),
+  },
+  {
+    path: "/forgotpass",
+    element: (
+      <LazyLoad>
+        <ForgotPassword />
+      </LazyLoad>
+    ),
+  },
+  {
+    path: "/reset-password",
+    element: (
+      <LazyLoad>
+        <ResetPassword />
       </LazyLoad>
     ),
   },

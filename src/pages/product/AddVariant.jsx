@@ -149,7 +149,7 @@ export default function AddVariant() {
           );
         } else {
           message.success("Tạo biến thể thành công!");
-          navigate(`/detail-product/${idSanPham}`);
+          navigate(`/admin/detail-product/${idSanPham}`);
         }
       } else {
         throw new Error(response.data.message || "Lỗi không xác định");
@@ -265,7 +265,7 @@ export default function AddVariant() {
           setUploadModalVisible(false);
           setUploading(false);
           message.info("Đã hoàn thành tất cả biến thể!");
-          navigate(`/detail-product/${idSanPham}`);
+          navigate(`/admin/detail-product/${idSanPham}`);
         }, 1500);
       }
     } catch (error) {
@@ -298,14 +298,14 @@ export default function AddVariant() {
     } else {
       setUploadModalVisible(false);
       message.info("Đã bỏ qua tất cả biến thể");
-      navigate(`/detail-product/${idSanPham}`);
+      navigate(`/admin/detail-product/${idSanPham}`);
     }
   };
 
   const handleSkipAll = () => {
     setUploadModalVisible(false);
     message.info("Đã bỏ qua tất cả biến thể");
-    navigate(`/detail-product/${idSanPham}`);
+    navigate(`/admin/detail-product/${idSanPham}`);
   };
 
   useEffect(() => {
@@ -340,14 +340,14 @@ export default function AddVariant() {
           <span className="mx-2">/</span>
           <span
             className="cursor-pointer hover:text-[#E67E22]"
-            onClick={() => navigate("/product")}
+            onClick={() => navigate("/admin/product")}
           >
             Quản lý sản phẩm
           </span>
           <span className="mx-2">/</span>
           <span
             className="cursor-pointer hover:text-[#E67E22]"
-            onClick={() => navigate(`/detail-product/${idSanPham}`)}
+            onClick={() => navigate(`/admin/detail-product/${idSanPham}`)}
           >
             Chi tiết sản phẩm
           </span>
@@ -357,7 +357,7 @@ export default function AddVariant() {
 
         <Button
           icon={<ArrowLeftOutlined />}
-          onClick={() => navigate(`/detail-product/${idSanPham}`)}
+          onClick={() => navigate(`/admin/detail-product/${idSanPham}`)}
         >
           Quay lại
         </Button>
@@ -505,17 +505,17 @@ export default function AddVariant() {
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button
               size="large"
-              onClick={() => navigate(`/detail-product/${idSanPham}`)}
+              onClick={() => navigate(`/admin/detail-product/${idSanPham}`)}
             >
               Hủy bỏ
             </Button>
             <Button
-              type="primary"
+              type="default"
               htmlType="submit"
               size="large"
               loading={loading}
               icon={<PlusOutlined />}
-              className="bg-[#E67E22] border-[#E67E22] hover:bg-[#d35400]"
+              className="bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white font-medium"
             >
               {loading ? "Đang tạo..." : "Tạo biến thể"}
             </Button>
@@ -544,7 +544,6 @@ export default function AddVariant() {
           </Button>,
           <Button
             key="continue"
-            type="primary"
             onClick={handleContinue}
             loading={uploading}
             icon={<CheckCircleOutlined />}
@@ -568,24 +567,24 @@ export default function AddVariant() {
               <Progress percent={uploadProgress} status="active" />
             </div>
 
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="mb-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
               <Row gutter={16}>
                 <Col span={12}>
                   <div className="mb-2">
-                    <strong className="text-blue-800">
+                    <strong className="text-[#E67E22]">
                       Biến thể hiện tại:
                     </strong>
                   </div>
                   <div className="space-y-2">
                     <div>
                       <Tag color="blue">{currentVariant.tenMauSac}</Tag>
-                      <span className="text-sm text-blue-600 ml-2">
+                      <span className="text-sm text-[#E67E22] ml-2">
                         Màu sắc
                       </span>
                     </div>
                     <div>
                       <Tag color="green">{currentVariant.tenKichThuoc}</Tag>
-                      <span className="text-sm text-blue-600 ml-2">
+                      <span className="text-sm text-[#E67E22] ml-2">
                         Kích thước
                       </span>
                     </div>
@@ -593,9 +592,9 @@ export default function AddVariant() {
                 </Col>
                 <Col span={12}>
                   <div className="mb-2">
-                    <strong className="text-blue-800">Mã biến thể:</strong>
+                    <strong className="text-[#E67E22]">Mã biến thể:</strong>
                   </div>
-                  <div className="font-mono text-sm bg-white p-2 rounded border">
+                  <div className="font-mono text-[#E67E22] bg-white p-2 rounded border">
                     {currentVariant.maVach || "Đang tạo..."}
                   </div>
                 </Col>

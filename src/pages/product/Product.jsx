@@ -6,9 +6,7 @@ import {
   Tag,
   message,
   Modal,
-  Button,
-  Card,
-  Statistic,
+  Button
 } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -17,7 +15,6 @@ import {
   PencilLineIcon,
   EyeIcon,
 } from "@phosphor-icons/react";
-import { EyeOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router";
 import baseUrl from "@/api/instance";
 import * as XLSX from "xlsx";
@@ -739,14 +736,7 @@ export default function Product() {
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,
-            total: pagination.total,
-            showSizeChanger: true,
-            pageSizeOptions: ["5", "10", "20"],
-            showTotal: (total, range) => {
-              const from = range[0] || 0;
-              const to = range[1] || 0;
-              return `${from}-${to} của ${total} sản phẩm`;
-            },
+            total: pagination.total
           }}
           onChange={handleTableChange}
           locale={{ emptyText: "Không có dữ liệu sản phẩm" }}

@@ -404,7 +404,7 @@ export default function ProductDetailPage() {
           </div>
           <Button
             icon={<PlusOutlined />}
-            onClick={() => navigate(`/add-variant/${productData.id}`)}
+            onClick={() => navigate(`/admin/add-variant/${productData.id}`)}
             className="bg-white text-[#E67E22] border-white hover:bg-gray-100"
           >
             Thêm biến thể mới

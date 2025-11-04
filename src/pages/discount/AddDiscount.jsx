@@ -149,7 +149,7 @@ export default function AddDiscount() {
         form.resetFields();
         setSelectedCustomers([]);
       }
-      setTimeout(() => navigate("/discount"), 800);
+      setTimeout(() => navigate("/admin/discount"), 800);
     } catch (err) {
       console.error(err);
       messageApi.error(isUpdate ? "Cập nhật thất bại!" : "Thêm thất bại!");
