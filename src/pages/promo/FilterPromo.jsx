@@ -93,17 +93,6 @@ export default function FilterPromo({ handleExportExcel }) {
                   <DatePicker className="w-full" format="DD/MM/YYYY" />
                 </Form.Item>
               </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col flex="1">
-                <Form.Item name="loaiGiamGia" label="Loại giảm giá">
-                  <Select placeholder="Chọn loại giảm giá" allowClear>
-                    <Option value="Phần trăm">Phần trăm</Option>
-                    <Option value="Tiền mặt">Tiền mặt</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
 
               <Col flex="1">
                 <Form.Item name="trangThai" label="Trạng thái">
@@ -114,7 +103,6 @@ export default function FilterPromo({ handleExportExcel }) {
                   </Select>
                 </Form.Item>
               </Col>
-              <Col flex="1"></Col>
             </Row>
 
             <div className="flex justify-end gap-4 pr-3">
