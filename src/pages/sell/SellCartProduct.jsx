@@ -8,8 +8,7 @@ export default function SellCartProduct() {
   const onSearch = (value, _e, info) => console.log(info?.source, value);
   const imageUrl = "";
 
-  // Giả lập dữ liệu giỏ hàng — thay bằng state thực tế của bạn
-  const cartProducts = [{ id: 1, name: "Áo thun", }]; // hoặc [{ id: 1, name: "Áo thun", ... }]
+  const cartProducts = [];
 
   const handleDeleteBill = (id) => {
     console.log("Xóa sản phẩm:", id);

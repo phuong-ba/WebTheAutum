@@ -1,4 +1,4 @@
-import { fetchNhanVien } from "@/services/nhanVienService";
+import { fetchChiTietSanPham } from "@/services/chiTietSanPhamService";
 import { ShoppingCartIcon } from "@phosphor-icons/react";
 import { Col, Form, Input, Row, Select, Space, Table, Tag } from "antd";
 import Search from "antd/es/input/Search";
@@ -7,11 +7,11 @@ import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 export default function SellListProduct() {
-  const { data } = useSelector((state) => state.nhanvien);
+  const { data } = useSelector((state) => state.chiTietSanPham);
   const dispatch = useDispatch();
   const onSearch = (value, _e, info) => console.log(info?.source, value);
   useEffect(() => {
-    dispatch(fetchNhanVien());
+    dispatch(fetchChiTietSanPham());
   }, [dispatch]);
 
   const columns = [
@@ -23,48 +23,55 @@ export default function SellListProduct() {
       align: "center",
     },
     {
-      title: "MÃ NHÂN VIÊN",
-      dataIndex: "maNhanVien",
-      key: "maNhanVien",
-      width: 180,
-    },
-    { title: "TÊN NHÂN VIÊN", dataIndex: "hoTen", key: "hoTen", width: 180 },
-    {
-      title: "GIỚI TÍNH",
-      dataIndex: "gioiTinh",
-      key: "gioiTinh",
-      render: (value) => (value ? "Nam" : "Nữ"),
-      align: "center",
-    },
-    { title: "SỐ ĐIỆN THOẠI", dataIndex: "sdt", key: "sdt" },
-
-    { title: "EMAIL", dataIndex: "email", key: "email" },
-    {
-      title: "NGÀY BẮT ĐẦU",
-      dataIndex: "ngayTao",
-      key: "ngayTao",
-      render: (date) =>
-        new Date(date).toLocaleDateString("vi-VN", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
-      align: "center",
-    },
-    { title: "CHỨC VỤ", dataIndex: "chucVuName", key: "chucVuName" },
-    {
-      title: "TRẠNG THÁI",
-      dataIndex: "trangThai",
-      key: "trangThai",
-      render: (value) =>
-        value ? (
-          <Tag color="#E9FBF4" style={{ border: "1px solid #00A96C" }}>
-            <div className="text-[#00A96C] ">Đang hoạt động</div>
-          </Tag>
+      title: "Ảnh",
+      dataIndex: "anhs",
+      render: (anhs) =>
+        anhs && anhs.length > 0 ? (
+          <img
+            src={anhs[0].duongDanAnh}
+            alt="Sản phẩm"
+            style={{
+              width: 50,
+              height: 50,
+              objectFit: "cover",
+              borderRadius: 4,
+            }}
+          />
         ) : (
-          <Tag color="red">Ngừng hoạt động</Tag>
+          <div
+            style={{
+              width: 50,
+              height: 50,
+              backgroundColor: "#f0f0f0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 4,
+              color: "#999",
+              fontSize: 12,
+            }}
+          >
+            Chưa có ảnh
+          </div>
         ),
-      align: "center",
+    },
+        { title: "Sản phẩm", dataIndex: "tenSanPham", render: (val) => val || "-" },
+        { title: "Màu sắc", dataIndex: "tenMauSac", render: (val) => val || "-" },
+        {
+      title: "Kích thước",
+      dataIndex: "tenKichThuoc",
+      render: (val) => val || "-",
+    },
+            { title: "Trọng lượng", dataIndex: "tenTrongLuong", render: (val) => val || "-" },
+    {
+      title: "Số lượng",
+      dataIndex: "soLuongTon",
+      render: (val) => val ?? "-",
+    },
+    {
+      title: "Đơn giá",
+      dataIndex: "giaSauGiam",
+      render: (val) => val?.toLocaleString() + "₫" || "-",
     },
     {
       title: "HÀNH ĐỘNG",

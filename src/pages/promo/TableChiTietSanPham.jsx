@@ -49,7 +49,7 @@ export default function TableChiTietSanPham({
         setData(products);
 
         onDataChange?.(products);
-      } catch (err) {
+      } catch (err) { 
         console.error(err);
         message.error("Không thể tải chi tiết sản phẩm!");
         setData([]);
