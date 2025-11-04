@@ -37,9 +37,9 @@ export default function FliterDiscount({ handleExportExcel }) {
           : undefined,
       loaiGiamGia: convertLoaiGiamGiaToBoolean(values.loaiGiamGia),
       trangThai:
-        values.trangThai !== undefined && values.trangThai !== ""
-          ? values.trangThai
-          : undefined,
+      values.trangThai !== undefined && values.trangThai !== ""
+        ? Number(values.trangThai) 
+        : undefined,
     };
 
     const cleanQuery = Object.fromEntries(
@@ -120,8 +120,9 @@ export default function FliterDiscount({ handleExportExcel }) {
               <Col flex="1">
                 <Form.Item name="trangThai" label="Trạng thái">
                   <Select placeholder="Chọn trạng thái" allowClear>
-                    <Option value={true}>Đang diễn ra</Option>
-                    <Option value={false}>Đã kết thúc</Option>
+                    <Option value={0}>Sắp diễn ra</Option>
+                    <Option value={1}>Đang diễn ra</Option>
+                    <Option value={2}>Đã kết thúc</Option>
                   </Select>
                 </Form.Item>
               </Col>

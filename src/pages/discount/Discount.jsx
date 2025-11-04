@@ -34,46 +34,61 @@ export default function Discount() {
     setSelectedRecord(record);
     setIsModalVisible(true);
   };
-  useEffect(() => {
-    if (!data || data.length === 0) return;
-    const now = dayjs();
-    (async () => {
-      try {
-        const needUpdate = data.filter((item) => {
+ useEffect(() => {
+  if (!data || data.length === 0) return;
+  const now = dayjs();
+
+  (async () => {
+    try {
+      const needUpdate = data.filter((item) => {
+        if (item.trangThai === 2) return false;
+        const start = dayjs(item.ngayBatDau);
+        const end = dayjs(item.ngayKetThuc);
+
+        let calculatedStatus = -1;
+        if (start.isAfter(now, "day")) {
+          calculatedStatus = 0; 
+        } else if ((start.isBefore(now, "day") || start.isSame(now, "day")) &&
+                   (end.isAfter(now, "day") || end.isSame(now, "day"))) {
+          calculatedStatus = 1; 
+        } else if (end.isBefore(now, "day")) {
+          calculatedStatus = 2; 
+        }
+
+        return item.trangThai !== calculatedStatus;
+      });
+
+      if (needUpdate.length === 0) return;
+
+      await Promise.all(
+        needUpdate.map((item) => {
           const start = dayjs(item.ngayBatDau);
           const end = dayjs(item.ngayKetThuc);
+          let newStatus = 0;
 
-          if (item.trangThai === true && end.isBefore(now, "day")) {
-            return true;
+          if (start.isAfter(now, "day")) {
+            newStatus = 0;
+          } else if ((start.isBefore(now, "day") || start.isSame(now, "day")) &&
+                     (end.isAfter(now, "day") || end.isSame(now, "day"))) {
+            newStatus = 1;
+          } else if (end.isBefore(now, "day")) {
+            newStatus = 2;
           }
-          if (item.trangThai === true && start.isAfter(now, "day")) {
-            return true;
-          }
-          return false;
-        });
 
-        if (needUpdate.length === 0) return;
+          return dispatch(
+            changeStatusPhieuGiamGia({ id: item.id, trangThai: newStatus })
+          );
+        })
+      );
 
-        await Promise.all(
-          needUpdate.map((item) => {
-            const start = dayjs(item.ngayBatDau);
-            const end = dayjs(item.ngayKetThuc);
-            let newStatus = false;
-
-            return dispatch(
-              changeStatusPhieuGiamGia({ id: item.id, trangThai: newStatus })
-            );
-          })
-        );
-
-        dispatch(fetchPhieuGiamGia());
-        messageApi.info(`Đã tự động cập nhật ${needUpdate.length} phiếu.`);
-      } catch (err) {
-        console.error("Lỗi khi tự động cập nhật trạng thái:", err);
-        messageApi.error("Có lỗi khi tự động cập nhật trạng thái phiếu.");
-      }
-    })();
-  }, [data, dispatch, messageApi]);
+      dispatch(fetchPhieuGiamGia());
+      messageApi.info(`Đã tự động cập nhật trạng thái cho ${needUpdate.length} phiếu.`);
+    } catch (err) {
+      console.error("Lỗi khi tự động cập nhật trạng thái:", err);
+      messageApi.error("Có lỗi khi tự động cập nhật trạng thái phiếu.");
+    }
+  })();
+}, [data, dispatch, messageApi]);
 
   const handleConfirmChangeStatus = async () => {
     if (!selectedRecord) return;
@@ -82,7 +97,6 @@ export default function Discount() {
     const start = dayjs(selectedRecord.ngayBatDau);
     const end = dayjs(selectedRecord.ngayKetThuc);
 
-    // Kiểm tra điều kiện hợp lệ
     if (!selectedRecord.trangThai && end.isBefore(now, "day")) {
       messageApi.warning("Không thể kích hoạt phiếu đã hết hạn");
       return;
@@ -97,7 +111,7 @@ export default function Discount() {
       await dispatch(
         changeStatusPhieuGiamGia({
           id: selectedRecord.id,
-          trangThai: !selectedRecord.trangThai,
+          trangThai: selectedRecord.trangThai === 1 ? 2 : 1,
         })
       );
 
@@ -315,39 +329,39 @@ export default function Discount() {
       },
     },
     {
-      title: "HÀNH ĐỘNG",
-      key: "action",
-      align: "center",
-      render: (_, record) => (
-        <Space size="middle">
-          {record.trangThai && (
-            <a onClick={() => showCustomModal(record)}>
-              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
-            </a>
-          )}
-          <a
-            onClick={() => {
-              if (record.trangThai === false) {
-                messageApi.warning("Không thể chỉnh sửa phiếu giảm giá!");
-                return;
-              }
-              navigate("/admin/update-discount", {
-                state: { phieuGiamGia: record },
-              });
-            }}
-          >
-            <PencilLineIcon
-              size={24}
-              weight="fill"
-              color={record.trangThai ? "#E67E22" : "#ccc"}
-              style={{
-                cursor: record.trangThai ? "pointer" : "not-allowed",
-              }}
-            />
-          </a>
-        </Space>
-      ),
-    },
+  title: "HÀNH ĐỘNG",
+  key: "action",
+  align: "center",
+  render: (_, record) => (
+    <Space size="middle">
+      {record.trangThai === 1 && (
+        <a onClick={() => showCustomModal(record)}>
+          <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
+        </a>
+      )}
+      <a
+        onClick={() => {
+          if (record.trangThai !== 1) {
+            messageApi.warning("Chỉ có thể chỉnh sửa phiếu đang diễn ra!");
+            return;
+          }
+          navigate("/admin/update-discount", {
+            state: { phieuGiamGia: record },
+          });
+        }}
+      >
+        <PencilLineIcon
+          size={24}
+          weight="fill"
+          color={record.trangThai === 1 ? "#E67E22" : "#ccc"}
+          style={{
+            cursor: record.trangThai === 1 ? "pointer" : "not-allowed",
+          }}
+        />
+      </a>
+    </Space>
+  ),
+}
   ];
 
   return (

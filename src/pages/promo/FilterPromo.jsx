@@ -35,9 +35,9 @@ export default function FilterPromo({ handleExportExcel }) {
           ? values.kieu
           : undefined,
       loaiGiamGia: convertLoaiGiamGiaToBoolean(values.loaiGiamGia),
-      trangThai:
+       trangThai:
         values.trangThai !== undefined && values.trangThai !== ""
-          ? values.trangThai
+          ? Number(values.trangThai)
           : undefined,
     };
 
@@ -93,27 +93,16 @@ export default function FilterPromo({ handleExportExcel }) {
                   <DatePicker className="w-full" format="DD/MM/YYYY" />
                 </Form.Item>
               </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col flex="1">
-                <Form.Item name="loaiGiamGia" label="Loại giảm giá">
-                  <Select placeholder="Chọn loại giảm giá" allowClear>
-                    <Option value="Phần trăm">Phần trăm</Option>
-                    <Option value="Tiền mặt">Tiền mặt</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
 
               <Col flex="1">
                 <Form.Item name="trangThai" label="Trạng thái">
                   <Select placeholder="Chọn trạng thái" allowClear>
-                    <Option value={true}>Đang diễn ra</Option>
-                    <Option value={false}>Đã kết thúc</Option>
+                    <Option value={0}>Sắp diễn ra</Option>
+                    <Option value={1}>Đang diễn ra</Option>
+                    <Option value={2}>Đã kết thúc</Option>
                   </Select>
                 </Form.Item>
               </Col>
-              <Col flex="1"></Col>
             </Row>
 
             <div className="flex justify-end gap-4 pr-3">

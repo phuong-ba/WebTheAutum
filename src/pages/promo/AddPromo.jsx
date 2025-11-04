@@ -38,7 +38,7 @@ export default function AddPromo() {
   const [selectedChiTietKeys, setSelectedChiTietKeys] = useState({});
   const [chiTietSanPhamData, setChiTietSanPhamData] = useState({});
   const [loaiGiamGia, setLoaiGiamGia] = useState(
-    form.getFieldValue("loaiGiamGia") || "Tiền mặt"
+    form.getFieldValue("loaiGiamGia") || "Phần trăm"
   );
   const [giaTriGiamState, setGiaTriGiamState] = useState(
     form.getFieldValue("giaTriGiam") || 0
@@ -50,41 +50,41 @@ export default function AddPromo() {
   const now = dayjs();
 
   useEffect(() => {
-    form.setFieldsValue({
-      giaTriToiThieu: loaiGiamGia === "Tiền mặt" ? giaTriGiamState : 0,
-    });
-    setGiaTriToiThieuState(loaiGiamGia === "Tiền mặt" ? giaTriGiamState : 0);
-  }, [loaiGiamGia, giaTriGiamState]);
+    // Đảm bảo loaiGiamGia luôn là "Phần trăm"
+    if (!editingItem) {
+      form.setFieldsValue({
+        loaiGiamGia: "Phần trăm",
+        giaTriToiThieu: 0,
+      });
+      setLoaiGiamGia("Phần trăm");
+      setGiaTriToiThieuState(0);
+    }
+  }, []);
 
   useEffect(() => {
-    if (loaiGiamGia === "Tiền mặt") {
-      form.setFieldsValue({ giaTriToiThieu: giaTriGiamState });
-      setGiaTriToiThieuState(giaTriGiamState);
-    }
-  }, [giaTriGiamState, loaiGiamGia]);
+    form.setFieldsValue({
+      giaTriToiThieu: 0,
+    });
+    setGiaTriToiThieuState(0);
+  }, [loaiGiamGia, giaTriGiamState]);
 
   console.log("🚀 ~ AddPromo ~ chiTietSanPhamData:", chiTietSanPhamData);
 
   useEffect(() => {
-    if (loaiGiamGia === "Phần trăm") {
-      let tongGiam = 0;
-      Object.entries(chiTietSanPhamData).forEach(([spId, chiTietArr]) => {
-        const selectedIds = selectedChiTietKeys[spId] || [];
-        chiTietArr
-          .filter((item) => selectedIds.includes(item.id))
-          .forEach((item) => {
-            tongGiam += item.giaBan * (giaTriGiamState / 100);
-          });
-      });
+    let tongGiam = 0;
+    Object.entries(chiTietSanPhamData).forEach(([spId, chiTietArr]) => {
+      const selectedIds = selectedChiTietKeys[spId] || [];
+      chiTietArr
+        .filter((item) => selectedIds.includes(item.id))
+        .forEach((item) => {
+          tongGiam += item.giaBan * (giaTriGiamState / 100);
+        });
+    });
 
-      if (giaTriGiamState > 100) tongGiam = 0;
+    if (giaTriGiamState > 100) tongGiam = 0;
 
-      form.setFieldsValue({ giaTriToiThieu: tongGiam });
-      setGiaTriToiThieuState(tongGiam);
-    } else {
-      form.setFieldsValue({ giaTriToiThieu: giaTriGiamState });
-      setGiaTriToiThieuState(giaTriGiamState);
-    }
+    form.setFieldsValue({ giaTriToiThieu: tongGiam });
+    setGiaTriToiThieuState(tongGiam);
   }, [chiTietSanPhamData, selectedChiTietKeys, giaTriGiamState, loaiGiamGia]);
 
   useEffect(() => {
@@ -94,7 +94,7 @@ export default function AddPromo() {
         try {
           const res = await dispatch(
             getSanPhamTheoDot(editingItem.id)
-          ).unwrap();
+).unwrap();
           const sanPhamIds = res.data.map((sp) => sp.sanPhamId);
           console.log("🚀 ~ fetchData ~ sanPhamIds:", sanPhamIds);
           setSelectedSanPhamKeys(sanPhamIds);
@@ -110,11 +110,11 @@ export default function AddPromo() {
             tenDot: editingItem.tenDot,
             ngayBatDau: dayjs(editingItem.ngayBatDau),
             ngayKetThuc: dayjs(editingItem.ngayKetThuc),
-            loaiGiamGia: editingItem.loaiGiamGia ? "Tiền mặt" : "Phần trăm",
+            loaiGiamGia: "Phần trăm",
             giaTriGiam: editingItem.giaTriGiam,
             giaTriToiThieu: editingItem.giaTriToiThieu,
           });
-          setLoaiGiamGia(editingItem.loaiGiamGia ? "Tiền mặt" : "Phần trăm");
+          setLoaiGiamGia("Phần trăm");
           setGiaTriGiamState(editingItem.giaTriGiam);
           setGiaTriToiThieuState(editingItem.giaTriToiThieu);
         } catch (err) {
@@ -162,7 +162,14 @@ export default function AddPromo() {
     const start = dayjs(values.ngayBatDau);
     const end = dayjs(values.ngayKetThuc);
     const isUpdate = !!editingItem;
-    let autoTrangThai = !end.isBefore(now, "day");
+    let autoTrangThai;
+    if (now.isBefore(start, "day")) {
+      autoTrangThai = 0;
+    } else if (now.isAfter(end, "day")) {
+      autoTrangThai = 2;
+    } else {
+      autoTrangThai = 1;
+    }
 
     const allChiTietIds = Object.values(selectedChiTietKeys).flat();
     if (allChiTietIds.length === 0) {
@@ -173,13 +180,13 @@ export default function AddPromo() {
     const payload = {
       maGiamGia: values.maGiamGia,
       tenDot: values.tenDot,
-      loaiGiamGia: values.loaiGiamGia === "Tiền mặt",
+      loaiGiamGia: false, // false = Phần trăm
       giaTriGiam: Number(values.giaTriGiam ?? 0),
       giaTriToiThieu: Number(values.giaTriToiThieu ?? 0),
       ngayBatDau: values.ngayBatDau?.format("YYYY-MM-DD"),
       ngayKetThuc: values.ngayKetThuc?.format("YYYY-MM-DD"),
       trangThai: autoTrangThai,
-      ctspIds: allChiTietIds,
+ctspIds: allChiTietIds,
       sanphamIds: selectedSanPhamKeys,
     };
 
@@ -265,7 +272,7 @@ export default function AddPromo() {
                   <Form.Item
                     name="ngayKetThuc"
                     label="Ngày kết thúc"
-                    dependencies={["ngayBatDau"]}
+dependencies={["ngayBatDau"]}
                     rules={[{ required: true, message: "Chọn ngày kết thúc" }]}
                   >
                     <DatePicker
@@ -289,14 +296,17 @@ export default function AddPromo() {
                     rules={[
                       { required: true, message: "Chưa chọn loại giảm giá" },
                     ]}
+                    initialValue="Phần trăm"
                   >
                     <Select
                       placeholder="Chọn loại"
                       onChange={(val) => setLoaiGiamGia(val)}
                       value={loaiGiamGia}
+                      disabled
                     >
-                      <Option value="Phần trăm">Phần trăm</Option>
-                      <Option value="Tiền mặt">Tiền mặt</Option>
+                      <Option value="Phần trăm" style={{ color: "#999" }}>
+                        Phần trăm
+                      </Option>
                     </Select>
                   </Form.Item>
                 </Col>
@@ -341,7 +351,7 @@ export default function AddPromo() {
                     />
                   </Form.Item>
                 </Col>
-              </Row>
+</Row>
 
               <TableSanPham
                 selectedRowKeys={selectedSanPhamKeys}
@@ -407,7 +417,7 @@ export default function AddPromo() {
                       }))
                     }
                     onDataChange={(data) =>
-                      setChiTietSanPhamData((prev) => ({
+setChiTietSanPhamData((prev) => ({
                         ...prev,
                         [sanPhamId]: data,
                       }))
@@ -478,7 +488,7 @@ export default function AddPromo() {
               Hủy
             </div>
             <div
-              className="w-40 cursor-pointer text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+className="w-40 cursor-pointer text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
               onClick={async () => {
                 const values = form.__submitValues;
                 if (values) {

@@ -14,4 +14,42 @@
   height: 240px !important;
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
+.custom-tabs .ant-tabs-nav {
+  margin-bottom: 20px;
+}
+
+.custom-tabs .ant-tabs-tab {
+  font-weight: 500;
+  color: #555;
+  transition: all 0.3s ease;
+  padding: 8px 16px;
+}
+
+.custom-tabs .ant-tabs-tab:hover {
+  color: #f37142;
+}
+
+.custom-tabs .ant-tabs-tab-active {
+  background-color: rgba(243, 113, 66, 0.1);
+  border-radius: 8px;
+}
+
+.custom-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #f37142 !important;
+}
+.custom-tabs .ant-tabs-tab {
+  margin: 0 !important;
+}
+.custom-tabs .ant-tabs-ink-bar {
+  background: #f37142 !important;
+  height: 3px;
+  border-radius: 3px;
+}

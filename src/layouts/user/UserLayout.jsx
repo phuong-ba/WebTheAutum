@@ -9,7 +9,7 @@ export default function UserLayout() {
     <div className="min-h-screen">
       <div className="px-20">
         <HeaderUser />
-        <div className="overflow-auto">
+        <div className="overflow-auto ">
           <Outlet />
           <Chatbox />
         </div>
