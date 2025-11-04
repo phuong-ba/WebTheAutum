@@ -1,77 +1,151 @@
-import { fetchChiTietSanPham } from "@/services/chiTietSanPhamService";
+import { fetchChiTietSanPham, giamSoLuong } from "@/services/chiTietSanPhamService";
 import { ShoppingCartIcon } from "@phosphor-icons/react";
-import { Col, Form, Input, Row, Select, Space, Table, Tag } from "antd";
-import Search from "antd/es/input/Search";
-import { TrashIcon } from "lucide-react";
-import React, { useEffect } from "react";
+import { Table, Space, message, Input, Select } from "antd";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-export default function SellListProduct() {
-  const { data } = useSelector((state) => state.chiTietSanPham);
+const { Search } = Input;
+
+export default function SellListProduct({ selectedBillId }) {
   const dispatch = useDispatch();
-  const onSearch = (value, _e, info) => console.log(info?.source, value);
+  const { data } = useSelector((state) => state.chiTietSanPham);
+  const [messageApi, contextHolder] = message.useMessage();
+
   useEffect(() => {
     dispatch(fetchChiTietSanPham());
   }, [dispatch]);
 
+  const handleAddToCart = async (product) => {
+    if (!selectedBillId) {
+      messageApi.warning("Vui lòng chọn hoặc tạo hóa đơn trước khi thêm sản phẩm!");
+      return;
+    }
+
+    try {
+      if (product.soLuongTon <= 0) {
+        messageApi.warning("Sản phẩm đã hết hàng!");
+        return;
+      }
+
+      await dispatch(giamSoLuong({ id: product.id, soLuong: 1 })).unwrap();
+
+      const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+      const currentBill = bills.find(bill => bill.id === selectedBillId);
+      
+      if (!currentBill) {
+        messageApi.error("Không tìm thấy hóa đơn!");
+        return;
+      }
+
+      const cart = currentBill.cart || [];
+      const index = cart.findIndex((p) => p.id === product.id);
+      
+      const unitPrice = product.giaSauGiam ?? product.giaBan ?? 0;
+      const originalPrice = product.giaBan ?? 0;
+      const hasDiscount = product.giaSauGiam && product.giaSauGiam < product.giaBan;
+
+      let updatedCart;
+      if (index !== -1) {
+        updatedCart = cart.map((item, i) => 
+          i === index ? {
+            ...item,
+            quantity: item.quantity + 1,
+            unitPrice: unitPrice,
+            originalPrice: originalPrice,
+            hasDiscount: hasDiscount,
+            totalPrice: (item.quantity + 1) * unitPrice,
+          } : item
+        );
+      } else {
+        updatedCart = [...cart, {
+          id: product.id,
+          name: product.tenSanPham,
+          color: product.tenMauSac,
+          size: product.tenKichThuoc,
+          weight: product.tenTrongLuong,
+          quantity: 1,
+          unitPrice: unitPrice,
+          originalPrice: originalPrice,
+          totalPrice: unitPrice,
+          hasDiscount: hasDiscount,
+          imageUrl: product.anhs?.[0]?.duongDanAnh || "",
+        }];
+      }
+
+      const updatedBills = bills.map(bill => {
+        if (bill.id === selectedBillId) {
+          const totalAmount = updatedCart.reduce((sum, product) => sum + product.totalPrice, 0);
+          return {
+            ...bill,
+            cart: updatedCart,
+            productCount: updatedCart.length,
+            totalAmount: totalAmount,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return bill;
+      });
+
+      localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
+      
+      window.dispatchEvent(new Event("cartUpdated"));
+      
+      const successMessage = hasDiscount 
+        ? "Đã thêm sản phẩm vào hóa đơn với giá khuyến mãi!"
+        : "Đã thêm sản phẩm vào hóa đơn!";
+      
+      messageApi.success(successMessage);
+      dispatch(fetchChiTietSanPham());
+    } catch (error) {
+      console.error(error);
+      messageApi.error("Thêm sản phẩm thất bại!");
+    }
+  };
+
   const columns = [
     {
       title: "STT",
-      key: "stt",
       render: (_, __, index) => index + 1,
-      width: 60,
       align: "center",
     },
     {
       title: "Ảnh",
       dataIndex: "anhs",
       render: (anhs) =>
-        anhs && anhs.length > 0 ? (
+        anhs?.[0]?.duongDanAnh ? (
           <img
             src={anhs[0].duongDanAnh}
-            alt="Sản phẩm"
-            style={{
-              width: 50,
-              height: 50,
-              objectFit: "cover",
-              borderRadius: 4,
-            }}
+            alt="Ảnh"
+            style={{ width: 50, height: 50, objectFit: "cover", borderRadius: 6 }}
           />
         ) : (
-          <div
-            style={{
-              width: 50,
-              height: 50,
-              backgroundColor: "#f0f0f0",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 4,
-              color: "#999",
-              fontSize: 12,
-            }}
-          >
-            Chưa có ảnh
-          </div>
+          <span>Không ảnh</span>
         ),
     },
-        { title: "Sản phẩm", dataIndex: "tenSanPham", render: (val) => val || "-" },
-        { title: "Màu sắc", dataIndex: "tenMauSac", render: (val) => val || "-" },
-        {
-      title: "Kích thước",
-      dataIndex: "tenKichThuoc",
-      render: (val) => val || "-",
-    },
-            { title: "Trọng lượng", dataIndex: "tenTrongLuong", render: (val) => val || "-" },
+    { title: "Tên sản phẩm", dataIndex: "tenSanPham" },
+    { title: "Màu sắc", dataIndex: "tenMauSac" },
+    { title: "Kích thước", dataIndex: "tenKichThuoc" },
+    { title: "Trọng lượng", dataIndex: "tenTrongLuong" },
+    { title: "Tồn kho", dataIndex: "soLuongTon" },
     {
-      title: "Số lượng",
-      dataIndex: "soLuongTon",
-      render: (val) => val ?? "-",
-    },
-    {
-      title: "Đơn giá",
-      dataIndex: "giaSauGiam",
-      render: (val) => val?.toLocaleString() + "₫" || "-",
+      title: "Giá bán",
+      render: (record) => {
+        const currentPrice = record.giaSauGiam ?? record.giaBan ?? 0;
+        const hasDiscount = record.giaSauGiam && record.giaSauGiam < record.giaBan;
+        
+        return (
+          <div className="flex flex-col">
+            <div className={`font-bold ${hasDiscount ? 'text-red-600' : ''}`}>
+              {currentPrice.toLocaleString()}₫
+            </div>
+            {hasDiscount && (
+              <div className="text-xs text-gray-500 line-through">
+                {record.giaBan.toLocaleString()}₫
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: "HÀNH ĐỘNG",
@@ -79,18 +153,8 @@ export default function SellListProduct() {
       align: "center",
       render: (_, record) => (
         <Space size="middle">
-          <a
-            onClick={() => {
-              if (!record.trangThai) {
-                messageApi.warning(
-                  "Không thể cập nhật! Nhân viên này đã bị khóa."
-                );
-                return;
-              }
-              navigate(`/admin/update-user/${record.id}`);
-            }}
-          >
-            <div className="bg-amber-500 py-2 px-4 rounded  cursor-pointer select-none  text-center  font-bold text-white   hover:bg-amber-600 active:bg-cyan-800 shadow">
+          <a onClick={() => handleAddToCart(record)}>
+            <div className="bg-amber-500 py-2 px-4 rounded cursor-pointer select-none text-center font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow">
               <ShoppingCartIcon size={20} color="#FFF" />
             </div>
           </a>
@@ -98,39 +162,17 @@ export default function SellListProduct() {
       ),
     },
   ];
+
   return (
     <>
-      <div className="shadow overflow-hidden rounded-lg min-h-[160px]  bg-white">
-        <div className="p-4 font-bold text-2xl bg-amber-600 opacity-75 rounded-t-lg text-white">
+      {contextHolder}
+      <div className="bg-white shadow rounded-lg">
+        <div className="p-4 text-2xl font-bold bg-amber-600 text-white rounded-t-lg">
           Danh sách sản phẩm
         </div>
-        <div className="">
-          <div className="flex items-center justify-end gap-2 p-4">
-            <div className="flex justify-between gap-3">
-              <Search placeholder="Tìm kiếm hóa đơn..." onSearch={onSearch} />
-              <Select
-                options={[{ label: "Demo", value: "demo" }]}
-                className="min-w-[200px]"
-              />
-              <Select
-                options={[{ label: "Demo", value: "demo" }]}
-                className="min-w-[200px]"
-              />
-              <Select
-                options={[{ label: "Demo", value: "demo" }]}
-                className="min-w-[200px]"
-              />
-            </div>
-          </div>
-          <div className="flex flex-col shadow overflow-hidden gap-4 p-4">
-            <Table
-              columns={columns}
-              dataSource={data}
-              rowKey="id"
-              bordered
-              pagination={{ pageSize: 5 }}
-            />
-          </div>
+        <div className="p-4">
+          <Search placeholder="Tìm kiếm sản phẩm..." className="mb-3" />
+          <Table columns={columns} dataSource={data} rowKey="id" pagination={{ pageSize: 5 }} />
         </div>
       </div>
     </>
