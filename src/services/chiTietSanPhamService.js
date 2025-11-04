@@ -24,3 +24,31 @@ export const getChiTietSanPhamBySanPham = createAsyncThunk(
     }
   }
 );
+
+export const giamSoLuong = createAsyncThunk(
+  "chiTietSanPham/giamSoLuong",
+  async ({ id, soLuong }, { rejectWithValue }) => {
+    try {
+      const response = await baseUrl.put(`chi-tiet-san-pham/giam-so-luong/${id}?soLuong=${soLuong}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data || "Lỗi khi giảm số lượng sản phẩm"
+      );
+    }
+  }
+);
+
+export const tangSoLuong = createAsyncThunk(
+  "chiTietSanPham/tangSoLuong",
+  async ({ id, soLuong }, { rejectWithValue }) => {
+    try {
+      const response = await baseUrl.put(`chi-tiet-san-pham/tang-so-luong/${id}?soLuong=${soLuong}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data || "Lỗi khi tăng số lượng sản phẩm"
+      );
+    }
+  }
+);

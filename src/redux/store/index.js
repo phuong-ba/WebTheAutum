@@ -8,6 +8,7 @@ import khachHangSlice from "../slices/khachHangSlice";
 import dotGiamGiaSilce from "../slices/DotGiamGiaSlice";
 import sanPhamSlice from "../slices/sanPhamSlice";
 import chiTietSanPhamSice from "../slices/chiTietSanPhamSlice";
+import giamGiaKhachHangSlice from "../slices/giamGiaKhachHangSlice";
 
 const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ const store = configureStore({
     dotGiamGia: dotGiamGiaSilce,
     sanPham: sanPhamSlice,
     chiTietSanPham: chiTietSanPhamSice,
+    giamGiaKhachHang: giamGiaKhachHangSlice,
   },
 });
 
