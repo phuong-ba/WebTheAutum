@@ -43,7 +43,6 @@ export default function Promo() {
     const start = dayjs(selectedRecord.ngayBatDau);
     const end = dayjs(selectedRecord.ngayKetThuc);
 
-    // Kiểm tra trạng thái theo kiểu int
     if (selectedRecord.trangThai === 0 && start.isAfter(now, "day")) {
       messageApi.warning("Không thể kích hoạt đợt giảm giá chưa đến ngày bắt đầu");
       return;
@@ -53,10 +52,9 @@ export default function Promo() {
       return;
     }
 
-    // Đổi trạng thái theo chu kỳ: 0->1 (mở), 1->2 (kết thúc), 2->không cho mở lại
     let newStatus = selectedRecord.trangThai;
-    if (selectedRecord.trangThai === 0) newStatus = 1; // Mở đợt giảm giá
-    else if (selectedRecord.trangThai === 1) newStatus = 2; // Kết thúc đợt giảm giá
+    if (selectedRecord.trangThai === 0) newStatus = 1; 
+    else if (selectedRecord.trangThai === 1) newStatus = 2; 
     else {
       messageApi.warning("Không thể thay đổi trạng thái đợt giảm giá đã kết thúc.");
       setIsModalVisible(false);
@@ -67,7 +65,7 @@ export default function Promo() {
       await dispatch(
         changeStatusDotGiamGia({
           id: selectedRecord.id,
-          trangThai: newStatus,
+          trangThai: selectedRecord.trangThai === 1 ? 2 : 1,
         })
       );
 
@@ -98,19 +96,20 @@ export default function Promo() {
     (async () => {
       try {
         const needUpdate = data.filter((item) => {
+           if (item.trangThai === 2) return false;
           const start = dayjs(item.ngayBatDau);
           const end = dayjs(item.ngayKetThuc);
 
           let calculatedStatus = -1;
           if (start.isAfter(now, "day")) {
-            calculatedStatus = 0; // Sắp diễn ra
+            calculatedStatus = 0; 
           } else if (
             (start.isBefore(now, "day") || start.isSame(now, "day")) &&
             (end.isAfter(now, "day") || end.isSame(now, "day"))
           ) {
-            calculatedStatus = 1; // Đang diễn ra
+            calculatedStatus = 1; 
           } else if (end.isBefore(now, "day")) {
-            calculatedStatus = 2; // Đã kết thúc
+            calculatedStatus = 2; 
           }
 
           return item.trangThai !== calculatedStatus;
@@ -180,7 +179,6 @@ export default function Promo() {
       };
     });
 
-    // Xuất file excel giữ nguyên
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "DotGiamGia");

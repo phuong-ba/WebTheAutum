@@ -41,6 +41,7 @@ export default function Discount() {
   (async () => {
     try {
       const needUpdate = data.filter((item) => {
+        if (item.trangThai === 2) return false;
         const start = dayjs(item.ngayBatDau);
         const end = dayjs(item.ngayKetThuc);
 
@@ -110,7 +111,7 @@ export default function Discount() {
       await dispatch(
         changeStatusPhieuGiamGia({
           id: selectedRecord.id,
-          trangThai: !selectedRecord.trangThai,
+          trangThai: selectedRecord.trangThai === 1 ? 2 : 1,
         })
       );
 
