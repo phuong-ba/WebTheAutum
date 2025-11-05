@@ -26,7 +26,7 @@ export default function InvoiceManager() {
   const [filterParams, setFilterParams] = useState({
     trangThai: undefined,
     ngayTao: null,
-    loaiHoaDon: [],
+   loaiHoaDon: [],
     hinhThucThanhToan: undefined
   });
 
@@ -49,7 +49,7 @@ export default function InvoiceManager() {
     }
   };
 
-  const handleSearch = async () => {
+  const handleSearch = async (page = 0, size = pageSize) => {
     const hasSearchValue =
       searchParams.searchText.trim() !== '' ||
       filterParams.trangThai !== undefined ||
@@ -208,7 +208,7 @@ export default function InvoiceManager() {
     setPageSize(pagination.pageSize);
 
     if (Object.keys(currentFilters).length > 0) {
-      handleSearch();
+      handleSearch(page, size);
     } else {
       fetchInvoices(page, pagination.pageSize);
     }

@@ -201,23 +201,24 @@ export default function BillTable({
   };
 
   return (
-    <Table
-      rowSelection={rowSelection}
-      columns={columns}
-      dataSource={invoices}
-      rowKey="id"
-      bordered
-      loading={loading}
-      pagination={{
-        current: currentPage,
-        pageSize: pageSize,
-        total: totalItems,
-        showSizeChanger: true,
-        showTotal: (total) => `Tổng: ${total} hóa đơn`,
-        pageSizeOptions: ["5", "10", "20", "50"],
-        onChange: onTableChange,
-      }}
-      scroll={{ x: 1200 }}
-    />
+   <Table
+  rowSelection={rowSelection}
+  columns={columns}
+  dataSource={invoices}
+  rowKey="id"
+  bordered
+  loading={loading}
+  pagination={{
+    current: currentPage,
+    pageSize: pageSize,
+    total: totalItems,
+    showSizeChanger: true,
+    showTotal: (total) => `Tổng: ${total} hóa đơn`,
+    pageSizeOptions: ["5", "10", "20", "50"],
+  }}
+  scroll={{ x: 1200 }}
+  onChange={(pagination) => onTableChange(pagination)}
+/>
+
   );
 }

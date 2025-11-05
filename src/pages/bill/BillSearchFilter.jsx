@@ -13,12 +13,12 @@ export default function BillSearchFilter({
   onReset
 }) {
   const [selectedValues, setSelectedValues] = useState(
-    filterParams.loaiHoaDonList || []
+    filterParams.loaiHoaDon || []
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
 useEffect(() => {
-  setSelectedValues(filterParams.loaiHoaDonList || []);
-}, [filterParams.loaiHoaDonList]);
+  setSelectedValues(filterParams.loaiHoaDon || []);
+}, [filterParams.loaiHoaDon]);
   const getDisplayText = () => {
      const map = { true : 'Tại quầy', false: 'Online' }; 
     if (selectedValues.length === 0) return undefined;
@@ -27,7 +27,7 @@ useEffect(() => {
 
   const handleSelectChange = (values) => {
     setSelectedValues(values);
-    setFilterParams({ ...filterParams, loaiHoaDonList: values });
+    setFilterParams({ ...filterParams, loaiHoaDon: values });
   };
 
   const handleDropdownVisibleChange = (open) => {
