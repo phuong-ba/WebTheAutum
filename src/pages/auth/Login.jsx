@@ -1,21 +1,78 @@
-import React from "react";
+import React, { useState } from "react";
 import bgLogin from "/src/assets/login/bglogin.jpg";
 import logo from "/src/assets/login/logoAutumn.png";
-import { Button, Checkbox, Form, Input } from "antd";
+import { Form, Input, message } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-  const onFinish = (values) => {
-    console.log("Success:", values);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const onFinish = async (values) => {
+    setLoading(true);
+    try {
+      console.log("📧 Login attempt:", values);
+
+      const response = await fetch("http://localhost:8080/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: values.username,
+          password: values.password
+        }),
+      });
+
+      console.log("🔧 Response status:", response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("✅ Login success:", data);
+
+      if (data.success) {
+        localStorage.setItem("auth_token", data.token);
+        localStorage.setItem("user_type", data.userType);
+        localStorage.setItem("user_name", data.hoTen);
+        
+        message.success(data.message || "Đăng nhập thành công!");
+
+        if (data.userType === "STAFF") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
+      } else {
+        message.error(data.message || "Đăng nhập thất bại!");
+      }
+
+    } catch (error) {
+      console.error("❌ Login error:", error);
+      
+      if (error.message.includes("Failed to fetch")) {
+        message.error("Không thể kết nối đến server. Kiểm tra kết nối!");
+      } else if (error.message.includes("HTTP error")) {
+        message.error(`Lỗi server: ${error.message}`);
+      } else {
+        message.error("Lỗi đăng nhập: " + error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
+
   const onFinishFailed = (errorInfo) => {
     console.log("Failed:", errorInfo);
+    message.error("Vui lòng điền đầy đủ thông tin!");
   };
 
   return (
     <>
       <div className="flex flex-col md:flex-row ">
-        {/* Ảnh */}
         <div className="hidden md:block md:w-1/2 lg:w-1/2">
           <img
             className="h-screen object-cover w-full md:h-screen lg:h-screen"
@@ -24,7 +81,6 @@ export default function Login() {
           />
         </div>
 
-        {/* Form */}
         <div className="flex flex-1 flex-col items-center gap-12 p-6 md:p-10">
           <div className="flex flex-col items-center text-center">
             <img
@@ -49,20 +105,30 @@ export default function Login() {
               <Form.Item
                 name="username"
                 rules={[
-                  { required: true, message: "Please input your username!" },
+                  { 
+                    required: true, 
+                    message: "Vui lòng nhập email!" 
+                  },
+                  {
+                    type: 'email',
+                    message: 'Email không hợp lệ!',
+                  }
                 ]}
               >
                 <Input
                   className="h-12"
                   prefix={<UserOutlined />}
-                  placeholder="Tên đăng nhập"
+                  placeholder="Email đăng nhập"
                 />
               </Form.Item>
 
               <Form.Item
                 name="password"
                 rules={[
-                  { required: true, message: "Please input your password!" },
+                  { 
+                    required: true, 
+                    message: "Vui lòng nhập mật khẩu!" 
+                  }
                 ]}
               >
                 <Input.Password
@@ -75,13 +141,30 @@ export default function Login() {
               <Form.Item>
                 <button
                   type="submit"
-                  className="p-4 w-full hover:border-amber-950 border bg-[#dc833a] text-center font-bold rounded select-none items-center justify-center cursor-pointer text-white"
+                  disabled={loading}
+                  className="p-4 w-full hover:border-amber-950 border bg-[#dc833a] text-center font-bold rounded select-none items-center justify-center cursor-pointer text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Đăng nhập
+                  {loading ? "ĐANG ĐĂNG NHẬP..." : "ĐĂNG NHẬP"}
                 </button>
                 <div className="flex justify-between mt-2 text-sm">
-                  <a href="/regiter">Đăng ký</a>
-                  <a href="">Quên mật khẩu</a>
+                  <a 
+                    href="/register"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/register");
+                    }}
+                  >
+                    Đăng ký
+                  </a>
+                  <a 
+                    href="/forgotpass"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/forgotpass");
+                    }}
+                  >
+                    Quên mật khẩu
+                  </a>
                 </div>
               </Form.Item>
             </Form>
