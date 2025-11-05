@@ -53,6 +53,8 @@ const DetailHoaDon = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm] = Form.useForm(); // ⭐ Thêm Form instance
   const [formErrors, setFormErrors] = useState({}); // ⭐ State lưu lỗi
+  const [nhanVienList, setNhanVienList] = useState([]);
+  const [phuongThucList, setPhuongThucList] = useState([]);
 
   const handleEditToggle = () => {
     setIsEditing(true);
@@ -65,7 +67,9 @@ const DetailHoaDon = () => {
       ghiChu: invoice.ghiChu,
       trangThai: invoice.trangThai,
       hinhThucThanhToan: invoice.hinhThucThanhToan,
-      tenNhanVien: invoice.tenNhanVien
+      tenNhanVien: invoice.tenNhanVien,
+      idNhanVien: invoice.idNhanVien,                         
+    idPhuongThucThanhToan: invoice.idPhuongThucThanhToan 
     });
   };
 
@@ -107,7 +111,13 @@ const DetailHoaDon = () => {
     ],
     hinhThucThanhToan: [
       { required: true, message: 'Vui lòng chọn hình thức thanh toán!' }
-    ]
+    ],
+    idNhanVien: [
+    { required: true, message: 'Vui lòng chọn nhân viên!' }
+  ],
+  idPhuongThucThanhToan: [
+    { required: true, message: 'Vui lòng chọn phương thức thanh toán!' }
+  ]
   };
 
   const handleSave = async () => {
@@ -141,6 +151,8 @@ const DetailHoaDon = () => {
     fetchInvoiceDetail();
     fetchLichSuHoaDon();
     checkCanEdit();
+     fetchNhanVien();      // ⭐ THÊM
+    fetchPhuongThuc(); 
   }, [id]);
 
   useEffect(() => {
@@ -199,6 +211,31 @@ const DetailHoaDon = () => {
       setLichSuHoaDon([]);
     }
   };
+  
+
+// ⭐ THÊM: Load danh sách nhân viên
+const fetchNhanVien = async () => {
+  try {
+    const res = await hoaDonApi.getAllNhanVien();
+    console.log('👥 Danh sách nhân viên:', res.data);
+    setNhanVienList(res.data || []);
+  } catch (err) {
+    console.error('❌ Lỗi tải nhân viên:', err);
+  }
+};
+
+// ⭐ THÊM: Load danh sách phương thức thanh toán
+const fetchPhuongThuc = async () => {
+  try {
+    const res = await hoaDonApi.getAllPhuongThucThanhToan();
+    console.log('💳 Danh sách phương thức:', res.data);
+    setPhuongThucList(res.data || []);
+  } catch (err) {
+    console.error('❌ Lỗi tải phương thức:', err);
+  }
+};
+
+
 
    const handlePrint = () => {
     const printArea = document.querySelector(".print-area");
