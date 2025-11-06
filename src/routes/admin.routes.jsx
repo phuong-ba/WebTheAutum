@@ -95,7 +95,15 @@ const adminRouters = [
         ),
       },
       {
-        path: "statistical",
+       index : true,
+        element: (
+          <LazyLoad>
+            <Statistical />
+          </LazyLoad>
+        ),
+      },
+      {
+       path : "statistical",
         element: (
           <LazyLoad>
             <Statistical />

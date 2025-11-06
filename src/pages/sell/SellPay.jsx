@@ -129,7 +129,7 @@ Bạn có chắc chắn muốn thanh toán?`;
     }
   };
 
-  const paymentOptions = ["Chuyển khoản", "Tiền mặt", "Cả hai"];
+  const paymentOptions = ["Chuyển khoản", "Tiền mặt"];
 
   return (
     <>

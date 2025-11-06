@@ -155,7 +155,7 @@ export default function SellBill({ onSelectBill }) {
           <div className="p-4 font-bold text-2xl bg-amber-600 opacity-75 rounded-t-lg text-white">
             Hóa đơn chờ
           </div>
-          <div className="grid grid-cols-4 xl:grid-cols-4 lg:grid-cols-2 md:grid-cols-1 gap-5 py-4 px-5">
+          <div className="grid grid-cols-3 xl:grid-cols-3 lg:grid-cols-2 md:grid-cols-1 gap-5 py-4 px-5">
             {bills.length === 0 ? (
               <div className="col-span-4 text-center py-8 text-gray-500">
                 <div className="text-lg font-semibold">Chưa có hóa đơn nào</div>
