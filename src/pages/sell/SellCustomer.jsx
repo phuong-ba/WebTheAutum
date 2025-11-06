@@ -97,7 +97,6 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     window.dispatchEvent(new Event("billsUpdated"));
   };
 
-  // Xóa khách hàng khỏi hóa đơn trong localStorage
   const removeCustomerFromBill = () => {
     if (!selectedBillId) return;
 
@@ -116,12 +115,10 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     window.dispatchEvent(new Event("billsUpdated"));
   };
 
-  // Cập nhật search text
   const handleSearchChange = (val) => {
     setSearch(val);
   };
 
-  // Xử lý nhập số điện thoại thủ công
   const handlePhoneChange = (e) => {
     const phoneValue = e.target.value;
     form.setFieldsValue({ sdt: phoneValue });
@@ -180,7 +177,7 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
                   >
                     {filteredData?.map((item) => (
                       <Option key={item.id} value={item.id}>
-                        {item.hoTen} - {item.sdt}
+                        {item.hoTen}
                       </Option>
                     ))}
                   </Select>

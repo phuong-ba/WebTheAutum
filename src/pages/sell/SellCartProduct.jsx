@@ -53,9 +53,11 @@ export default function SellCartProduct({ selectedBillId }) {
 
     window.addEventListener("cartUpdated", handleCartUpdated);
     return () => {
-      window.removeEventListener("cartUpdated", handleCartUpdated);
+    window.removeEventListener("cartUpdated", handleCartUpdated);
     };
   }, [selectedBillId]);
+
+  
 
   const filterCartProducts = () => {
     let result = [...cartProducts];
@@ -189,7 +191,7 @@ export default function SellCartProduct({ selectedBillId }) {
     if (product.quantity <= 1) return;
 
     try {
-      await dispatch(giamSoLuong({ id, soLuong: 1 })).unwrap();
+      await dispatch(tangSoLuong({ id, soLuong: 1 })).unwrap();
 
       const updated = cartProducts.map(p => {
         if (p.id === id) {
@@ -224,7 +226,7 @@ export default function SellCartProduct({ selectedBillId }) {
     }
 
     try {
-      await dispatch(tangSoLuong({ id, soLuong: 1 })).unwrap();
+      await dispatch(giamSoLuong({ id, soLuong: 1 })).unwrap();
 
       const updated = cartProducts.map(p => {
         if (p.id === id) {
