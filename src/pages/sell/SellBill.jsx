@@ -3,7 +3,11 @@ import Search from "antd/es/input/Search";
 import React, { useState, useEffect } from "react";
 import { message } from "antd";
 import { useDispatch } from "react-redux";
-import { tangSoLuong, fetchChiTietSanPham, giamSoLuong } from "@/services/chiTietSanPhamService";
+import {
+  tangSoLuong,
+  fetchChiTietSanPham,
+  giamSoLuong,
+} from "@/services/chiTietSanPhamService";
 
 export default function SellBill({ onSelectBill }) {
   const dispatch = useDispatch();
@@ -18,7 +22,7 @@ export default function SellBill({ onSelectBill }) {
 
   useEffect(() => {
     loadBills();
-    
+
     const savedBills = JSON.parse(localStorage.getItem("pendingBills")) || [];
     if (savedBills.length > 0 && !selectedBillId) {
       setSelectedBillId(savedBills[0].id);
@@ -53,15 +57,15 @@ export default function SellBill({ onSelectBill }) {
       productCount: 0,
       totalAmount: 0,
       cart: [],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    
+
     const updatedBills = [...bills, newBill];
     saveBills(updatedBills);
-    
+
     setSelectedBillId(newBill.id);
     onSelectBill(newBill.id);
-    
+
     messageApi.success("Đã tạo hóa đơn mới!");
   };
 
@@ -72,16 +76,18 @@ export default function SellBill({ onSelectBill }) {
 
     try {
       const restorePromises = billToDelete.cart.map(async (product) => {
-        await dispatch(tangSoLuong({ 
-          id: product.id, 
-          soLuong: product.quantity 
-        })).unwrap();
+        await dispatch(
+          tangSoLuong({
+            id: product.id,
+            soLuong: product.quantity,
+          })
+        ).unwrap();
       });
 
       await Promise.all(restorePromises);
-      
+
       dispatch(fetchChiTietSanPham());
-      
+
       return true;
     } catch (error) {
       console.error("Lỗi khi hoàn trả tồn kho:", error);
@@ -90,7 +96,7 @@ export default function SellBill({ onSelectBill }) {
   };
 
   const handleDeleteBill = async (id) => {
-    const billToDelete = bills.find(bill => bill.id === id);
+    const billToDelete = bills.find((bill) => bill.id === id);
     if (!billToDelete) return;
 
     const hasProducts = billToDelete.cart && billToDelete.cart.length > 0;
@@ -99,13 +105,13 @@ export default function SellBill({ onSelectBill }) {
       const confirmed = window.confirm(
         `Hóa đơn ${billToDelete.name} có ${billToDelete.productCount} sản phẩm. Bạn có chắc muốn xóa và hoàn trả tồn kho?`
       );
-      
+
       if (!confirmed) {
         return;
       }
 
       const restoreSuccess = await handleRestoreInventory(billToDelete);
-      
+
       if (!restoreSuccess) {
         messageApi.error("Lỗi khi hoàn trả tồn kho, không thể xóa hóa đơn!");
         return;
@@ -114,7 +120,7 @@ export default function SellBill({ onSelectBill }) {
 
     const updatedBills = bills.filter((bill) => bill.id !== id);
     saveBills(updatedBills);
-    
+
     if (selectedBillId === id) {
       if (updatedBills.length > 0) {
         setSelectedBillId(updatedBills[0].id);
@@ -124,11 +130,11 @@ export default function SellBill({ onSelectBill }) {
         onSelectBill(null);
       }
     }
-    
-    const successMessage = hasProducts 
+
+    const successMessage = hasProducts
       ? "Đã xóa hóa đơn và hoàn trả tồn kho thành công!"
       : "Đã xóa hóa đơn!";
-    
+
     messageApi.success(successMessage);
   };
 
@@ -155,7 +161,7 @@ export default function SellBill({ onSelectBill }) {
           <div className="p-4 font-bold text-2xl bg-amber-600 opacity-75 rounded-t-lg text-white">
             Hóa đơn chờ
           </div>
-          <div className="grid grid-cols-4 xl:grid-cols-4 lg:grid-cols-2 md:grid-cols-1 gap-5 py-4 px-5">
+          <div className="grid grid-cols-3 xl:grid-cols-3 lg:grid-cols-2 md:grid-cols-1 gap-5 py-4 px-5">
             {bills.length === 0 ? (
               <div className="col-span-4 text-center py-8 text-gray-500">
                 <div className="text-lg font-semibold">Chưa có hóa đơn nào</div>
@@ -166,15 +172,15 @@ export default function SellBill({ onSelectBill }) {
                 <div
                   key={bill.id}
                   className={`border-2 border-amber-600 opacity-75 rounded px-4 py-4 flex flex-col gap-3 min-w-[200px] cursor-pointer transition-all ${
-                    selectedBillId === bill.id 
-                      ? 'bg-green-50 shadow-lg border-green-500' 
-                      : 'bg-emerald-50 hover:shadow-md'
+                    selectedBillId === bill.id
+                      ? "bg-green-50 shadow-lg border-green-500"
+                      : "bg-emerald-50 hover:shadow-md"
                   }`}
                   onClick={() => handleSelectBill(bill.id)}
                 >
                   <div className="flex items-center gap-2 justify-between">
                     <div className="font-semibold">{bill.name}</div>
-                    <div className="text-xs bg-amber-600 text-white rounded px-4 font-semibold">
+                    <div className="text-xs bg-amber-600 text-white rounded px-4 font-semibold ">
                       {bill.status}
                     </div>
                   </div>
@@ -190,7 +196,9 @@ export default function SellBill({ onSelectBill }) {
                   </div>
                   <div className="flex justify-between items-center gap-2">
                     <div className="text-xs text-gray-500">
-                      {selectedBillId === bill.id ? "Đang chọn" : "Nhấn để chọn"}
+                      {selectedBillId === bill.id
+                        ? "Đang chọn"
+                        : "Nhấn để chọn"}
                     </div>
                     <div
                       className="border border-red-700 p-2 rounded cursor-pointer hover:bg-red-50"
