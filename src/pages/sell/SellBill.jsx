@@ -71,7 +71,7 @@ export default function SellBill({ onSelectBill }) {
 
   const handleRestoreInventory = async (billToDelete) => {
     if (!billToDelete || !billToDelete.cart || billToDelete.cart.length === 0) {
-      return true; // Không cần restore nếu không có sản phẩm
+      return true;
     }
 
     try {

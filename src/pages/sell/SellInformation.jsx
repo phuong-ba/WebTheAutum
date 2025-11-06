@@ -31,7 +31,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [forceUpdate, setForceUpdate] = useState(0);
 
-  // Load dữ liệu mã giảm giá và giảm giá khách hàng
   useEffect(() => {
     const loadDiscounts = async () => {
       try {
@@ -45,7 +44,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     loadDiscounts();
   }, [dispatch, messageApi]);
 
-  // ✅ SỬA: Cập nhật dữ liệu hóa đơn hiện tại khi selectedBillId thay đổi
   useEffect(() => {
     const updateCartData = () => {
       if (selectedBillId) {
@@ -53,11 +51,9 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         const currentBill = bills.find((bill) => bill.id === selectedBillId);
         
         if (currentBill) {
-          // ✅ QUAN TRỌNG: Lấy cartItems từ cả 'cart' và 'items'
           const itemsFromCart = currentBill.cart || [];
           const itemsFromItems = currentBill.items || [];
           
-          // ✅ Kết hợp cả hai nguồn, ưu tiên 'cart' trước
           const allCartItems = itemsFromCart.length > 0 ? itemsFromCart : itemsFromItems;
           
           setCartItems(allCartItems);
@@ -88,7 +84,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
     updateCartData();
     
-    // ✅ Lắng nghe sự kiện cập nhật
     window.addEventListener("billsUpdated", updateCartData);
     window.addEventListener("cartUpdated", updateCartData);
     
@@ -98,12 +93,10 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     };
   }, [selectedBillId]);
 
-  // Force update khi khách hàng thay đổi
   useEffect(() => {
     setForceUpdate((prev) => prev + 1);
   }, [selectedCustomer]);
 
-  // Kiểm tra điều kiện mã giảm giá
   const checkDiscountConditions = (discount, totalAmount) => {
     if (!discount) return { isValid: false, message: "Mã giảm giá không tồn tại" };
 
@@ -140,7 +133,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     return { isValid: true, message: "OK" };
   };
 
-  // Tính số tiền giảm
   const calculateDiscountAmount = (discount, total) => {
     if (discount.loaiGiamGia) {
       return Math.min(discount.giaTriGiamGia, total);
@@ -153,7 +145,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     }
   };
 
-  // Lọc mã giảm giá theo trạng thái, thời gian và khách hàng
   const getFilteredDiscounts = () => {
     if (!Array.isArray(discountData)) return [];
 
@@ -185,13 +176,11 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     return result;
   };
 
-  // Mã giảm giá khả dụng (đáp ứng điều kiện)
   const getAvailableDiscounts = () => {
     const filtered = getFilteredDiscounts();
     return filtered.filter((d) => checkDiscountConditions(d, cartTotal).isValid);
   };
 
-  // Lấy mã giảm giá tốt nhất (giảm nhiều nhất)
   const getBestDiscount = (available) => {
     if (!available.length) return null;
 
@@ -209,7 +198,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     return best;
   };
 
-  // Dùng useMemo tối ưu tính toán lại khi dependencies thay đổi
   const availableDiscounts = useMemo(() => {
     return getAvailableDiscounts();
   }, [discountData, giamGiaKhachHangData, selectedCustomer, cartTotal, forceUpdate]);
@@ -226,7 +214,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     return availableDiscounts.filter((d) => d.kieu === 0);
   }, [availableDiscounts]);
 
-  // Áp dụng mã giảm giá vào hóa đơn hiện tại (localStorage)
   const applyDiscount = (discount) => {
     if (!selectedBillId) return messageApi.warning("Vui lòng chọn hóa đơn!");
     const condition = checkDiscountConditions(discount, cartTotal);
@@ -269,7 +256,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     window.dispatchEvent(new Event("billsUpdated"));
   };
 
-  // Xóa mã giảm giá
   const removeDiscount = () => {
     if (!selectedBillId) return;
 
@@ -296,7 +282,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const handleToggleDelivery = () => setIsDelivery((prev) => !prev);
 
   const onChange = (key) => {
-    // console.log("Tab changed", key);
   };
 
   const isLoading = loading || giamGiaKHStatus === "pending";
@@ -357,14 +342,13 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                 : "Không có mã giảm giá khả dụng. Vui lòng chọn khách hàng để xem thêm mã giảm giá cá nhân."}
             </div>
           )}
-          {/* ✅ TRUYỀN cartItems và selectedBillId cho SellPay */}
           <SellPay
             cartTotal={cartTotal}
             appliedDiscount={appliedDiscount}
             onRemoveDiscount={removeDiscount}
             selectedCustomer={selectedCustomer}
-            cartItems={cartItems} // ✅ Đã có dữ liệu
-            selectedBillId={selectedBillId} // ✅ Đã có dữ liệu
+            cartItems={cartItems}
+            selectedBillId={selectedBillId} 
           />
         </div>
       ),

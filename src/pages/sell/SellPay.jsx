@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import hoaDonApi from "@/api/HoaDonAPI";
 import { message } from "antd";
+import { useNavigate } from "react-router";
 
 export default function SellPay({ 
   cartTotal, 
@@ -16,6 +17,7 @@ export default function SellPay({
   const finalAmount = appliedDiscount?.finalAmount || cartTotal;
   const shippingFee = 0;
   const [messageApi, contextHolder] = message.useMessage();
+  const navigate = useNavigate();
 
   const handlePayment = async () => {
     if (cartTotal === 0) {
@@ -47,7 +49,7 @@ Bạn có chắc chắn muốn thanh toán?`;
           idChiTietSanPham: item.idChiTietSanPham || item.id,
           soLuong: item.quantity || item.soLuong,
           giaBan: item.price || item.giaBan,
-          ghiChu: item.ghiChu || ""
+          ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : ""
         }));
       } else if (selectedBillId) {
         const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
@@ -58,7 +60,7 @@ Bạn có chắc chắn muốn thanh toán?`;
             idChiTietSanPham: item.idChiTietSanPham || item.id,
             soLuong: item.quantity || item.soLuong,
             giaBan: item.price || item.giaBan,
-            ghiChu: item.ghiChu || ""
+            ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : ""
           }));
         }
       }
@@ -70,28 +72,38 @@ Bạn có chắc chắn muốn thanh toán?`;
 
       const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
+      const diaChiKhachHang = typeof selectedCustomer?.diaChi === "string" 
+        ? selectedCustomer.diaChi 
+        : "Chưa có địa chỉ";
+
       const hoaDonMoi = {
-        loaiHoaDon: true, // Mặc định bán tại quầy
+        loaiHoaDon: true,
         phiVanChuyen: 0,
         tongTien: cartTotal,
         tongTienSauGiam: finalAmount,
         ghiChu: `Thanh toán bằng ${paymentMethod}${appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""}`,
-        diaChiKhachHang: selectedCustomer?.diaChi || "Chưa có địa chỉ",
-        ngayThanhToan: new Date(),
+        diaChiKhachHang: diaChiKhachHang,
+        ngayThanhToan: new Date().toISOString(),
         trangThai: 1,
         idKhachHang: selectedCustomer?.id || null,
         idNhanVien: 1,
         idPhieuGiamGia: appliedDiscount?.id || null,
         nguoiTao: currentUser?.id || 1,
-        chiTietList: chiTietList
+        chiTietList: chiTietList,
+        idPhuongThucThanhToan: paymentMethod === "Tiền mặt" ? 1 
+                              : paymentMethod === "Chuyển khoản" ? 2 
+                              : 3,
+        soTienThanhToan: finalAmount,
+        ghiChuThanhToan: `Thanh toán bằng ${paymentMethod}`,
       };
+
+      console.log("Payload gửi lên backend:", JSON.stringify(hoaDonMoi, null, 2));
 
       const res = await hoaDonApi.create(hoaDonMoi);
 
       if (res.data?.isSuccess) {
         messageApi.success("✅ Thanh toán thành công!");
 
-        // Xóa hóa đơn tạm khỏi localStorage
         if (selectedBillId) {
           const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
           const updatedBills = bills.filter(bill => bill.id !== selectedBillId);
@@ -101,8 +113,13 @@ Bạn có chắc chắn muốn thanh toán?`;
 
         if (onRemoveDiscount) onRemoveDiscount();
 
-        // Gọi callback để component cha reset giỏ hàng hoặc selectedBillId
         if (onClearCart) onClearCart();
+       const newBillId = res.data.data?.id || res.data.data;
+        if (newBillId) {
+          navigate(`/admin/detail-bill/${newBillId}`);
+        } else {
+          console.warn("Không tìm thấy ID hóa đơn mới trả về từ API");
+        }
       } else {
         messageApi.error("❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || ""));
       }
