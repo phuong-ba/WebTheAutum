@@ -343,11 +343,11 @@ export default function SellCartProduct({ selectedBillId }) {
               {filteredCartProducts.map((product, index) => (
                 <div
                   key={product.id}
-                  className="flex justify-between items-center border-4 border-cyan-700 px-8 py-3 rounded-tl-4xl rounded-br-4xl"
+                  className="flex justify-between items-center px-8 py-3 rounded-tl-4xl rounded-br-4xl"
                 >
-                  <div className="flex-2 flex items-center gap-20">
+                  <div className="flex-2 flex items-center gap-35">
                     <div className="font-bold">{index + 1}</div>
-                    <div className="max-w-[120px] max-h-[160px] object-cover rounded-xl flex items-center justify-center overflow-hidden">
+                    <div className="max-w-[100px] max-h-[120px] object-cover rounded-xl flex items-center justify-center overflow-hidden">
                       {product.imageUrl ? (
                         <img
                           src={product.imageUrl}
@@ -360,14 +360,9 @@ export default function SellCartProduct({ selectedBillId }) {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-1 items-center">
-                      <div>Trọng lượng:</div>
-                      <div className="border rounded border-amber-600 px-3 py-1 text-sm cursor-pointer">
-                        {product.weight ?? "Không có"}
-                      </div>
-                    </div>
+                  
                     <div className="flex flex-col gap-2">
-                      <div className="font-bold text-2xl">{product.name}</div>
+                      <div className="font-bold text-lg">{product.name}</div>
                       <div className="flex gap-2">
                         <div className="text-xs bg-amber-600 text-white rounded px-4 font-semibold">
                           {product.color}
@@ -376,22 +371,29 @@ export default function SellCartProduct({ selectedBillId }) {
                           {product.size}
                         </div>
                       </div>
+                       <div className="flex gap-1 text-sm items-center">
+                      <div>Trọng lượng:</div>
+                      <div className="border rounded border-amber-600 px-3 py-1 text-sm font-bold cursor-pointer">
+                        {product.weight ?? "Không có"}
+                      </div>
+                    </div>
                       <div className="flex items-center gap-4">
-                        <div>
+                        <div className="text-sm">
                           Số lượng:{" "}
-                          <span className="font-bold">{product.quantity}</span>
+                          {/* <span className="font-bold">{product.quantity}</span> */}
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleDecreaseQuantity(product.id)}
-                            className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
                             disabled={product.quantity <= 1}
                           >
                             -
                           </button>
+                          <span className="font-bold text-sm">{product.quantity}</span>
                           <button
                             onClick={() => handleIncreaseQuantity(product.id)}
-                            className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
+                            className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
                           >
                             +
                           </button>
