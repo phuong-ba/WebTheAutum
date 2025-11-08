@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Card,
-  Descriptions,
   Table,
   Button,
   Space,
   Tag,
   Timeline,
   Spin,
-  Alert,
   Divider,
   Row,
   Col,
@@ -29,12 +27,12 @@ import {
   LockOutlined,
   ShoppingOutlined,
   UserOutlined,
-  PhoneOutlined,
-  EnvironmentOutlined,
   DollarOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons';
 import hoaDonApi from '../../api/HoaDonAPI';
+import { fetchNhanVien } from '@/services/nhanVienService';
+import { fetchPhuongThuc } from '@/services/phuongThucThanhToanService';
 
 const { Title, Text } = Typography;
 
@@ -51,14 +49,36 @@ const DetailHoaDon = () => {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailForm] = Form.useForm();
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm] = Form.useForm(); // ⭐ Thêm Form instance
-  const [formErrors, setFormErrors] = useState({}); // ⭐ State lưu lỗi
+  const [editForm] = Form.useForm();
+  const [formErrors, setFormErrors] = useState({}); 
   const [nhanVienList, setNhanVienList] = useState([]);
   const [phuongThucList, setPhuongThucList] = useState([]);
+  const [canEditShipping, setCanEditShipping] = useState(false);
+
+  const getPaymentStatusTag = (status) => {
+    const statusMap = {
+      0: { label: 'Chưa thanh toán', color: 'warning' },
+      1: { label: 'Đã thanh toán', color: 'success' },
+      2: { label: 'Đã hoàn tiền', color: 'default' }
+    };
+    const config = statusMap[status] || { label: 'Không xác định', color: 'default' };
+    return <Tag color={config.color}>{config.label}</Tag>;
+  };
+
+  const getOrderStatusTag = (status) => {
+    const statusMap = {
+      0: { label: 'Chờ xác nhận', color: 'warning' },
+      1: { label: 'Chờ giao hàng', color: 'processing' },
+      2: { label: 'Đang vận chuyển', color: 'cyan' },
+      3: { label: 'Đã hoàn thành', color: 'success' },
+      4: { label: 'Đã hủy', color: 'error' }
+    };
+    const config = statusMap[status] || { label: 'Không xác định', color: 'default' };
+    return <Tag color={config.color}>{config.label}</Tag>;
+  };
 
   const handleEditToggle = () => {
     setIsEditing(true);
-    // ⭐ Set giá trị vào Form
     editForm.setFieldsValue({
       hoTenKhachHang: invoice.tenKhachHang,
       sdtKhachHang: invoice.sdtKhachHang,
@@ -66,6 +86,7 @@ const DetailHoaDon = () => {
       diaChiKhachHang: invoice.diaChiKhachHang,
       ghiChu: invoice.ghiChu,
       trangThai: invoice.trangThai,
+      trangThaiGiaoHang: invoice.trangThaiGiaoHang, 
       hinhThucThanhToan: invoice.hinhThucThanhToan,
       tenNhanVien: invoice.tenNhanVien,
       idNhanVien: invoice.idNhanVien,                         
@@ -73,7 +94,6 @@ const DetailHoaDon = () => {
     });
   };
 
-  // ⭐ Validation rules
   const validationRules = {
     hoTenKhachHang: [
       { required: true, message: 'Vui lòng nhập tên khách hàng!' },
@@ -109,6 +129,9 @@ const DetailHoaDon = () => {
     trangThai: [
       { required: true, message: 'Vui lòng chọn trạng thái!' }
     ],
+    trangThaiGiaoHang: [
+    { required: true, message: 'Vui lòng chọn trạng thái giao hàng!' }
+  ],
     hinhThucThanhToan: [
       { required: true, message: 'Vui lòng chọn hình thức thanh toán!' }
     ],
@@ -122,20 +145,17 @@ const DetailHoaDon = () => {
 
   const handleSave = async () => {
     try {
-      // ⭐ Validate form trước khi submit
       const values = await editForm.validateFields();
       
       await hoaDonApi.updateHoaDon(id, values);
       message.success('✅ Cập nhật thành công!');
       setIsEditing(false);
       setFormErrors({});
-      fetchInvoiceDetail(); // reload dữ liệu
+      fetchInvoiceDetail();
     } catch (err) {
       if (err.errorFields) {
-        // ⭐ Lỗi validation từ Ant Design Form
         message.error('❌ Vui lòng kiểm tra lại thông tin!');
       } else {
-        // ⭐ Lỗi từ API
         message.error('❌ Lưu thất bại! ' + (err.response?.data?.message || ''));
       }
     }
@@ -151,8 +171,8 @@ const DetailHoaDon = () => {
     fetchInvoiceDetail();
     fetchLichSuHoaDon();
     checkCanEdit();
-     fetchNhanVien();      // ⭐ THÊM
-    fetchPhuongThuc(); 
+    fetchAllNhanVien();
+    getAllPhuongThucThanhToan(); 
   }, [id]);
 
   useEffect(() => {
@@ -164,40 +184,56 @@ const DetailHoaDon = () => {
   }, [location.state?.refreshData]);
 
   const fetchInvoiceDetail = async () => {
-    try {
-      setLoading(true);
-      console.log('🔍 Đang gọi API với ID:', id);
+  try {
+    setLoading(true);
+    console.log('🔍 Đang gọi API với ID:', id);
 
-      const response = await hoaDonApi.getDetail(id);
-      console.log('📦 Full invoice:', response.data);
+    const response = await hoaDonApi.getDetail(id);
+    console.log('📦 Full response:', response);
+    console.log('📦 Response data:', response.data);
+    console.log('📦 Response data.data:', response.data?.data);
+    
+    let invoiceData = response.data?.data || response.data;
+    
+    console.log('✅ Invoice data sau khi parse:', invoiceData);
+    console.log('🔍 Tất cả keys trong invoiceData:', Object.keys(invoiceData || {}));
+    console.log('🔍 Trạng thái giao hàng:', invoiceData?.trangThaiGiaoHang);
+    console.log('🔍 Kiểu dữ liệu trạng thái giao hàng:', typeof invoiceData?.trangThaiGiaoHang);
+    
+    console.log('🔍 Các field quan trọng:');
+    console.log('  - id:', invoiceData?.id);
+    console.log('  - maHoaDon:', invoiceData?.maHoaDon);
+    console.log('  - trangThai:', invoiceData?.trangThai);
+    console.log('  - trangThaiGiaoHang:', invoiceData?.trangThaiGiaoHang);
+    console.log('  - loaiHoaDon:', invoiceData?.loaiHoaDon);
 
-      const invoiceData = response.data?.data || response.data;
-
-      console.log('✅ Invoice data sau khi parse:', invoiceData);
-
-      if (!invoiceData || !invoiceData.id) {
-        throw new Error('Dữ liệu hóa đơn không hợp lệ');
-      }
-
-      setInvoice(invoiceData);
-      setError(null);
-    } catch (err) {
-      console.error('❌ Lỗi tải chi tiết hóa đơn:', err);
-      console.error('❌ Error response:', err.response);
-      console.error('❌ Error message:', err.message);
-      setError('Không thể tải thông tin hóa đơn');
-    } finally {
-      setLoading(false);
+    if (!invoiceData || !invoiceData.id) {
+      throw new Error('Dữ liệu hóa đơn không hợp lệ');
     }
-  };
+
+    setInvoice(invoiceData);
+    setError(null);
+  } catch (err) {
+    console.error('❌ Lỗi tải chi tiết hóa đơn:', err);
+    console.error('❌ Error response:', err.response);
+    console.error('❌ Error message:', err.message);
+    setError('Không thể tải thông tin hóa đơn');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const checkCanEdit = async () => {
     try {
       const res = await hoaDonApi.canEdit(id);
       setCanEdit(res.data?.canEdit || false);
+
+      const resShipping = await hoaDonApi.canEditShippingStatus(id);
+      setCanEditShipping(resShipping.data?.canEdit || false);
     } catch (error) {
       console.error('Error checking edit permission:', error);
       setCanEdit(false);
+      setCanEditShipping(false);
     }
   };
 
@@ -212,11 +248,9 @@ const DetailHoaDon = () => {
     }
   };
   
-
-// ⭐ THÊM: Load danh sách nhân viên
-const fetchNhanVien = async () => {
+const fetchAllNhanVien = async () => {
   try {
-    const res = await hoaDonApi.getAllNhanVien();
+    const res = await fetchNhanVien();
     console.log('👥 Danh sách nhân viên:', res.data);
     setNhanVienList(res.data || []);
   } catch (err) {
@@ -224,10 +258,9 @@ const fetchNhanVien = async () => {
   }
 };
 
-// ⭐ THÊM: Load danh sách phương thức thanh toán
-const fetchPhuongThuc = async () => {
+const getAllPhuongThucThanhToan = async () => {
   try {
-    const res = await hoaDonApi.getAllPhuongThucThanhToan();
+    const res = await fetchPhuongThuc();
     console.log('💳 Danh sách phương thức:', res.data);
     setPhuongThucList(res.data || []);
   } catch (err) {
@@ -241,7 +274,6 @@ const fetchPhuongThuc = async () => {
     const printArea = document.querySelector(".print-area");
     const clone = printArea.cloneNode(true);
 
-    // ÉP 2 card nằm ngang (rất quan trọng)
     const row = clone.querySelector(".customer-payment-row");
     if (row) {
       row.style.display = "flex";
@@ -259,7 +291,6 @@ const fetchPhuongThuc = async () => {
         col.style.padding = "0 8px";
       });
 
-      // Tăng kích thước card khi in
       row.querySelectorAll(".ant-card").forEach((card) => {
         card.style.border = "1px solid #ddd";
         card.style.boxShadow = "none";
@@ -279,12 +310,11 @@ const fetchPhuongThuc = async () => {
       });
     }
 
-    // TĂNG ZOOM TOÀN BỘ NỘI DUNG KHI IN
     const printContent = clone;
-    printContent.style.zoom = "0.9"; // Tăng 30%
+    printContent.style.zoom = "0.9";
     printContent.style.transform = "scale(0.9)";
     printContent.style.transformOrigin = "top left";
-    printContent.style.width = "calc(100% / 0.9)"; // Bù lại để không bị tràn
+    printContent.style.width = "calc(100% / 0.9)";
 
     const printWindow = window.open("", "_blank", "width=1000,height=600");
 
@@ -304,7 +334,6 @@ const fetchPhuongThuc = async () => {
       color-adjust: exact;
     }
 
-    /* Tăng kích thước chữ toàn bộ */
     body, .print-area {
       font-size: 14px !important;
       line-height: 1.6 !important;
@@ -315,7 +344,6 @@ const fetchPhuongThuc = async () => {
       color: #333 !important;
     }
 
-    /* Bảng sản phẩm */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -332,7 +360,6 @@ const fetchPhuongThuc = async () => {
       font-weight: bold;
     }
 
-    /* Ẩn phần không cần in */
     .no-print,
     .ant-btn,
     .ant-breadcrumb,
@@ -360,7 +387,6 @@ const fetchPhuongThuc = async () => {
       margin: 10mm;
     }
 
-    /* Tăng độ rõ nét */
     img {
       max-width: 70px !important;
       height: auto !important;
@@ -594,7 +620,7 @@ const fetchPhuongThuc = async () => {
                   <Button onClick={handleCancelEdit}>❌ Hủy</Button>
                 </Space>
               ) : (
-                canEdit ? (
+                 (canEdit || canEditShipping) ? (
                   <Button type="primary" icon={<EditOutlined />} onClick={handleEditToggle}>
                     Chỉnh sửa
                   </Button>
@@ -609,23 +635,40 @@ const fetchPhuongThuc = async () => {
               >
                 In đơn hàng
               </Button>
-              {/* <Button
-                icon={<MailOutlined />}
-                onClick={handleSendEmail}
-                disabled={!invoice.emailKhachHang || invoice.emailKhachHang === 'N/A'}
-              >
-                Gửi email
-              </Button> */}
             </Space>
           </div>
         </Card>
 
-        {/* ⭐ Bọc toàn bộ form edit trong Form component */}
         <Form form={editForm} layout="vertical">
           <Row gutter={16}>
-            {/* Cột trái */}
             <Col xs={24} lg={16}>
-              {/* Trạng thái đơn hàng */}
+              
+              <Card title="Trạng thái giao hàng" style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Text>Trạng thái:</Text>
+                  {isEditing ? (
+                    <Form.Item
+                      name="trangThaiGiaoHang"
+                      rules={validationRules.trangThaiGiaoHang}
+                      style={{ marginBottom: 0, flex: 1 }}
+                    >
+                      <Select
+                        style={{ width: 200 }}
+                        options={[
+                          { label: 'Chờ xác nhận', value: 0 },
+                          { label: 'Chờ giao hàng', value: 1 },
+                          { label: 'Đang vận chuyển', value: 2 },
+                          { label: 'Đã hoàn thành', value: 3 },
+                          { label: 'Đã hủy', value: 4 }
+                        ]}
+                      />
+                    </Form.Item>
+                  ) : (
+                    getOrderStatusTag(invoice.trangThaiGiaoHang)
+                  )}
+                </div>
+              </Card>
+
               <Card title="Trạng thái đơn hàng" style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Text>Trạng thái:</Text>
@@ -638,24 +681,21 @@ const fetchPhuongThuc = async () => {
                       <Select
                         style={{ width: 200 }}
                         options={[
-                          { label: 'Chờ xác nhận', value: 0 },
-                          { label: 'Chờ giao hàng', value: 1 },
-                          { label: 'Đang vận chuyển', value: 2 },
-                          { label: 'Đã thanh toán', value: 3 },
-                          { label: 'Đã hủy', value: 4 }
+                          { label: 'Chưa thanh toán', value: 0 },
+                          { label: 'Đã thanh toán', value: 1 },
+                          { label: 'Đã hoàn tiền', value: 2 }
                         ]}
+                         disabled={!canEdit && canEditShipping}
                       />
                     </Form.Item>
                   ) : (
-                    getStatusTag(invoice.trangThai)
+                    getPaymentStatusTag(invoice.trangThai)
                   )}
                 </div>
               </Card>
 
-              {/* Thông tin khách hàng và Thanh toán */}
               <Row gutter={16} style={{ marginBottom: 16  } } className="customer-payment-row"> 
               
-                {/* Thông tin khách hàng */}
                 <Col xs={24} md={12}>
                   <Card title={<><UserOutlined /> Thông tin khách hàng</>} style={{ height: '100%' }}>
                     <Space direction="vertical" style={{ width: '100%' }} size="small">
@@ -722,7 +762,6 @@ const fetchPhuongThuc = async () => {
                   </Card>
                 </Col>
 
-                {/* Thông tin thanh toán */}
                 <Col xs={24} md={12}>
                   <Card title={<><DollarOutlined /> Thông tin thanh toán</>} style={{ height: '100%' }}>
                     <Space direction="vertical" style={{ width: '100%' }} size="small">
@@ -767,7 +806,6 @@ const fetchPhuongThuc = async () => {
                 </Col>
               </Row>
 
-              {/* Danh sách sản phẩm */}
               <Card title={<><ShoppingOutlined /> Danh sách sản phẩm</>} style={{ marginBottom: 16 }}>
                 {invoice.chiTietSanPhams && invoice.chiTietSanPhams.length > 0 ? (
                   <Table
@@ -781,7 +819,6 @@ const fetchPhuongThuc = async () => {
                 )}
               </Card>
 
-              {/* Ghi chú */}
               <Card title="Ghi chú của khách" style={{ marginBottom: 16 }}>
                 <div>
                   <Text type="secondary">Ghi chú:</Text>
@@ -800,9 +837,7 @@ const fetchPhuongThuc = async () => {
               </Card>
             </Col>
 
-            {/* Cột phải */}
             <Col xs={24} lg={8}>
-              {/* Tóm tắt đơn hàng */}
               <Card title="Tóm tắt đơn hàng" style={{ marginBottom: 16 }}>
                 <Space direction="vertical" style={{ width: '100%' }} size="middle">
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -840,7 +875,6 @@ const fetchPhuongThuc = async () => {
                 </Space>
               </Card>
 
-              {/* Lịch sử đơn hàng */}
               <Card title={<><ClockCircleOutlined /> Lịch sử đơn hàng</>} className="history-section">
                 {lichSuHoaDon && lichSuHoaDon.length > 0 ? (
                   <Timeline
@@ -890,7 +924,6 @@ const fetchPhuongThuc = async () => {
         </Form>
       </div>
 
-      {/* Modal gửi email */}
       <Modal
         title={<Space><MailOutlined /> Gửi hóa đơn qua email</Space>}
         open={emailModalVisible}
@@ -936,28 +969,15 @@ const fetchPhuongThuc = async () => {
             />
           </Form.Item>
 
-        
-
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
               <Button onClick={handleCancelEmail}>
                 Hủy
               </Button>
-              {/* <Button
-                type="primary"
-                htmlType="submit"
-                loading={sendingEmail}
-                icon={<MailOutlined />}
-              >
-                Gửi email
-              </Button> */}
             </Space>
           </Form.Item>
         </Form>
       </Modal>
-
-
-  
     </div>
   );
 };

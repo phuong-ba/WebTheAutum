@@ -187,6 +187,7 @@ export default function InvoiceManager() {
     }
   };
 
+
   const handleServiceChange = async (invoiceId, newService) => {
     const oldInvoices = [...invoices];
     setInvoices(prev =>

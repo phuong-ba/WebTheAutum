@@ -10,12 +10,16 @@ export default function SellPay({
   onRemoveDiscount,
   cartItems,
   selectedBillId,
-  onClearCart
+  onClearCart,
+  isDelivery,
+  addressForm,
+  tinhList,
+  localQuanList
 }) {
   const [paymentMethod, setPaymentMethod] = useState(null);
   const discountAmount = appliedDiscount?.discountAmount || 0;
   const finalAmount = appliedDiscount?.finalAmount || cartTotal;
-  const shippingFee = 0;
+  const shippingFee = isDelivery ? 30000 : 0; 
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
@@ -25,19 +29,84 @@ export default function SellPay({
       return;
     }
 
+    if (!selectedCustomer) {
+      messageApi.warning("Vui lòng chọn khách hàng trước khi thanh toán!");
+      return;
+    }
+
     if (!paymentMethod) {
       messageApi.warning("Vui lòng chọn phương thức thanh toán!");
       return;
     }
 
-    const confirmMessage = `XÁC NHẬN THANH TOÁN\n
-Tổng tiền hàng: ${cartTotal.toLocaleString()} VND
-Giảm giá: ${discountAmount.toLocaleString()} VND
-Thành tiền: ${finalAmount.toLocaleString()} VND
-Mã giảm giá: ${appliedDiscount?.code || "Không áp dụng"}
-Phương thức: ${paymentMethod}
+    if (isDelivery) {
+      if (!addressForm) {
+        messageApi.warning("Vui lòng nhập địa chỉ giao hàng!");
+        return;
+      }
 
-Bạn có chắc chắn muốn thanh toán?`;
+      const formValues = addressForm.getFieldsValue();
+      if (!formValues.thanhPho || !formValues.quan || !formValues.diaChiCuThe) {
+        messageApi.warning("Vui lòng nhập đầy đủ thông tin địa chỉ giao hàng!");
+        return;
+      }
+    }
+
+    let shippingAddress = null;
+    if (isDelivery && addressForm) {
+      try {
+        const formValues = addressForm.getFieldsValue();
+        console.log("📝 Form values từ SellInformation:", formValues);
+        
+        if (formValues.thanhPho && formValues.quan && formValues.diaChiCuThe) {
+          const tinhName = tinhList?.find(t => t.id === formValues.thanhPho)?.tenTinh || '';
+          const quanName = localQuanList?.find(q => q.id === formValues.quan)?.tenQuan || '';
+          
+          shippingAddress = {
+            fullAddress: `${formValues.diaChiCuThe}, ${quanName}, ${tinhName}`,
+            idTinh: formValues.thanhPho,
+            idQuan: formValues.quan,
+            diaChiCuThe: formValues.diaChiCuThe,
+            hoTen: formValues.HoTen || selectedCustomer.hoTen,
+            sdt: formValues.SoDienThoai || selectedCustomer.sdt,
+            tenTinh: tinhName,
+            tenQuan: quanName
+          };
+          
+          console.log("📍 Địa chỉ từ form vừa nhập:", shippingAddress);
+          
+          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+          const updatedBills = bills.map((bill) => {
+            if (bill.id === selectedBillId) {
+              return {
+                ...bill,
+                shippingAddress: shippingAddress
+              };
+            }
+            return bill;
+          });
+          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
+          console.log("💾 Đã lưu địa chỉ vào localStorage");
+        }
+      } catch (error) {
+        console.error("❌ Lỗi khi lấy giá trị form:", error);
+      }
+    }
+
+    const totalWithShipping = finalAmount + shippingFee;
+    
+    const confirmMessage = `XÁC NHẬN THANH TOÁN\n
+        Khách hàng: ${selectedCustomer.hoTen}
+        Số điện thoại: ${selectedCustomer.sdt}
+        ${isDelivery ? `📍 Giao hàng: ${shippingAddress?.fullAddress || 'Địa chỉ giao hàng'}` : '🏪 Mua tại quầy'}
+        Tổng tiền hàng: ${cartTotal.toLocaleString()} VND
+        Giảm giá: ${discountAmount.toLocaleString()} VND
+        ${isDelivery ? `Phí vận chuyển: ${shippingFee.toLocaleString()} VND` : ''}
+        Thành tiền: ${totalWithShipping.toLocaleString()} VND
+        Mã giảm giá: ${appliedDiscount?.code || "Không áp dụng"}
+        Phương thức: ${paymentMethod}
+
+        Bạn có chắc chắn muốn thanh toán?`;
 
     if (!window.confirm(confirmMessage)) return;
 
@@ -49,7 +118,8 @@ Bạn có chắc chắn muốn thanh toán?`;
           idChiTietSanPham: item.idChiTietSanPham || item.id,
           soLuong: item.quantity || item.soLuong,
           giaBan: item.price || item.giaBan,
-          ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : ""
+          ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
+          trangThai: 0 // Trạng thái chi tiết sản phẩm
         }));
       } else if (selectedBillId) {
         const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
@@ -60,7 +130,8 @@ Bạn có chắc chắn muốn thanh toán?`;
             idChiTietSanPham: item.idChiTietSanPham || item.id,
             soLuong: item.quantity || item.soLuong,
             giaBan: item.price || item.giaBan,
-            ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : ""
+            ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
+            trangThai: 0 // Trạng thái chi tiết sản phẩm
           }));
         }
       }
@@ -71,20 +142,76 @@ Bạn có chắc chắn muốn thanh toán?`;
       }
 
       const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+      
+      let diaChiKhachHang = "Chưa có địa chỉ";
+      let idTinh = null;
+      let idQuan = null;
+      let diaChiCuThe = "";
 
-      const diaChiKhachHang = typeof selectedCustomer?.diaChi === "string" 
-        ? selectedCustomer.diaChi 
-        : "Chưa có địa chỉ";
+      if (shippingAddress) {
+        diaChiKhachHang = shippingAddress.fullAddress;
+        idTinh = shippingAddress.idTinh;
+        idQuan = shippingAddress.idQuan;
+        diaChiCuThe = shippingAddress.diaChiCuThe;
+        
+        console.log("✅ Sử dụng địa chỉ từ FORM vừa nhập");
+      } 
+      else {
+        const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+        const currentBill = bills.find(bill => bill.id === selectedBillId);
+        const savedShippingAddress = currentBill?.shippingAddress;
+
+        if (savedShippingAddress && savedShippingAddress.idTinh && savedShippingAddress.idQuan) {
+          diaChiKhachHang = savedShippingAddress.fullAddress;
+          idTinh = savedShippingAddress.idTinh;
+          idQuan = savedShippingAddress.idQuan;
+          diaChiCuThe = savedShippingAddress.diaChiCuThe || "";
+          
+          console.log("✅ Sử dụng địa chỉ từ localStorage");
+        } 
+        else if (selectedCustomer?.diaChi) {
+          const customerAddress = selectedCustomer.diaChi;
+          diaChiKhachHang = customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "Chưa có địa chỉ";
+          idTinh = customerAddress.tinhThanhId || customerAddress.id_tinh || customerAddress.idTinh;
+          idQuan = customerAddress.quanHuyenId || customerAddress.id_quan || customerAddress.idQuan;
+          diaChiCuThe = customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "";
+          
+          console.log("✅ Sử dụng địa chỉ từ KHÁCH HÀNG");
+        } else {
+          console.log("❌ Không có địa chỉ nào");
+        }
+      }
+
+      console.log("📊 Thông tin địa chỉ cuối cùng:", {
+        diaChiKhachHang,
+        idTinh,
+        idQuan, 
+        diaChiCuThe,
+        hasShippingAddress: !!shippingAddress
+      });
+
+      let trangThaiGiaoHang = null;
+      if (isDelivery) {
+        trangThaiGiaoHang = 1;
+      } else {
+        trangThaiGiaoHang = 3;
+      }
+
+      console.log("📦 Trạng thái giao hàng:", {
+        isDelivery,
+        trangThaiGiaoHang
+      });
 
       const hoaDonMoi = {
-        loaiHoaDon: true,
-        phiVanChuyen: 0,
+        loaiHoaDon: isDelivery ? false : true,
+        phiVanChuyen: shippingFee, 
         tongTien: cartTotal,
         tongTienSauGiam: finalAmount,
-        ghiChu: `Thanh toán bằng ${paymentMethod}${appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""}`,
+        ghiChu: `${isDelivery ? 'Giao hàng - ' : 'Tại quầy - '}Thanh toán bằng ${paymentMethod}${appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""}`,
         diaChiKhachHang: diaChiKhachHang,
         ngayThanhToan: new Date().toISOString(),
-        trangThai: 1,
+        trangThai: 1, 
+        trangThaiGiaoHang: trangThaiGiaoHang,
         idKhachHang: selectedCustomer?.id || null,
         idNhanVien: 1,
         idPhieuGiamGia: appliedDiscount?.id || null,
@@ -93,16 +220,23 @@ Bạn có chắc chắn muốn thanh toán?`;
         idPhuongThucThanhToan: paymentMethod === "Tiền mặt" ? 1 
                               : paymentMethod === "Chuyển khoản" ? 2 
                               : 3,
-        soTienThanhToan: finalAmount,
-        ghiChuThanhToan: `Thanh toán bằng ${paymentMethod}`,
+        soTienThanhToan: totalWithShipping,
+        ghiChuThanhToan: `${isDelivery ? 'Giao hàng - ' : 'Tại quầy - '}Thanh toán bằng ${paymentMethod}`,
+        idTinh: idTinh,
+        idQuan: idQuan,
+        diaChiCuThe: diaChiCuThe
       };
 
-      console.log("Payload gửi lên backend:", JSON.stringify(hoaDonMoi, null, 2));
+      console.log("🚀 FINAL PAYLOAD gửi lên BE:", JSON.stringify(hoaDonMoi, null, 2));
 
       const res = await hoaDonApi.create(hoaDonMoi);
 
       if (res.data?.isSuccess) {
-        messageApi.success("✅ Thanh toán thành công!");
+        const successMessage = isDelivery 
+          ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng." 
+          : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất.";
+        
+        messageApi.success(successMessage);
 
         if (selectedBillId) {
           const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
@@ -112,9 +246,9 @@ Bạn có chắc chắn muốn thanh toán?`;
         }
 
         if (onRemoveDiscount) onRemoveDiscount();
-
         if (onClearCart) onClearCart();
-       const newBillId = res.data.data?.id || res.data.data;
+
+        const newBillId = res.data.data?.id || res.data.data;
         if (newBillId) {
           navigate(`/admin/detail-bill/${newBillId}`);
         } else {
@@ -125,11 +259,13 @@ Bạn có chắc chắn muốn thanh toán?`;
       }
     } catch (error) {
       console.error("❌ Lỗi khi gọi API:", error);
-      messageApi.error("Thanh toán thất bại! Vui lòng thử lại.");
+      messageApi.error(`${isDelivery ? 'Đặt hàng' : 'Thanh toán'} thất bại! Vui lòng thử lại.`);
     }
   };
 
   const paymentOptions = ["Chuyển khoản", "Tiền mặt"];
+  
+  const totalWithShipping = finalAmount + shippingFee;
 
   return (
     <>
@@ -144,13 +280,15 @@ Bạn có chắc chắn muốn thanh toán?`;
               <span>Giảm giá:</span>{" "}
               <span className="text-red-800">-{discountAmount.toLocaleString()} vnd</span>
             </div>
-            <div className="flex justify-between font-bold">
-              <span>Phí vận chuyển:</span> <span>{shippingFee.toLocaleString()} vnd</span>
-            </div>
+            {isDelivery && (
+              <div className="flex justify-between font-bold">
+                <span>Phí vận chuyển:</span> <span>{shippingFee.toLocaleString()} vnd</span>
+              </div>
+            )}
           </div>
           <div className="flex justify-between font-bold text-lg">
             <span>Tổng thanh toán:</span>{" "}
-            <span className="text-amber-600">{finalAmount.toLocaleString()} vnd</span>
+            <span className="text-amber-600">{totalWithShipping.toLocaleString()} vnd</span>
           </div>
         </div>
       </div>
@@ -174,11 +312,33 @@ Bạn có chắc chắn muốn thanh toán?`;
         </div>
       </div>
 
+      {!selectedCustomer && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="text-yellow-700 text-sm font-semibold">
+            ⚠️ Vui lòng chọn khách hàng trước khi thanh toán
+          </div>
+        </div>
+      )}
+
+      {isDelivery && selectedCustomer && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="text-blue-700 text-sm font-semibold">
+            📦 Đơn hàng sẽ được giao đến địa chỉ bạn nhập
+          </div>
+        </div>
+      )}
+
       <div 
         onClick={handlePayment}
-        className="cursor-pointer select-none text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+        className={`cursor-pointer select-none text-center py-3 rounded-xl font-bold text-white shadow ${
+          !selectedCustomer 
+            ? "bg-gray-400 cursor-not-allowed" 
+            : "bg-[#E67E22] hover:bg-amber-600 active:bg-cyan-800"
+        }`}
       >
-        Thanh toán
+        {!selectedCustomer 
+          ? "Vui lòng chọn khách hàng" 
+          : isDelivery ? "Đặt hàng" : "Thanh toán"}
       </div>
     </>
   );

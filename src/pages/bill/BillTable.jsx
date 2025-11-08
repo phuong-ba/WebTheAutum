@@ -3,7 +3,6 @@ import { Table, Tag, Button, Space, Dropdown, Menu } from "antd";
 import { EyeOutlined, DownOutlined } from "@ant-design/icons";
 import { toast } from "react-toastify";
 
-// ==================== UTILITY FUNCTIONS ====================
 const formatMoney = (value) => {
   if (!value && value !== 0) return "0 ₫";
   return new Intl.NumberFormat("vi-VN", {
@@ -19,11 +18,9 @@ const formatDate = (dateString) => {
 
 const getStatusConfig = (status) => {
   const configs = {
-    0: { label: "Chờ xác nhận", color: "#FAAD14" },
-    1: { label: "Chờ giao hàng", color: "#1890FF" },
-    2: { label: "Đang vận chuyển", color: "#13C2C2" },
-    3: { label: "Đã thanh toán", color: "#52C41A" },
-    4: { label: "Đã hủy", color: "#FF4D4F" },
+    0: { label: "Chờ thanh toán", color: "#FAAD14" },
+    1: { label: "Đã thanh toán", color: "#52C41A" },
+    2: { label: "Đã hủy", color: "#FF4D4F" },
   };
   return configs[status] || { label: "Không xác định", color: "#999" };
 };
@@ -41,25 +38,21 @@ export default function BillTable({
   onServiceChange,
   onViewDetail,
 }) {
-  // ========== DROPDOWN MENU HÀM ==========
 
-  // Menu trạng thái
-  const getStatusMenu = (record) => (
+ 
+   const getStatusMenu = (record) => (
     <Menu
       onClick={({ key }) => {
         onStatusChange(record.id, parseInt(key));
-        toast.success("Cập nhật trạng thái thành công!");
+        toast.success("Cập nhật trạng thá giao hàng thành công!");
       }}
     >
-      <Menu.Item key="0">Chờ xác nhận</Menu.Item>
-      <Menu.Item key="1">Chờ giao hàng</Menu.Item>
-      <Menu.Item key="2"> Đang vận chuyển</Menu.Item>
-      <Menu.Item key="3"> Đã thanh toán</Menu.Item>
-      <Menu.Item key="4"> Đã hủy</Menu.Item>
+      <Menu.Item key="0">Chờ giao hàng</Menu.Item>
+      <Menu.Item key="1"> Đã thanh toán</Menu.Item>
+      <Menu.Item key="2"> Đã hủy</Menu.Item>
     </Menu>
   );
 
-  // Menu loại hóa đơn
   const getServiceMenu = (record) => (
     <Menu
       onClick={({ key }) => {
@@ -72,7 +65,6 @@ export default function BillTable({
     </Menu>
   );
 
-  // ========== CẤU HÌNH CỘT BẢNG ==========
   const columns = [
     {
       title: "STT",
@@ -131,7 +123,7 @@ export default function BillTable({
       align: "center",
       width: 120,
       render: (_, record) => {
-        const serviceText = record.loaiHoaDon ? " Tại quầy" : " Online";
+        const serviceText = record.loaiHoaDon ? "Tại quầy" : "Online";
         return (
           <Dropdown overlay={getServiceMenu(record)} trigger={["click"]}>
             <Tag
@@ -194,7 +186,6 @@ export default function BillTable({
     },
   ];
 
-  // ========== TABLE ==========
   const rowSelection = {
     selectedRowKeys,
     onChange: (keys) => setSelectedRowKeys(keys),
