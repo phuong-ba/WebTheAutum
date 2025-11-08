@@ -32,6 +32,10 @@ const hoaDonApi = {
       }
     });
   },
+  
+  canEditShippingStatus: (id) => {
+    return axios.get(`${API_URL}/${id}/can-edit-shipping`);
+  },
 
   searchAndFilter(params) {
     const cleanParams = {};

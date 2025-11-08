@@ -175,15 +175,27 @@ export default function SellCartProduct({ selectedBillId }) {
     window.dispatchEvent(new Event("billsUpdated"));
   };
 
-  const handleDeleteProduct = (productId) => {
-    if (!selectedBillId) return;
+ const handleDeleteProduct = async (productId) => {
+  if (!selectedBillId) return;
+
+  const productToDelete = cartProducts.find(p => p.id === productId);
+  if (!productToDelete) return;
+
+  try {
+    await dispatch(tangSoLuong({ id: productId, soLuong: productToDelete.quantity })).unwrap();
+
+    await dispatch(fetchChiTietSanPham());
 
     const newCart = cartProducts.filter(p => p.id !== productId);
-
     saveCartToBill(newCart);
-    messageApi.success("Đã xóa sản phẩm khỏi giỏ hàng!");
+
+    messageApi.success("Đã xóa sản phẩm khỏi giỏ hàng và hoàn trả số lượng tồn kho!");
     window.dispatchEvent(new Event("cartUpdated"));
-  };
+  } catch (error) {
+    console.error(error);
+    messageApi.error("Lỗi khi xóa sản phẩm khỏi giỏ hàng!");
+  }
+};
 
   const handleDecreaseQuantity = async (id) => {
     const product = cartProducts.find(p => p.id === id);
