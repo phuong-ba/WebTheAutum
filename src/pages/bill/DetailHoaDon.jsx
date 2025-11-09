@@ -53,19 +53,8 @@ const DetailHoaDon = () => {
   const [formErrors, setFormErrors] = useState({}); 
   const [nhanVienList, setNhanVienList] = useState([]);
   const [phuongThucList, setPhuongThucList] = useState([]);
-  const [canEditShipping, setCanEditShipping] = useState(false);
 
   const getPaymentStatusTag = (status) => {
-    const statusMap = {
-      0: { label: 'Chưa thanh toán', color: 'warning' },
-      1: { label: 'Đã thanh toán', color: 'success' },
-      2: { label: 'Đã hoàn tiền', color: 'default' }
-    };
-    const config = statusMap[status] || { label: 'Không xác định', color: 'default' };
-    return <Tag color={config.color}>{config.label}</Tag>;
-  };
-
-  const getOrderStatusTag = (status) => {
     const statusMap = {
       0: { label: 'Chờ xác nhận', color: 'warning' },
       1: { label: 'Chờ giao hàng', color: 'processing' },
@@ -86,7 +75,6 @@ const DetailHoaDon = () => {
       diaChiKhachHang: invoice.diaChiKhachHang,
       ghiChu: invoice.ghiChu,
       trangThai: invoice.trangThai,
-      trangThaiGiaoHang: invoice.trangThaiGiaoHang, 
       hinhThucThanhToan: invoice.hinhThucThanhToan,
       tenNhanVien: invoice.tenNhanVien,
       idNhanVien: invoice.idNhanVien,                         
@@ -198,13 +186,11 @@ const DetailHoaDon = () => {
     console.log('✅ Invoice data sau khi parse:', invoiceData);
     console.log('🔍 Tất cả keys trong invoiceData:', Object.keys(invoiceData || {}));
     console.log('🔍 Trạng thái giao hàng:', invoiceData?.trangThaiGiaoHang);
-    console.log('🔍 Kiểu dữ liệu trạng thái giao hàng:', typeof invoiceData?.trangThaiGiaoHang);
     
     console.log('🔍 Các field quan trọng:');
     console.log('  - id:', invoiceData?.id);
     console.log('  - maHoaDon:', invoiceData?.maHoaDon);
     console.log('  - trangThai:', invoiceData?.trangThai);
-    console.log('  - trangThaiGiaoHang:', invoiceData?.trangThaiGiaoHang);
     console.log('  - loaiHoaDon:', invoiceData?.loaiHoaDon);
 
     if (!invoiceData || !invoiceData.id) {
@@ -228,12 +214,9 @@ const DetailHoaDon = () => {
       const res = await hoaDonApi.canEdit(id);
       setCanEdit(res.data?.canEdit || false);
 
-      const resShipping = await hoaDonApi.canEditShippingStatus(id);
-      setCanEditShipping(resShipping.data?.canEdit || false);
     } catch (error) {
       console.error('Error checking edit permission:', error);
       setCanEdit(false);
-      setCanEditShipping(false);
     }
   };
 
@@ -470,18 +453,6 @@ const getAllPhuongThucThanhToan = async () => {
     });
   };
 
-  const getStatusTag = (status) => {
-    const statusMap = {
-      0: { label: 'Chờ xác nhận', color: 'warning' },
-      1: { label: 'Chờ giao hàng', color: 'processing' },
-      2: { label: 'Đang vận chuyển', color: 'cyan' },
-      3: { label: 'Đã thanh toán', color: 'success' },
-      4: { label: 'Đã hủy', color: 'error' }
-    };
-    const config = statusMap[status] || { label: 'Không xác định', color: 'default' };
-    return <Tag color={config.color}>{config.label}</Tag>;
-  };
-
   const getTimelineIcon = (hanhDong) => {
     if (hanhDong?.includes('Tạo')) return '📝';
     if (hanhDong?.includes('Cập nhật')) return '✏️';
@@ -606,7 +577,6 @@ const getAllPhuongThucThanhToan = async () => {
   return (
     <div style={{ padding: 24, backgroundColor: '#f5f5f5', minHeight: '100vh' }} className="detail-hoadon">
       <div style={{ maxWidth: 1400, margin: '0 auto' }} className="print-area">
-        {/* Header */}
         <Card className="no-print" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -620,7 +590,7 @@ const getAllPhuongThucThanhToan = async () => {
                   <Button onClick={handleCancelEdit}>❌ Hủy</Button>
                 </Space>
               ) : (
-                 (canEdit || canEditShipping) ? (
+                 canEdit ? (
                   <Button type="primary" icon={<EditOutlined />} onClick={handleEditToggle}>
                     Chỉnh sửa
                   </Button>
@@ -642,32 +612,6 @@ const getAllPhuongThucThanhToan = async () => {
         <Form form={editForm} layout="vertical">
           <Row gutter={16}>
             <Col xs={24} lg={16}>
-              
-              <Card title="TRẠNG THÁI GIAO HÀNG" style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Text>Trạng thái:</Text>
-                  {isEditing ? (
-                    <Form.Item
-                      name="trangThaiGiaoHang"
-                      rules={validationRules.trangThaiGiaoHang}
-                      style={{ marginBottom: 0, flex: 1 }}
-                    >
-                      <Select
-                        style={{ width: 200 }}
-                        options={[
-                          { label: 'Chờ xác nhận', value: 0 },
-                          { label: 'Chờ giao hàng', value: 1 },
-                          { label: 'Đang vận chuyển', value: 2 },
-                          { label: 'Đã hoàn thành', value: 3 },
-                          { label: 'Đã hủy', value: 4 }
-                        ]}
-                      />
-                    </Form.Item>
-                  ) : (
-                    getOrderStatusTag(invoice.trangThaiGiaoHang)
-                  )}
-                </div>
-              </Card>
 
               <Card title="THÔNG TIN ĐƠN HÀNG" style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -681,11 +625,13 @@ const getAllPhuongThucThanhToan = async () => {
                       <Select
                         style={{ width: 200 }}
                         options={[
-                          { label: 'Chưa thanh toán', value: 0 },
-                          { label: 'Đã thanh toán', value: 1 },
-                          { label: 'Đã hoàn tiền', value: 2 }
+                          { label: 'Chờ xác nhận', value: 0 },
+                          { label: 'Chờ giao hàng', value: 1 },
+                          { label: 'Đang giao hàng', value: 2 },
+                          { label: 'Đã hoàn thành', value: 3 },
+                          { label: 'Đã hoàn tiền', value: 4 }
                         ]}
-                         disabled={!canEdit && canEditShipping}
+                         disabled={ !canEdit }
                       />
                     </Form.Item>
                   ) : (

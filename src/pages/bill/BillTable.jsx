@@ -18,9 +18,11 @@ const formatDate = (dateString) => {
 
 const getStatusConfig = (status) => {
   const configs = {
-    0: { label: "Chờ thanh toán", color: "#FAAD14" },
-    1: { label: "Đã thanh toán", color: "#52C41A" },
-    2: { label: "Đã hủy", color: "#FF4D4F" },
+    0: { label: "Chờ xác nhận", color: "#FAAD14" },
+    1: { label: "Chờ giao hàng", color: "#FAAD14" },
+    2: { label: "Đang giao hàng", color: "#FAAD14" },
+    3: { label: "Đã hoàn thành", color: "#52C41A" },
+    4: { label: "Đã hủy", color: "#FF4D4F" },
   };
   return configs[status] || { label: "Không xác định", color: "#999" };
 };
@@ -44,12 +46,14 @@ export default function BillTable({
     <Menu
       onClick={({ key }) => {
         onStatusChange(record.id, parseInt(key));
-        toast.success("Cập nhật trạng thá giao hàng thành công!");
+        toast.success("Cập nhật trạng thái thành công!");
       }}
     >
-      <Menu.Item key="0"> Chờ thanh toán</Menu.Item>
-      <Menu.Item key="1"> Đã thanh toán</Menu.Item>
-      <Menu.Item key="2"> Đã hủy</Menu.Item>
+      <Menu.Item key="0"> Chờ xác nhận</Menu.Item>
+       <Menu.Item key="1"> Chờ giao hàng</Menu.Item>
+       <Menu.Item key="2"> Đang giao hàng</Menu.Item>
+      <Menu.Item key="3"> Đã thanh toán</Menu.Item>
+      <Menu.Item key="4"> Đã hủy</Menu.Item>
     </Menu>
   );
 
