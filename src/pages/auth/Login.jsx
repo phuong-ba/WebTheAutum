@@ -21,14 +21,27 @@ export default function Login() {
         },
         body: JSON.stringify({
           email: values.username,
-          password: values.password
+          password: values.password,
         }),
       });
 
       console.log("🔧 Response status:", response.status);
+      console.log("🔧 Response headers:", response.headers);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorMessage = `HTTP error! status: ${response.status}`;
+
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (e) {
+          errorMessage =
+            response.statusText || `HTTP error! status: ${response.status}`;
+        }
+
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -38,25 +51,40 @@ export default function Login() {
         localStorage.setItem("auth_token", data.token);
         localStorage.setItem("user_type", data.userType);
         localStorage.setItem("user_name", data.hoTen);
-        
+
         message.success(data.message || "Đăng nhập thành công!");
 
         if (data.userType === "STAFF") {
+          console.log("Redirecting to admin panel...");
           navigate("/admin");
+        } else if (data.userType === "CUSTOMER") {
+          console.log("Redirecting to home page...");
+          navigate("/");
         } else {
+          console.log("Unknown user type, redirecting to home...");
           navigate("/");
         }
       } else {
         message.error(data.message || "Đăng nhập thất bại!");
       }
-
     } catch (error) {
-      console.error("❌ Login error:", error);
-      
+      console.error("Login error:", error);
+
       if (error.message.includes("Failed to fetch")) {
-        message.error("Không thể kết nối đến server. Kiểm tra kết nối!");
+        message.error("Không thể kết nối đến server. Kiểm tra:");
+        message.error("Backend có đang chạy trên port 8080?");
+        message.error("Kết nối internet?");
+      } else if (
+        error.message.includes("401") ||
+        error.message.includes("Sai email hoặc mật khẩu")
+      ) {
+        message.error("Sai email hoặc mật khẩu!");
+      } else if (error.message.includes("403")) {
+        message.error("Truy cập bị từ chối!");
+      } else if (error.message.includes("500")) {
+        message.error(" Lỗi server. Vui lòng thử lại sau!");
       } else if (error.message.includes("HTTP error")) {
-        message.error(`Lỗi server: ${error.message}`);
+        message.error(`Lỗi kết nối: ${error.message}`);
       } else {
         message.error("Lỗi đăng nhập: " + error.message);
       }
@@ -105,14 +133,14 @@ export default function Login() {
               <Form.Item
                 name="username"
                 rules={[
-                  { 
-                    required: true, 
-                    message: "Vui lòng nhập email!" 
+                  {
+                    required: true,
+                    message: "Vui lòng nhập email!",
                   },
                   {
-                    type: 'email',
-                    message: 'Email không hợp lệ!',
-                  }
+                    type: "email",
+                    message: "Email không hợp lệ!",
+                  },
                 ]}
               >
                 <Input
@@ -125,10 +153,10 @@ export default function Login() {
               <Form.Item
                 name="password"
                 rules={[
-                  { 
-                    required: true, 
-                    message: "Vui lòng nhập mật khẩu!" 
-                  }
+                  {
+                    required: true,
+                    message: "Vui lòng nhập mật khẩu!",
+                  },
                 ]}
               >
                 <Input.Password
@@ -147,7 +175,7 @@ export default function Login() {
                   {loading ? "ĐANG ĐĂNG NHẬP..." : "ĐĂNG NHẬP"}
                 </button>
                 <div className="flex justify-between mt-2 text-sm">
-                  <a 
+                  <a
                     href="/register"
                     onClick={(e) => {
                       e.preventDefault();
@@ -156,7 +184,7 @@ export default function Login() {
                   >
                     Đăng ký
                   </a>
-                  <a 
+                  <a
                     href="/forgotpass"
                     onClick={(e) => {
                       e.preventDefault();
