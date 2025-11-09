@@ -610,7 +610,7 @@ const getAllPhuongThucThanhToan = async () => {
         <Card className="no-print" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <Title level={3} style={{ margin: 0 }}>Chi tiết đơn hàng</Title>
+              <Title level={3} style={{ margin: 0 }}>CHI TIẾT ĐƠN HÀNG</Title>
               <Text type="secondary">Mã đơn hàng: {invoice.maHoaDon}</Text>
             </div>
             <Space>
@@ -643,7 +643,7 @@ const getAllPhuongThucThanhToan = async () => {
           <Row gutter={16}>
             <Col xs={24} lg={16}>
               
-              <Card title="Trạng thái giao hàng" style={{ marginBottom: 16 }}>
+              <Card title="TRẠNG THÁI GIAO HÀNG" style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Text>Trạng thái:</Text>
                   {isEditing ? (
@@ -669,7 +669,7 @@ const getAllPhuongThucThanhToan = async () => {
                 </div>
               </Card>
 
-              <Card title="Trạng thái đơn hàng" style={{ marginBottom: 16 }}>
+              <Card title="THÔNG TIN ĐƠN HÀNG" style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Text>Trạng thái:</Text>
                   {isEditing ? (
