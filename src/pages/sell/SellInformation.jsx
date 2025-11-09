@@ -121,6 +121,12 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   }, [selectedCustomer, isDelivery, addressForm]);
 
   useEffect(() => {
+  if (cartTotal === 0 && appliedDiscount) {
+    removeDiscount();
+  }
+}, [cartTotal, appliedDiscount]);
+
+  useEffect(() => {
     const loadDiscounts = async () => {
       try {
         await dispatch(fetchPhieuGiamGia());
@@ -396,8 +402,14 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
   const applyDiscount = (discount) => {
     if (!selectedBillId) return messageApi.warning("Vui lòng chọn hóa đơn!");
+
+    if (cartTotal === 0) {
+    return messageApi.warning("Không thể áp dụng mã giảm giá khi giỏ hàng trống!");
+    }
+    
     const condition = checkDiscountConditions(discount, cartTotal);
     if (!condition.isValid) return messageApi.warning(condition.message);
+    
 
     const discountAmount = calculateDiscountAmount(discount, cartTotal);
     const final = Math.max(0, cartTotal - discountAmount);

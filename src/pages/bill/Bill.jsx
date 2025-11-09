@@ -26,7 +26,7 @@ export default function InvoiceManager() {
   const [filterParams, setFilterParams] = useState({
     trangThai: undefined,
     ngayTao: null,
-   loaiHoaDon: [],
+    loaiHoaDon: [],
     hinhThucThanhToan: undefined
   });
 
