@@ -11,22 +11,17 @@ import 'antd/dist/reset.css';
 import 'react-toastify/dist/ReactToastify.css'; 
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <Provider store={store}>
-      <RouterProvider router={routers} />
+  <Provider store={store}>
+    <RouterProvider router={routers} />
 
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        pauseOnHover
-        theme="colored"
-      />
-    </Provider>
-  </React.StrictMode>
-
-
-
+    <ToastContainer
+      position="top-right"
+      autoClose={3000}
+      hideProgressBar={false}
+      newestOnTop={false}
+      closeOnClick
+      pauseOnHover
+      theme="colored"
+    />
+  </Provider>
 );

@@ -47,7 +47,7 @@ export default function BillTable({
         toast.success("Cập nhật trạng thá giao hàng thành công!");
       }}
     >
-      <Menu.Item key="0">Chờ giao hàng</Menu.Item>
+      <Menu.Item key="0"> Chờ thanh toán</Menu.Item>
       <Menu.Item key="1"> Đã thanh toán</Menu.Item>
       <Menu.Item key="2"> Đã hủy</Menu.Item>
     </Menu>

@@ -17,10 +17,8 @@ import Customer from "@/pages/customer/Customer";
 import AddUser from "@/pages/user/AddUser";
 import UpdateUser from "@/pages/user/UpdateUser";
 import AddDiscount from "@/pages/discount/AddDiscount";
-
 import Promo from "@/pages/promo/Promo";
 import AddPromo from "@/pages/promo/AddPromo";
-
 import ProductDetailPage from "@/pages/product/ProductDetailPage";
 import MultiProductDetailPage from "@/pages/product/MultiProductDetailPage";
 import EditProduct from "@/pages/product/EditProduct";
@@ -29,6 +27,7 @@ import EditHoaDon from "@/pages/bill/EditHoaDon";
 import AddVariant from "@/pages/product/AddVariant";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
 import ResetPassword from "@/pages/auth/ResetPassword";
+import ProtectedRoute from "./ProtectedRoute";
 
 const contentStyle = {
   padding: 50,
@@ -49,10 +48,17 @@ const LazyLoad = ({ children }) => {
     </Suspense>
   );
 };
+
 const adminRouters = [
   {
     path: "/admin",
-    element: <AdminLayout />,
+    element: (
+      <ProtectedRoute requiredRole="Quản lý">
+      <LazyLoad>
+        <AdminLayout />
+      </LazyLoad>
+    </ProtectedRoute>
+    ),
     children: [
       {
         path: "product",
