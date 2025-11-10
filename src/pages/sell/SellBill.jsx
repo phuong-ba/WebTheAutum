@@ -1,4 +1,4 @@
-import { TrashIcon } from "@phosphor-icons/react";
+import { InvoiceIcon, TrashIcon } from "@phosphor-icons/react";
 import Search from "antd/es/input/Search";
 import React, { useState, useEffect } from "react";
 import { message } from "antd";
@@ -50,6 +50,11 @@ export default function SellBill({ onSelectBill }) {
   };
 
   const handleCreateBill = () => {
+    if (bills.length >= 6) {
+      messageApi.warning("Chỉ được tạo tối đa 6 hóa đơn chờ!");
+      return;
+    }
+
     const newBill = {
       id: Date.now(),
       name: `HD_${Date.now()}`,
@@ -158,7 +163,8 @@ export default function SellBill({ onSelectBill }) {
         </div>
 
         <div className="shadow overflow-hidden rounded-lg min-h-[160px] m-2">
-          <div className="p-4 font-bold text-2xl bg-amber-600 opacity-75 rounded-t-lg text-white">
+          <div className="p-4 font-bold text-2xl bg-amber-600 opacity-75 rounded-t-lg text-white flex gap-2">
+            <InvoiceIcon size={32} />
             Hóa đơn chờ
           </div>
           <div className="grid grid-cols-3 xl:grid-cols-3 lg:grid-cols-2 md:grid-cols-1 gap-5 py-4 px-5">

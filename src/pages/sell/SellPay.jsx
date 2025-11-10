@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import hoaDonApi from "@/api/HoaDonAPI";
 import { message } from "antd";
 import { useNavigate } from "react-router";
+import { PackageIcon, SealWarningIcon } from "@phosphor-icons/react";
 
-export default function SellPay({ 
-  cartTotal, 
-  appliedDiscount, 
-  selectedCustomer, 
+export default function SellPay({
+  cartTotal,
+  appliedDiscount,
+  selectedCustomer,
   onRemoveDiscount,
   cartItems,
   selectedBillId,
@@ -14,18 +15,20 @@ export default function SellPay({
   isDelivery,
   addressForm,
   tinhList,
-  localQuanList
+  localQuanList,
 }) {
   const [paymentMethod, setPaymentMethod] = useState(null);
   const discountAmount = appliedDiscount?.discountAmount || 0;
   const finalAmount = appliedDiscount?.finalAmount || cartTotal;
-  const shippingFee = isDelivery ? 30000 : 0; 
+  const shippingFee = isDelivery ? 30000 : 0;
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
   const handlePayment = async () => {
     if (cartTotal === 0) {
-      messageApi.warning("Giỏ hàng đang trống! Vui lòng thêm sản phẩm trước khi thanh toán.");
+      messageApi.warning(
+        "Giỏ hàng đang trống! Vui lòng thêm sản phẩm trước khi thanh toán."
+      );
       return;
     }
 
@@ -57,11 +60,13 @@ export default function SellPay({
       try {
         const formValues = addressForm.getFieldsValue();
         console.log("📝 Form values từ SellInformation:", formValues);
-        
+
         if (formValues.thanhPho && formValues.quan && formValues.diaChiCuThe) {
-          const tinhName = tinhList?.find(t => t.id === formValues.thanhPho)?.tenTinh || '';
-          const quanName = localQuanList?.find(q => q.id === formValues.quan)?.tenQuan || '';
-          
+          const tinhName =
+            tinhList?.find((t) => t.id === formValues.thanhPho)?.tenTinh || "";
+          const quanName =
+            localQuanList?.find((q) => q.id === formValues.quan)?.tenQuan || "";
+
           shippingAddress = {
             fullAddress: `${formValues.diaChiCuThe}, ${quanName}, ${tinhName}`,
             idTinh: formValues.thanhPho,
@@ -70,17 +75,17 @@ export default function SellPay({
             hoTen: formValues.HoTen || selectedCustomer.hoTen,
             sdt: formValues.SoDienThoai || selectedCustomer.sdt,
             tenTinh: tinhName,
-            tenQuan: quanName
+            tenQuan: quanName,
           };
-          
+
           console.log("📍 Địa chỉ từ form vừa nhập:", shippingAddress);
-          
+
           const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
           const updatedBills = bills.map((bill) => {
             if (bill.id === selectedBillId) {
               return {
                 ...bill,
-                shippingAddress: shippingAddress
+                shippingAddress: shippingAddress,
               };
             }
             return bill;
@@ -94,14 +99,24 @@ export default function SellPay({
     }
 
     const totalWithShipping = finalAmount + shippingFee;
-    
+
     const confirmMessage = `XÁC NHẬN THANH TOÁN\n
         Khách hàng: ${selectedCustomer.hoTen}
         Số điện thoại: ${selectedCustomer.sdt}
-        ${isDelivery ? `📍 Giao hàng: ${shippingAddress?.fullAddress || 'Địa chỉ giao hàng'}` : '🏪 Mua tại quầy'}
+        ${
+          isDelivery
+            ? `📍 Giao hàng: ${
+                shippingAddress?.fullAddress || "Địa chỉ giao hàng"
+              }`
+            : "🏪 Mua tại quầy"
+        }
         Tổng tiền hàng: ${cartTotal.toLocaleString()} VND
         Giảm giá: ${discountAmount.toLocaleString()} VND
-        ${isDelivery ? `Phí vận chuyển: ${shippingFee.toLocaleString()} VND` : ''}
+        ${
+          isDelivery
+            ? `Phí vận chuyển: ${shippingFee.toLocaleString()} VND`
+            : ""
+        }
         Thành tiền: ${totalWithShipping.toLocaleString()} VND
         Mã giảm giá: ${appliedDiscount?.code || "Không áp dụng"}
         Phương thức: ${paymentMethod}
@@ -114,35 +129,37 @@ export default function SellPay({
       let chiTietList = [];
 
       if (cartItems && cartItems.length > 0) {
-        chiTietList = cartItems.map(item => ({
+        chiTietList = cartItems.map((item) => ({
           idChiTietSanPham: item.idChiTietSanPham || item.id,
           soLuong: item.quantity || item.soLuong,
           giaBan: item.price || item.giaBan,
           ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
-          trangThai: 0 // Trạng thái chi tiết sản phẩm
+          trangThai: 0, // Trạng thái chi tiết sản phẩm
         }));
       } else if (selectedBillId) {
         const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-        const currentBill = bills.find(bill => bill.id === selectedBillId);
+        const currentBill = bills.find((bill) => bill.id === selectedBillId);
 
         if (currentBill && currentBill.items && currentBill.items.length > 0) {
-          chiTietList = currentBill.items.map(item => ({
+          chiTietList = currentBill.items.map((item) => ({
             idChiTietSanPham: item.idChiTietSanPham || item.id,
             soLuong: item.quantity || item.soLuong,
             giaBan: item.price || item.giaBan,
             ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
-            trangThai: 0 // Trạng thái chi tiết sản phẩm
+            trangThai: 0, // Trạng thái chi tiết sản phẩm
           }));
         }
       }
 
       if (chiTietList.length === 0) {
-        messageApi.error("❌ Không có sản phẩm trong giỏ hàng! Vui lòng thêm sản phẩm trước khi thanh toán.");
+        messageApi.error(
+          "❌ Không có sản phẩm trong giỏ hàng! Vui lòng thêm sản phẩm trước khi thanh toán."
+        );
         return;
       }
 
       const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-      
+
       let diaChiKhachHang = "Chưa có địa chỉ";
       let idTinh = null;
       let idQuan = null;
@@ -153,29 +170,41 @@ export default function SellPay({
         idTinh = shippingAddress.idTinh;
         idQuan = shippingAddress.idQuan;
         diaChiCuThe = shippingAddress.diaChiCuThe;
-        
+
         console.log("✅ Sử dụng địa chỉ từ FORM vừa nhập");
-      } 
-      else {
+      } else {
         const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-        const currentBill = bills.find(bill => bill.id === selectedBillId);
+        const currentBill = bills.find((bill) => bill.id === selectedBillId);
         const savedShippingAddress = currentBill?.shippingAddress;
 
-        if (savedShippingAddress && savedShippingAddress.idTinh && savedShippingAddress.idQuan) {
+        if (
+          savedShippingAddress &&
+          savedShippingAddress.idTinh &&
+          savedShippingAddress.idQuan
+        ) {
           diaChiKhachHang = savedShippingAddress.fullAddress;
           idTinh = savedShippingAddress.idTinh;
           idQuan = savedShippingAddress.idQuan;
           diaChiCuThe = savedShippingAddress.diaChiCuThe || "";
-          
+
           console.log("✅ Sử dụng địa chỉ từ localStorage");
-        } 
-        else if (selectedCustomer?.diaChi) {
+        } else if (selectedCustomer?.diaChi) {
           const customerAddress = selectedCustomer.diaChi;
-          diaChiKhachHang = customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "Chưa có địa chỉ";
-          idTinh = customerAddress.tinhThanhId || customerAddress.id_tinh || customerAddress.idTinh;
-          idQuan = customerAddress.quanHuyenId || customerAddress.id_quan || customerAddress.idQuan;
-          diaChiCuThe = customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "";
-          
+          diaChiKhachHang =
+            customerAddress.dia_chi_cu_the ||
+            customerAddress.diaChiCuThe ||
+            "Chưa có địa chỉ";
+          idTinh =
+            customerAddress.tinhThanhId ||
+            customerAddress.id_tinh ||
+            customerAddress.idTinh;
+          idQuan =
+            customerAddress.quanHuyenId ||
+            customerAddress.id_quan ||
+            customerAddress.idQuan;
+          diaChiCuThe =
+            customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "";
+
           console.log("✅ Sử dụng địa chỉ từ KHÁCH HÀNG");
         } else {
           console.log("❌ Không có địa chỉ nào");
@@ -185,9 +214,9 @@ export default function SellPay({
       console.log("📊 Thông tin địa chỉ cuối cùng:", {
         diaChiKhachHang,
         idTinh,
-        idQuan, 
+        idQuan,
         diaChiCuThe,
-        hasShippingAddress: !!shippingAddress
+        hasShippingAddress: !!shippingAddress,
       });
 
       let trangThaiGiaoHang = null;
@@ -199,48 +228,62 @@ export default function SellPay({
 
       console.log("📦 Trạng thái giao hàng:", {
         isDelivery,
-        trangThaiGiaoHang
+        trangThaiGiaoHang,
       });
 
       const hoaDonMoi = {
         loaiHoaDon: isDelivery ? false : true,
-        phiVanChuyen: shippingFee, 
+        phiVanChuyen: shippingFee,
         tongTien: cartTotal,
         tongTienSauGiam: finalAmount,
-        ghiChu: `${isDelivery ? 'Giao hàng - ' : 'Tại quầy - '}Thanh toán bằng ${paymentMethod}${appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""}`,
+        ghiChu: `${
+          isDelivery ? "Giao hàng - " : "Tại quầy - "
+        }Thanh toán bằng ${paymentMethod}${
+          appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
+        }`,
         diaChiKhachHang: diaChiKhachHang,
         ngayThanhToan: new Date().toISOString(),
-        trangThai: 1, 
+        trangThai: 1,
         trangThaiGiaoHang: trangThaiGiaoHang,
         idKhachHang: selectedCustomer?.id || null,
         idNhanVien: 1,
         idPhieuGiamGia: appliedDiscount?.id || null,
         nguoiTao: currentUser?.id || 1,
         chiTietList: chiTietList,
-        idPhuongThucThanhToan: paymentMethod === "Tiền mặt" ? 1 
-                              : paymentMethod === "Chuyển khoản" ? 2 
-                              : 3,
+        idPhuongThucThanhToan:
+          paymentMethod === "Tiền mặt"
+            ? 1
+            : paymentMethod === "Chuyển khoản"
+            ? 2
+            : 3,
         soTienThanhToan: totalWithShipping,
-        ghiChuThanhToan: `${isDelivery ? 'Giao hàng - ' : 'Tại quầy - '}Thanh toán bằng ${paymentMethod}`,
+        ghiChuThanhToan: `${
+          isDelivery ? "Giao hàng - " : "Tại quầy - "
+        }Thanh toán bằng ${paymentMethod}`,
         idTinh: idTinh,
         idQuan: idQuan,
-        diaChiCuThe: diaChiCuThe
+        diaChiCuThe: diaChiCuThe,
       };
 
-      console.log("🚀 FINAL PAYLOAD gửi lên BE:", JSON.stringify(hoaDonMoi, null, 2));
+      console.log(
+        "🚀 FINAL PAYLOAD gửi lên BE:",
+        JSON.stringify(hoaDonMoi, null, 2)
+      );
 
       const res = await hoaDonApi.create(hoaDonMoi);
 
       if (res.data?.isSuccess) {
-        const successMessage = isDelivery 
-          ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng." 
+        const successMessage = isDelivery
+          ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
           : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất.";
-        
+
         messageApi.success(successMessage);
 
         if (selectedBillId) {
           const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-          const updatedBills = bills.filter(bill => bill.id !== selectedBillId);
+          const updatedBills = bills.filter(
+            (bill) => bill.id !== selectedBillId
+          );
           localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
           window.dispatchEvent(new Event("billsUpdated"));
         }
@@ -255,16 +298,20 @@ export default function SellPay({
           console.warn("Không tìm thấy ID hóa đơn mới trả về từ API");
         }
       } else {
-        messageApi.error("❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || ""));
+        messageApi.error(
+          "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
+        );
       }
     } catch (error) {
       console.error("❌ Lỗi khi gọi API:", error);
-      messageApi.error(`${isDelivery ? 'Đặt hàng' : 'Thanh toán'} thất bại! Vui lòng thử lại.`);
+      messageApi.error(
+        `${isDelivery ? "Đặt hàng" : "Thanh toán"} thất bại! Vui lòng thử lại.`
+      );
     }
   };
 
   const paymentOptions = ["Chuyển khoản", "Tiền mặt"];
-  
+
   const totalWithShipping = finalAmount + shippingFee;
 
   return (
@@ -274,21 +321,27 @@ export default function SellPay({
         <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-4">
             <div className="flex justify-between font-bold">
-              <span>Tổng tiền hàng:</span> <span>{cartTotal.toLocaleString()} vnd</span>
+              <span>Tổng tiền hàng:</span>{" "}
+              <span>{cartTotal.toLocaleString()} vnd</span>
             </div>
             <div className="flex justify-between font-bold">
               <span>Giảm giá:</span>{" "}
-              <span className="text-red-800">-{discountAmount.toLocaleString()} vnd</span>
+              <span className="text-red-800">
+                -{discountAmount.toLocaleString()} vnd
+              </span>
             </div>
             {isDelivery && (
               <div className="flex justify-between font-bold">
-                <span>Phí vận chuyển:</span> <span>{shippingFee.toLocaleString()} vnd</span>
+                <span>Phí vận chuyển:</span>{" "}
+                <span>{shippingFee.toLocaleString()} vnd</span>
               </div>
             )}
           </div>
           <div className="flex justify-between font-bold text-lg">
             <span>Tổng thanh toán:</span>{" "}
-            <span className="text-amber-600">{totalWithShipping.toLocaleString()} vnd</span>
+            <span className="text-amber-600">
+              {totalWithShipping.toLocaleString()} vnd
+            </span>
           </div>
         </div>
       </div>
@@ -314,31 +367,34 @@ export default function SellPay({
 
       {!selectedCustomer && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-          <div className="text-yellow-700 text-sm font-semibold">
-            ⚠️ Vui lòng chọn khách hàng trước khi thanh toán
+          <div className="text-yellow-700 text-sm font-semibold flex gap-2 items-center">
+            <SealWarningIcon size={20} /> Vui lòng chọn khách hàng trước khi
+            thanh toán
           </div>
         </div>
       )}
 
       {isDelivery && selectedCustomer && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <div className="text-blue-700 text-sm font-semibold">
-            📦 Đơn hàng sẽ được giao đến địa chỉ bạn nhập
+          <div className="text-blue-700 text-sm font-semibold flex gap-2 items-center">
+            <PackageIcon size={20} /> Đơn hàng sẽ được giao đến địa chỉ bạn nhập
           </div>
         </div>
       )}
 
-      <div 
+      <div
         onClick={handlePayment}
         className={`cursor-pointer select-none text-center py-3 rounded-xl font-bold text-white shadow ${
-          !selectedCustomer 
-            ? "bg-gray-400 cursor-not-allowed" 
+          !selectedCustomer
+            ? "bg-gray-400 cursor-not-allowed"
             : "bg-[#E67E22] hover:bg-amber-600 active:bg-cyan-800"
         }`}
       >
-        {!selectedCustomer 
-          ? "Vui lòng chọn khách hàng" 
-          : isDelivery ? "Đặt hàng" : "Thanh toán"}
+        {!selectedCustomer
+          ? "Vui lòng chọn khách hàng"
+          : isDelivery
+          ? "Đặt hàng"
+          : "Thanh toán"}
       </div>
     </>
   );
