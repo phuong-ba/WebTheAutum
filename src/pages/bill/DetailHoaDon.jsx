@@ -63,34 +63,15 @@ const DetailHoaDon = () => {
   const [formErrors, setFormErrors] = useState({});
   const [nhanVienList, setNhanVienList] = useState([]);
   const [phuongThucList, setPhuongThucList] = useState([]);
-  const [canEditShipping, setCanEditShipping] = useState(false);
-  const [priceFilter, setPriceFilter] = useState("all");
-  const [cartProducts, setCartProducts] = useState([]);
+
 
   const getPaymentStatusTag = (status) => {
     const statusMap = {
-      0: { label: "Chưa thanh toán", color: "warning" },
-      1: { label: "Đã thanh toán", color: "success" },
-      2: { label: "Đã hoàn tiền", color: "default" },
-    };
-    const config = statusMap[status] || {
-      label: "Không xác định",
-      color: "default",
-    };
-    return <Tag color={config.color}>{config.label}</Tag>;
-  };
-
-  const getOrderStatusTag = (status) => {
-    const statusMap = {
-      0: { label: "Chờ xác nhận", color: "warning" },
-      1: { label: "Chờ giao hàng", color: "processing" },
-      2: { label: "Đang vận chuyển", color: "cyan" },
-      3: { label: "Đã hoàn thành", color: "success" },
-      4: { label: "Đã hủy", color: "error" },
-    };
-    const config = statusMap[status] || {
-      label: "Không xác định",
-      color: "default",
+      0: { label: 'Chờ xác nhận', color: 'warning' },
+      1: { label: 'Chờ giao hàng', color: 'processing' },
+      2: { label: 'Đang vận chuyển', color: 'cyan' },
+      3: { label: 'Đã hoàn thành', color: 'success' },
+      4: { label: 'Đã hủy', color: 'error' }
     };
     return <Tag color={config.color}>{config.label}</Tag>;
   };
@@ -104,7 +85,6 @@ const DetailHoaDon = () => {
       diaChiKhachHang: invoice.diaChiKhachHang,
       ghiChu: invoice.ghiChu,
       trangThai: invoice.trangThai,
-      trangThaiGiaoHang: invoice.trangThaiGiaoHang,
       hinhThucThanhToan: invoice.hinhThucThanhToan,
       tenNhanVien: invoice.tenNhanVien,
       idNhanVien: invoice.idNhanVien,
@@ -196,38 +176,31 @@ const DetailHoaDon = () => {
   }, [location.state?.refreshData]);
 
   const fetchInvoiceDetail = async () => {
-    try {
-      setLoading(true);
-      console.log("🔍 Đang gọi API với ID:", id);
 
-      const response = await hoaDonApi.getDetail(id);
-      console.log("📦 Full response:", response);
-      console.log("📦 Response data:", response.data);
-      console.log("📦 Response data.data:", response.data?.data);
+  try {
+    setLoading(true);
+    console.log('🔍 Đang gọi API với ID:', id);
 
-      let invoiceData = response.data?.data || response.data;
+    const response = await hoaDonApi.getDetail(id);
+    console.log('📦 Full response:', response);
+    console.log('📦 Response data:', response.data);
+    console.log('📦 Response data.data:', response.data?.data);
+    
+    let invoiceData = response.data?.data || response.data;
+    
+    console.log('✅ Invoice data sau khi parse:', invoiceData);
+    console.log('🔍 Tất cả keys trong invoiceData:', Object.keys(invoiceData || {}));
+    console.log('🔍 Trạng thái giao hàng:', invoiceData?.trangThaiGiaoHang);
+    
+    console.log('🔍 Các field quan trọng:');
+    console.log('  - id:', invoiceData?.id);
+    console.log('  - maHoaDon:', invoiceData?.maHoaDon);
+    console.log('  - trangThai:', invoiceData?.trangThai);
+    console.log('  - loaiHoaDon:', invoiceData?.loaiHoaDon);
 
-      console.log("✅ Invoice data sau khi parse:", invoiceData);
-      console.log(
-        "🔍 Tất cả keys trong invoiceData:",
-        Object.keys(invoiceData || {})
-      );
-      console.log(
-        "🔍 Kiểu dữ liệu trạng thái giao hàng:",
-        typeof invoiceData?.trangThaiGiaoHang
-      );
-
-      console.log("🔍 Các field quan trọng:");
-      console.log("  - id:", invoiceData?.id);
-      console.log("  - maHoaDon:", invoiceData?.maHoaDon);
-      console.log("  - trangThai:", invoiceData?.trangThai);
-      console.log("  - trangThaiGiaoHang:", invoiceData?.trangThaiGiaoHang);
-      console.log("  - loaiHoaDon:", invoiceData?.loaiHoaDon);
-
-      if (!invoiceData || !invoiceData.id) {
-        throw new Error("Dữ liệu hóa đơn không hợp lệ");
-      }
-
+    if (!invoiceData || !invoiceData.id) {
+      throw new Error('Dữ liệu hóa đơn không hợp lệ');
+    }
       setInvoice(invoiceData);
       setError(null);
     } catch (err) {
@@ -245,12 +218,9 @@ const DetailHoaDon = () => {
       const res = await hoaDonApi.canEdit(id);
       setCanEdit(res.data?.canEdit || false);
 
-      const resShipping = await hoaDonApi.canEditShippingStatus(id);
-      setCanEditShipping(resShipping.data?.canEdit || false);
     } catch (error) {
       console.error("Error checking edit permission:", error);
       setCanEdit(false);
-      setCanEditShipping(false);
     }
   };
 
@@ -499,6 +469,7 @@ const DetailHoaDon = () => {
     return <Tag color={config.color}>{config.label}</Tag>;
   };
 
+
   const getTimelineIcon = (hanhDong) => {
     if (hanhDong?.includes("Tạo")) return "📝";
     if (hanhDong?.includes("Cập nhật")) return "✏️";
@@ -636,6 +607,7 @@ const DetailHoaDon = () => {
     >
       <div style={{ margin: "0 auto" }} className="print-area">
         {/* Header */}
+
         <Card className="no-print" style={{ marginBottom: 16 }}>
           <div
             style={{
@@ -667,9 +639,14 @@ const DetailHoaDon = () => {
                   Chỉnh sửa
                 </Button>
               ) : (
-                <Button icon={<LockOutlined />} disabled>
-                  Không thể sửa
-                </Button>
+
+                 canEdit ? (
+                  <Button type="primary" icon={<EditOutlined />} onClick={handleEditToggle}>
+                    Chỉnh sửa
+                  </Button>
+                ) : (
+                  <Button icon={<LockOutlined />} disabled>Không thể sửa</Button>
+                )
               )}
 
               <Button icon={<PrinterOutlined />} onClick={handlePrint}>
@@ -683,12 +660,12 @@ const DetailHoaDon = () => {
           <Row gutter={16}>
             <Col xs={24} lg={16}>
               <BillInvoiceStatus />
-
               <Row
                 gutter={16}
                 style={{ marginBottom: 16 }}
                 className="customer-payment-row"
               >
+
                 <Col xs={24} md={12}>
                   <Card
                     title={

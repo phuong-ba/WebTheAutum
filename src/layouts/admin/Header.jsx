@@ -6,8 +6,20 @@ import {
 import { DownOutlined, GlobalOutlined } from "@ant-design/icons";
 import { Dropdown, Space } from "antd";
 import React from "react";
+import { useNavigate } from "react-router";
 
 export default function Header() {
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    // Xoá token và info user
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("token_type");
+    localStorage.removeItem("user_name");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_role");
+
+    navigate("/");
+  };
   const items = [
     {
       label: (

@@ -19,8 +19,10 @@ export default function SellPay({
 }) {
   const [paymentMethod, setPaymentMethod] = useState(null);
   const discountAmount = appliedDiscount?.discountAmount || 0;
-  const finalAmount = appliedDiscount?.finalAmount || cartTotal;
-  const shippingFee = isDelivery ? 30000 : 0;
+
+  const actualDiscountAmount = Math.min(discountAmount, cartTotal);
+  const finalAmount = Math.max(cartTotal - actualDiscountAmount, 0);
+  const shippingFee = 0;
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
@@ -134,7 +136,8 @@ export default function SellPay({
           soLuong: item.quantity || item.soLuong,
           giaBan: item.price || item.giaBan,
           ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
-          trangThai: 0, // Trạng thái chi tiết sản phẩm
+
+          trangThai: 0 
         }));
       } else if (selectedBillId) {
         const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
@@ -146,7 +149,8 @@ export default function SellPay({
             soLuong: item.quantity || item.soLuong,
             giaBan: item.price || item.giaBan,
             ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
-            trangThai: 0, // Trạng thái chi tiết sản phẩm
+
+            trangThai: 0
           }));
         }
       }
@@ -219,21 +223,18 @@ export default function SellPay({
         hasShippingAddress: !!shippingAddress,
       });
 
-      let trangThaiGiaoHang = null;
-      if (isDelivery) {
-        trangThaiGiaoHang = 1;
-      } else {
-        trangThaiGiaoHang = 3;
-      }
 
-      console.log("📦 Trạng thái giao hàng:", {
-        isDelivery,
-        trangThaiGiaoHang,
-      });
+      let trangThai;
+    
+    if (isDelivery) {
+        trangThai = 1;
+    } else {
+        trangThai = 3;
+    }
 
       const hoaDonMoi = {
         loaiHoaDon: isDelivery ? false : true,
-        phiVanChuyen: shippingFee,
+        phiVanChuyen: 0, 
         tongTien: cartTotal,
         tongTienSauGiam: finalAmount,
         ghiChu: `${
@@ -243,8 +244,8 @@ export default function SellPay({
         }`,
         diaChiKhachHang: diaChiKhachHang,
         ngayThanhToan: new Date().toISOString(),
-        trangThai: 1,
-        trangThaiGiaoHang: trangThaiGiaoHang,
+
+        trangThai: trangThai, 
         idKhachHang: selectedCustomer?.id || null,
         idNhanVien: 1,
         idPhieuGiamGia: appliedDiscount?.id || null,
@@ -326,9 +327,8 @@ export default function SellPay({
             </div>
             <div className="flex justify-between font-bold">
               <span>Giảm giá:</span>{" "}
-              <span className="text-red-800">
-                -{discountAmount.toLocaleString()} vnd
-              </span>
+
+              <span className="text-red-800">{actualDiscountAmount.toLocaleString()} vnd</span>
             </div>
             {isDelivery && (
               <div className="flex justify-between font-bold">
