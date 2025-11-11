@@ -1,3 +1,4 @@
+import MainCategory from "@/pages/home/main/MainCategory";
 import { Spin } from "antd";
 import React, { Suspense } from "react";
 
@@ -32,6 +33,14 @@ const userRouters = [
         element: (
           <LazyLoad>
             <MainHome />
+          </LazyLoad>
+        ),
+      },
+      {
+         path: "/category",
+        element: (
+          <LazyLoad>
+            <MainCategory />
           </LazyLoad>
         ),
       },

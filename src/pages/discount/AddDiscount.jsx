@@ -174,7 +174,7 @@ export default function AddDiscount() {
       return;
     }
     setConfirmModalVisible(true);
-    form.__submitValues = values; // Lưu tạm giá trị form để dùng khi nhấn Đồng ý
+    form.__submitValues = values;
   };
 
   return (

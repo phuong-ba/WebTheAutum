@@ -26,7 +26,7 @@ export default function InvoiceManager() {
   const [filterParams, setFilterParams] = useState({
     trangThai: undefined,
     ngayTao: null,
-   loaiHoaDon: [],
+    loaiHoaDon: [],
     hinhThucThanhToan: undefined
   });
 
@@ -186,6 +186,7 @@ export default function InvoiceManager() {
       message.error('Không thể cập nhật trạng thái!');
     }
   };
+
 
   const handleServiceChange = async (invoiceId, newService) => {
     const oldInvoices = [...invoices];

@@ -32,6 +32,10 @@ const hoaDonApi = {
       }
     });
   },
+  
+  canEditShippingStatus: (id) => {
+    return axios.get(`${API_URL}/${id}/can-edit-shipping`);
+  },
 
   searchAndFilter(params) {
     const cleanParams = {};
@@ -96,6 +100,14 @@ sendEmail: (id, data) => {
 
 create(hoaDon) {
   return axios.post(`${API_URL}/add`, hoaDon, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  },
+
+  createAndPayWithVNPAY(hoaDon) {
+  return axios.post(`${API_URL}/create-and-pay-vnpay`, hoaDon, {
     headers: {
       'Content-Type': 'application/json'
     }

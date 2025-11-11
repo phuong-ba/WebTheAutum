@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { UsersThreeIcon } from "@phosphor-icons/react";
-import { Col, Form, Input, Row, Select, message } from "antd";
+import { UsersThreeIcon, PlusIcon } from "@phosphor-icons/react";
+import { Col, Form, Input, Row, Select, message, Modal, Button } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAllKhachHang } from "@/services/khachHangService";
+import { khachHangApi } from "@/api/khachHangApi";
 
 const { Option } = Select;
 
@@ -11,7 +12,10 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
   const dispatch = useDispatch();
   const [search, setSearch] = useState("");
   const [form] = Form.useForm();
+  const [quickAddForm] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
+  const [isQuickAddModalVisible, setIsQuickAddModalVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     dispatch(fetchAllKhachHang());
@@ -48,24 +52,25 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     );
 
   const handleSelectChange = (value) => {
-  const selectedCustomer = filteredData.find((item) => item.id === value);
-  if (selectedCustomer) {
-    console.log("Khách hàng được chọn:", selectedCustomer);
-    console.log("ID khách hàng:", selectedCustomer.id);
+    const selectedCustomer = data?.find((item) => item.id === value);
+    if (selectedCustomer) {
+      console.log("Khách hàng được chọn:", selectedCustomer);
 
-    form.setFieldsValue({
-      customerId: selectedCustomer.id,
-      sdt: selectedCustomer.sdt,
-    });
-    saveCustomerToBill(selectedCustomer);
-    onCustomerChange && onCustomerChange(selectedCustomer);
-  } else {
-    console.log("Không tìm thấy khách hàng với ID:", value);
-    form.resetFields(["sdt"]);
-    removeCustomerFromBill();
-    onCustomerChange && onCustomerChange(null);
-  }
-};
+      form.setFieldsValue({
+        customerId: selectedCustomer.id,
+        sdt: selectedCustomer.sdt,
+      });
+      saveCustomerToBill(selectedCustomer);
+      onCustomerChange && onCustomerChange(selectedCustomer);
+      setSearch("");
+    } else {
+      console.log("Không tìm thấy khách hàng với ID:", value);
+      form.resetFields(["sdt"]);
+      removeCustomerFromBill();
+      onCustomerChange && onCustomerChange(null);
+      setSearch(""); 
+    }
+  };
 
   const saveCustomerToBill = (customer) => {
     if (!selectedBillId) {
@@ -74,7 +79,6 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     }
 
     const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-    console.log("🚀 ~ saveCustomerToBill ~ bills:", bills)
     const updatedBills = bills.map((bill) => {
       if (bill.id === selectedBillId) {
         return {
@@ -97,7 +101,6 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     window.dispatchEvent(new Event("billsUpdated"));
   };
 
-  // Xóa khách hàng khỏi hóa đơn trong localStorage
   const removeCustomerFromBill = () => {
     if (!selectedBillId) return;
 
@@ -116,27 +119,74 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     window.dispatchEvent(new Event("billsUpdated"));
   };
 
-  // Cập nhật search text
-  const handleSearchChange = (val) => {
-    setSearch(val);
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
   };
 
-  // Xử lý nhập số điện thoại thủ công
-  const handlePhoneChange = (e) => {
-    const phoneValue = e.target.value;
-    form.setFieldsValue({ sdt: phoneValue });
-
-    if (phoneValue.length === 10 && /^0\d{9}$/.test(phoneValue)) {
-      const customerByPhone = data?.find(
-        (item) => item.sdt === phoneValue && item.trangThai === true
-      );
-      if (customerByPhone) {
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      if (filteredData && filteredData.length > 0) {
+        const firstCustomer = filteredData[0];
         form.setFieldsValue({
-          customerId: customerByPhone.id,
+          customerId: firstCustomer.id,
+          sdt: firstCustomer.sdt,
         });
-        saveCustomerToBill(customerByPhone);
-        onCustomerChange && onCustomerChange(customerByPhone);
+        saveCustomerToBill(firstCustomer);
+        onCustomerChange && onCustomerChange(firstCustomer);
+        setSearch("");
+        messageApi.info(`Đã chọn khách hàng: ${firstCustomer.hoTen}`);
+      } else if (search.trim() !== "") {
+        messageApi.warning("Không tìm thấy khách hàng phù hợp!");
       }
+    }
+  };
+
+  const handleQuickAdd = () => {
+    setIsQuickAddModalVisible(true);
+  };
+
+  const handleQuickAddCancel = () => {
+    setIsQuickAddModalVisible(false);
+    quickAddForm.resetFields();
+  };
+
+  const handleQuickAddSubmit = async (values) => {
+    setIsLoading(true);
+    try {
+      const existingCustomer = data?.find(item => item.sdt === values.sdt);
+      if (existingCustomer) {
+        messageApi.warning("Số điện thoại đã tồn tại!");
+        return;
+      }
+
+      const newCustomer = await khachHangApi.create({
+        hoTen: values.hoTen,
+        sdt: values.sdt,
+        email: values.email,
+        gioiTinh: true,
+        trangThai: true
+      });
+
+      await dispatch(fetchAllKhachHang());
+
+      form.setFieldsValue({
+        customerId: newCustomer.id,
+        sdt: newCustomer.sdt,
+      });
+      saveCustomerToBill(newCustomer);
+      onCustomerChange && onCustomerChange(newCustomer);
+
+      messageApi.success(`Đã thêm và chọn khách hàng: ${newCustomer.hoTen}`);
+      setIsQuickAddModalVisible(false);
+      quickAddForm.resetFields();
+      
+    } catch (error) {
+      console.error("Lỗi khi thêm khách hàng:", error);
+      messageApi.error("Thêm khách hàng thất bại!");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -150,10 +200,12 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
         </div>
         <div className="gap-5 py-4 px-5 flex flex-col ">
           <Input.Search
-            placeholder="Tìm kiếm khách hàng theo tên hoặc sđt..."
-            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="Tìm kiếm khách hàng theo tên hoặc số điện thoại"
+            onChange={handleSearchChange}
+            onKeyDown={handleSearchKeyDown}
             value={search}
             allowClear
+            onClear={() => setSearch("")}
             style={{ marginBottom: 16 }}
           />
           <Form layout="vertical" form={form}>
@@ -165,22 +217,25 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
                   rules={[{ required: true, message: "Chọn tên Khách hàng" }]}
                 >
                   <Select
-                    showSearch
                     placeholder="Chọn khách hàng"
-                    optionFilterProp="children"
-                    filterOption={false}
-                    onSearch={handleSearchChange}
                     onChange={handleSelectChange}
                     allowClear
                     onClear={() => {
                       removeCustomerFromBill();
                       onCustomerChange && onCustomerChange(null);
+                      setSearch("");
                     }}
                     value={form.getFieldValue("customerId")}
+                    showSearch={false}
+                    defaultActiveFirstOption={false}
+                    filterOption={false}
+                    notFoundContent={null}
                   >
                     {filteredData?.map((item) => (
                       <Option key={item.id} value={item.id}>
-                        {item.hoTen} - {item.sdt}
+                        <div className="flex flex-col">
+                          <span className="font-medium">{item.hoTen}</span>
+                        </div>
                       </Option>
                     ))}
                   </Select>
@@ -190,31 +245,102 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
                 <Form.Item
                   name="sdt"
                   label="Số điện thoại"
-                  rules={[
-                    { required: true, message: "Nhập số điện thoại" },
-                    {
-                      pattern: /^0\d{9}$/,
-                      message:
-                        "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0",
-                    },
-                  ]}
                 >
                   <Input
-                    placeholder="Nhập số điện thoại"
-                    onChange={handlePhoneChange}
+                    placeholder="Số điện thoại"
+                    readOnly
+                    className="readonly-input"
+                    style={{ backgroundColor: '#f5f5f5', color: '#666' }}
                   />
                 </Form.Item>
               </Col>
             </Row>
           </Form>
-          <div
-            onClick={() => window.location.assign("/admin/add-customer")}
-            className="cursor-pointer select-none text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
-          >
-            Thêm khách hàng
+
+          <div className="flex gap-3">
+            <div
+              onClick={handleQuickAdd}
+              className="cursor-pointer select-none text-center py-3 px-4 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow flex-1"
+            >
+              Thêm khách hàng
+            </div>
           </div>
         </div>
       </div>
+
+      <Modal
+        title="Thêm nhanh khách hàng"
+        open={isQuickAddModalVisible}
+        onCancel={handleQuickAddCancel}
+        footer={null}
+        width={400}
+      >
+        <Form
+          form={quickAddForm}
+          layout="vertical"
+          onFinish={handleQuickAddSubmit}
+        >
+          <Form.Item
+            name="hoTen"
+            label="Tên khách hàng"
+            rules={[
+              { required: true, message: "Vui lòng nhập tên khách hàng" },
+              { min: 2, message: "Tên phải có ít nhất 2 ký tự" }
+            ]}
+          >
+            <Input placeholder="Nhập tên khách hàng" />
+          </Form.Item>
+
+          <Form.Item
+            name="sdt"
+            label="Số điện thoại"
+            rules={[
+              { required: true, message: "Vui lòng nhập số điện thoại" },
+              {
+                pattern: /^0\d{9}$/,
+                message: "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0",
+              },
+            ]}
+          >
+            <Input placeholder="Nhập số điện thoại" />
+          </Form.Item>
+
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: "Vui lòng nhập email" },
+              {
+                pattern: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+                message: "Email không đúng định dạng",
+              },
+              {
+                max: 100,
+                message: 'Email không được vượt quá 100 ký tự',
+              }
+            ]}
+          >
+            <Input placeholder="Nhập email" />
+          </Form.Item>
+
+          <Form.Item className="mb-0">
+            <div className="flex gap-2 justify-end">
+              <Button onClick={handleQuickAddCancel}>
+                Hủy
+              </Button>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                loading={isLoading}
+                className="bg-[#E67E22] border-none hover:bg-amber-600 hover:border-none text-white"
+                style={{ backgroundColor: '#E67E22', borderColor: '#E67E22' }}
+              >
+                Thêm khách hàng
+              </Button>
+            </div>
+          </Form.Item>
+        </Form>
+      </Modal>
     </>
   );
 }
