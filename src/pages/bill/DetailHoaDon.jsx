@@ -63,13 +63,19 @@ const DetailHoaDon = () => {
   const [formErrors, setFormErrors] = useState({});
   const [nhanVienList, setNhanVienList] = useState([]);
   const [phuongThucList, setPhuongThucList] = useState([]);
+  const [tempStatus, setTempStatus] = useState(invoice?.trangThai || 0);
 
+  const handleTempStatusChange = (newStatus) => {
+    setTempStatus(newStatus);
+  };
+
+  
 
   const getPaymentStatusTag = (status) => {
     const statusMap = {
       0: { label: 'Chờ xác nhận', color: 'warning' },
       1: { label: 'Chờ giao hàng', color: 'processing' },
-      2: { label: 'Đang vận chuyển', color: 'cyan' },
+      2: { label: 'Đang Đang giao hàng', color: 'cyan' },
       3: { label: 'Đã hoàn thành', color: 'success' },
       4: { label: 'Đã hủy', color: 'error' }
     };
@@ -91,6 +97,8 @@ const DetailHoaDon = () => {
       idPhuongThucThanhToan: invoice.idPhuongThucThanhToan,
     });
   };
+
+  
 
   const validationRules = {
     hoTenKhachHang: [
@@ -137,7 +145,11 @@ const DetailHoaDon = () => {
     try {
       const values = await editForm.validateFields();
 
-      await hoaDonApi.updateHoaDon(id, values);
+      await hoaDonApi.updateHoaDon(id, {
+        ...values,
+        trangThai: tempStatus
+      });
+      
       message.success("✅ Cập nhật thành công!");
       setIsEditing(false);
       setFormErrors({});
@@ -146,9 +158,7 @@ const DetailHoaDon = () => {
       if (err.errorFields) {
         message.error("❌ Vui lòng kiểm tra lại thông tin!");
       } else {
-        message.error(
-          "❌ Lưu thất bại! " + (err.response?.data?.message || "")
-        );
+        message.error("❌ Lưu thất bại! " + (err.response?.data?.message || ""));
       }
     }
   };
@@ -156,6 +166,7 @@ const DetailHoaDon = () => {
   const handleCancelEdit = () => {
     setIsEditing(false);
     setFormErrors({});
+    setTempStatus(invoice?.trangThai || 0);
     editForm.resetFields();
   };
 
@@ -190,7 +201,6 @@ const DetailHoaDon = () => {
     
     console.log('✅ Invoice data sau khi parse:', invoiceData);
     console.log('🔍 Tất cả keys trong invoiceData:', Object.keys(invoiceData || {}));
-    console.log('🔍 Trạng thái giao hàng:', invoiceData?.trangThaiGiaoHang);
     
     console.log('🔍 Các field quan trọng:');
     console.log('  - id:', invoiceData?.id);
@@ -458,8 +468,8 @@ const DetailHoaDon = () => {
     const statusMap = {
       0: { label: "Chờ xác nhận", color: "warning" },
       1: { label: "Chờ giao hàng", color: "processing" },
-      2: { label: "Đang vận chuyển", color: "cyan" },
-      3: { label: "Đã thanh toán", color: "success" },
+      2: { label: "Đang giao hàng", color: "cyan" },
+      3: { label: "Đã hoàn thành", color: "success" },
       4: { label: "Đã hủy", color: "error" },
     };
     const config = statusMap[status] || {
@@ -630,20 +640,22 @@ const DetailHoaDon = () => {
                   </Button>
                   <Button onClick={handleCancelEdit}>❌ Hủy</Button>
                 </Space>
-              ) : canEdit || canEditShipping ? (
-                <Button
-                  type="primary"
-                  icon={<EditOutlined />}
-                  onClick={handleEditToggle}
-                >
-                  Chỉnh sửa
-                </Button>
+              ) : canEdit ? (
+                <div
+                onClick={handleEditToggle} 
+                className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+              >
+                Chỉnh sửa
+              </div>
               ) : (
 
                  canEdit ? (
-                  <Button type="primary" icon={<EditOutlined />} onClick={handleEditToggle}>
-                    Chỉnh sửa
-                  </Button>
+                  <div
+                onClick={handleEditToggle} 
+                className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+              >
+                Chỉnh sửa
+              </div>
                 ) : (
                   <Button icon={<LockOutlined />} disabled>Không thể sửa</Button>
                 )
@@ -659,7 +671,18 @@ const DetailHoaDon = () => {
         <Form form={editForm} layout="vertical">
           <Row gutter={16}>
             <Col xs={24} lg={16}>
-              <BillInvoiceStatus />
+              <BillInvoiceStatus 
+                invoiceId={id}
+                currentStatus={invoice?.trangThai}
+                invoiceData={invoice}
+                isEditing={isEditing}
+                tempStatus={tempStatus}
+                onTempStatusChange={handleTempStatusChange}
+                onStatusChange={(newStatus) => {
+                  setInvoice(prev => prev ? {...prev, trangThai: newStatus} : null);
+                  fetchInvoiceDetail();
+                }}
+              />
               <Row
                 gutter={16}
                 style={{ marginBottom: 16 }}

@@ -104,6 +104,14 @@ create(hoaDon) {
       'Content-Type': 'application/json'
     }
   });
+  },
+
+  createAndPayWithVNPAY(hoaDon) {
+  return axios.post(`${API_URL}/create-and-pay-vnpay`, hoaDon, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
 },
 
 };
