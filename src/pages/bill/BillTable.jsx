@@ -52,7 +52,7 @@ export default function BillTable({
       <Menu.Item key="0"> Chờ xác nhận</Menu.Item>
        <Menu.Item key="1"> Chờ giao hàng</Menu.Item>
        <Menu.Item key="2"> Đang giao hàng</Menu.Item>
-      <Menu.Item key="3"> Đã thanh toán</Menu.Item>
+      <Menu.Item key="3"> Đã hoàn thành</Menu.Item>
       <Menu.Item key="4"> Đã hủy</Menu.Item>
     </Menu>
   );
