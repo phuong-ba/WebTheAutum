@@ -5,7 +5,7 @@ import {
   PackageIcon,
   TruckIcon,
 } from "@phosphor-icons/react";
-import { Select } from "antd";
+import { Select, Tag, message } from "antd";
 import React, { useState, useEffect } from "react";
 
 const { Option } = Select;
@@ -14,7 +14,10 @@ export default function BillInvoiceStatus({
   currentStatus, 
   invoiceData,
   isEditing,
-  onTempStatusChange
+  tempStatus,
+  tempLoaiHoaDon,
+  onTempStatusChange,
+  onLoaiHoaDonChange
 }) {
   const steps = [
     { label: "Chờ xác nhận", value: 0, icon: HourglassMediumIcon },
@@ -27,6 +30,7 @@ export default function BillInvoiceStatus({
   const [statusStep, setStatusStep] = useState(currentStatus || 0);
   const [originalStatus, setOriginalStatus] = useState(currentStatus || 0); 
   const [statusHistory, setStatusHistory] = useState({});
+  const [currentLoaiHoaDon, setCurrentLoaiHoaDon] = useState(tempLoaiHoaDon || false);
 
   useEffect(() => {
     if (currentStatus !== undefined) {
@@ -34,6 +38,12 @@ export default function BillInvoiceStatus({
       setOriginalStatus(currentStatus); 
     }
   }, [currentStatus]);
+
+  useEffect(() => {
+    if (tempLoaiHoaDon !== undefined) {
+      setCurrentLoaiHoaDon(tempLoaiHoaDon);
+    }
+  }, [tempLoaiHoaDon]);
 
   useEffect(() => {
     if (invoiceData) {
@@ -56,11 +66,39 @@ export default function BillInvoiceStatus({
     }
   }, [isEditing]);
 
-  const handleSelectChange = (value) => {
+  const handleStatusChange = (value) => {
     if (!isEditing) return;
     
     const newStatus = parseInt(value, 10);
     setStatusStep(newStatus);
+    
+    if (onTempStatusChange) {
+      onTempStatusChange(newStatus);
+    }
+  };
+
+  const handleLoaiHoaDonChange = (value) => {
+    if (!isEditing) return;
+    
+    const newLoaiHoaDon = value === "true"; // Convert string to boolean
+    let newStatus = tempStatus;
+    
+    if (newLoaiHoaDon) {
+      // Chuyển từ Online sang Tại quầy -> trạng thái mặc định là 3 (Đã hoàn thành)
+      newStatus = 3;
+      message.info("Đã chuyển sang loại Tại quầy - Trạng thái mặc định: Đã hoàn thành");
+    } else {
+      // Chuyển từ Tại quầy sang Online -> trạng thái mặc định là 1 (Chờ giao hàng)
+      newStatus = 1;
+      message.info("Đã chuyển sang loại Online - Trạng thái mặc định: Chờ giao hàng");
+    }
+    
+    setStatusStep(newStatus);
+    setCurrentLoaiHoaDon(newLoaiHoaDon);
+    
+    if (onLoaiHoaDonChange) {
+      onLoaiHoaDonChange(newLoaiHoaDon);
+    }
     
     if (onTempStatusChange) {
       onTempStatusChange(newStatus);
@@ -123,10 +161,22 @@ export default function BillInvoiceStatus({
           
           {isEditing && (
             <div className="flex gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Loại hóa đơn:</span>
+                <Select
+                  value={currentLoaiHoaDon?.toString() || "false"}
+                  className="min-w-[140px]"
+                  onChange={handleLoaiHoaDonChange}
+                >
+                  <Option value="false">Online</Option>
+                  <Option value="true">Tại quầy</Option>
+                </Select>
+              </div>
+              
               <Select
-                value={statusStep.toString()}
+                value={statusStep?.toString() || "0"}
                 className="min-w-[160px]"
-                onChange={handleSelectChange}
+                onChange={handleStatusChange}
               >
                 {steps.map((step, index) => (
                   <Option key={index} value={step.value.toString()}>

@@ -19,6 +19,7 @@ import {
 import SellPay from "./SellPay";
 import { fetchPhieuGiamGia } from "@/services/phieuGiamGiaService";
 import { fetchAllGGKH } from "@/services/giamGiaKhachHangService";
+import hoaDonApi from "@/api/HoaDonAPI";
 import { useDispatch, useSelector } from "react-redux";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
@@ -43,6 +44,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const [cartTotal, setCartTotal] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [forceUpdate, setForceUpdate] = useState(0);
+  const [discountUsageHistory, setDiscountUsageHistory] = useState({});
+  const [checkingSingleDiscount, setCheckingSingleDiscount] = useState(false);
 
   const [tinhList, setTinhList] = useState([]);
   const [localQuanList, setLocalQuanList] = useState([]);
@@ -83,6 +86,26 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       setLocalQuanList([]);
     }
   }, [selectedCustomer, messageApi]);
+
+  useEffect(() => {
+    if (selectedCustomer && appliedDiscount?.isPersonal) {
+      const currentCustomerId = selectedCustomer.id;
+      
+      const isDiscountForCurrentCustomer = giamGiaKhachHangData?.some(
+        (ggkh) => 
+          ggkh.phieuGiamGiaId === appliedDiscount.id && 
+          ggkh.khachHangId === currentCustomerId
+      );
+
+      if (!isDiscountForCurrentCustomer) {
+        console.log("🔄 Khách hàng thay đổi, tự động xóa mã giảm giá cá nhân");
+        removeDiscount();
+      }
+    } else if (!selectedCustomer && appliedDiscount) {
+      console.log("🔄 Đã bỏ chọn khách hàng, tự động xóa mã giảm giá");
+      removeDiscount();
+    }
+  }, [selectedCustomer, appliedDiscount, giamGiaKhachHangData]);
 
   useEffect(() => {
     if (selectedBillId) {
@@ -138,10 +161,10 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   }, [selectedCustomer, isDelivery, addressForm]);
 
   useEffect(() => {
-  if (cartTotal === 0 && appliedDiscount) {
-    removeDiscount();
-  }
-}, [cartTotal, appliedDiscount]);
+    if (cartTotal === 0 && appliedDiscount) {
+      removeDiscount();
+    }
+  }, [cartTotal, appliedDiscount]);
 
   useEffect(() => {
     const loadDiscounts = async () => {
@@ -155,6 +178,43 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     };
     loadDiscounts();
   }, [dispatch, messageApi]);
+
+  // ĐÃ SỬA: Chỉ load lịch sử khi cần thiết và giới hạn số lượng
+  useEffect(() => {
+    const loadEssentialDiscountUsage = async () => {
+      if (!selectedCustomer || !Array.isArray(giamGiaKhachHangData)) {
+        setDiscountUsageHistory({});
+        return;
+      }
+
+      const personalDiscountIds = giamGiaKhachHangData
+        .filter((ggkh) => ggkh.khachHangId === selectedCustomer.id)
+        .map((ggkh) => ggkh.phieuGiamGiaId);
+
+      if (personalDiscountIds.length === 0) {
+        setDiscountUsageHistory({});
+        return;
+      }
+
+      // Giới hạn chỉ kiểm tra 3 mã đầu tiên để tăng tốc độ
+      const limitedDiscountIds = personalDiscountIds.slice(0, 3);
+      const usageHistory = {};
+      
+      for (const discountId of limitedDiscountIds) {
+        try {
+          const response = await hoaDonApi.checkDiscountUsage(discountId, selectedCustomer.id);
+          usageHistory[discountId] = response.data?.daSuDung || false;
+        } catch (error) {
+          console.error(`Lỗi khi kiểm tra phiếu ${discountId}:`, error);
+          usageHistory[discountId] = false;
+        }
+      }
+
+      setDiscountUsageHistory(usageHistory);
+    };
+
+    loadEssentialDiscountUsage();
+  }, [selectedCustomer, giamGiaKhachHangData]);
 
   useEffect(() => {
     const updateCartData = () => {
@@ -311,7 +371,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     return [...publicDiscounts, ...personalDiscounts];
   };
 
-  const checkDiscountConditions = (discount, totalAmount) => {
+  // ĐÃ SỬA: Tách thành 2 hàm - 1 hàm nhanh cho danh sách, 1 hàm chi tiết cho áp dụng
+  const checkBasicDiscountConditions = (discount, totalAmount) => {
     if (!discount)
       return { isValid: false, message: "Mã giảm giá không tồn tại" };
 
@@ -356,6 +417,55 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
           message: `Mã không áp dụng cho khách hàng ${selectedCustomer.hoTen}`,
         };
       }
+
+      // Chỉ kiểm tra trong cache (nhanh)
+      const hasUsedDiscount = discountUsageHistory[discount.id];
+      if (hasUsedDiscount) {
+        return {
+          isValid: false,
+          message: `Khách hàng đã sử dụng mã này trước đây. Mỗi khách hàng chỉ được sử dụng 1 lần.`,
+          isAlreadyUsed: true,
+        };
+      }
+    }
+
+    return { isValid: true, message: "OK" };
+  };
+
+  // Hàm kiểm tra chi tiết (chỉ dùng khi áp dụng mã)
+  const checkDetailedDiscountConditions = async (discount, totalAmount) => {
+    const basicCondition = checkBasicDiscountConditions(discount, totalAmount);
+    if (!basicCondition.isValid) return basicCondition;
+
+    // Chỉ kiểm tra real-time cho mã cá nhân và khi chưa có trong cache
+    if (discount.kieu === 1 && selectedCustomer && !discountUsageHistory[discount.id]) {
+      try {
+        setCheckingSingleDiscount(true);
+        const realTimeCheck = await hoaDonApi.checkDiscountUsage(discount.id, selectedCustomer.id);
+        const hasUsedRealTime = realTimeCheck.data?.daSuDung || false;
+        
+        if (hasUsedRealTime) {
+          // Cập nhật cache
+          setDiscountUsageHistory(prev => ({
+            ...prev,
+            [discount.id]: true
+          }));
+          return {
+            isValid: false,
+            message: `Khách hàng đã sử dụng mã này. Mỗi khách hàng chỉ được sử dụng 1 lần.`,
+            isAlreadyUsed: true,
+          };
+        }
+      } catch (error) {
+        console.error("Lỗi kiểm tra real-time:", error);
+        // Nếu có lỗi, vẫn cho phép áp dụng nhưng cảnh báo
+        return {
+          isValid: true,
+          message: "OK - Lưu ý: Không thể kiểm tra lịch sử sử dụng mã",
+        };
+      } finally {
+        setCheckingSingleDiscount(false);
+      }
     }
 
     return { isValid: true, message: "OK" };
@@ -373,47 +483,43 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     }
   };
 
-  const getCategorizedDiscounts = () => {
-    const allActiveDiscounts = getAllActiveDiscounts();
+  const [availableDiscounts, setAvailableDiscounts] = useState([]);
+  const [unavailableDueToMinimum, setUnavailableDueToMinimum] = useState([]);
+  const [unavailableDueToUsage, setUnavailableDueToUsage] = useState([]);
 
-    const availableDiscounts = [];
-    const unavailableDueToMinimum = [];
-    const unavailableDueToOtherReasons = [];
+  // ĐÃ SỬA: Sử dụng hàm kiểm tra cơ bản (nhanh) cho danh sách
+  useEffect(() => {
+    const updateDiscounts = () => {
+      const allActiveDiscounts = getAllActiveDiscounts();
+      const available = [];
+      const unavailableMin = [];
+      const unavailableUsage = [];
 
-    allActiveDiscounts.forEach((discount) => {
-      const condition = checkDiscountConditions(discount, cartTotal);
-
-      if (condition.isValid) {
-        availableDiscounts.push(discount);
-      } else if (condition.isMinimumAmountNotMet) {
-        unavailableDueToMinimum.push({
-          discount,
-          reason: condition.message,
-        });
-      } else {
-        unavailableDueToOtherReasons.push({
-          discount,
-          reason: condition.message,
-        });
+      for (const discount of allActiveDiscounts) {
+        const condition = checkBasicDiscountConditions(discount, cartTotal);
+        
+        if (condition.isValid) {
+          available.push(discount);
+        } else if (condition.isMinimumAmountNotMet) {
+          unavailableMin.push({
+            discount,
+            reason: condition.message,
+          });
+        } else if (condition.isAlreadyUsed) {
+          unavailableUsage.push({
+            discount,
+            reason: condition.message,
+          });
+        }
       }
-    });
 
-    return {
-      available: availableDiscounts,
-      unavailableDueToMinimum,
-      unavailableDueToOtherReasons,
+      setAvailableDiscounts(available);
+      setUnavailableDueToMinimum(unavailableMin);
+      setUnavailableDueToUsage(unavailableUsage);
     };
-  };
 
-  const getAvailableDiscounts = () => {
-    const categorized = getCategorizedDiscounts();
-    return categorized.available;
-  };
-
-  const getUnavailableDueToMinimumDiscounts = () => {
-    const categorized = getCategorizedDiscounts();
-    return categorized.unavailableDueToMinimum;
-  };
+    updateDiscounts();
+  }, [discountData, giamGiaKhachHangData, selectedCustomer, cartTotal, discountUsageHistory]);
 
   const getBestDiscount = (available) => {
     if (!available.length) return null;
@@ -432,78 +538,74 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     return best;
   };
 
-  const availableDiscounts = useMemo(() => {
-    return getAvailableDiscounts();
-  }, [
-    discountData,
-    giamGiaKhachHangData,
-    selectedCustomer,
-    cartTotal,
-    forceUpdate,
-  ]);
-
-  const unavailableDueToMinimum = useMemo(() => {
-    return getUnavailableDueToMinimumDiscounts();
-  }, [
-    discountData,
-    giamGiaKhachHangData,
-    selectedCustomer,
-    cartTotal,
-    forceUpdate,
-  ]);
-
   const bestDiscount = useMemo(() => {
     return getBestDiscount(availableDiscounts);
   }, [availableDiscounts, cartTotal]);
 
-  const applyDiscount = (discount) => {
+  // ĐÃ SỬA: Sử dụng hàm kiểm tra chi tiết khi áp dụng mã
+  const applyDiscount = async (discount) => {
     if (!selectedBillId) return messageApi.warning("Vui lòng chọn hóa đơn!");
 
     if (cartTotal === 0) {
-    return messageApi.warning("Không thể áp dụng mã giảm giá khi giỏ hàng trống!");
-    }
-    
-    const condition = checkDiscountConditions(discount, cartTotal);
-    if (!condition.isValid) return messageApi.warning(condition.message);
-    
-
-    const discountAmount = calculateDiscountAmount(discount, cartTotal);
-    const final = Math.max(0, cartTotal - discountAmount);
-
-    const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-    const updated = bills.map((b) =>
-      b.id === selectedBillId
-        ? {
-            ...b,
-            appliedDiscount: {
-              id: discount.id,
-              code: discount.maGiamGia,
-              name: discount.tenChuongTrinh,
-              discountAmount,
-              finalAmount: final,
-              type: discount.loaiGiamGia ? "fixed" : "percentage",
-              value: discount.giaTriGiamGia,
-              loaiPhieu: discount.kieu === 1 ? "CÁ_NHÂN" : "CÔNG_KHAI",
-            },
-          }
-        : b
-    );
-
-    localStorage.setItem("pendingBills", JSON.stringify(updated));
-    setAppliedDiscount(
-      updated.find((b) => b.id === selectedBillId)?.appliedDiscount
-    );
-
-    if (onDiscountApplied) {
-      onDiscountApplied({
-        discountAmount,
-        finalAmount: final,
-        discountCode: discount.maGiamGia,
-      });
+      return messageApi.warning("Không thể áp dụng mã giảm giá khi giỏ hàng trống!");
     }
 
-    messageApi.success(`✅ Áp dụng ${discount.maGiamGia} thành công`);
-    window.dispatchEvent(new Event("billsUpdated"));
+    const loadingMessage = messageApi.loading("Đang kiểm tra mã giảm giá...", 0);
+
+    try {
+      const condition = await checkDetailedDiscountConditions(discount, cartTotal);
+
+      messageApi.destroy(loadingMessage);
+
+      if (!condition.isValid) {
+        messageApi.warning(condition.message);
+        return;
+      }
+
+      const discountAmount = calculateDiscountAmount(discount, cartTotal);
+      const final = Math.max(0, cartTotal - discountAmount);
+
+      const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+      const updated = bills.map((b) =>
+        b.id === selectedBillId
+          ? {
+              ...b,
+              appliedDiscount: {
+                id: discount.id,
+                code: discount.maGiamGia,
+                name: discount.tenChuongTrinh,
+                discountAmount,
+                finalAmount: final,
+                type: discount.loaiGiamGia ? "fixed" : "percentage",
+                value: discount.giaTriGiamGia,
+                loaiPhieu: discount.kieu === 1 ? "CÁ_NHÂN" : "CÔNG_KHAI",
+                isPersonal: discount.kieu === 1,
+              },
+            }
+          : b
+      );
+
+      localStorage.setItem("pendingBills", JSON.stringify(updated));
+      setAppliedDiscount(
+        updated.find((b) => b.id === selectedBillId)?.appliedDiscount
+      );
+
+      if (onDiscountApplied) {
+        onDiscountApplied({
+          discountAmount,
+          finalAmount: final,
+          discountCode: discount.maGiamGia,
+        });
+      }
+
+      messageApi.success(`✅ Áp dụng ${discount.maGiamGia} thành công`);
+      window.dispatchEvent(new Event("billsUpdated"));
+      
+    } catch (error) {
+      messageApi.destroy(loadingMessage);
+      console.error("Lỗi khi áp dụng mã giảm giá:", error);
+      messageApi.error("Có lỗi xảy ra khi áp dụng mã giảm giá!");
+    }
   };
 
   const removeDiscount = () => {
@@ -534,20 +636,22 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   };
 
   const renderUnavailableDiscounts = () => {
-    if (unavailableDueToMinimum.length === 0) return null;
+    const allUnavailable = [...unavailableDueToMinimum, ...unavailableDueToUsage];
+    
+    if (allUnavailable.length === 0) return null;
 
     return (
       <div className="mt-6">
         <div className="mb-3 p-3 bg-gray-50 border border-gray-300 rounded-lg">
           <div className="font-semibold text-gray-700">
-            Mã giảm giá không khả dụng (không đủ điều kiện giá trị đơn hàng)
+            Mã giảm giá không khả dụng
           </div>
           <div className="text-sm text-gray-600 mt-1">
-            Tổng số: {unavailableDueToMinimum.length} mã
+            Tổng số: {allUnavailable.length} mã
           </div>
         </div>
 
-        {unavailableDueToMinimum.map(({ discount, reason }) => (
+        {allUnavailable.map(({ discount, reason }) => (
           <div
             key={discount.id}
             className="relative p-4 border-2 border-gray-300 rounded-xl flex flex-col items-start gap-3 bg-gray-100 opacity-60 cursor-not-allowed"
@@ -604,7 +708,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       label: "Mã tốt nhất",
       children: (
         <div className="flex flex-col gap-4">
-          {loading ? (
+          {loading || checkingSingleDiscount ? (
             <div className="text-center py-4">
               <Spin size="large" />
               <div>Đang tải mã giảm giá...</div>
@@ -687,13 +791,14 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       label: "Mã thay thế",
       children: (
         <div className="flex flex-col gap-2">
-          {loading ? (
+          {loading || checkingSingleDiscount ? (
             <div className="text-center py-4">
               <Spin size="large" />
               <div>Đang tải mã giảm giá...</div>
             </div>
           ) : availableDiscounts.length > 0 ||
-            unavailableDueToMinimum.length > 0 ? (
+            unavailableDueToMinimum.length > 0 ||
+            unavailableDueToUsage.length > 0 ? (
             <>
               {availableDiscounts.map((discount) => (
                 <div
@@ -739,6 +844,11 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                         ? `Giảm tối đa: ${discount.mucGiaGiamToiDa.toLocaleString()} VND`
                         : "Không có điều kiện"}
                     </div>
+                    {discount.kieu === 1 && selectedCustomer && (
+                      <div className="text-md font-semibold text-[#00A96C]">
+                        ✓ Mã cá nhân dành riêng cho {selectedCustomer.hoTen}
+                      </div>
+                    )}
                   </div>
                   <div
                     onClick={() => applyDiscount(discount)}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Space, Table, Tag, Modal, message, Breadcrumb, Button } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router";
@@ -27,6 +27,9 @@ export default function Discount() {
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [selectedRecord, setSelectedRecord] = React.useState(null);
   console.log("🚀 ~ Discount ~ selectedRecord:", selectedRecord);
+  const isAutoUpdated = useRef(false);
+
+
   useEffect(() => {
     dispatch(fetchPhieuGiamGia());
   }, [dispatch]);
@@ -34,8 +37,12 @@ export default function Discount() {
     setSelectedRecord(record);
     setIsModalVisible(true);
   };
+  
  useEffect(() => {
   if (!data || data.length === 0) return;
+  if (isAutoUpdated.current) return;
+  isAutoUpdated.current = true;
+
   const now = dayjs();
 
   (async () => {
@@ -46,30 +53,39 @@ export default function Discount() {
         const end = dayjs(item.ngayKetThuc);
 
         let calculatedStatus = -1;
-        if (start.isAfter(now, "day")) {
-          calculatedStatus = 0; 
-        } else if ((start.isBefore(now, "day") || start.isSame(now, "day")) &&
-                   (end.isAfter(now, "day") || end.isSame(now, "day"))) {
+        if (start.isAfter(now, "day")) calculatedStatus = 0; 
+        else if (
+          (start.isBefore(now, "day") || start.isSame(now, "day")) &&
+          (end.isAfter(now, "day") || end.isSame(now, "day"))
+        )
           calculatedStatus = 1; 
-        } else if (end.isBefore(now, "day")) {
-          calculatedStatus = 2; 
-        }
+        else if (end.isBefore(now, "day")) calculatedStatus = 2; 
 
         return item.trangThai !== calculatedStatus;
       });
 
-      if (needUpdate.length === 0) return;
+      const needUpdateSoLuong = data.filter(
+        (item) => item.trangThai === 1 && item.soLuongDung === 0
+      );
+
+      const allNeedUpdate = [...needUpdate, ...needUpdateSoLuong];
+
+      if (allNeedUpdate.length === 0) return;
 
       await Promise.all(
-        needUpdate.map((item) => {
+        allNeedUpdate.map((item) => {
           const start = dayjs(item.ngayBatDau);
           const end = dayjs(item.ngayKetThuc);
-          let newStatus = 0;
+          let newStatus = item.trangThai;
 
-          if (start.isAfter(now, "day")) {
+          if (item.soLuongDung === 0) {
+            newStatus = 2;
+          } else if (start.isAfter(now, "day")) {
             newStatus = 0;
-          } else if ((start.isBefore(now, "day") || start.isSame(now, "day")) &&
-                     (end.isAfter(now, "day") || end.isSame(now, "day"))) {
+          } else if (
+            (start.isBefore(now, "day") || start.isSame(now, "day")) &&
+            (end.isAfter(now, "day") || end.isSame(now, "day"))
+          ) {
             newStatus = 1;
           } else if (end.isBefore(now, "day")) {
             newStatus = 2;
@@ -81,14 +97,17 @@ export default function Discount() {
         })
       );
 
-      dispatch(fetchPhieuGiamGia());
-      messageApi.info(`Đã tự động cập nhật trạng thái cho ${needUpdate.length} phiếu.`);
+      await dispatch(fetchPhieuGiamGia());
+      messageApi.info(
+        `Đã tự động cập nhật trạng thái cho ${allNeedUpdate.length} phiếu.`
+      );
     } catch (err) {
       console.error("Lỗi khi tự động cập nhật trạng thái:", err);
       messageApi.error("Có lỗi khi tự động cập nhật trạng thái phiếu.");
     }
   })();
 }, [data, dispatch, messageApi]);
+
 
   const handleConfirmChangeStatus = async () => {
     if (!selectedRecord) return;

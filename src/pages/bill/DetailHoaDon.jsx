@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   Table,
@@ -33,13 +33,6 @@ import {
 import hoaDonApi from "../../api/HoaDonAPI";
 import { fetchNhanVien } from "@/services/nhanVienService";
 import { fetchPhuongThuc } from "@/services/phuongThucThanhToanService";
-import {
-  CheckCircleIcon,
-  ClockCountdownIcon,
-  HourglassMediumIcon,
-  PackageIcon,
-  TruckIcon,
-} from "@phosphor-icons/react";
 import BillOrderInformation from "./BillOrderInformation";
 import BillInvoiceStatus from "./BillInvoiceStatus";
 import BillInvoiceHistory from "./BillInvoiceHistory";
@@ -63,27 +56,22 @@ const DetailHoaDon = () => {
   const [formErrors, setFormErrors] = useState({});
   const [nhanVienList, setNhanVienList] = useState([]);
   const [phuongThucList, setPhuongThucList] = useState([]);
-  const [tempStatus, setTempStatus] = useState(invoice?.trangThai || 0);
+  const [tempStatus, setTempStatus] = useState(0);
+  const [tempLoaiHoaDon, setTempLoaiHoaDon] = useState(false);
 
   const handleTempStatusChange = (newStatus) => {
     setTempStatus(newStatus);
   };
 
-  
-
-  const getPaymentStatusTag = (status) => {
-    const statusMap = {
-      0: { label: 'Chờ xác nhận', color: 'warning' },
-      1: { label: 'Chờ giao hàng', color: 'processing' },
-      2: { label: 'Đang Đang giao hàng', color: 'cyan' },
-      3: { label: 'Đã hoàn thành', color: 'success' },
-      4: { label: 'Đã hủy', color: 'error' }
-    };
-    return <Tag color={config.color}>{config.label}</Tag>;
+  const handleLoaiHoaDonChange = (newLoaiHoaDon) => {
+    setTempLoaiHoaDon(newLoaiHoaDon);
   };
 
   const handleEditToggle = () => {
     setIsEditing(true);
+    setTempStatus(invoice?.trangThai || 0);
+    setTempLoaiHoaDon(invoice?.loaiHoaDon || false);
+    
     editForm.setFieldsValue({
       hoTenKhachHang: invoice.tenKhachHang,
       sdtKhachHang: invoice.sdtKhachHang,
@@ -91,14 +79,13 @@ const DetailHoaDon = () => {
       diaChiKhachHang: invoice.diaChiKhachHang,
       ghiChu: invoice.ghiChu,
       trangThai: invoice.trangThai,
+      loaiHoaDon: invoice.loaiHoaDon,
       hinhThucThanhToan: invoice.hinhThucThanhToan,
       tenNhanVien: invoice.tenNhanVien,
       idNhanVien: invoice.idNhanVien,
       idPhuongThucThanhToan: invoice.idPhuongThucThanhToan,
     });
   };
-
-  
 
   const validationRules = {
     hoTenKhachHang: [
@@ -131,7 +118,6 @@ const DetailHoaDon = () => {
     ],
     ghiChu: [{ max: 500, message: "Ghi chú không được quá 500 ký tự!" }],
     trangThai: [{ required: true, message: "Vui lòng chọn trạng thái!" }],
-
     hinhThucThanhToan: [
       { required: true, message: "Vui lòng chọn hình thức thanh toán!" },
     ],
@@ -147,7 +133,8 @@ const DetailHoaDon = () => {
 
       await hoaDonApi.updateHoaDon(id, {
         ...values,
-        trangThai: tempStatus
+        trangThai: tempStatus,
+        loaiHoaDon: tempLoaiHoaDon
       });
       
       message.success("✅ Cập nhật thành công!");
@@ -167,6 +154,7 @@ const DetailHoaDon = () => {
     setIsEditing(false);
     setFormErrors({});
     setTempStatus(invoice?.trangThai || 0);
+    setTempLoaiHoaDon(invoice?.loaiHoaDon || false);
     editForm.resetFields();
   };
 
@@ -187,31 +175,33 @@ const DetailHoaDon = () => {
   }, [location.state?.refreshData]);
 
   const fetchInvoiceDetail = async () => {
+    try {
+      setLoading(true);
+      console.log('🔍 Đang gọi API với ID:', id);
 
-  try {
-    setLoading(true);
-    console.log('🔍 Đang gọi API với ID:', id);
+      const response = await hoaDonApi.getDetail(id);
+      console.log('📦 Full response:', response);
+      console.log('📦 Response data:', response.data);
+      console.log('📦 Response data.data:', response.data?.data);
+      
+      let invoiceData = response.data?.data || response.data;
+      
+      console.log('✅ Invoice data sau khi parse:', invoiceData);
+      console.log('🔍 Tất cả keys trong invoiceData:', Object.keys(invoiceData || {}));
+      
+      console.log('🔍 Các field quan trọng:');
+      console.log('  - id:', invoiceData?.id);
+      console.log('  - maHoaDon:', invoiceData?.maHoaDon);
+      console.log('  - trangThai:', invoiceData?.trangThai);
+      console.log('  - loaiHoaDon:', invoiceData?.loaiHoaDon);
 
-    const response = await hoaDonApi.getDetail(id);
-    console.log('📦 Full response:', response);
-    console.log('📦 Response data:', response.data);
-    console.log('📦 Response data.data:', response.data?.data);
-    
-    let invoiceData = response.data?.data || response.data;
-    
-    console.log('✅ Invoice data sau khi parse:', invoiceData);
-    console.log('🔍 Tất cả keys trong invoiceData:', Object.keys(invoiceData || {}));
-    
-    console.log('🔍 Các field quan trọng:');
-    console.log('  - id:', invoiceData?.id);
-    console.log('  - maHoaDon:', invoiceData?.maHoaDon);
-    console.log('  - trangThai:', invoiceData?.trangThai);
-    console.log('  - loaiHoaDon:', invoiceData?.loaiHoaDon);
-
-    if (!invoiceData || !invoiceData.id) {
-      throw new Error('Dữ liệu hóa đơn không hợp lệ');
-    }
+      if (!invoiceData || !invoiceData.id) {
+        throw new Error('Dữ liệu hóa đơn không hợp lệ');
+      }
+      
       setInvoice(invoiceData);
+      setTempStatus(invoiceData.trangThai || 0);
+      setTempLoaiHoaDon(invoiceData.loaiHoaDon || false);
       setError(null);
     } catch (err) {
       console.error("❌ Lỗi tải chi tiết hóa đơn:", err);
@@ -227,7 +217,6 @@ const DetailHoaDon = () => {
     try {
       const res = await hoaDonApi.canEdit(id);
       setCanEdit(res.data?.canEdit || false);
-
     } catch (error) {
       console.error("Error checking edit permission:", error);
       setCanEdit(false);
@@ -266,6 +255,8 @@ const DetailHoaDon = () => {
   };
 
   const handlePrint = () => {
+    if (!invoice) return;
+    
     const printArea = document.querySelector(".print-area");
     const clone = printArea.cloneNode(true);
 
@@ -406,11 +397,9 @@ const DetailHoaDon = () => {
     };
   };
 
-  const handleEdit = () => {
-    navigate(`/admin/bill/edit/${id}`);
-  };
-
   const handleSendEmail = () => {
+    if (!invoice) return;
+    
     emailForm.setFieldsValue({
       email: invoice.emailKhachHang || "",
       subject: `Hóa đơn #${invoice.maHoaDon}`,
@@ -478,7 +467,6 @@ const DetailHoaDon = () => {
     };
     return <Tag color={config.color}>{config.label}</Tag>;
   };
-
 
   const getTimelineIcon = (hanhDong) => {
     if (hanhDong?.includes("Tạo")) return "📝";
@@ -616,8 +604,6 @@ const DetailHoaDon = () => {
       className="detail-hoadon"
     >
       <div style={{ margin: "0 auto" }} className="print-area">
-        {/* Header */}
-
         <Card className="no-print" style={{ marginBottom: 16 }}>
           <div
             style={{
@@ -642,27 +628,20 @@ const DetailHoaDon = () => {
                 </Space>
               ) : canEdit ? (
                 <div
-                onClick={handleEditToggle} 
-                className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
-              >
-                Chỉnh sửa
-              </div>
+                  onClick={handleEditToggle} 
+                  className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+                >
+                  Chỉnh sửa
+                </div>
               ) : (
-
-                 canEdit ? (
-                  <div
-                onClick={handleEditToggle} 
-                className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
-              >
-                Chỉnh sửa
-              </div>
-                ) : (
-                  <Button icon={<LockOutlined />} disabled>Không thể sửa</Button>
-                )
+                <Button icon={<LockOutlined />} disabled>Không thể sửa</Button>
               )}
 
               <Button icon={<PrinterOutlined />} onClick={handlePrint}>
                 In đơn hàng
+              </Button>
+              <Button icon={<MailOutlined />} onClick={handleSendEmail}>
+                Gửi email
               </Button>
             </Space>
           </div>
@@ -677,18 +656,20 @@ const DetailHoaDon = () => {
                 invoiceData={invoice}
                 isEditing={isEditing}
                 tempStatus={tempStatus}
+                tempLoaiHoaDon={tempLoaiHoaDon}
                 onTempStatusChange={handleTempStatusChange}
+                onLoaiHoaDonChange={handleLoaiHoaDonChange}
                 onStatusChange={(newStatus) => {
                   setInvoice(prev => prev ? {...prev, trangThai: newStatus} : null);
                   fetchInvoiceDetail();
                 }}
               />
+              
               <Row
                 gutter={16}
                 style={{ marginBottom: 16 }}
                 className="customer-payment-row"
               >
-
                 <Col xs={24} md={12}>
                   <Card
                     title={
@@ -889,12 +870,10 @@ const DetailHoaDon = () => {
               <Card
                 title={
                   <>
-                    <div className="">
-                      <ClockCircleOutlined /> Lịch sử đơn hàng
-                    </div>
+                    <ClockCircleOutlined /> Lịch sử đơn hàng
                   </>
                 }
-                className="history-section "
+                className="history-section"
               >
                 {lichSuHoaDon && lichSuHoaDon.length > 0 ? (
                   <Timeline
@@ -1009,6 +988,9 @@ const DetailHoaDon = () => {
           <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
             <Space>
               <Button onClick={handleCancelEmail}>Hủy</Button>
+              <Button type="primary" htmlType="submit" loading={sendingEmail}>
+                Gửi email
+              </Button>
             </Space>
           </Form.Item>
         </Form>
