@@ -17,11 +17,11 @@ export default function BillOrderInformation() {
     try {
       setLoading(true);
       const response = await hoaDonApi.getDetail(id);
-      let invoiceData = response.data?.data || response.data;      
+      let invoiceData = response.data?.data || response.data;
       if (!invoiceData || !invoiceData.id) {
-        throw new Error('Dữ liệu hóa đơn không hợp lệ');
+        throw new Error("Dữ liệu hóa đơn không hợp lệ");
       }
-      
+
       setInvoice(invoiceData);
       setError(null);
     } catch (err) {
@@ -46,10 +46,10 @@ export default function BillOrderInformation() {
   const getStatusText = (status) => {
     const statusMap = {
       0: "Chờ xác nhận",
-      1: "Chờ giao hàng", 
+      1: "Chờ giao hàng",
       2: "Đang giao hàng",
       3: "Đã hoàn thành",
-      4: "Đã hủy"
+      4: "Đã hủy",
     };
     return statusMap[status] || `Trạng thái ${status}`;
   };
@@ -62,12 +62,12 @@ export default function BillOrderInformation() {
     if (!dateString) return "";
     try {
       const date = new Date(dateString);
-      return date.toLocaleString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return date.toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch (error) {
       return dateString.substring(0, 16).replace("T", " ");
@@ -145,14 +145,22 @@ export default function BillOrderInformation() {
 
         <div className="flex justify-between items-center">
           <div type="secondary">Trạng thái:</div>
-          <div className="font-bold text-xs bg-emerald-600 text-white px-3 py-1 rounded-full flex items-center">
+          <div
+            className={`font-bold text-xs px-3 py-1 rounded-full flex items-center ${
+              invoice.trangThai === 4
+                ? "bg-red-500 text-white"
+                : "bg-emerald-600 text-white"
+            }`}
+          >
             {getStatusText(invoice.trangThai)}
           </div>
         </div>
 
-         <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center">
           <div type="secondary">Phiếu giảm giá:</div>
-          <div className="font-bold text-sm">{invoice.maGiamGia || "Không có"}</div>
+          <div className="font-bold text-sm">
+            {invoice.maGiamGia || "Không có"}
+          </div>
         </div>
 
         <div className="flex justify-between items-center">
