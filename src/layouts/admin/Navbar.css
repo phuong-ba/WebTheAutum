@@ -1,0 +1,19 @@
+.custom-menu .ant-menu-item-selected {
+  background-color: #e29578 !important;
+  color: #fff !important;
+  border-radius: 8px; 
+}
+
+.custom-menu .ant-menu-submenu-selected > .ant-menu-submenu-title {
+  background-color: #e29578 !important;
+  color: #fff !important;
+  border-radius: 8px; 
+}
+
+.custom-menu .ant-menu-item-selected .anticon,
+.custom-menu .ant-menu-submenu-selected .anticon,
+.custom-menu .ant-menu-item-selected svg,
+.custom-menu .ant-menu-submenu-selected svg {
+  color: #fff !important;
+  fill: currentColor !important;
+}

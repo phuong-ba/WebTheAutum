@@ -1,0 +1,141 @@
+import React from "react";
+import { Form, Input, Select, Row, Col, DatePicker, Button } from "antd";
+import { useDispatch } from "react-redux";
+import {
+  fetchDotGiamGia,
+  searchDotGiamGia,
+} from "@/services/dotGiamGiaService";
+import dayjs from "dayjs";
+import { useNavigate } from "react-router";
+import {
+  ExportOutlined,
+  PlusSquareOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
+
+const { Option } = Select;
+
+export default function FilterPromo({ handleExportExcel }) {
+  const [form] = Form.useForm();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const handleSearch = (values) => {
+    const query = {
+      keyword: values.keyword || undefined,
+      tuNgay: values.tuNgay
+        ? dayjs(values.tuNgay).format("YYYY-MM-DD")
+        : undefined,
+      denNgay: values.denNgay
+        ? dayjs(values.denNgay).format("YYYY-MM-DD")
+        : undefined,
+      kieu:
+        values.kieu !== undefined && values.kieu !== ""
+          ? values.kieu
+          : undefined,
+      loaiGiamGia: convertLoaiGiamGiaToBoolean(values.loaiGiamGia),
+       trangThai:
+        values.trangThai !== undefined && values.trangThai !== ""
+          ? Number(values.trangThai)
+          : undefined,
+    };
+
+    const cleanQuery = Object.fromEntries(
+      Object.entries(query).filter(
+        ([_, value]) => value !== undefined && value !== ""
+      )
+    );
+
+    console.log("Search query:", cleanQuery);
+    dispatch(searchDotGiamGia(cleanQuery));
+  };
+
+  const convertLoaiGiamGiaToBoolean = (loaiGiamGia) => {
+    if (loaiGiamGia === "Tiền mặt") return true;
+    if (loaiGiamGia === "Phần trăm") return false;
+    return undefined;
+  };
+
+  const handleReset = () => {
+    form.resetFields();
+    dispatch(fetchDotGiamGia());
+  };
+
+  return (
+    <>
+      <div className=" bg-white  rounded-lg shadow overflow-hidden">
+        <div className="bg-[#E67E22] text-white px-6 py-2">
+          <div className="font-bold text-2xl text-white ">Bộ Lọc Đợt Giảm</div>
+        </div>
+        <div className="px-6 py-3">
+          <Form
+            form={form}
+            layout="vertical"
+            autoComplete="off"
+            onFinish={handleSearch}
+          >
+            <Row gutter={16}>
+              <Col flex="1">
+                <Form.Item name="keyword" label="Từ khóa tìm kiếm">
+                  <Input placeholder="Nhập mã hoặc tên...." />
+                </Form.Item>
+              </Col>
+
+              <Col flex="1">
+                <Form.Item name="tuNgay" label="Từ ngày">
+                  <DatePicker className="w-full" format="DD/MM/YYYY" />
+                </Form.Item>
+              </Col>
+
+              <Col flex="1">
+                <Form.Item name="denNgay" label="Đến ngày">
+                  <DatePicker className="w-full" format="DD/MM/YYYY" />
+                </Form.Item>
+              </Col>
+
+              <Col flex="1">
+                <Form.Item name="trangThai" label="Trạng thái">
+                  <Select placeholder="Chọn trạng thái" allowClear>
+                    <Option value={0}>Sắp diễn ra</Option>
+                    <Option value={1}>Đang diễn ra</Option>
+                    <Option value={2}>Đã kết thúc</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <div className="flex justify-end gap-4 pr-3">
+              <div
+                onClick={handleReset}
+                className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
+              >
+                <ReloadOutlined /> Nhập lại
+              </div>
+              <div
+                onClick={() => form.submit()}
+                className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
+              >
+                <SearchOutlined />
+                Tìm kiếm
+              </div>
+
+              <div
+                onClick={() => navigate("/admin/add-promo")}
+                className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
+              >
+                <PlusSquareOutlined /> Thêm mới
+              </div>
+              <div
+                onClick={handleExportExcel}
+                className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
+              >
+                <ExportOutlined /> Xuất Excel
+              </div>
+            </div>
+          </Form>
+        </div>
+      </div>
+    </>
+  );
+}
