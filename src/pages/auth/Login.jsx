@@ -35,6 +35,8 @@ export default function Login() {
         localStorage.setItem("user_email", data.email || "");
         localStorage.setItem("user_role", data.chucVuName);
 
+        localStorage.setItem("user_id", data.id);
+
         message.success("Đăng nhập thành công!");
 
         setTimeout(() => {

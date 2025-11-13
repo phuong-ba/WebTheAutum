@@ -1,4 +1,3 @@
-// Sell.jsx
 import React, { useState } from "react";
 import SellBreadcrumb from "./SellBreadcrumb";
 import SellBill from "./SellBill";
