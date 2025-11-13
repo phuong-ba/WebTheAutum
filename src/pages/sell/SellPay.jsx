@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import hoaDonApi from "@/api/HoaDonAPI";
 import { message } from "antd";
 import { useNavigate } from "react-router";
-import { PackageIcon, SealWarningIcon } from "@phosphor-icons/react";
+import { getCurrentUserId } from '@/utils/authHelper';
 
 export default function SellPay({
   cartTotal,
@@ -27,11 +27,37 @@ export default function SellPay({
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
+  // Lắng nghe sự kiện khi thanh toán VNPAY hoàn tất
+  useEffect(() => {
+    const handleVNPayCompleted = () => {
+      console.log("🎯 Nhận sự kiện VNPAY completed, clearing local data...");
+      clearLocalBillData();
+    };
+
+    window.addEventListener("vnpayPaymentCompleted", handleVNPayCompleted);
+    
+    return () => {
+      window.removeEventListener("vnpayPaymentCompleted", handleVNPayCompleted);
+    };
+  }, []);
+
+  // Hàm clear dữ liệu hóa đơn cục bộ
+  const clearLocalBillData = () => {
+    if (selectedBillId) {
+      const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+      const updatedBills = bills.filter((bill) => bill.id !== selectedBillId);
+      localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
+    }
+
+    if (onRemoveDiscount) onRemoveDiscount();
+    if (onClearCart) onClearCart();
+    
+    console.log("🧹 Đã clear dữ liệu hóa đơn cục bộ");
+  };
+
   const handlePayment = async () => {
     if (cartTotal === 0) {
-      messageApi.warning(
-        "Giỏ hàng đang trống! Vui lòng thêm sản phẩm trước khi thanh toán."
-      );
+      messageApi.warning("Giỏ hàng đang trống! Vui lòng thêm sản phẩm trước khi thanh toán.");
       return;
     }
 
@@ -65,10 +91,8 @@ export default function SellPay({
         console.log("📝 Form values từ SellInformation:", formValues);
 
         if (formValues.thanhPho && formValues.quan && formValues.diaChiCuThe) {
-          const tinhName =
-            tinhList?.find((t) => t.id === formValues.thanhPho)?.tenTinh || "";
-          const quanName =
-            localQuanList?.find((q) => q.id === formValues.quan)?.tenQuan || "";
+          const tinhName = tinhList?.find((t) => t.id === formValues.thanhPho)?.tenTinh || "";
+          const quanName = localQuanList?.find((q) => q.id === formValues.quan)?.tenQuan || "";
 
           shippingAddress = {
             fullAddress: `${formValues.diaChiCuThe}, ${quanName}, ${tinhName}`,
@@ -100,27 +124,16 @@ export default function SellPay({
         console.error("❌ Lỗi khi lấy giá trị form:", error);
       }
     }
-    
 
     const totalWithShipping = finalAmount + shippingFee;
 
     const confirmMessage = `XÁC NHẬN THANH TOÁN\n
         Khách hàng: ${selectedCustomer.hoTen}
         Số điện thoại: ${selectedCustomer.sdt}
-        ${
-          isDelivery
-            ? `📍 Giao hàng: ${
-                shippingAddress?.fullAddress || "Địa chỉ giao hàng"
-              }`
-            : "🏪 Mua tại quầy"
-        }
+        ${isDelivery ? `📍 Giao hàng: ${shippingAddress?.fullAddress || "Địa chỉ giao hàng"}` : "🏪 Mua tại quầy"}
         Tổng tiền hàng: ${cartTotal.toLocaleString()} VND
         Giảm giá: ${discountAmount.toLocaleString()} VND
-        ${
-          isDelivery
-            ? `Phí vận chuyển: ${shippingFee.toLocaleString()} VND`
-            : ""
-        }
+        ${isDelivery ? `Phí vận chuyển: ${shippingFee.toLocaleString()} VND` : ""}
         Thành tiền: ${totalWithShipping.toLocaleString()} VND
         Mã giảm giá: ${appliedDiscount?.code || "Không áp dụng"}
         Phương thức: ${paymentMethod}
@@ -140,7 +153,7 @@ export default function SellPay({
           soLuong: item.quantity || item.soLuong,
           giaBan: item.price || item.giaBan,
           ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
-          trangThai: 0 
+          trangThai: 0
         }));
       } else if (selectedBillId) {
         const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
@@ -158,14 +171,19 @@ export default function SellPay({
       }
 
       if (chiTietList.length === 0) {
-        messageApi.error(
-          "❌ Không có sản phẩm trong giỏ hàng! Vui lòng thêm sản phẩm trước khi thanh toán."
-        );
+        messageApi.error("❌ Không có sản phẩm trong giỏ hàng! Vui lòng thêm sản phẩm trước khi thanh toán.");
         setLoading(false);
         return;
       }
 
-      const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+      const currentUserId = getCurrentUserId();
+      console.log("👤 ID nhân viên từ login:", currentUserId);
+
+      if (!currentUserId) {
+        messageApi.error("❌ Không tìm thấy thông tin nhân viên. Vui lòng đăng nhập lại!");
+        setLoading(false);
+        return;
+      }
 
       let diaChiKhachHang = "Chưa có địa chỉ";
       let idTinh = null;
@@ -183,11 +201,7 @@ export default function SellPay({
         const currentBill = bills.find((bill) => bill.id === selectedBillId);
         const savedShippingAddress = currentBill?.shippingAddress;
 
-        if (
-          savedShippingAddress &&
-          savedShippingAddress.idTinh &&
-          savedShippingAddress.idQuan
-        ) {
+        if (savedShippingAddress && savedShippingAddress.idTinh && savedShippingAddress.idQuan) {
           diaChiKhachHang = savedShippingAddress.fullAddress;
           idTinh = savedShippingAddress.idTinh;
           idQuan = savedShippingAddress.idQuan;
@@ -195,20 +209,10 @@ export default function SellPay({
           console.log("✅ Sử dụng địa chỉ từ localStorage");
         } else if (selectedCustomer?.diaChi) {
           const customerAddress = selectedCustomer.diaChi;
-          diaChiKhachHang =
-            customerAddress.dia_chi_cu_the ||
-            customerAddress.diaChiCuThe ||
-            "Chưa có địa chỉ";
-          idTinh =
-            customerAddress.tinhThanhId ||
-            customerAddress.id_tinh ||
-            customerAddress.idTinh;
-          idQuan =
-            customerAddress.quanHuyenId ||
-            customerAddress.id_quan ||
-            customerAddress.idQuan;
-          diaChiCuThe =
-            customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "";
+          diaChiKhachHang = customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "Chưa có địa chỉ";
+          idTinh = customerAddress.tinhThanhId || customerAddress.id_tinh || customerAddress.idTinh;
+          idQuan = customerAddress.quanHuyenId || customerAddress.id_quan || customerAddress.idQuan;
+          diaChiCuThe = customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "";
           console.log("✅ Sử dụng địa chỉ từ KHÁCH HÀNG");
         } else {
           console.log("❌ Không có địa chỉ nào");
@@ -224,50 +228,47 @@ export default function SellPay({
       });
 
       let trangThai;
-    
       if (isDelivery) {
-        trangThai = 1;
+        trangThai = 1; 
       } else {
-        trangThai = 3;
+        trangThai = 3; 
+      }
+
+      let idPhuongThucThanhToan;
+      switch (paymentMethod) {
+        case "Tiền mặt":
+          idPhuongThucThanhToan = 1;
+          break;
+        case "Chuyển khoản":
+          idPhuongThucThanhToan = 2;
+          break;
+        default:
+          idPhuongThucThanhToan = 3;
       }
 
       const hoaDonMoi = {
         loaiHoaDon: isDelivery ? false : true,
-        phiVanChuyen: 0, 
+        phiVanChuyen: 0,
         tongTien: cartTotal,
         tongTienSauGiam: finalAmount,
-        ghiChu: `${
-          isDelivery ? "Giao hàng - " : "Tại quầy - "
-        }Thanh toán bằng ${paymentMethod}${
-          appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
-        }`,
+        ghiChu: `${isDelivery ? "Giao hàng - " : "Tại quầy - "}Thanh toán bằng ${paymentMethod}${appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""}`,
         diaChiKhachHang: diaChiKhachHang,
         ngayThanhToan: new Date().toISOString(),
-        trangThai: trangThai, 
+        trangThai: trangThai,
         idKhachHang: selectedCustomer?.id || null,
-        idNhanVien: currentUser?.id || null,
+        idNhanVien: currentUserId, 
         idPhieuGiamGia: appliedDiscount?.id || null,
-        nguoiTao: currentUser?.id || 1,
+        nguoiTao: currentUserId,
         chiTietList: chiTietList,
-        idPhuongThucThanhToan:
-          paymentMethod === "Tiền mặt"
-            ? 1
-            : paymentMethod === "Chuyển khoản"
-            ? 2
-            : 3,
+        idPhuongThucThanhToan: idPhuongThucThanhToan,
         soTienThanhToan: totalWithShipping,
-        ghiChuThanhToan: `${
-          isDelivery ? "Giao hàng - " : "Tại quầy - "
-        }Thanh toán bằng ${paymentMethod}`,
+        ghiChuThanhToan: `${isDelivery ? "Giao hàng - " : "Tại quầy - "}Thanh toán bằng ${paymentMethod}`,
         idTinh: idTinh,
         idQuan: idQuan,
         diaChiCuThe: diaChiCuThe,
       };
 
-      console.log(
-        "🚀 FINAL PAYLOAD gửi lên BE:",
-        JSON.stringify(hoaDonMoi, null, 2)
-      );
+      console.log("🚀 FINAL PAYLOAD gửi lên BE:", JSON.stringify(hoaDonMoi, null, 2));
 
       if (paymentMethod === "Chuyển khoản") {
         const res = await hoaDonApi.createAndPayWithVNPAY(hoaDonMoi);
@@ -276,27 +277,21 @@ export default function SellPay({
           const paymentUrl = res.data.data?.paymentUrl;
           
           if (paymentUrl) {
-            window.open(paymentUrl, "_blank");
             messageApi.success("✅ Đang chuyển hướng đến trang thanh toán VNPAY...");
             
-            if (selectedBillId) {
-              const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-              const updatedBills = bills.filter(
-                (bill) => bill.id !== selectedBillId
-              );
-              localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-              window.dispatchEvent(new Event("billsUpdated"));
-            }
-
-            if (onRemoveDiscount) onRemoveDiscount();
-            if (onClearCart) onClearCart();
+            // Clear dữ liệu cục bộ trước khi chuyển hướng
+            clearLocalBillData();
+            
+            // Chuyển hướng sau khi đã clear
+            setTimeout(() => {
+              window.location.href = paymentUrl;
+            }, 1500);
+            
           } else {
             messageApi.error("❌ Không thể tạo URL thanh toán VNPAY");
           }
         } else {
-          messageApi.error(
-            "❌ Lỗi khi tạo thanh toán VNPAY: " + (res.data?.message || "")
-          );
+          messageApi.error("❌ Lỗi khi tạo thanh toán VNPAY: " + (res.data?.message || ""));
         }
       } else {
         const res = await hoaDonApi.create(hoaDonMoi);
@@ -308,17 +303,8 @@ export default function SellPay({
 
           messageApi.success(successMessage);
 
-          if (selectedBillId) {
-            const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-            const updatedBills = bills.filter(
-              (bill) => bill.id !== selectedBillId
-            );
-            localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-            window.dispatchEvent(new Event("billsUpdated"));
-          }
-
-          if (onRemoveDiscount) onRemoveDiscount();
-          if (onClearCart) onClearCart();
+          // Clear dữ liệu cục bộ
+          clearLocalBillData();
 
           const newBillId = res.data.data?.id || res.data.data;
           if (newBillId) {
@@ -327,51 +313,45 @@ export default function SellPay({
             console.warn("Không tìm thấy ID hóa đơn mới trả về từ API");
           }
         } else {
-          messageApi.error(
-            "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
-          );
+          messageApi.error("❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || ""));
         }
       }
     } catch (error) {
       console.error("❌ Lỗi khi gọi API:", error);
-      messageApi.error(
-        `${isDelivery ? "Đặt hàng" : "Thanh toán"} thất bại! Vui lòng thử lại.`
-      );
+      messageApi.error(`${isDelivery ? "Đặt hàng" : "Thanh toán"} thất bại! Vui lòng thử lại.`);
     } finally {
       setLoading(false);
     }
   };
 
   const paymentOptions = ["Chuyển khoản", "Tiền mặt"];
-
   const totalWithShipping = finalAmount + shippingFee;
 
   return (
     <>
       {contextHolder}
+      
       <div className="bg-gray-50 p-5 rounded-lg border-l-4 border border-amber-700">
         <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-4">
             <div className="flex justify-between font-bold">
-              <span>Tổng tiền hàng:</span>{" "}
+              <span>Tổng tiền hàng:</span>
               <span>{cartTotal.toLocaleString()} vnd</span>
             </div>
             <div className="flex justify-between font-bold">
-              <span>Giảm giá:</span>{" "}
+              <span>Giảm giá:</span>
               <span className="text-red-800">{actualDiscountAmount.toLocaleString()} vnd</span>
             </div>
             {isDelivery && (
               <div className="flex justify-between font-bold">
-                <span>Phí vận chuyển:</span>{" "}
+                <span>Phí vận chuyển:</span>
                 <span>{shippingFee.toLocaleString()} vnd</span>
               </div>
             )}
           </div>
           <div className="flex justify-between font-bold text-lg">
-            <span>Tổng thanh toán:</span>{" "}
-            <span className="text-amber-600">
-              {totalWithShipping.toLocaleString()} vnd
-            </span>
+            <span>Tổng thanh toán:</span>
+            <span className="text-amber-600">{totalWithShipping.toLocaleString()} vnd</span>
           </div>
         </div>
       </div>
@@ -408,7 +388,7 @@ export default function SellPay({
           : !selectedCustomer
           ? "Vui lòng chọn khách hàng"
           : isDelivery
-          ? paymentMethod === "Chuyển khoản" ? "Đặt hàng & Thanh toán VNPAY" : "Đặt hàng"
+          ? paymentMethod === "Chuyển khoản" ? "Thanh toán VNPAY" : "Thanh toán"
           : paymentMethod === "Chuyển khoản" ? "Thanh toán VNPAY" : "Thanh toán"
         }
       </div>

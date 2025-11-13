@@ -156,7 +156,7 @@ export default function BillOrderInformation() {
         </div>
 
         <div className="flex justify-between items-center">
-          <div type="secondary">Ngày đặt:</div>
+          <div type="secondary">Ngày mua:</div>
           <div className="font-bold text-sm">{formatDate(invoice.ngayTao)}</div>
         </div>
       </div>
