@@ -35,11 +35,6 @@ export default function SellPay({
       return;
     }
 
-    if (!selectedCustomer) {
-      messageApi.warning("Vui lòng chọn khách hàng trước khi thanh toán!");
-      return;
-    }
-
     if (!paymentMethod) {
       messageApi.warning("Vui lòng chọn phương thức thanh toán!");
       return;
@@ -59,6 +54,8 @@ export default function SellPay({
     }
 
     let shippingAddress = null;
+    let formCustomerInfo = null;
+
     if (isDelivery && addressForm) {
       try {
         const formValues = addressForm.getFieldsValue();
@@ -70,18 +67,24 @@ export default function SellPay({
           const quanName =
             localQuanList?.find((q) => q.id === formValues.quan)?.tenQuan || "";
 
+          formCustomerInfo = {
+            hoTen: formValues.hoTen || "Khách lẻ",
+            sdt: formValues.sdt || "",
+          };
+
           shippingAddress = {
             fullAddress: `${formValues.diaChiCuThe}, ${quanName}, ${tinhName}`,
             idTinh: formValues.thanhPho,
             idQuan: formValues.quan,
             diaChiCuThe: formValues.diaChiCuThe,
-            hoTen: formValues.HoTen || selectedCustomer.hoTen,
-            sdt: formValues.SoDienThoai || selectedCustomer.sdt,
+            hoTen: formCustomerInfo.hoTen,
+            sdt: formCustomerInfo.sdt,
             tenTinh: tinhName,
             tenQuan: quanName,
           };
 
           console.log("📍 Địa chỉ từ form vừa nhập:", shippingAddress);
+          console.log("👤 Thông tin khách hàng từ form:", formCustomerInfo);
 
           const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
           const updatedBills = bills.map((bill) => {
@@ -89,12 +92,13 @@ export default function SellPay({
               return {
                 ...bill,
                 shippingAddress: shippingAddress,
+                formCustomerInfo: formCustomerInfo,
               };
             }
             return bill;
           });
           localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-          console.log("💾 Đã lưu địa chỉ vào localStorage");
+          console.log("💾 Đã lưu địa chỉ và thông tin KH vào localStorage");
         }
       } catch (error) {
         console.error("❌ Lỗi khi lấy giá trị form:", error);
@@ -103,9 +107,20 @@ export default function SellPay({
 
     const totalWithShipping = finalAmount + shippingFee;
 
+    let displayCustomerName = "Khách lẻ";
+    let displayCustomerPhone = "";
+
+    if (selectedCustomer) {
+      displayCustomerName = selectedCustomer.hoTen;
+      displayCustomerPhone = selectedCustomer.sdt;
+    } else if (formCustomerInfo) {
+      displayCustomerName = formCustomerInfo.hoTen;
+      displayCustomerPhone = formCustomerInfo.sdt;
+    }
+
     const confirmMessage = `XÁC NHẬN THANH TOÁN\n
-        Khách hàng: ${selectedCustomer.hoTen}
-        Số điện thoại: ${selectedCustomer.sdt}
+        Khách hàng: ${displayCustomerName}
+        ${displayCustomerPhone ? `Số điện thoại: ${displayCustomerPhone}` : ""}
         ${
           isDelivery
             ? `📍 Giao hàng: ${
@@ -180,13 +195,24 @@ export default function SellPay({
       let idQuan = null;
       let diaChiCuThe = "";
 
+      let customerType = selectedCustomer ? "Khách hàng" : "Khách lẻ";
+      let customerNote = "";
+
       if (shippingAddress) {
         diaChiKhachHang = shippingAddress.fullAddress;
         idTinh = shippingAddress.idTinh;
         idQuan = shippingAddress.idQuan;
         diaChiCuThe = shippingAddress.diaChiCuThe;
+
+        if (formCustomerInfo && !selectedCustomer) {
+          customerType = "Khách lẻ";
+          customerNote = ` - ${formCustomerInfo.hoTen}`;
+          if (formCustomerInfo.sdt) {
+            customerNote += ` - ${formCustomerInfo.sdt}`;
+          }
+        }
         console.log("✅ Sử dụng địa chỉ từ FORM vừa nhập");
-      } else {
+      } else if (selectedCustomer) {
         const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
         const currentBill = bills.find((bill) => bill.id === selectedBillId);
         const savedShippingAddress = currentBill?.shippingAddress;
@@ -229,6 +255,9 @@ export default function SellPay({
         idQuan,
         diaChiCuThe,
         hasShippingAddress: !!shippingAddress,
+        hasCustomer: !!selectedCustomer,
+        customerType,
+        customerNote,
       });
 
       let trangThai;
@@ -251,18 +280,18 @@ export default function SellPay({
       }
 
       const hoaDonMoi = {
-        loaiHoaDon: isDelivery ? false : true,
-        phiVanChuyen: 0,
+        loaiHoaDon: true,
+        phiVanChuyen: isDelivery ? shippingFee : 0,
         tongTien: cartTotal,
         tongTienSauGiam: finalAmount,
         ghiChu: `${
-          isDelivery ? "Giao hàng - " : "Tại quầy - "
-        }Thanh toán bằng ${paymentMethod}${
+          isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
+        }${customerType}${customerNote} - Thanh toán bằng ${paymentMethod}${
           appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
         }`,
         diaChiKhachHang: diaChiKhachHang,
         ngayThanhToan: new Date().toISOString(),
-        trangThai: trangThai,
+        trangThai: isDelivery ? 1 : 3,
         idKhachHang: selectedCustomer?.id || null,
         idNhanVien: currentUserId,
         idPhieuGiamGia: appliedDiscount?.id || null,
@@ -271,11 +300,14 @@ export default function SellPay({
         idPhuongThucThanhToan: idPhuongThucThanhToan,
         soTienThanhToan: totalWithShipping,
         ghiChuThanhToan: `${
-          isDelivery ? "Giao hàng - " : "Tại quầy - "
-        }Thanh toán bằng ${paymentMethod}`,
+          isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
+        }${customerType}${customerNote} - Thanh toán bằng ${paymentMethod}`,
         idTinh: idTinh,
         idQuan: idQuan,
         diaChiCuThe: diaChiCuThe,
+
+        hoTen: formCustomerInfo?.hoTen || null,
+        sdt: formCustomerInfo?.sdt || null,
       };
 
       console.log(
@@ -290,12 +322,10 @@ export default function SellPay({
           const paymentUrl = res.data.data?.paymentUrl;
 
           if (paymentUrl) {
-            // SỬA Ở ĐÂY: Thay window.open bằng window.location.href
             messageApi.success(
               "✅ Đang chuyển hướng đến trang thanh toán VNPAY..."
             );
 
-            // Thêm delay nhỏ để người dùng thấy thông báo
             setTimeout(() => {
               window.location.href = paymentUrl;
             }, 1000);
@@ -317,7 +347,6 @@ export default function SellPay({
 
           messageApi.success(successMessage);
 
-          // Xóa bill tạm sau khi thanh toán thành công
           if (selectedBillId) {
             const bills =
               JSON.parse(localStorage.getItem("pendingBills")) || [];
@@ -411,15 +440,13 @@ export default function SellPay({
       <div
         onClick={handlePayment}
         className={`cursor-pointer select-none text-center py-3 rounded-xl font-bold text-white shadow ${
-          !selectedCustomer || loading
+          loading
             ? "bg-gray-400 cursor-not-allowed"
             : "bg-[#E67E22] hover:bg-amber-600 active:bg-cyan-800"
         }`}
       >
         {loading
           ? "Đang xử lý..."
-          : !selectedCustomer
-          ? "Vui lòng chọn khách hàng"
           : isDelivery
           ? paymentMethod === "Chuyển khoản"
             ? "Đặt hàng & Thanh toán VNPAY"

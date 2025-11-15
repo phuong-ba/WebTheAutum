@@ -9,10 +9,7 @@ import {
   changeStatusPhieuGiamGia,
   fetchPhieuGiamGia,
 } from "@/services/phieuGiamGiaService";
-import {
-  ToggleRightIcon,
-  PencilLineIcon,
-} from "@phosphor-icons/react";
+import { ToggleRightIcon, PencilLineIcon } from "@phosphor-icons/react";
 import FliterDiscount from "./FliterDiscount";
 import DiscountBreadcrumb from "@/pages/discount/DiscountBreadcrumb";
 import { Eye } from "lucide-react";
@@ -27,58 +24,60 @@ export default function Discount() {
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [selectedRecord, setSelectedRecord] = React.useState(null);
   console.log("🚀 ~ Discount ~ selectedRecord:", selectedRecord);
-  const isAutoUpdated = useRef(false);
 
+  // Thêm state để theo dõi lần cuối cập nhật
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
 
   useEffect(() => {
     dispatch(fetchPhieuGiamGia());
   }, [dispatch]);
+
   const showCustomModal = (record) => {
     setSelectedRecord(record);
     setIsModalVisible(true);
   };
-  
- useEffect(() => {
-  if (!data || data.length === 0) return;
-  if (isAutoUpdated.current) return;
-  isAutoUpdated.current = true;
 
-  const now = dayjs();
+  // Hàm kiểm tra và cập nhật trạng thái
+  const checkAndUpdateStatus = async () => {
+    if (!data || data.length === 0) return;
 
-  (async () => {
+    const now = dayjs();
+
     try {
       const needUpdate = data.filter((item) => {
+        // Nếu đã là trạng thái kết thúc (2) thì giữ nguyên
         if (item.trangThai === 2) return false;
+
         const start = dayjs(item.ngayBatDau);
         const end = dayjs(item.ngayKetThuc);
 
         let calculatedStatus = -1;
-        if (start.isAfter(now, "day")) calculatedStatus = 0; 
-        else if (
+
+        // Nếu đã kết thúc theo ngày hoặc số lượng = 0
+        if (end.isBefore(now, "day") || item.soLuongDung === 0) {
+          calculatedStatus = 2; // Đã kết thúc
+        } else if (start.isAfter(now, "day")) {
+          calculatedStatus = 0; // Sắp diễn ra
+        } else if (
           (start.isBefore(now, "day") || start.isSame(now, "day")) &&
           (end.isAfter(now, "day") || end.isSame(now, "day"))
-        )
-          calculatedStatus = 1; 
-        else if (end.isBefore(now, "day")) calculatedStatus = 2; 
+        ) {
+          calculatedStatus = 1; // Đang diễn ra
+        }
 
         return item.trangThai !== calculatedStatus;
       });
 
-      const needUpdateSoLuong = data.filter(
-        (item) => item.trangThai === 1 && item.soLuongDung === 0
-      );
-
-      const allNeedUpdate = [...needUpdate, ...needUpdateSoLuong];
-
-      if (allNeedUpdate.length === 0) return;
+      if (needUpdate.length === 0) return;
 
       await Promise.all(
-        allNeedUpdate.map((item) => {
+        needUpdate.map((item) => {
           const start = dayjs(item.ngayBatDau);
           const end = dayjs(item.ngayKetThuc);
           let newStatus = item.trangThai;
 
-          if (item.soLuongDung === 0) {
+          // Ưu tiên trạng thái đã kết thúc nếu hết hạn hoặc hết số lượng
+          if (end.isBefore(now, "day") || item.soLuongDung === 0) {
             newStatus = 2;
           } else if (start.isAfter(now, "day")) {
             newStatus = 0;
@@ -87,8 +86,6 @@ export default function Discount() {
             (end.isAfter(now, "day") || end.isSame(now, "day"))
           ) {
             newStatus = 1;
-          } else if (end.isBefore(now, "day")) {
-            newStatus = 2;
           }
 
           return dispatch(
@@ -97,17 +94,34 @@ export default function Discount() {
         })
       );
 
+      // Cập nhật lại data và trigger re-render
       await dispatch(fetchPhieuGiamGia());
-      messageApi.info(
-        `Đã tự động cập nhật trạng thái cho ${allNeedUpdate.length} phiếu.`
-      );
+      setLastUpdate(Date.now()); // Trigger re-render
+
+      if (needUpdate.length > 0) {
+        messageApi.info(
+          `Đã tự động cập nhật trạng thái cho ${needUpdate.length} phiếu.`
+        );
+      }
     } catch (err) {
       console.error("Lỗi khi tự động cập nhật trạng thái:", err);
       messageApi.error("Có lỗi khi tự động cập nhật trạng thái phiếu.");
     }
-  })();
-}, [data, dispatch, messageApi]);
+  };
 
+  // Chạy kiểm tra trạng thái khi data thay đổi
+  useEffect(() => {
+    checkAndUpdateStatus();
+  }, [data]); // Chạy mỗi khi data thay đổi
+
+  // Thêm interval để kiểm tra định kỳ (mỗi 30 giây)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkAndUpdateStatus();
+    }, 30000); // 30 giây
+
+    return () => clearInterval(interval);
+  }, [data]);
 
   const handleConfirmChangeStatus = async () => {
     if (!selectedRecord) return;
@@ -140,7 +154,9 @@ export default function Discount() {
           : "Kích hoạt phiếu giảm giá thành công!"
       );
 
-      dispatch(fetchPhieuGiamGia());
+      // Cập nhật lại data ngay lập tức
+      await dispatch(fetchPhieuGiamGia());
+      setLastUpdate(Date.now()); // Trigger re-render
     } catch (error) {
       console.error("Lỗi khi cập nhật trạng thái:", error);
       messageApi.error("Thao tác thất bại!");
@@ -163,12 +179,15 @@ export default function Discount() {
 
       let trangThaiText = "";
 
-      if (now < startDate) {
+      // Logic hiển thị trạng thái cho export Excel
+      if (item.trangThai === 2) {
+        trangThaiText = "Đã kết thúc";
+      } else if (now < startDate) {
         trangThaiText = "Sắp diễn ra";
       } else if (now > endDate) {
         trangThaiText = "Đã kết thúc";
       } else {
-        trangThaiText = "Đang diễn ra";
+        trangThaiText = item.trangThai === 1 ? "Đang diễn ra" : "Đã kết thúc";
       }
 
       return {
@@ -311,7 +330,14 @@ export default function Discount() {
         let color = "";
         let displayStatus = "";
 
-        if (end.isBefore(now, "day")) {
+        // Ưu tiên trạng thái = 2 (đã kết thúc) trước
+        if (record.trangThai === 2) {
+          status = "Đã kết thúc";
+          color = "#E74C3C";
+          displayStatus = "Đã kết thúc";
+        }
+        // Sau đó kiểm tra theo ngày
+        else if (end.isBefore(now, "day")) {
           status = "Đã kết thúc";
           color = "#E74C3C";
           displayStatus = "Đã kết thúc";
@@ -320,7 +346,8 @@ export default function Discount() {
           color = "#FFA500";
           displayStatus = "Sắp diễn ra";
         } else {
-          if (record.trangThai) {
+          // Trong khoảng thời gian diễn ra
+          if (record.trangThai === 1) {
             status = "Đang diễn ra";
             color = "#00A96C";
             displayStatus = "Đang diễn ra";
@@ -348,39 +375,39 @@ export default function Discount() {
       },
     },
     {
-  title: "HÀNH ĐỘNG",
-  key: "action",
-  align: "center",
-  render: (_, record) => (
-    <Space size="middle">
-      {record.trangThai === 1 && (
-        <a onClick={() => showCustomModal(record)}>
-          <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
-        </a>
-      )}
-      <a
-        onClick={() => {
-          if (record.trangThai !== 1) {
-            messageApi.warning("Chỉ có thể chỉnh sửa phiếu đang diễn ra!");
-            return;
-          }
-          navigate("/admin/update-discount", {
-            state: { phieuGiamGia: record },
-          });
-        }}
-      >
-        <PencilLineIcon
-          size={24}
-          weight="fill"
-          color={record.trangThai === 1 ? "#E67E22" : "#ccc"}
-          style={{
-            cursor: record.trangThai === 1 ? "pointer" : "not-allowed",
-          }}
-        />
-      </a>
-    </Space>
-  ),
-}
+      title: "HÀNH ĐỘNG",
+      key: "action",
+      align: "center",
+      render: (_, record) => (
+        <Space size="middle">
+          {record.trangThai === 1 && (
+            <a onClick={() => showCustomModal(record)}>
+              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
+            </a>
+          )}
+          <a
+            onClick={() => {
+              if (record.trangThai !== 1) {
+                messageApi.warning("Chỉ có thể chỉnh sửa phiếu đang diễn ra!");
+                return;
+              }
+              navigate("/admin/update-discount", {
+                state: { phieuGiamGia: record },
+              });
+            }}
+          >
+            <PencilLineIcon
+              size={24}
+              weight="fill"
+              color={record.trangThai === 1 ? "#E67E22" : "#ccc"}
+              style={{
+                cursor: record.trangThai === 1 ? "pointer" : "not-allowed",
+              }}
+            />
+          </a>
+        </Space>
+      ),
+    },
   ];
 
   return (
@@ -415,6 +442,7 @@ export default function Discount() {
               onChange: (page, pageSize) =>
                 setPagination({ current: page, pageSize }),
             }}
+            key={lastUpdate} // Thêm key để trigger re-render khi có thay đổi
           />
         </div>
       </div>
