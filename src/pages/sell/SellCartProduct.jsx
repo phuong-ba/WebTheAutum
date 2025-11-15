@@ -1,5 +1,5 @@
 import { BagIcon, ReceiptXIcon } from "@phosphor-icons/react";
-import { Col, Form, Input, Row, Select, message } from "antd";
+import { Col, Form, Input, Row, Select, message, InputNumber } from "antd";
 import Search from "antd/es/input/Search";
 import { TrashIcon } from "lucide-react";
 import {
@@ -24,6 +24,8 @@ export default function SellCartProduct({ selectedBillId }) {
   const [priceFilter, setPriceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("default");
 
+  const [editingQuantities, setEditingQuantities] = useState({});
+
   useEffect(() => {
     dispatch(fetchChiTietSanPham());
   }, [dispatch]);
@@ -36,13 +38,21 @@ export default function SellCartProduct({ selectedBillId }) {
         const cart = currentBill.cart || [];
         setCartProducts(cart);
         setFilteredCartProducts(cart);
+
+        const initialEditingQuantities = {};
+        cart.forEach((product) => {
+          initialEditingQuantities[product.id] = product.quantity;
+        });
+        setEditingQuantities(initialEditingQuantities);
       } else {
         setCartProducts([]);
         setFilteredCartProducts([]);
+        setEditingQuantities({});
       }
     } else {
       setCartProducts([]);
       setFilteredCartProducts([]);
+      setEditingQuantities({});
     }
   };
 
@@ -212,6 +222,13 @@ export default function SellCartProduct({ selectedBillId }) {
       const newCart = cartProducts.filter((p) => p.id !== productId);
       saveCartToBill(newCart);
 
+      // Xóa khỏi editingQuantities
+      setEditingQuantities((prev) => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
+
       messageApi.success(
         "Đã xóa sản phẩm khỏi giỏ hàng và hoàn trả số lượng tồn kho!"
       );
@@ -243,6 +260,13 @@ export default function SellCartProduct({ selectedBillId }) {
       });
 
       saveCartToBill(updated);
+
+      // Cập nhật editingQuantities
+      setEditingQuantities((prev) => ({
+        ...prev,
+        [id]: updated.find((p) => p.id === id).quantity,
+      }));
+
       dispatch(fetchChiTietSanPham());
       messageApi.success("Đã giảm số lượng sản phẩm!");
       window.dispatchEvent(new Event("cartUpdated"));
@@ -278,12 +302,101 @@ export default function SellCartProduct({ selectedBillId }) {
       });
 
       saveCartToBill(updated);
+
+      // Cập nhật editingQuantities
+      setEditingQuantities((prev) => ({
+        ...prev,
+        [id]: updated.find((p) => p.id === id).quantity,
+      }));
+
       dispatch(fetchChiTietSanPham());
       messageApi.success("Đã tăng số lượng sản phẩm!");
       window.dispatchEvent(new Event("cartUpdated"));
     } catch (error) {
       console.error(error);
       messageApi.error("Lỗi khi tăng số lượng sản phẩm!");
+    }
+  };
+
+  // 🆕 HÀM MỚI: Xử lý thay đổi số lượng từ input
+  const handleQuantityChange = (productId, newQuantity) => {
+    if (!newQuantity || newQuantity < 1) return;
+
+    setEditingQuantities((prev) => ({
+      ...prev,
+      [productId]: newQuantity,
+    }));
+  };
+
+  // 🆕 HÀM MỚI: Áp dụng số lượng mới từ input
+  const handleApplyQuantity = async (productId) => {
+    const newQuantity = editingQuantities[productId];
+    const product = cartProducts.find((p) => p.id === productId);
+
+    if (!product || !newQuantity || newQuantity === product.quantity) return;
+
+    const currentProduct = productList.find((p) => p.id === productId);
+    if (
+      currentProduct &&
+      newQuantity > currentProduct.soLuongTon + product.quantity
+    ) {
+      messageApi.warning(
+        `Số lượng vượt quá tồn kho! Tồn kho hiện có: ${currentProduct.soLuongTon}`
+      );
+      // Reset về số lượng cũ
+      setEditingQuantities((prev) => ({
+        ...prev,
+        [productId]: product.quantity,
+      }));
+      return;
+    }
+
+    try {
+      const quantityDiff = newQuantity - product.quantity;
+
+      if (quantityDiff > 0) {
+        // Tăng số lượng - giảm tồn kho
+        await dispatch(
+          giamSoLuong({ id: productId, soLuong: quantityDiff })
+        ).unwrap();
+      } else {
+        // Giảm số lượng - tăng tồn kho
+        await dispatch(
+          tangSoLuong({ id: productId, soLuong: Math.abs(quantityDiff) })
+        ).unwrap();
+      }
+
+      const updated = cartProducts.map((p) => {
+        if (p.id === productId) {
+          return {
+            ...p,
+            quantity: newQuantity,
+            totalPrice: newQuantity * p.unitPrice,
+          };
+        }
+        return p;
+      });
+
+      saveCartToBill(updated);
+      dispatch(fetchChiTietSanPham());
+      messageApi.success(`Đã cập nhật số lượng thành ${newQuantity}!`);
+      window.dispatchEvent(new Event("cartUpdated"));
+    } catch (error) {
+      console.error(error);
+      messageApi.error("Lỗi khi cập nhật số lượng sản phẩm!");
+
+      // Reset về số lượng cũ nếu có lỗi
+      setEditingQuantities((prev) => ({
+        ...prev,
+        [productId]: product.quantity,
+      }));
+    }
+  };
+
+  // 🆕 HÀM MỚI: Xử lý khi nhấn Enter trong input
+  const handleQuantityKeyPress = (e, productId) => {
+    if (e.key === "Enter") {
+      handleApplyQuantity(productId);
     }
   };
 
@@ -425,10 +538,7 @@ export default function SellCartProduct({ selectedBillId }) {
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
-                        <div className="text-sm">
-                          Số lượng:{" "}
-                          {/* <span className="font-bold">{product.quantity}</span> */}
-                        </div>
+                        <div className="text-sm">Số lượng: </div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleDecreaseQuantity(product.id)}
@@ -437,9 +547,30 @@ export default function SellCartProduct({ selectedBillId }) {
                           >
                             -
                           </button>
-                          <span className="font-bold text-sm">
-                            {product.quantity}
-                          </span>
+
+                          {/* 🆕 INPUT NHẬP SỐ LƯỢNG TRỰC TIẾP */}
+                          <InputNumber
+                            min={1}
+                            max={1000}
+                            value={
+                              editingQuantities[product.id] || product.quantity
+                            }
+                            onChange={(value) =>
+                              handleQuantityChange(product.id, value)
+                            }
+                            onPressEnter={(e) =>
+                              handleQuantityKeyPress(e, product.id)
+                            }
+                            onBlur={() => handleApplyQuantity(product.id)}
+                            style={{
+                              width: 70,
+                              textAlign: "center",
+                              border: "1px solid #d9d9d9",
+                              borderRadius: "6px",
+                            }}
+                            size="small"
+                          />
+
                           <button
                             onClick={() => handleIncreaseQuantity(product.id)}
                             className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"

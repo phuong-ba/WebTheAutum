@@ -148,6 +148,8 @@ export default function SellBill({ onSelectBill }) {
     onSelectBill(billId);
   };
 
+  const selectedBill = bills.find((bill) => bill.id === selectedBillId);
+
   return (
     <>
       {contextHolder}
@@ -163,10 +165,15 @@ export default function SellBill({ onSelectBill }) {
         </div>
 
         <div className="shadow overflow-hidden rounded-lg min-h-[160px] m-2">
-          <div className="p-4 font-bold text-2xl bg-amber-600 opacity-75 rounded-t-lg text-white flex gap-2">
-            <InvoiceIcon size={32} />
-            Hóa đơn chờ
+          <div className="p-4 font-bold text-2xl bg-amber-600 opacity-75 rounded-t-lg text-white flex gap-2 items-center justify-between">
+            <div className="flex items-center gap-2">
+              <InvoiceIcon size={32} />
+              <span>
+                Hóa đơn chờ {selectedBill && `- ${selectedBill.name}`}
+              </span>
+            </div>
           </div>
+
           <div className="grid grid-cols-3 xl:grid-cols-3 lg:grid-cols-2 md:grid-cols-1 gap-5 py-4 px-5">
             {bills.length === 0 ? (
               <div className="col-span-4 text-center py-8 text-gray-500">

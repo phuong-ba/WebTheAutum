@@ -113,23 +113,7 @@ create(hoaDon) {
     }
   });
   },
-  checkDiscountUsage: async (phieuGiamGiaId, khachHangId) => {
-    try {
-      const response = await axios.get(
-        `${API_URL}/lich-su-su-dung-phieu`,
-        {
-          params: {
-            phieuGiamGiaId: phieuGiamGiaId,
-            khachHangId: khachHangId
-          }
-        }
-      );
-      return response;
-    } catch (error) {
-      console.error('Lỗi khi lấy lịch sử sử dụng phiếu giảm giá:', error);
-      throw error;
-    }
-  }
+  
 
 };
 

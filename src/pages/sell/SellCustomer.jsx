@@ -96,7 +96,6 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     });
 
     localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-    messageApi.success(`Đã chọn khách hàng: ${customer.hoTen}`);
 
     window.dispatchEvent(new Event("billsUpdated"));
   };
@@ -114,7 +113,6 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     });
 
     localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-    messageApi.success("Đã xóa khách hàng khỏi hóa đơn");
 
     window.dispatchEvent(new Event("billsUpdated"));
   };
@@ -136,7 +134,6 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
         saveCustomerToBill(firstCustomer);
         onCustomerChange && onCustomerChange(firstCustomer);
         setSearch("");
-        messageApi.info(`Đã chọn khách hàng: ${firstCustomer.hoTen}`);
       } else if (search.trim() !== "") {
         messageApi.warning("Không tìm thấy khách hàng phù hợp!");
       }
