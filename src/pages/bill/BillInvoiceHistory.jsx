@@ -30,13 +30,13 @@ export default function BillInvoiceHistory() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await hoaDonApi.getDetail(id);
       console.log("📦 Payment history data:", response.data);
-      
+
       const invoiceData = response.data;
       const history = [];
-      
+
       if (invoiceData.ngayThanhToan && invoiceData.soTien) {
         history.push({
           id: invoiceData.id,
@@ -47,14 +47,14 @@ export default function BillInvoiceHistory() {
           amount: invoiceData.soTien,
           paymentMethod: invoiceData.hinhThucThanhToan,
           note: invoiceData.ghiChuThanhToan || invoiceData.ghiChu,
-          maGiaoDich: invoiceData.maGiaoDich
+          maGiaoDich: invoiceData.maGiaoDich,
+          status: invoiceData.trangThai ? "Đã thanh toán" : "Chưa thanh toán",
         });
       }
-      
+
       history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      
+
       setPaymentHistory(history);
-      
     } catch (err) {
       console.error("❌ Lỗi tải lịch sử thanh toán:", err);
       setError("Không thể tải lịch sử thanh toán");
@@ -64,9 +64,9 @@ export default function BillInvoiceHistory() {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', { 
-      style: 'currency', 
-      currency: 'VND' 
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
     }).format(amount);
   };
 
@@ -74,27 +74,13 @@ export default function BillInvoiceHistory() {
     if (!dateString) return "";
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
+      return date.toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
       });
     } catch (error) {
       return dateString;
-    }
-  };
-
-  const getTimeOnly = (dateString) => {
-    if (!dateString) return "";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
-    } catch (error) {
-      return "";
     }
   };
 
@@ -141,7 +127,7 @@ export default function BillInvoiceHistory() {
           {paymentHistory.length} giao dịch
         </div>
       </div>
-      
+
       <div className="px-3 py-3">
         {paymentHistory.length === 0 ? (
           <div className="text-center py-4 text-gray-500">
@@ -150,19 +136,19 @@ export default function BillInvoiceHistory() {
         ) : (
           <div className="space-y-4">
             {paymentHistory.map((item, index) => (
-              <div 
-                key={item.id} 
+              <div
+                key={item.id}
                 className="border-l-2 rounded-lg border-amber-600 px-3 flex flex-col gap-2"
               >
                 <div className="font-semibold text-sm">{item.action}</div>
 
-                 {item.maGiaoDich && (
+                {item.maGiaoDich && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 text-sm">Mã giao dịch:</span>
                     <span className="font-mono text-sm">{item.maGiaoDich}</span>
                   </div>
                 )}
-                
+
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 text-sm">Nhân viên:</span>
                   <span className="font-mono text-sm">{item.employeeName}</span>
@@ -171,10 +157,12 @@ export default function BillInvoiceHistory() {
                 {item.paymentMethod && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 text-sm">Phương thức:</span>
-                    <span className="font-semibold text-sm">{item.paymentMethod}</span>
+                    <span className="font-semibold text-sm">
+                      {item.paymentMethod}
+                    </span>
                   </div>
                 )}
-                
+
                 {item.amount && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 text-sm">Số tiền:</span>
@@ -184,14 +172,24 @@ export default function BillInvoiceHistory() {
                   </div>
                 )}
 
-                {item.timestamp && (
+                {item.status && (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 text-sm">Ngày thanh toán:</span>
-                    <span className="font-mono text-sm">{formatDate(item.timestamp)}</span>
+                    <span className="text-gray-600 text-sm">Trạng thái:</span>
+                    <span className="font-semibold text-sm">{item.status}</span>
                   </div>
                 )}
-                
-                
+
+                {item.timestamp && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-sm">
+                      Ngày thanh toán:
+                    </span>
+                    <span className="font-mono text-sm">
+                      {formatDate(item.timestamp)}
+                    </span>
+                  </div>
+                )}
+
                 {item.note && (
                   <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
                     📝 {item.note}

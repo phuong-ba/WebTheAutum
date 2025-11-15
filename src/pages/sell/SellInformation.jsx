@@ -127,7 +127,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     if (discount.trangThai !== 1)
       return { isValid: false, message: "Mã giảm giá không khả dụng" };
 
-    // QUAN TRỌNG: Kiểm tra điều kiện đơn hàng tối thiểu
     if (
       discount.giaTriDonHangToiThieu &&
       totalAmount < discount.giaTriDonHangToiThieu
@@ -158,7 +157,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
           message: `Mã không áp dụng cho khách hàng ${selectedCustomer.hoTen}`,
         };
       }
-      // ĐÃ XOÁ KIỂM TRA KHÁCH HÀNG ĐÃ SỬ DỤNG MÃ HAY CHƯA
     }
 
     return { isValid: true, message: "OK" };
@@ -198,7 +196,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       const allActiveDiscounts = getAllActiveDiscounts();
       const available = [];
       const unavailableMin = [];
-      const unavailableUsage = [];
 
       for (const discount of allActiveDiscounts) {
         const condition = checkBasicDiscountConditions(discount, cartTotal);
@@ -210,27 +207,16 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
             discount,
             reason: condition.message,
           });
-        } else if (condition.isAlreadyUsed) {
-          unavailableUsage.push({
-            discount,
-            reason: condition.message,
-          });
         }
       }
 
       setAvailableDiscounts(available);
       setUnavailableDueToMinimum(unavailableMin);
-      setUnavailableDueToUsage(unavailableUsage);
+      setUnavailableDueToUsage([]);
     };
 
     updateDiscounts();
-  }, [
-    discountData,
-    giamGiaKhachHangData,
-    selectedCustomer,
-    cartTotal,
-    // ĐÃ XOÁ usedDiscountCustomers khỏi dependency
-  ]);
+  }, [discountData, giamGiaKhachHangData, selectedCustomer, cartTotal]);
 
   const bestDiscount = useMemo(() => {
     return getBestDiscount(availableDiscounts);
@@ -342,16 +328,13 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       );
 
       if (!isDiscountForCurrentCustomer) {
-        console.log("🔄 Khách hàng thay đổi, tự động xóa mã giảm giá cá nhân");
         removeDiscount();
       }
     } else if (!selectedCustomer && appliedDiscount?.isPersonal) {
-      console.log("🔄 Đã bỏ chọn khách hàng, tự động xóa mã giảm giá cá nhân");
       removeDiscount();
     }
   }, [selectedCustomer, appliedDiscount, giamGiaKhachHangData]);
 
-  // Các useEffect khác giữ nguyên
   useEffect(() => {
     diaChiApi
       .getAllTinhThanh()
@@ -564,26 +547,34 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     }
   };
 
-  const removeCustomerFromDiscount = async (discountId, customerId) => {
+  // HÀM QUAN TRỌNG: Xoá khách hàng khỏi phiếu giảm giá sau khi thanh toán thành công
+  const handleRemoveCustomerFromDiscount = async (discountId, customerId) => {
     try {
       const response = await removeCustomerFromDiscount(discountId, customerId);
 
       if (response?.isSuccess) {
         console.log(
-          `✅ Đã xoá khách hàng ${customerId} khỏi phiếu giảm giá ${discountId}`
+          `✅ Đã xoá khách hàng ${customerId} khỏi phiếu giảm giá ${discountId} sau khi thanh toán`
         );
+        // Refresh dữ liệu để cập nhật UI
         await dispatch(fetchAllGGKH());
         return true;
       } else {
-        console.warn("Không thể xoá khách hàng khỏi giảm giá");
+        console.warn(
+          "Không thể xoá khách hàng khỏi giảm giá sau khi thanh toán"
+        );
         return false;
       }
     } catch (error) {
-      console.error("Lỗi khi xoá khách hàng khỏi giảm giá:", error);
+      console.error(
+        "Lỗi khi xoá khách hàng khỏi giảm giá sau khi thanh toán:",
+        error
+      );
       return false;
     }
   };
 
+  // HÀM ÁP DỤNG MÃ GIẢM GIÁ - KHÔNG XOÁ KHI ÁP DỤNG, CHỈ LƯU THÔNG TIN
   const applyDiscount = async (discount) => {
     if (!selectedBillId) return;
 
@@ -616,6 +607,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                 value: discount.giaTriGiamGia,
                 loaiPhieu: discount.kieu === 1 ? "CÁ_NHÂN" : "CÔNG_KHAI",
                 isPersonal: discount.kieu === 1,
+                customerId: selectedCustomer?.id,
+                shouldRemoveAfterPayment: discount.kieu === 1,
               },
             }
           : b
@@ -637,8 +630,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       console.log(`✅ Áp dụng ${discount.maGiamGia} thành công`);
       window.dispatchEvent(new Event("billsUpdated"));
     } catch (error) {
-      messageApi.destroy(loadingMessage);
       console.error("Lỗi khi áp dụng mã giảm giá:", error);
+      messageApi.error("Lỗi khi áp dụng mã giảm giá");
     }
   };
 
@@ -667,11 +660,9 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       });
     }
 
-    console.log("✅ Đã xóa mã giảm giá!");
     window.dispatchEvent(new Event("billsUpdated"));
   };
 
-  // COMPONENT HIỂN THỊ MÃ GIẢM GIÁ ĐÃ ĐƯỢC ÁP DỤNG
   const renderAppliedDiscount = () => {
     if (!appliedDiscount) return null;
 
@@ -698,14 +689,9 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
           <div className="text-md font-semibold text-gray-700">
             {appliedDiscount.name}
           </div>
-          {appliedDiscount.isPersonal && selectedCustomer && (
-            <div className="text-md font-semibold text-[#00A96C]">
-              ✓ Mã cá nhân dành riêng cho {selectedCustomer.hoTen}
-            </div>
-          )}
-          {autoAppliedDiscount && (
-            <div className="text-md font-semibold text-[#00A96C]">
-              ✓ Đã tự động áp dụng mã giảm giá tốt nhất
+          {appliedDiscount.isPersonal && (
+            <div className="text-md font-semibold text-amber-600">
+              ⚠️ Mã cá nhân chỉ sử dụng 1 lần duy nhất
             </div>
           )}
         </div>
@@ -713,7 +699,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     );
   };
 
-  // COMPONENT HIỂN THỊ MÃ GIẢM GIÁ ĐANG KHẢ DỤNG (CHỈ HIỂN THỊ, KHÔNG CÓ NÚT)
   const renderAvailableDiscounts = () => {
     if (availableDiscounts.length === 0 || appliedDiscount) return null;
 
@@ -750,14 +735,11 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
               ? `Giảm tối đa: ${bestDiscount.mucGiaGiamToiDa.toLocaleString()} VND`
               : "Không có điều kiện"}
           </div>
-          {bestDiscount.kieu === 1 && selectedCustomer && (
-            <div className="text-md font-semibold text-[#00A96C]">
-              ✓ Mã cá nhân dành riêng cho {selectedCustomer.hoTen}
+          {bestDiscount.kieu === 1 && (
+            <div className="text-md font-semibold text-amber-600">
+              ⚠️ Chỉ sử dụng 1 lần duy nhất
             </div>
           )}
-          <div className="text-md font-semibold text-[#00A96C] mt-2">
-            ✅ Mã giảm giá sẽ được tự động áp dụng
-          </div>
         </div>
       </div>
     );
@@ -776,13 +758,10 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
             </div>
           ) : (
             <>
-              {/* Hiển thị mã đã áp dụng */}
               {renderAppliedDiscount()}
 
-              {/* Hiển thị mã khả dụng (chỉ khi chưa có mã nào được áp dụng) */}
               {renderAvailableDiscounts()}
 
-              {/* Hiển thị thông báo khi không có mã nào */}
               {!appliedDiscount && availableDiscounts.length === 0 && (
                 <div className="text-center py-4 text-gray-500">
                   {cartTotal > 0
@@ -806,7 +785,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
             addressForm={addressForm}
             tinhList={tinhList}
             localQuanList={localQuanList}
-            removeCustomerFromDiscount={removeCustomerFromDiscount}
+            removeCustomerFromDiscount={handleRemoveCustomerFromDiscount}
           />
         </div>
       ),
@@ -860,7 +839,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                 <Row gutter={16} wrap>
                   <Col flex="1">
                     <Form.Item
-                      name="hoTen"
+                      name="HoTen"
                       label="Tên Khách hàng"
                       rules={[
                         { required: true, message: "Nhập tên Khách hàng" },
@@ -871,7 +850,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                   </Col>
                   <Col flex="1">
                     <Form.Item
-                      name="sdt"
+                      name="SoDienThoai"
                       label="Số điện thoại"
                       rules={[
                         { required: true, message: "Nhập số điện thoại" },

@@ -71,7 +71,7 @@ const DetailHoaDon = () => {
     setIsEditing(true);
     setTempStatus(invoice?.trangThai || 0);
     setTempLoaiHoaDon(invoice?.loaiHoaDon || false);
-    
+
     editForm.setFieldsValue({
       hoTenKhachHang: invoice.tenKhachHang,
       sdtKhachHang: invoice.sdtKhachHang,
@@ -104,10 +104,7 @@ const DetailHoaDon = () => {
         message: "Số điện thoại không hợp lệ (VD: 0912345678)!",
       },
     ],
-    emailKhachHang: [
-      { required: true, message: "Vui lòng nhập email!" },
-      { type: "email", message: "Email không hợp lệ!" },
-    ],
+    emailKhachHang: [{ type: "email", message: "Email không hợp lệ!" }],
     diaChiKhachHang: [
       { required: true, message: "Vui lòng nhập địa chỉ!" },
       { min: 10, message: "Địa chỉ phải có ít nhất 10 ký tự!" },
@@ -134,9 +131,9 @@ const DetailHoaDon = () => {
       await hoaDonApi.updateHoaDon(id, {
         ...values,
         trangThai: tempStatus,
-        loaiHoaDon: tempLoaiHoaDon
+        loaiHoaDon: tempLoaiHoaDon,
       });
-      
+
       message.success("✅ Cập nhật thành công!");
       setIsEditing(false);
       setFormErrors({});
@@ -145,7 +142,9 @@ const DetailHoaDon = () => {
       if (err.errorFields) {
         message.error("❌ Vui lòng kiểm tra lại thông tin!");
       } else {
-        message.error("❌ Lưu thất bại! " + (err.response?.data?.message || ""));
+        message.error(
+          "❌ Lưu thất bại! " + (err.response?.data?.message || "")
+        );
       }
     }
   };
@@ -177,28 +176,31 @@ const DetailHoaDon = () => {
   const fetchInvoiceDetail = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Đang gọi API với ID:', id);
+      console.log("🔍 Đang gọi API với ID:", id);
 
       const response = await hoaDonApi.getDetail(id);
-      console.log('📦 Full response:', response);
-      console.log('📦 Response data:', response.data);
-      console.log('📦 Response data.data:', response.data?.data);
-      
+      console.log("📦 Full response:", response);
+      console.log("📦 Response data:", response.data);
+      console.log("📦 Response data.data:", response.data?.data);
+
       let invoiceData = response.data?.data || response.data;
-      
-      console.log('✅ Invoice data sau khi parse:', invoiceData);
-      console.log('🔍 Tất cả keys trong invoiceData:', Object.keys(invoiceData || {}));
-      
-      console.log('🔍 Các field quan trọng:');
-      console.log('  - id:', invoiceData?.id);
-      console.log('  - maHoaDon:', invoiceData?.maHoaDon);
-      console.log('  - trangThai:', invoiceData?.trangThai);
-      console.log('  - loaiHoaDon:', invoiceData?.loaiHoaDon);
+
+      console.log("✅ Invoice data sau khi parse:", invoiceData);
+      console.log(
+        "🔍 Tất cả keys trong invoiceData:",
+        Object.keys(invoiceData || {})
+      );
+
+      console.log("🔍 Các field quan trọng:");
+      console.log("  - id:", invoiceData?.id);
+      console.log("  - maHoaDon:", invoiceData?.maHoaDon);
+      console.log("  - trangThai:", invoiceData?.trangThai);
+      console.log("  - loaiHoaDon:", invoiceData?.loaiHoaDon);
 
       if (!invoiceData || !invoiceData.id) {
-        throw new Error('Dữ liệu hóa đơn không hợp lệ');
+        throw new Error("Dữ liệu hóa đơn không hợp lệ");
       }
-      
+
       setInvoice(invoiceData);
       setTempStatus(invoiceData.trangThai || 0);
       setTempLoaiHoaDon(invoiceData.loaiHoaDon || false);
@@ -256,7 +258,7 @@ const DetailHoaDon = () => {
 
   const handlePrint = () => {
     if (!invoice) return;
-    
+
     const printArea = document.querySelector(".print-area");
     const clone = printArea.cloneNode(true);
 
@@ -399,7 +401,7 @@ const DetailHoaDon = () => {
 
   const handleSendEmail = () => {
     if (!invoice) return;
-    
+
     emailForm.setFieldsValue({
       email: invoice.emailKhachHang || "",
       subject: `Hóa đơn #${invoice.maHoaDon}`,
@@ -628,13 +630,15 @@ const DetailHoaDon = () => {
                 </Space>
               ) : canEdit ? (
                 <div
-                  onClick={handleEditToggle} 
+                  onClick={handleEditToggle}
                   className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
                 >
                   Chỉnh sửa
                 </div>
               ) : (
-                <Button icon={<LockOutlined />} disabled>Không thể sửa</Button>
+                <Button icon={<LockOutlined />} disabled>
+                  Không thể sửa
+                </Button>
               )}
 
               <Button icon={<PrinterOutlined />} onClick={handlePrint}>
@@ -650,7 +654,7 @@ const DetailHoaDon = () => {
         <Form form={editForm} layout="vertical">
           <Row gutter={16}>
             <Col xs={24} lg={16}>
-              <BillInvoiceStatus 
+              <BillInvoiceStatus
                 invoiceId={id}
                 currentStatus={invoice?.trangThai}
                 invoiceData={invoice}
@@ -660,11 +664,13 @@ const DetailHoaDon = () => {
                 onTempStatusChange={handleTempStatusChange}
                 onLoaiHoaDonChange={handleLoaiHoaDonChange}
                 onStatusChange={(newStatus) => {
-                  setInvoice(prev => prev ? {...prev, trangThai: newStatus} : null);
+                  setInvoice((prev) =>
+                    prev ? { ...prev, trangThai: newStatus } : null
+                  );
                   fetchInvoiceDetail();
                 }}
               />
-              
+
               <Row
                 gutter={16}
                 style={{ marginBottom: 16 }}

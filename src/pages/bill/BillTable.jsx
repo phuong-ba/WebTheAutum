@@ -40,9 +40,7 @@ export default function BillTable({
   onServiceChange,
   onViewDetail,
 }) {
-
- 
-   const getStatusMenu = (record) => (
+  const getStatusMenu = (record) => (
     <Menu
       onClick={({ key }) => {
         onStatusChange(record.id, parseInt(key));
@@ -50,8 +48,8 @@ export default function BillTable({
       }}
     >
       <Menu.Item key="0"> Chờ xác nhận</Menu.Item>
-       <Menu.Item key="1"> Chờ giao hàng</Menu.Item>
-       <Menu.Item key="2"> Đang giao hàng</Menu.Item>
+      <Menu.Item key="1"> Chờ giao hàng</Menu.Item>
+      <Menu.Item key="2"> Đang giao hàng</Menu.Item>
       <Menu.Item key="3"> Đã hoàn thành</Menu.Item>
       <Menu.Item key="4"> Đã hủy</Menu.Item>
     </Menu>
@@ -89,7 +87,7 @@ export default function BillTable({
       title: "TÊN KHÁCH HÀNG",
       key: "tenKhachHang",
       align: "left",
-      render: (_, record) => record.khachHang?.hoTen || "—",
+      render: (_, record) => record.khachHang?.hoTen || "Khách lẻ", // SỬA Ở ĐÂY
     },
     {
       title: "NHÂN VIÊN",
@@ -115,7 +113,6 @@ export default function BillTable({
               }}
             >
               <span style={{ color: config.color }}>{config.label}</span>{" "}
-              
             </Tag>
           </Dropdown>
         );
@@ -133,12 +130,11 @@ export default function BillTable({
             <Tag
               style={{
                 cursor: "pointer",
-                
                 border: "1px solid #ccc",
                 backgroundColor: "#f9f9f9",
               }}
             >
-              {serviceText} 
+              {serviceText}
             </Tag>
           </Dropdown>
         );
@@ -196,24 +192,23 @@ export default function BillTable({
   };
 
   return (
-   <Table
-  rowSelection={rowSelection}
-  columns={columns}
-  dataSource={invoices}
-  rowKey="id"
-  bordered
-  loading={loading}
-  pagination={{
-    current: currentPage,
-    pageSize: pageSize,
-    total: totalItems,
-    showSizeChanger: true,
-    showTotal: (total) => `Tổng: ${total} hóa đơn`,
-    pageSizeOptions: ["5", "10", "20", "50"],
-  }}
-  scroll={{ x: 1200 }}
-  onChange={(pagination) => onTableChange(pagination)}
-/>
-
+    <Table
+      rowSelection={rowSelection}
+      columns={columns}
+      dataSource={invoices}
+      rowKey="id"
+      bordered
+      loading={loading}
+      pagination={{
+        current: currentPage,
+        pageSize: pageSize,
+        total: totalItems,
+        showSizeChanger: true,
+        showTotal: (total) => `Tổng: ${total} hóa đơn`,
+        pageSizeOptions: ["5", "10", "20", "50"],
+      }}
+      scroll={{ x: 1200 }}
+      onChange={(pagination) => onTableChange(pagination)}
+    />
   );
 }

@@ -1,8 +1,29 @@
 import React, { useState } from "react";
 import hoaDonApi from "@/api/HoaDonAPI";
-import { message } from "antd";
+import {
+  message,
+  Modal,
+  QRCode,
+  Button,
+  Space,
+  Divider,
+  Card,
+  Row,
+  Col,
+  InputNumber,
+  Form,
+} from "antd";
 import { useNavigate } from "react-router";
 import { getCurrentUserId } from "@/utils/authHelper";
+import {
+  QrcodeOutlined,
+  CopyOutlined,
+  CheckOutlined,
+  BankOutlined,
+  GlobalOutlined,
+  ArrowRightOutlined,
+  DollarOutlined,
+} from "@ant-design/icons";
 
 export default function SellPay({
   cartTotal,
@@ -16,9 +37,19 @@ export default function SellPay({
   addressForm,
   tinhList,
   localQuanList,
+  removeCustomerFromDiscount,
 }) {
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [transferMethodModalVisible, setTransferMethodModalVisible] =
+    useState(false);
+  const [bothPaymentModalVisible, setBothPaymentModalVisible] = useState(false);
+  const [qrData, setQrData] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [pendingHoaDonData, setPendingHoaDonData] = useState(null);
+  const [cashAmount, setCashAmount] = useState(0);
+  const [transferAmount, setTransferAmount] = useState(0);
   const discountAmount = appliedDiscount?.discountAmount || 0;
 
   const actualDiscountAmount = Math.min(discountAmount, cartTotal);
@@ -27,32 +58,29 @@ export default function SellPay({
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
-  const handlePayment = async () => {
-    if (cartTotal === 0) {
-      messageApi.warning(
-        "Giỏ hàng đang trống! Vui lòng thêm sản phẩm trước khi thanh toán."
-      );
-      return;
-    }
+  const totalWithShipping = finalAmount + shippingFee;
 
-    if (!paymentMethod) {
-      messageApi.warning("Vui lòng chọn phương thức thanh toán!");
-      return;
-    }
-
-    if (isDelivery) {
-      if (!addressForm) {
-        messageApi.warning("Vui lòng nhập địa chỉ giao hàng!");
-        return;
-      }
-
-      const formValues = addressForm.getFieldsValue();
-      if (!formValues.thanhPho || !formValues.quan || !formValues.diaChiCuThe) {
-        messageApi.warning("Vui lòng nhập đầy đủ thông tin địa chỉ giao hàng!");
-        return;
+  // HÀM QUAN TRỌNG: Xoá phiếu giảm giá cá nhân sau khi thanh toán thành công
+  const handleRemovePersonalDiscountAfterPayment = async () => {
+    if (appliedDiscount?.isPersonal && appliedDiscount?.customerId) {
+      try {
+        console.log(
+          "🔄 Đang xoá phiếu giảm giá cá nhân sau khi thanh toán...",
+          appliedDiscount
+        );
+        await removeCustomerFromDiscount(
+          appliedDiscount.id,
+          appliedDiscount.customerId
+        );
+        console.log("✅ Đã xoá phiếu giảm giá cá nhân sau khi thanh toán");
+      } catch (error) {
+        console.error("❌ Lỗi khi xoá phiếu giảm giá cá nhân:", error);
       }
     }
+  };
 
+  // Hàm chuẩn bị dữ liệu hóa đơn (KHÔNG gọi API)
+  const prepareHoaDonData = (paymentInfo = {}) => {
     let shippingAddress = null;
     let formCustomerInfo = null;
 
@@ -82,30 +110,474 @@ export default function SellPay({
             tenTinh: tinhName,
             tenQuan: quanName,
           };
-
-          console.log("📍 Địa chỉ từ form vừa nhập:", shippingAddress);
-          console.log("👤 Thông tin khách hàng từ form:", formCustomerInfo);
-
-          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-          const updatedBills = bills.map((bill) => {
-            if (bill.id === selectedBillId) {
-              return {
-                ...bill,
-                shippingAddress: shippingAddress,
-                formCustomerInfo: formCustomerInfo,
-              };
-            }
-            return bill;
-          });
-          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-          console.log("💾 Đã lưu địa chỉ và thông tin KH vào localStorage");
         }
       } catch (error) {
         console.error("❌ Lỗi khi lấy giá trị form:", error);
       }
     }
 
-    const totalWithShipping = finalAmount + shippingFee;
+    let chiTietList = [];
+
+    if (cartItems && cartItems.length > 0) {
+      chiTietList = cartItems.map((item) => ({
+        idChiTietSanPham: item.idChiTietSanPham || item.id,
+        soLuong: item.quantity || item.soLuong,
+        giaBan: item.price || item.giaBan,
+        ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
+        trangThai: 0,
+      }));
+    } else if (selectedBillId) {
+      const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+      const currentBill = bills.find((bill) => bill.id === selectedBillId);
+
+      if (currentBill && currentBill.items && currentBill.items.length > 0) {
+        chiTietList = currentBill.items.map((item) => ({
+          idChiTietSanPham: item.idChiTietSanPham || item.id,
+          soLuong: item.quantity || item.soLuong,
+          giaBan: item.price || item.giaBan,
+          ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
+          trangThai: 0,
+        }));
+      }
+    }
+
+    // Kiểm tra nếu không có sản phẩm
+    if (chiTietList.length === 0) {
+      return null;
+    }
+
+    const currentUserId = getCurrentUserId();
+
+    let diaChiKhachHang = "Chưa có địa chỉ";
+    let idTinh = null;
+    let idQuan = null;
+    let diaChiCuThe = "";
+
+    let customerType = selectedCustomer ? "Khách hàng" : "Khách lẻ";
+    let customerNote = "";
+
+    if (shippingAddress) {
+      diaChiKhachHang = shippingAddress.fullAddress;
+      idTinh = shippingAddress.idTinh;
+      idQuan = shippingAddress.idQuan;
+      diaChiCuThe = shippingAddress.diaChiCuThe;
+
+      if (formCustomerInfo && !selectedCustomer) {
+        customerType = "Khách lẻ";
+        customerNote = ` - ${formCustomerInfo.hoTen}`;
+        if (formCustomerInfo.sdt) {
+          customerNote += ` - ${formCustomerInfo.sdt}`;
+        }
+      }
+    } else if (selectedCustomer) {
+      const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+      const currentBill = bills.find((bill) => bill.id === selectedBillId);
+      const savedShippingAddress = currentBill?.shippingAddress;
+
+      if (
+        savedShippingAddress &&
+        savedShippingAddress.idTinh &&
+        savedShippingAddress.idQuan
+      ) {
+        diaChiKhachHang = savedShippingAddress.fullAddress;
+        idTinh = savedShippingAddress.idTinh;
+        idQuan = savedShippingAddress.idQuan;
+        diaChiCuThe = savedShippingAddress.diaChiCuThe || "";
+      } else if (selectedCustomer?.diaChi) {
+        const customerAddress = selectedCustomer.diaChi;
+        diaChiKhachHang =
+          customerAddress.dia_chi_cu_the ||
+          customerAddress.diaChiCuThe ||
+          "Chưa có địa chỉ";
+        idTinh =
+          customerAddress.tinhThanhId ||
+          customerAddress.id_tinh ||
+          customerAddress.idTinh;
+        idQuan =
+          customerAddress.quanHuyenId ||
+          customerAddress.id_quan ||
+          customerAddress.idQuan;
+        diaChiCuThe =
+          customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "";
+      }
+    }
+
+    let trangThai;
+    if (isDelivery) {
+      trangThai = 1;
+    } else {
+      trangThai = 3;
+    }
+
+    let idPhuongThucThanhToan;
+    let paymentNote = "";
+
+    switch (paymentMethod) {
+      case "Tiền mặt":
+        idPhuongThucThanhToan = 1;
+        paymentNote = "Thanh toán bằng tiền mặt";
+        break;
+      case "Chuyển khoản":
+        idPhuongThucThanhToan = 2;
+        paymentNote = "Thanh toán bằng chuyển khoản";
+        break;
+      case "Cả hai":
+        idPhuongThucThanhToan = 3;
+        paymentNote = `Thanh toán kết hợp: Tiền mặt ${cashAmount.toLocaleString()} VND + Chuyển khoản ${transferAmount.toLocaleString()} VND`;
+        break;
+      default:
+        idPhuongThucThanhToan = 3;
+    }
+
+    const hoaDonMoi = {
+      loaiHoaDon: true,
+      phiVanChuyen: isDelivery ? shippingFee : 0,
+      tongTien: cartTotal,
+      tongTienSauGiam: finalAmount,
+      ghiChu: `${
+        isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
+      }${customerType}${customerNote} - ${paymentNote}${
+        appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
+      }`,
+      diaChiKhachHang: diaChiKhachHang,
+      ngayThanhToan: new Date().toISOString(),
+      trangThai: isDelivery ? 1 : 3,
+      idKhachHang: selectedCustomer?.id || null,
+      idNhanVien: currentUserId,
+      idPhieuGiamGia: appliedDiscount?.id || null,
+      nguoiTao: currentUserId,
+      chiTietList: chiTietList,
+      idPhuongThucThanhToan: idPhuongThucThanhToan,
+      soTienThanhToan: totalWithShipping,
+      ghiChuThanhToan: `${
+        isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
+      }${customerType}${customerNote} - ${paymentNote}`,
+      idTinh: idTinh,
+      idQuan: idQuan,
+      diaChiCuThe: diaChiCuThe,
+      hoTen: formCustomerInfo?.hoTen || null,
+      sdt: formCustomerInfo?.sdt || null,
+      // Thêm thông tin thanh toán kết hợp
+      ...paymentInfo,
+    };
+
+    return hoaDonMoi;
+  };
+
+  // Hàm hiển thị modal chọn phương thức chuyển khoản
+  const showTransferMethodModal = (hoaDonMoi) => {
+    setPendingHoaDonData(hoaDonMoi);
+    setTransferMethodModalVisible(true);
+  };
+
+  // Hàm hiển thị modal thanh toán kết hợp
+  const showBothPaymentModal = (hoaDonMoi) => {
+    setPendingHoaDonData(hoaDonMoi);
+    setCashAmount(0);
+    setTransferAmount(totalWithShipping);
+    setBothPaymentModalVisible(true);
+  };
+
+  // Hàm chọn VNPay (chuyển hướng đến trang thanh toán)
+  const handleVNPayRedirect = async () => {
+    if (!pendingHoaDonData) return;
+
+    try {
+      setLoading(true);
+      // CHỈ tạo payment URL, KHÔNG tạo hóa đơn
+      const res = await hoaDonApi.createAndPayWithVNPAY({
+        ...pendingHoaDonData,
+        soTienThanhToan: transferAmount, // Sử dụng số tiền chuyển khoản
+      });
+
+      if (res.data?.isSuccess) {
+        const paymentUrl = res.data.data?.paymentUrl;
+
+        if (paymentUrl) {
+          messageApi.success(
+            "✅ Đang chuyển hướng đến trang thanh toán VNPAY..."
+          );
+          setTransferMethodModalVisible(false);
+          setBothPaymentModalVisible(false);
+
+          setTimeout(() => {
+            window.location.href = paymentUrl;
+          }, 1000);
+        } else {
+          messageApi.error("❌ Không thể tạo URL thanh toán VNPAY");
+        }
+      } else {
+        messageApi.error(
+          "❌ Lỗi khi tạo thanh toán VNPAY: " + (res.data?.message || "")
+        );
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi tạo VNPay:", error);
+      messageApi.error("❌ Lỗi khi kết nối VNPay!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hàm tạo và hiển thị QR Code VNPay
+  const generateVNPayQR = async () => {
+    if (!pendingHoaDonData) return;
+
+    try {
+      setLoading(true);
+      // CHỈ tạo payment URL, KHÔNG tạo hóa đơn
+      const res = await hoaDonApi.createAndPayWithVNPAY({
+        ...pendingHoaDonData,
+        soTienThanhToan: transferAmount, // Sử dụng số tiền chuyển khoản
+      });
+
+      if (res.data?.isSuccess) {
+        const paymentUrl = res.data.data?.paymentUrl;
+
+        if (paymentUrl) {
+          // Tạo dữ liệu QR code từ payment URL
+          setQrData({
+            url: paymentUrl,
+            amount: transferAmount,
+            billCode: `HD${Date.now()}`,
+            bankInfo: {
+              bankName: "VNPAY QR",
+              accountNumber: "19037689713019",
+              accountHolder: "CONG TY TNHH AUTUMN STORE",
+              branch: "TP.HCM",
+            },
+          });
+          setTransferMethodModalVisible(false);
+          setBothPaymentModalVisible(false);
+          setQrModalVisible(true);
+          messageApi.success("✅ Đã tạo mã QR thanh toán VNPay!");
+          return true;
+        } else {
+          messageApi.error("❌ Không thể tạo URL thanh toán VNPAY");
+          return false;
+        }
+      } else {
+        messageApi.error(
+          "❌ Lỗi khi tạo thanh toán VNPAY: " + (res.data?.message || "")
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi tạo QR VNPay:", error);
+      messageApi.error("❌ Lỗi khi tạo mã QR thanh toán!");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hàm xác nhận đã chuyển khoản và lưu hóa đơn
+  const handleConfirmTransfer = async () => {
+    if (!pendingHoaDonData) return;
+
+    try {
+      setLoading(true);
+
+      // Gọi API để lưu hóa đơn với trạng thái đã thanh toán
+      const res = await hoaDonApi.create({
+        ...pendingHoaDonData,
+        trangThai: isDelivery ? 1 : 3, // 1: Chờ giao hàng, 3: Đã hoàn thành
+        daThanhToan: true,
+      });
+
+      if (res.data?.isSuccess) {
+        const successMessage = isDelivery
+          ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
+          : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất.";
+
+        messageApi.success(successMessage);
+
+        // Xử lý cleanup
+        if (selectedBillId) {
+          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+          const updatedBills = bills.filter(
+            (bill) => bill.id !== selectedBillId
+          );
+          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
+          window.dispatchEvent(new Event("billsUpdated"));
+        }
+
+        if (onRemoveDiscount) onRemoveDiscount();
+        if (onClearCart) onClearCart();
+
+        // Xoá phiếu giảm giá cá nhân nếu có
+        if (appliedDiscount?.isPersonal) {
+          await handleRemovePersonalDiscountAfterPayment();
+        }
+
+        // Đóng modal QR
+        setQrModalVisible(false);
+
+        // Chuyển hướng đến trang chi tiết hóa đơn
+        const newBillId = res.data.data?.id || res.data.data;
+        if (newBillId) {
+          navigate(`/admin/detail-bill/${newBillId}`);
+        }
+
+        return true;
+      } else {
+        messageApi.error(
+          "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi xác nhận chuyển khoản:", error);
+      messageApi.error("❌ Lỗi khi xác nhận thanh toán!");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hàm xác nhận thanh toán kết hợp
+  const handleConfirmBothPayment = async () => {
+    if (!pendingHoaDonData) return;
+
+    // Kiểm tra số tiền
+    if (cashAmount + transferAmount !== totalWithShipping) {
+      messageApi.error(
+        "❌ Tổng số tiền thanh toán không khớp với tổng hóa đơn!"
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Chuẩn bị dữ liệu thanh toán kết hợp với thông tin số tiền cụ thể
+      const paymentInfo = {
+        tienMat: cashAmount,
+        chuyenKhoan: transferAmount,
+        soTienThanhToan: totalWithShipping,
+      };
+
+      // Tạo hóa đơn mới với thông tin thanh toán kết hợp
+      const hoaDonWithBothPayment = {
+        ...pendingHoaDonData,
+        tienMat: cashAmount,
+        chuyenKhoan: transferAmount,
+        soTienThanhToan: totalWithShipping,
+        ghiChu: `${isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "}${
+          pendingHoaDonData.idKhachHang ? "Khách hàng" : "Khách lẻ"
+        } - Thanh toán kết hợp: Tiền mặt ${cashAmount.toLocaleString()} VND + Chuyển khoản ${transferAmount.toLocaleString()} VND${
+          appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
+        }`,
+        ghiChuThanhToan: `${
+          isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
+        }${
+          pendingHoaDonData.idKhachHang ? "Khách hàng" : "Khách lẻ"
+        } - Thanh toán kết hợp: Tiền mặt ${cashAmount.toLocaleString()} VND + Chuyển khoản ${transferAmount.toLocaleString()} VND`,
+        idPhuongThucThanhToan: 3, // Cả hai
+      };
+
+      // Gọi API để lưu hóa đơn
+      const res = await hoaDonApi.create({
+        ...hoaDonWithBothPayment,
+        trangThai: isDelivery ? 1 : 3,
+        daThanhToan: true,
+      });
+
+      if (res.data?.isSuccess) {
+        const successMessage = isDelivery
+          ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
+          : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất.";
+
+        messageApi.success(successMessage);
+
+        // Xử lý cleanup
+        if (selectedBillId) {
+          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+          const updatedBills = bills.filter(
+            (bill) => bill.id !== selectedBillId
+          );
+          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
+          window.dispatchEvent(new Event("billsUpdated"));
+        }
+
+        if (onRemoveDiscount) onRemoveDiscount();
+        if (onClearCart) onClearCart();
+
+        // Xoá phiếu giảm giá cá nhân nếu có
+        if (appliedDiscount?.isPersonal) {
+          await handleRemovePersonalDiscountAfterPayment();
+        }
+
+        // Đóng modal
+        setBothPaymentModalVisible(false);
+
+        // Chuyển hướng đến trang chi tiết hóa đơn
+        const newBillId = res.data.data?.id || res.data.data;
+        if (newBillId) {
+          navigate(`/admin/detail-bill/${newBillId}`);
+        }
+
+        return true;
+      } else {
+        messageApi.error(
+          "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi xác nhận thanh toán kết hợp:", error);
+      messageApi.error("❌ Lỗi khi xác nhận thanh toán!");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hàm sao chép thông tin chuyển khoản
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      messageApi.success("✅ Đã sao chép vào clipboard!");
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  // Hàm xử lý thay đổi số tiền
+  const handleCashAmountChange = (value) => {
+    setCashAmount(value || 0);
+    setTransferAmount(totalWithShipping - (value || 0));
+  };
+
+  const handleTransferAmountChange = (value) => {
+    setTransferAmount(value || 0);
+    setCashAmount(totalWithShipping - (value || 0));
+  };
+
+  const handlePayment = async () => {
+    if (cartTotal === 0) {
+      messageApi.warning(
+        "Giỏ hàng đang trống! Vui lòng thêm sản phẩm trước khi thanh toán."
+      );
+      return;
+    }
+
+    if (!paymentMethod) {
+      messageApi.warning("Vui lòng chọn phương thức thanh toán!");
+      return;
+    }
+
+    if (isDelivery) {
+      if (!addressForm) {
+        messageApi.warning("Vui lòng nhập địa chỉ giao hàng!");
+        return;
+      }
+
+      const formValues = addressForm.getFieldsValue();
+      if (!formValues.thanhPho || !formValues.quan || !formValues.diaChiCuThe) {
+        messageApi.warning("Vui lòng nhập đầy đủ thông tin địa chỉ giao hàng!");
+        return;
+      }
+    }
 
     let displayCustomerName = "Khách lẻ";
     let displayCustomerPhone = "";
@@ -113,21 +585,12 @@ export default function SellPay({
     if (selectedCustomer) {
       displayCustomerName = selectedCustomer.hoTen;
       displayCustomerPhone = selectedCustomer.sdt;
-    } else if (formCustomerInfo) {
-      displayCustomerName = formCustomerInfo.hoTen;
-      displayCustomerPhone = formCustomerInfo.sdt;
     }
 
     const confirmMessage = `XÁC NHẬN THANH TOÁN\n
         Khách hàng: ${displayCustomerName}
         ${displayCustomerPhone ? `Số điện thoại: ${displayCustomerPhone}` : ""}
-        ${
-          isDelivery
-            ? `📍 Giao hàng: ${
-                shippingAddress?.fullAddress || "Địa chỉ giao hàng"
-              }`
-            : "🏪 Mua tại quầy"
-        }
+        ${isDelivery ? `📍 Giao hàng: Địa chỉ giao hàng` : "🏪 Mua tại quầy"}
         Tổng tiền hàng: ${cartTotal.toLocaleString()} VND
         Giảm giá: ${discountAmount.toLocaleString()} VND
         ${
@@ -146,32 +609,15 @@ export default function SellPay({
     setLoading(true);
 
     try {
-      let chiTietList = [];
+      // Chuẩn bị dữ liệu hóa đơn
+      const hoaDonMoi = prepareHoaDonData();
 
-      if (cartItems && cartItems.length > 0) {
-        chiTietList = cartItems.map((item) => ({
-          idChiTietSanPham: item.idChiTietSanPham || item.id,
-          soLuong: item.quantity || item.soLuong,
-          giaBan: item.price || item.giaBan,
-          ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
-          trangThai: 0,
-        }));
-      } else if (selectedBillId) {
-        const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-        const currentBill = bills.find((bill) => bill.id === selectedBillId);
-
-        if (currentBill && currentBill.items && currentBill.items.length > 0) {
-          chiTietList = currentBill.items.map((item) => ({
-            idChiTietSanPham: item.idChiTietSanPham || item.id,
-            soLuong: item.quantity || item.soLuong,
-            giaBan: item.price || item.giaBan,
-            ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
-            trangThai: 0,
-          }));
-        }
-      }
-
-      if (chiTietList.length === 0) {
+      // Kiểm tra nếu không có sản phẩm
+      if (
+        !hoaDonMoi ||
+        !hoaDonMoi.chiTietList ||
+        hoaDonMoi.chiTietList.length === 0
+      ) {
         messageApi.error(
           "❌ Không có sản phẩm trong giỏ hàng! Vui lòng thêm sản phẩm trước khi thanh toán."
         );
@@ -190,154 +636,20 @@ export default function SellPay({
         return;
       }
 
-      let diaChiKhachHang = "Chưa có địa chỉ";
-      let idTinh = null;
-      let idQuan = null;
-      let diaChiCuThe = "";
-
-      let customerType = selectedCustomer ? "Khách hàng" : "Khách lẻ";
-      let customerNote = "";
-
-      if (shippingAddress) {
-        diaChiKhachHang = shippingAddress.fullAddress;
-        idTinh = shippingAddress.idTinh;
-        idQuan = shippingAddress.idQuan;
-        diaChiCuThe = shippingAddress.diaChiCuThe;
-
-        if (formCustomerInfo && !selectedCustomer) {
-          customerType = "Khách lẻ";
-          customerNote = ` - ${formCustomerInfo.hoTen}`;
-          if (formCustomerInfo.sdt) {
-            customerNote += ` - ${formCustomerInfo.sdt}`;
-          }
-        }
-        console.log("✅ Sử dụng địa chỉ từ FORM vừa nhập");
-      } else if (selectedCustomer) {
-        const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-        const currentBill = bills.find((bill) => bill.id === selectedBillId);
-        const savedShippingAddress = currentBill?.shippingAddress;
-
-        if (
-          savedShippingAddress &&
-          savedShippingAddress.idTinh &&
-          savedShippingAddress.idQuan
-        ) {
-          diaChiKhachHang = savedShippingAddress.fullAddress;
-          idTinh = savedShippingAddress.idTinh;
-          idQuan = savedShippingAddress.idQuan;
-          diaChiCuThe = savedShippingAddress.diaChiCuThe || "";
-          console.log("✅ Sử dụng địa chỉ từ localStorage");
-        } else if (selectedCustomer?.diaChi) {
-          const customerAddress = selectedCustomer.diaChi;
-          diaChiKhachHang =
-            customerAddress.dia_chi_cu_the ||
-            customerAddress.diaChiCuThe ||
-            "Chưa có địa chỉ";
-          idTinh =
-            customerAddress.tinhThanhId ||
-            customerAddress.id_tinh ||
-            customerAddress.idTinh;
-          idQuan =
-            customerAddress.quanHuyenId ||
-            customerAddress.id_quan ||
-            customerAddress.idQuan;
-          diaChiCuThe =
-            customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "";
-          console.log("✅ Sử dụng địa chỉ từ KHÁCH HÀNG");
-        } else {
-          console.log("❌ Không có địa chỉ nào");
-        }
-      }
-
-      console.log("📊 Thông tin địa chỉ cuối cùng:", {
-        diaChiKhachHang,
-        idTinh,
-        idQuan,
-        diaChiCuThe,
-        hasShippingAddress: !!shippingAddress,
-        hasCustomer: !!selectedCustomer,
-        customerType,
-        customerNote,
-      });
-
-      let trangThai;
-      if (isDelivery) {
-        trangThai = 1;
-      } else {
-        trangThai = 3;
-      }
-
-      let idPhuongThucThanhToan;
-      switch (paymentMethod) {
-        case "Tiền mặt":
-          idPhuongThucThanhToan = 1;
-          break;
-        case "Chuyển khoản":
-          idPhuongThucThanhToan = 2;
-          break;
-        default:
-          idPhuongThucThanhToan = 3;
-      }
-
-      const hoaDonMoi = {
-        loaiHoaDon: true,
-        phiVanChuyen: isDelivery ? shippingFee : 0,
-        tongTien: cartTotal,
-        tongTienSauGiam: finalAmount,
-        ghiChu: `${
-          isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
-        }${customerType}${customerNote} - Thanh toán bằng ${paymentMethod}${
-          appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
-        }`,
-        diaChiKhachHang: diaChiKhachHang,
-        ngayThanhToan: new Date().toISOString(),
-        trangThai: isDelivery ? 1 : 3,
-        idKhachHang: selectedCustomer?.id || null,
-        idNhanVien: currentUserId,
-        idPhieuGiamGia: appliedDiscount?.id || null,
-        nguoiTao: currentUserId,
-        chiTietList: chiTietList,
-        idPhuongThucThanhToan: idPhuongThucThanhToan,
-        soTienThanhToan: totalWithShipping,
-        ghiChuThanhToan: `${
-          isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
-        }${customerType}${customerNote} - Thanh toán bằng ${paymentMethod}`,
-        idTinh: idTinh,
-        idQuan: idQuan,
-        diaChiCuThe: diaChiCuThe,
-
-        hoTen: formCustomerInfo?.hoTen || null,
-        sdt: formCustomerInfo?.sdt || null,
-      };
-
-      console.log(
-        "🚀 FINAL PAYLOAD gửi lên BE:",
-        JSON.stringify(hoaDonMoi, null, 2)
-      );
-
       if (paymentMethod === "Chuyển khoản") {
-        const res = await hoaDonApi.createAndPayWithVNPAY(hoaDonMoi);
+        // Chỉ chuẩn bị dữ liệu, KHÔNG gọi API tạo hóa đơn
+        console.log("📦 Đã chuẩn bị dữ liệu hóa đơn (chưa lưu):", hoaDonMoi);
 
-        if (res.data?.isSuccess) {
-          const paymentUrl = res.data.data?.paymentUrl;
+        // Hiển thị modal chọn phương thức chuyển khoản
+        showTransferMethodModal(hoaDonMoi);
+      } else if (paymentMethod === "Cả hai") {
+        // Chỉ chuẩn bị dữ liệu, KHÔNG gọi API tạo hóa đơn
+        console.log("📦 Đã chuẩn bị dữ liệu hóa đơn (chưa lưu):", hoaDonMoi);
 
-          if (paymentUrl) {
-            messageApi.success(
-              "✅ Đang chuyển hướng đến trang thanh toán VNPAY..."
-            );
-
-            setTimeout(() => {
-              window.location.href = paymentUrl;
-            }, 1000);
-          } else {
-            messageApi.error("❌ Không thể tạo URL thanh toán VNPAY");
-          }
-        } else {
-          messageApi.error(
-            "❌ Lỗi khi tạo thanh toán VNPAY: " + (res.data?.message || "")
-          );
-        }
+        // Hiển thị modal thanh toán kết hợp
+        showBothPaymentModal(hoaDonMoi);
       } else {
+        // Thanh toán tiền mặt - tạo hóa đơn ngay lập tức
         const res = await hoaDonApi.create(hoaDonMoi);
 
         if (res.data?.isSuccess) {
@@ -382,8 +694,7 @@ export default function SellPay({
     }
   };
 
-  const paymentOptions = ["Chuyển khoản", "Tiền mặt"];
-  const totalWithShipping = finalAmount + shippingFee;
+  const paymentOptions = ["Chuyển khoản", "Tiền mặt", "Cả hai"];
 
   return (
     <>
@@ -445,16 +756,259 @@ export default function SellPay({
             : "bg-[#E67E22] hover:bg-amber-600 active:bg-cyan-800"
         }`}
       >
-        {loading
-          ? "Đang xử lý..."
-          : isDelivery
-          ? paymentMethod === "Chuyển khoản"
-            ? "Đặt hàng & Thanh toán VNPAY"
-            : "Đặt hàng"
-          : paymentMethod === "Chuyển khoản"
-          ? "Thanh toán VNPAY"
-          : "Thanh toán"}
+        {loading ? "Đang xử lý..." : isDelivery ? "Đặt hàng" : "Thanh toán"}
       </div>
+
+      {/* Modal chọn phương thức chuyển khoản */}
+      <Modal
+        title={
+          <Space>
+            <BankOutlined />
+            <span>Chọn phương thức chuyển khoản</span>
+          </Space>
+        }
+        open={transferMethodModalVisible}
+        onCancel={() => setTransferMethodModalVisible(false)}
+        footer={null}
+        width={600}
+        centered
+      >
+        <Row gutter={[16, 16]}>
+          <Col span={12}>
+            <Card
+              hoverable
+              className="text-center h-full"
+              onClick={handleVNPayRedirect}
+            >
+              <div className="flex flex-col items-center gap-3">
+                <GlobalOutlined
+                  style={{ fontSize: "48px", color: "#1890ff" }}
+                />
+                <h3 className="font-bold text-lg">VNPay Website</h3>
+                <p className="text-gray-600">
+                  Chuyển hướng đến trang thanh toán VNPay
+                </p>
+                <Button type="primary" icon={<ArrowRightOutlined />}>
+                  Chọn
+                </Button>
+              </div>
+            </Card>
+          </Col>
+          <Col span={12}>
+            <Card
+              hoverable
+              className="text-center h-full"
+              onClick={generateVNPayQR}
+            >
+              <div className="flex flex-col items-center gap-3">
+                <QrcodeOutlined
+                  style={{ fontSize: "48px", color: "#52c41a" }}
+                />
+                <h3 className="font-bold text-lg">Quét QR VNPay</h3>
+                <p className="text-gray-600">
+                  Quét mã QR để thanh toán bằng ứng dụng ngân hàng
+                </p>
+                <Button type="primary" icon={<QrcodeOutlined />}>
+                  Chọn
+                </Button>
+              </div>
+            </Card>
+          </Col>
+        </Row>
+
+        <Divider />
+
+        <div className="text-center">
+          <span className="text-gray-500">
+            Số tiền thanh toán:{" "}
+            <strong>{totalWithShipping.toLocaleString()} VND</strong>
+          </span>
+        </div>
+      </Modal>
+
+      {/* Modal thanh toán kết hợp */}
+      <Modal
+        title={
+          <Space>
+            <DollarOutlined />
+            <span>Thanh toán kết hợp</span>
+          </Space>
+        }
+        open={bothPaymentModalVisible}
+        onCancel={() => setBothPaymentModalVisible(false)}
+        footer={null}
+        width={500}
+        centered
+      >
+        <div className="space-y-4">
+          <div className="text-center mb-4">
+            <span className="font-bold text-lg">
+              Tổng tiền: {totalWithShipping.toLocaleString()} VND
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="font-bold block mb-2">Tiền mặt:</label>
+              <InputNumber
+                style={{ width: "100%" }}
+                size="large"
+                placeholder="Nhập số tiền mặt"
+                value={cashAmount}
+                onChange={handleCashAmountChange}
+                formatter={(value) =>
+                  `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                }
+                parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                min={0}
+                max={totalWithShipping}
+              />
+            </div>
+
+            <div>
+              <label className="font-bold block mb-2">Chuyển khoản:</label>
+              <InputNumber
+                style={{ width: "100%" }}
+                size="large"
+                placeholder="Nhập số tiền chuyển khoản"
+                value={transferAmount}
+                onChange={handleTransferAmountChange}
+                formatter={(value) =>
+                  `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                }
+                parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                min={0}
+                max={totalWithShipping}
+              />
+            </div>
+
+            <Divider />
+
+            <div className="flex justify-between font-bold">
+              <span>Tổng cộng:</span>
+              <span>{(cashAmount + transferAmount).toLocaleString()} VND</span>
+            </div>
+
+            <div
+              className={`text-center ${
+                cashAmount + transferAmount !== totalWithShipping
+                  ? "text-red-500"
+                  : "text-green-500"
+              }`}
+            >
+              {cashAmount + transferAmount === totalWithShipping
+                ? "✅ Số tiền khớp với tổng hóa đơn"
+                : "❌ Số tiền không khớp với tổng hóa đơn"}
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-center mt-6">
+            <Button onClick={() => setBothPaymentModalVisible(false)}>
+              Hủy
+            </Button>
+            <Button
+              type="primary"
+              icon={<DollarOutlined />}
+              loading={loading}
+              onClick={handleConfirmBothPayment}
+              disabled={cashAmount + transferAmount !== totalWithShipping}
+            >
+              Xác nhận thanh toán
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal hiển thị QR Code VNPay */}
+      <Modal
+        title={
+          <Space>
+            <QrcodeOutlined />
+            <span>Thanh toán qua VNPay QR</span>
+          </Space>
+        }
+        open={qrModalVisible}
+        onCancel={() => setQrModalVisible(false)}
+        footer={null}
+        width={500}
+        centered
+      >
+        {qrData && (
+          <div className="text-center">
+            <div className="mb-4">
+              <span className="font-bold text-lg">
+                Số tiền: {qrData.amount.toLocaleString()} VND
+              </span>
+            </div>
+
+            <div className="flex justify-center mb-4">
+              <QRCode value={qrData.url} size={200} icon="/vnpay-logo.png" />
+            </div>
+
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <span className="text-gray-500">
+                Quét mã QR bằng ứng dụng ngân hàng hỗ trợ VNPay QR để thanh toán
+              </span>
+            </div>
+
+            <Divider>Hoặc chuyển khoản thủ công</Divider>
+
+            <div className="text-left mb-4">
+              <Space
+                direction="vertical"
+                size="small"
+                style={{ width: "100%" }}
+              >
+                <div className="flex justify-between">
+                  <span className="font-bold">Ngân hàng:</span>
+                  <span>{qrData.bankInfo.bankName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold">Số tài khoản:</span>
+                  <Space>
+                    <span>{qrData.bankInfo.accountNumber}</span>
+                    <Button
+                      size="small"
+                      icon={copied ? <CheckOutlined /> : <CopyOutlined />}
+                      onClick={() =>
+                        copyToClipboard(qrData.bankInfo.accountNumber)
+                      }
+                    >
+                      {copied ? "Đã copy" : "Copy"}
+                    </Button>
+                  </Space>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold">Chủ tài khoản:</span>
+                  <span>{qrData.bankInfo.accountHolder}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold">Chi nhánh:</span>
+                  <span>{qrData.bankInfo.branch}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold">Số tiền:</span>
+                  <span className="font-bold text-red-600">
+                    {qrData.amount.toLocaleString()} VND
+                  </span>
+                </div>
+              </Space>
+            </div>
+
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => setQrModalVisible(false)}>Hủy</Button>
+              <Button
+                type="primary"
+                icon={<BankOutlined />}
+                loading={loading}
+                onClick={handleConfirmTransfer}
+              >
+                Đã chuyển khoản
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

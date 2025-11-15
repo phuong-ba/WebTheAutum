@@ -8,6 +8,7 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 const { Search } = Input;
+const { Option } = Select;
 
 export default function SellListProduct({ selectedBillId }) {
   const dispatch = useDispatch();
@@ -23,10 +24,13 @@ export default function SellListProduct({ selectedBillId }) {
     dispatch(fetchChiTietSanPham());
   }, [dispatch]);
 
+  const filteredData = data?.filter((product) => product.soLuongTon > 0) || [];
+
   const getUniqueColors = () => {
     const colors = cartProducts.map((product) => product.color).filter(Boolean);
     return [...new Set(colors)];
   };
+
   const handleAddToCart = async (product) => {
     if (!selectedBillId) {
       messageApi.warning(
@@ -123,6 +127,13 @@ export default function SellListProduct({ selectedBillId }) {
       console.error(error);
       messageApi.error("Thêm sản phẩm thất bại!");
     }
+  };
+
+  const clearFilters = () => {
+    setSearchKeyword("");
+    setCategoryFilter("all");
+    setPriceFilter("all");
+    setSortBy("default");
   };
 
   const columns = [
@@ -266,7 +277,7 @@ export default function SellListProduct({ selectedBillId }) {
           </div>
           <Table
             columns={columns}
-            dataSource={data}
+            dataSource={filteredData}
             rowKey="id"
             pagination={{ pageSize: 5 }}
           />

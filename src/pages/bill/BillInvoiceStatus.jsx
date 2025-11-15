@@ -121,12 +121,12 @@ export default function BillInvoiceStatus({
     let newStatus = tempStatus;
 
     if (newLoaiHoaDon) {
-      newStatus = 3; // Tại quầy
+      newStatus = 3;
       message.info(
         "Đã chuyển sang loại Tại quầy - Trạng thái mặc định: Đã hoàn thành"
       );
     } else {
-      newStatus = 1; // Online
+      newStatus = 1;
       message.info(
         "Đã chuyển sang loại Online - Trạng thái mặc định: Chờ giao hàng"
       );
