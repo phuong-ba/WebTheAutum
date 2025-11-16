@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Trash, ArrowLeft, Info, Minus, Plus, ShoppingCart, Tag, Package } from "@phosphor-icons/react";
+import { Trash, ArrowLeft, Info, Minus, Plus, ShoppingCart, Tag, Package, Check, X } from "@phosphor-icons/react";
+import { toast } from 'react-toastify';
 
 const formatCurrency = (amount) => {
   if (typeof amount !== "number") {
@@ -12,18 +13,55 @@ const formatCurrency = (amount) => {
   }).format(amount);
 };
 
+// Danh sách voucher mẫu (có thể thay bằng API)
+const VOUCHERS = [
+  {
+    code: "AUTUMN10",
+    discount: 10, // phần trăm
+    minOrder: 200000,
+    description: "Giảm 10% cho đơn hàng từ 200k"
+  },
+  {
+    code: "AUTUMN50K",
+    discount: 50000, // số tiền cố định
+    minOrder: 500000,
+    description: "Giảm 50k cho đơn hàng từ 500k"
+  },
+  {
+    code: "FREESHIP",
+    discount: 0,
+    freeShip: true,
+    minOrder: 0,
+    description: "Miễn phí vận chuyển"
+  }
+];
+
 export default function Cart() {
   const [cartItems, setCartItems] = useState([]);
   const navigate = useNavigate();
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [inputValue, setInputValue] = useState("");
+  
+  // Voucher states
+  const [voucherCode, setVoucherCode] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [voucherError, setVoucherError] = useState("");
 
   useEffect(() => {
     const storedCart = JSON.parse(localStorage.getItem("cart") || "[]");
     setCartItems(storedCart);
+    
+    // Load voucher đã áp dụng (nếu có)
+    const savedVoucher = JSON.parse(localStorage.getItem("appliedVoucher") || "null");
+    setAppliedVoucher(savedVoucher);
   }, []);
 
   const updateCart = (newCart) => {
     localStorage.setItem("cart", JSON.stringify(newCart));
     setCartItems(newCart);
+    
+    // Trigger event để cập nhật header
+    window.dispatchEvent(new Event('cartUpdated'));
   };
 
   const handleQuantityChange = (id, newQuantity) => {
@@ -40,6 +78,61 @@ export default function Cart() {
   const handleRemoveItem = (id) => {
     const newCart = cartItems.filter((item) => item.id !== id);
     updateCart(newCart);
+    toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
+  };
+
+  const handleInputBlur = () => {
+    if (editingItemId === null) return;
+    const newQty = parseInt(inputValue, 10);
+    if (!isNaN(newQty)) {
+      handleQuantityChange(editingItemId, newQty);
+    }
+    setEditingItemId(null);
+    setInputValue("");
+  };
+
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur();
+    } else if (e.key === 'Escape') {
+      setEditingItemId(null);
+      setInputValue("");
+    }
+  };
+
+  // Xử lý áp dụng voucher
+  const handleApplyVoucher = () => {
+    if (!voucherCode.trim()) {
+      setVoucherError("Vui lòng nhập mã giảm giá");
+      return;
+    }
+
+    const voucher = VOUCHERS.find(v => v.code.toUpperCase() === voucherCode.toUpperCase());
+    
+    if (!voucher) {
+      setVoucherError("Mã giảm giá không hợp lệ");
+      toast.error("Mã giảm giá không hợp lệ");
+      return;
+    }
+
+    if (finalSubtotal < voucher.minOrder) {
+      setVoucherError(`Đơn hàng tối thiểu ${formatCurrency(voucher.minOrder)}`);
+      toast.error(`Đơn hàng tối thiểu ${formatCurrency(voucher.minOrder)}`);
+      return;
+    }
+
+    setAppliedVoucher(voucher);
+    localStorage.setItem("appliedVoucher", JSON.stringify(voucher));
+    setVoucherError("");
+    setVoucherCode("");
+    toast.success(`Đã áp dụng mã ${voucher.code}`);
+  };
+
+  // Xóa voucher
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    localStorage.removeItem("appliedVoucher");
+    toast.info("Đã xóa mã giảm giá");
   };
 
   const totalItemCount = cartItems.reduce(
@@ -59,7 +152,17 @@ export default function Cart() {
     0
   );
 
-  const totalDiscount = originalSubtotal - finalSubtotal;
+  const productDiscount = originalSubtotal - finalSubtotal;
+
+  // Tính giảm giá từ voucher
+  const voucherDiscount = appliedVoucher ? (
+    appliedVoucher.discount > 100 
+      ? appliedVoucher.discount // Giảm theo số tiền
+      : (finalSubtotal * appliedVoucher.discount / 100) // Giảm theo %
+  ) : 0;
+
+  const shippingFee = (appliedVoucher?.freeShip || finalSubtotal >= 300000) ? 0 : 30000;
+  const totalAmount = finalSubtotal - voucherDiscount + shippingFee;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-orange-50/30">
@@ -79,7 +182,6 @@ export default function Cart() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               
-              {/* Danh sách sản phẩm */}
               <div className="divide-y divide-gray-100">
                 {cartItems.length > 0 ? (
                   cartItems.map((item) => {
@@ -93,7 +195,6 @@ export default function Cart() {
                         className="p-5 hover:bg-gray-50 transition-colors"
                       >
                         <div className="flex gap-4">
-                          {/* Hình ảnh */}
                           <div className="relative flex-shrink-0">
                             <img
                               src={item.hinhAnh}
@@ -107,7 +208,6 @@ export default function Cart() {
                             )}
                           </div>
 
-                          {/* Thông tin sản phẩm */}
                           <div className="flex-grow">
                             <div className="flex justify-between items-start mb-2">
                               <div className="flex-grow pr-4">
@@ -131,7 +231,6 @@ export default function Cart() {
                             </div>
 
                             <div className="flex flex-wrap items-end justify-between gap-3 mt-3">
-                              {/* Giá */}
                               <div>
                                 {hasDiscount && (
                                   <span className="text-sm text-gray-400 line-through block mb-0.5">
@@ -143,7 +242,6 @@ export default function Cart() {
                                 </span>
                               </div>
 
-                              {/* Số lượng */}
                               <div className="flex items-center border border-gray-300 rounded-lg">
                                 <button
                                   onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
@@ -151,9 +249,33 @@ export default function Cart() {
                                 >
                                   <Minus size={14} weight="bold" className="text-gray-600" />
                                 </button>
-                                <span className="px-4 py-1.5 text-sm font-semibold min-w-[40px] text-center border-x border-gray-300">
-                                  {item.quantity}
-                                </span>
+                                
+                                {editingItemId === item.id ? (
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={inputValue}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/[^0-9]/g, '');
+                                      setInputValue(val);
+                                    }}
+                                    onBlur={handleInputBlur}
+                                    onKeyDown={handleInputKeyDown}
+                                    autoFocus
+                                    className="w-12 py-1.5 text-sm font-semibold text-center border-x border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-300"
+                                  />
+                                ) : (
+                                  <span
+                                    onClick={() => {
+                                      setEditingItemId(item.id);
+                                      setInputValue(item.quantity.toString());
+                                    }}
+                                    className="px-4 py-1.5 text-sm font-semibold min-w-[40px] text-center border-x border-gray-300 cursor-pointer"
+                                  >
+                                    {item.quantity}
+                                  </span>
+                                )}
+
                                 <button
                                   onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
                                   className="px-3 py-1.5 hover:bg-gray-50 transition-colors"
@@ -162,7 +284,6 @@ export default function Cart() {
                                 </button>
                               </div>
 
-                              {/* Tổng tiền */}
                               <div className="text-right">
                                 <p className="text-xs text-gray-500 mb-0.5">Thành tiền</p>
                                 <p className="text-lg font-bold text-gray-800">
@@ -211,7 +332,6 @@ export default function Cart() {
             <div className="sticky top-24">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 
-                {/* Header */}
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
                   <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <Package size={20} weight="duotone" className="text-orange-500" />
@@ -229,18 +349,47 @@ export default function Cart() {
                       </span>
                     </div>
 
-                    {totalDiscount > 0 && (
+                    {productDiscount > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Giảm giá</span>
+                        <span className="text-gray-600">Giảm giá sản phẩm</span>
                         <span className="font-medium text-green-600">
-                          -{formatCurrency(totalDiscount)}
+                          -{formatCurrency(productDiscount)}
+                        </span>
+                      </div>
+                    )}
+
+                    {appliedVoucher && (
+                      <div className="flex justify-between items-center text-sm bg-green-50 -mx-2 px-2 py-2 rounded">
+                        <div className="flex items-center gap-2">
+                          <Check size={16} weight="bold" className="text-green-600" />
+                          <div>
+                            <span className="text-green-700 font-medium">{appliedVoucher.code}</span>
+                            <p className="text-xs text-green-600">{appliedVoucher.description}</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={handleRemoveVoucher}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X size={16} weight="bold" />
+                        </button>
+                      </div>
+                    )}
+
+                    {voucherDiscount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Giảm giá voucher</span>
+                        <span className="font-medium text-green-600">
+                          -{formatCurrency(voucherDiscount)}
                         </span>
                       </div>
                     )}
 
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Phí vận chuyển</span>
-                      <span className="font-medium text-green-600">Miễn phí</span>
+                      <span className={`font-medium ${shippingFee === 0 ? 'text-green-600' : 'text-gray-800'}`}>
+                        {shippingFee === 0 ? 'Miễn phí' : formatCurrency(shippingFee)}
+                      </span>
                     </div>
                   </div>
 
@@ -249,31 +398,13 @@ export default function Cart() {
                     <div className="flex justify-between items-baseline">
                       <span className="text-base font-semibold text-gray-800">Tổng cộng</span>
                       <span className="text-2xl font-bold text-orange-600">
-                        {formatCurrency(finalSubtotal)}
+                        {formatCurrency(totalAmount)}
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">(Đã bao gồm VAT nếu có)</p>
                   </div>
 
-                  {/* Mã giảm giá */}
-                  <div className="py-4 border-b border-gray-200">
-                    <div className="flex gap-2">
-                      <div className="relative flex-grow">
-                        <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                        <input 
-                          type="text" 
-                          placeholder="Mã giảm giá" 
-                          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all outline-none"
-                        />
-                      </div>
-                      <button 
-                        type="button" 
-                        className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
-                      >
-                        Áp dụng
-                      </button>
-                    </div>
-                  </div>
+               
 
                   {/* Thông báo */}
                   <div className="py-4">
@@ -294,16 +425,11 @@ export default function Cart() {
                   >
                     {cartItems.length === 0 ? "Giỏ hàng trống" : "Tiến hành đặt hàng"}
                   </button>
-
                   {/* Benefits */}
                   <div className="grid grid-cols-2 gap-2 mt-4">
                     <div className="flex items-center gap-1.5 text-xs text-gray-600">
                       <span className="text-green-500">✓</span>
                       <span>Miễn phí vận chuyển</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                      <span className="text-green-500">✓</span>
-                      <span>Đổi trả trong 7 ngày</span>
                     </div>
                   </div>
                 </div>

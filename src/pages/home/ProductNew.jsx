@@ -24,7 +24,7 @@ export default function ProductNew() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/san-pham/trang-chu") 
+    fetch("http://localhost:8080/api/san-pham/trang-chu")
       .then((res) => res.json())
       .then((data) => {
         setProducts(data.data || []);
@@ -61,20 +61,45 @@ export default function ProductNew() {
     return () => el.removeEventListener("scroll", checkScroll);
   }, [products]);
 
-  return (
-    <div className="flex flex-col items-center gap-8">
-      {/* Back Button */}
-      
-
-      {/* Header */}
-      <div className="flex flex-col items-center gap-8">
-        <div className="font-bold text-2xl">NEW ARRIVAL</div>
-        <div className="flex gap-10">
-          <div className="cursor-pointer hover:text-orange-500 transition-colors">Danh Mục 1</div>
-          <div className="cursor-pointer hover:text-orange-500 transition-colors">Danh Mục 2</div>
+  // Component hiển thị giá
+  const PriceDisplay = ({ giaMin, giaMax }) => {
+    // Kiểm tra nếu chỉ có 1 giá hoặc giá min = max
+    if (!giaMax || giaMin === giaMax) {
+      return (
+        <div className="text-lg font-bold text-orange-600">
+          {formatCurrency(giaMin)}
+        </div>
+      );
+    }
+    // Hiển thị khoảng giá
+    return (
+      <div className="flex items-center gap-2">
+        <div className="text-lg font-bold text-orange-600">
+          {formatCurrency(giaMin)}
+        </div>
+        <span className="text-gray-400">-</span>
+        <div className="text-lg font-bold text-orange-600">
+          {formatCurrency(giaMax)}
         </div>
       </div>
+    );
+  };
 
+  return (
+    <div className="flex flex-col items-center gap-8">
+      {/* Header */}
+      <div className="flex flex-col items-center gap-8">
+        {/* Đã dịch sang tiếng Việt */}
+        <div className="font-bold text-2xl">DANH SÁCH SẢN PHẨM</div>
+        <div className="flex gap-10">
+          <div className="cursor-pointer hover:text-orange-500 transition-colors">
+            Danh Mục 1
+          </div>
+          <div className="cursor-pointer hover:text-orange-500 transition-colors">
+            Danh Mục 2
+          </div>
+        </div>
+      </div>
       <div className="relative w-full max-w-full">
         {showLeft && (
           <button
@@ -84,7 +109,6 @@ export default function ProductNew() {
             <CaretLeft size={28} />
           </button>
         )}
-
         <div
           ref={scrollRef}
           className="flex gap-5 overflow-x-auto scroll-smooth p-4 scrollbar-none"
@@ -98,19 +122,13 @@ export default function ProductNew() {
               key={item.idSanPham}
               className="relative flex-shrink-0 w-[330px] flex flex-col gap-5"
             >
-              {/* Badge Best Seller */}
-              <div className="absolute -top-2 -left-2 z-10">
-                <div className="rounded-tr-2xl min-w-[64px] p-1 text-center font-bold bg-[#e7973e] text-sm text-white">
-                  Best Seller
-                </div>
-                <div className="max-w-2 h-5 border-t-[20px] border-l-[9px] border-t-[#a23a38] border-l-transparent"></div>
-              </div>
+              {/* --- ĐÃ XÓA BADGE BEST SELLER --- */}
 
               {/* Product Image - Clickable */}
               <Link to={`/product/${item.idSanPham}`}>
                 <div className="min-w-[330px] max-h-[500px] min-h-[500px] rounded-xl overflow-hidden">
                   <img
-                    src={item.anhDaiDien || 'https://via.placeholder.com/330x500'}
+                    src={item.anhDaiDien || "https://via.placeholder.com/330x500"}
                     alt={item.tenSanPham}
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                   />
@@ -125,26 +143,22 @@ export default function ProductNew() {
                     <div className="rounded-full w-4 h-4 cursor-pointer bg-black"></div>
                     <div className="rounded-full w-4 h-4 cursor-pointer bg-gray-400"></div>
                   </div>
-                  <HeartIcon size={24} className="cursor-pointer hover:text-red-500 transition-colors" />
+                  <HeartIcon
+                    size={24}
+                    className="cursor-pointer hover:text-red-500 transition-colors"
+                  />
                 </div>
-                
+
                 <Link to={`/product/${item.idSanPham}`}>
-                  <div className="font-medium text-gray-500 hover:text-gray-800 transition-colors">
+                  <div className="font-medium text-gray-500 hover:text-gray-800 transition-colors line-clamp-2">
                     {item.tenSanPham}
                   </div>
                 </Link>
-                
+
                 <div className="flex justify-between items-center">
-                  <div className="flex gap-1 items-center justify-center">
-                    <div className="text-md font-bold text-gray-700">
-                      {formatCurrency(item.giaHienThi)}
-                    </div>
-                    {item.giaGoc && item.giaGoc > item.giaHienThi && (
-                      <div className="text-sm font-bold text-gray-400 line-through">
-                        {formatCurrency(item.giaGoc)}
-                      </div>
-                    )}
-                  </div>
+                  {/* Hiển thị khoảng giá */}
+                  <PriceDisplay giaMin={item.giaMin} giaMax={item.giaMax} />
+
                   <Link to={`/product/${item.idSanPham}`}>
                     <div className="bg-amber-500 p-2 rounded-br-xl rounded-tl-xl hover:bg-amber-100 border border-amber-500 cursor-pointer transition-colors">
                       <ShoppingBagIcon size={24} />
@@ -178,6 +192,12 @@ export default function ProductNew() {
       <style jsx>{`
         .scrollbar-none::-webkit-scrollbar {
           display: none;
+        }
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
       `}</style>
     </div>

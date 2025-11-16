@@ -7,7 +7,10 @@ import {
   User,
   Phone,
   CreditCard,
-  Package
+  Package,
+  X,
+  Check,
+  Ticket
 } from "@phosphor-icons/react";
 import { toast } from "react-toastify"; 
 
@@ -36,15 +39,16 @@ export default function Checkout() {
 
   // State cho giảm giá
   const [discountCodes, setDiscountCodes] = useState([]);
-  const [selectedDiscountId, setSelectedDiscountId] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState(null);
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [loadingDiscount, setLoadingDiscount] = useState(false);
   const [loadingDiscountCodes, setLoadingDiscountCodes] = useState(false);
+  const [showVoucherModal, setShowVoucherModal] = useState(false);
+  const [voucherDetails, setVoucherDetails] = useState([]);
 
   const [formData, setFormData] = useState({
     hoTen: "",
     sdt: "",
+    email: "",
     tinhId: "",
     tinhTen: "",
     quanId: "",
@@ -146,51 +150,96 @@ export default function Checkout() {
     fetchDistricts();
   }, [formData.tinhId]);
 
+  // Tự động tính toán và áp dụng voucher tốt nhất
   useEffect(() => {
-    const calculateDiscount = async () => {
-      if (!appliedDiscount || !appliedDiscount.phieuGiamGiaId) {
+    const calculateBestDiscount = async () => {
+      if (discountCodes.length === 0 || cartTotal === 0) {
+        setAppliedDiscount(null);
         setDiscountAmount(0);
+        setVoucherDetails([]);
         return;
       }
 
       try {
-        const response = await fetch(
-          `http://localhost:8080/api/phieu-giam-gia/detail/${appliedDiscount.phieuGiamGiaId}`
-        );
-        
-        if (!response.ok) {
-          throw new Error("Không thể tải thông tin mã giảm giá");
-        }
-        
-        const result = await response.json();
-        const phieuDetail = result.data;
-        
-        console.log("💰 Calculating discount with:", phieuDetail);
-        
-        let discount = 0;
-        if (phieuDetail.loaiGiamGia === false || phieuDetail.loaiGiamGia === 0) {
-          discount = (cartTotal * phieuDetail.giaTriGiamGia) / 100;
-          if (phieuDetail.mucGiaGiamToiDa && discount > phieuDetail.mucGiaGiamToiDa) {
-            discount = phieuDetail.mucGiaGiamToiDa;
+        // Lấy chi tiết tất cả voucher
+        const detailsPromises = discountCodes.map(async (code) => {
+          try {
+            const response = await fetch(
+              `http://localhost:8080/api/phieu-giam-gia/detail/${code.phieuGiamGiaId}`
+            );
+            if (!response.ok) return null;
+            const result = await response.json();
+            return { ...code, detail: result.data };
+          } catch {
+            return null;
           }
+        });
+
+        const details = (await Promise.all(detailsPromises)).filter(d => d !== null);
+        
+        // Lọc voucher hợp lệ
+        const now = new Date();
+        const validVouchers = details.filter(voucher => {
+          const detail = voucher.detail;
+          if (!detail) return false;
+          
+          const startDate = new Date(detail.ngayBatDau);
+          const endDate = new Date(detail.ngayKetThuc);
+          
+          return (
+            detail.trangThai === 1 &&
+            detail.soLuongDung > 0 &&
+            now >= startDate &&
+            now <= endDate &&
+            (!detail.giaTriDonHangToiThieu || cartTotal >= detail.giaTriDonHangToiThieu)
+          );
+        });
+
+        // Tính toán giá trị giảm cho mỗi voucher
+        const vouchersWithDiscount = validVouchers.map(voucher => {
+          const detail = voucher.detail;
+          let discount = 0;
+          
+          if (detail.loaiGiamGia === false || detail.loaiGiamGia === 0) {
+            discount = (cartTotal * detail.giaTriGiamGia) / 100;
+            if (detail.mucGiaGiamToiDa && discount > detail.mucGiaGiamToiDa) {
+              discount = detail.mucGiaGiamToiDa;
+            }
+          } else {
+            discount = detail.giaTriGiamGia;
+          }
+          
+          if (discount > cartTotal) {
+            discount = cartTotal;
+          }
+          
+          return { ...voucher, calculatedDiscount: discount };
+        });
+
+        setVoucherDetails(vouchersWithDiscount);
+
+        // Tìm voucher giảm nhiều nhất
+        if (vouchersWithDiscount.length > 0) {
+          const bestVoucher = vouchersWithDiscount.reduce((best, current) => 
+            current.calculatedDiscount > best.calculatedDiscount ? current : best
+          );
+          
+          setAppliedDiscount(bestVoucher);
+          setDiscountAmount(bestVoucher.calculatedDiscount);
+          console.log("✅ Auto-applied best voucher:", bestVoucher.tenChuongTrinh, formatCurrency(bestVoucher.calculatedDiscount));
         } else {
-          discount = phieuDetail.giaTriGiamGia;
+          setAppliedDiscount(null);
+          setDiscountAmount(0);
         }
-        
-        if (discount > cartTotal) {
-          discount = cartTotal;
-        }
-        
-        setDiscountAmount(discount);
-        console.log("✅ Discount amount:", discount);
       } catch (error) {
-        console.error("❌ Error calculating discount:", error);
+        console.error("❌ Error calculating best discount:", error);
+        setAppliedDiscount(null);
         setDiscountAmount(0);
       }
     };
 
-    calculateDiscount();
-  }, [appliedDiscount, cartTotal]);
+    calculateBestDiscount();
+  }, [discountCodes, cartTotal]);
 
   useEffect(() => {
     const storedCart = JSON.parse(localStorage.getItem("cart") || "[]");
@@ -214,7 +263,8 @@ export default function Checkout() {
       setFormData((prev) => ({
         ...prev,
         hoTen: loggedInUser.hoTen || "", 
-        sdt: loggedInUser.sdt || "",   
+        sdt: loggedInUser.sdt || "",
+        email: loggedInUser.email || "",
       }));
     }
   }, [navigate]);
@@ -248,89 +298,31 @@ export default function Checkout() {
     }));
   };
 
-  const handleApplyDiscount = async () => {
-    if (!selectedDiscountId) {
-      toast.warning("Vui lòng chọn mã giảm giá");
-      return;
-    }
-
-    setLoadingDiscount(true);
-
-    const foundDiscount = discountCodes.find(
-      (dc) => dc.phieuGiamGiaId === parseInt(selectedDiscountId)
-    );
-
-    if (!foundDiscount) {
-      toast.error("Mã giảm giá không tồn tại");
-      setLoadingDiscount(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `http://localhost:8080/api/phieu-giam-gia/detail/${foundDiscount.phieuGiamGiaId}`
-      );
-      
-      if (!response.ok) {
-        throw new Error("Không thể tải thông tin mã giảm giá");
-      }
-      
-      const result = await response.json();
-      const phieuDetail = result.data;
-      
-      console.log("🔍 Validating discount:", phieuDetail);
-
-      if (phieuDetail.trangThai !== 1) {
-        toast.error("Mã giảm giá không còn hiệu lực");
-        setLoadingDiscount(false);
-        return;
-      }
-
-      if (phieuDetail.soLuongDung <= 0) {
-        toast.error("Mã giảm giá đã hết số lượng");
-        setLoadingDiscount(false);
-        return;
-      }
-
-      const now = new Date();
-      const startDate = new Date(phieuDetail.ngayBatDau);
-      const endDate = new Date(phieuDetail.ngayKetThuc);
-      
-      if (now < startDate) {
-        toast.error("Mã giảm giá chưa đến thời gian áp dụng");
-        setLoadingDiscount(false);
-        return;
-      }
-      
-      if (now > endDate) {
-        toast.error("Mã giảm giá đã hết hạn");
-        setLoadingDiscount(false);
-        return;
-      }
-
-      if (phieuDetail.giaTriDonHangToiThieu && cartTotal < phieuDetail.giaTriDonHangToiThieu) {
-        toast.error(
-          `Đơn hàng tối thiểu ${formatCurrency(phieuDetail.giaTriDonHangToiThieu)} để áp dụng mã này`
-        );
-        setLoadingDiscount(false);
-        return;
-      }
-
-      setAppliedDiscount(foundDiscount);
-      toast.success(`Áp dụng mã "${foundDiscount.tenChuongTrinh}" thành công!`);
-      setLoadingDiscount(false);
-    } catch (error) {
-      console.error("❌ Error applying discount:", error);
-      toast.error("Không thể áp dụng mã giảm giá");
-      setLoadingDiscount(false);
-    }
+  const handleSelectVoucher = (voucher) => {
+    setAppliedDiscount(voucher);
+    setDiscountAmount(voucher.calculatedDiscount);
+    setShowVoucherModal(false);
+    toast.success(`Đã chọn voucher "${voucher.tenChuongTrinh}"`);
   };
 
   const handleRemoveDiscount = () => {
-    setAppliedDiscount(null);
-    setSelectedDiscountId("");
-    setDiscountAmount(0);
-    toast.info("Đã xóa mã giảm giá");
+    // Tìm voucher tốt nhất tiếp theo (nếu có)
+    const otherVouchers = voucherDetails.filter(
+      v => v.phieuGiamGiaId !== appliedDiscount?.phieuGiamGiaId
+    );
+    
+    if (otherVouchers.length > 0) {
+      const nextBest = otherVouchers.reduce((best, current) => 
+        current.calculatedDiscount > best.calculatedDiscount ? current : best
+      );
+      setAppliedDiscount(nextBest);
+      setDiscountAmount(nextBest.calculatedDiscount);
+      toast.info(`Đã chuyển sang voucher "${nextBest.tenChuongTrinh}"`);
+    } else {
+      setAppliedDiscount(null);
+      setDiscountAmount(0);
+      toast.info("Đã xóa voucher");
+    }
   };
   
   const handlePlaceOrder = async (e) => {
@@ -344,13 +336,30 @@ export default function Checkout() {
       return;
     }
 
+    // Validate email for guest users
+    if (!currentUser && !formData.email) {
+      toast.error("Vui lòng nhập email để nhận thông tin đơn hàng.");
+      setLoading(false);
+      return;
+    }
+
+    // Validate email format
+    if (!currentUser && formData.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        toast.error("Email không hợp lệ. Vui lòng kiểm tra lại.");
+        setLoading(false);
+        return;
+      }
+    }
+
     const fullAddress = `${formData.diaChi}, ${formData.phuong}, ${formData.quanTen}, ${formData.tinhTen}`;
 
-    // ⭐⭐⭐ SỬA: tongTien = cartTotal (GIÁ GỐC - chưa giảm) ⭐⭐⭐
     const orderData = {
       khachHangId: currentUser ? currentUser.id : null, 
       hoTen: formData.hoTen,
       sdt: formData.sdt,
+      email: currentUser ? currentUser.email : formData.email, // Use logged-in user's email or guest email
       diaChiKhachHang: fullAddress,
       tinhId: parseInt(formData.tinhId),   
       quanId: parseInt(formData.quanId),      
@@ -358,9 +367,9 @@ export default function Checkout() {
       diaChiChiTiet: formData.diaChi,
       paymentMethod: formData.paymentMethod,
       phiVanChuyen: 0, 
-      tongTien: cartTotal,  // ⭐ Tạm tính (537,000đ - chưa giảm)
+      tongTien: cartTotal,
       phieuGiamGiaId: appliedDiscount ? appliedDiscount.phieuGiamGiaId : null,
-      tienGiam: discountAmount,  // ⭐ Số tiền giảm (60,000đ)
+      tienGiam: discountAmount,
       items: cartItems.map(item => ({
         id: item.id, 
         quantity: item.quantity
@@ -493,6 +502,24 @@ export default function Checkout() {
                       />
                     </div>
                   </div>
+
+                  {/* Email input - only show for guest users */}
+                  {!currentUser && (
+                    <div className="relative">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" viewBox="0 0 256 256">
+                        <path d="M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48Zm-96,85.15L52.57,64H203.43ZM98.71,128,40,181.81V74.19Zm11.84,10.85,12,11.05a8,8,0,0,0,10.82,0l12-11.05,58,53.15H52.57ZM157.29,128,216,74.19V181.81Z"></path>
+                      </svg>
+                      <input 
+                        type="email" 
+                        placeholder="Email (để nhận thông tin đơn hàng)" 
+                        name="email"
+                        value={formData.email} 
+                        onChange={handleInputChange}
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all outline-none" 
+                        required
+                      />
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <select
@@ -658,7 +685,7 @@ export default function Checkout() {
                 <div className="mb-6">
                   {!currentUser ? (
                     <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                      <Tag size={20} className="mx-auto mb-2 text-gray-400" />
+                      <Ticket size={20} className="mx-auto mb-2 text-gray-400" />
                       <p className="text-sm text-gray-600 mb-2">
                         Đăng nhập để sử dụng mã giảm giá
                       </p>
@@ -673,57 +700,67 @@ export default function Checkout() {
                     <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
                       <p className="text-sm text-gray-600">Đang tải mã giảm giá...</p>
                     </div>
-                  ) : !appliedDiscount ? (
-                    <div className="flex gap-2">
-                      <div className="relative flex-grow">
-                        <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"/>
-                        <select
-                          value={selectedDiscountId}
-                          onChange={(e) => setSelectedDiscountId(e.target.value)}
-                          disabled={loadingDiscount || discountCodes.length === 0}
-                          className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all outline-none disabled:bg-gray-50 appearance-none bg-white"
-                        >
-                          <option value="">
-                            {discountCodes.length === 0 ? "Bạn chưa có mã giảm giá" : "Chọn mã giảm giá"}
-                          </option>
-                          {discountCodes.map((code) => (
-                            <option key={code.phieuGiamGiaId} value={code.phieuGiamGiaId}>
-                              {code.tenChuongTrinh}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <button 
-                        type="button"
-                        onClick={handleApplyDiscount}
-                        disabled={loadingDiscount || !selectedDiscountId}
-                        className="px-4 py-2.5 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                      >
-                        {loadingDiscount ? "..." : "Áp dụng"}
-                      </button>
+                  ) : voucherDetails.length === 0 ? (
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                      <Ticket size={20} className="mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm text-gray-600">
+                        Bạn chưa có mã giảm giá khả dụng
+                      </p>
                     </div>
                   ) : (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Tag size={18} weight="fill" className="text-green-600" />
-                          <div>
-                            <p className="font-semibold text-green-800 text-sm">
-                              {appliedDiscount.tenChuongTrinh}
-                            </p>
-                            <p className="text-xs text-green-600">
-                              Giảm {formatCurrency(discountAmount)}
-                            </p>
+                    <div className="space-y-3">
+                      {appliedDiscount ? (
+                        <div className="p-4 bg-gradient-to-r from-orange-50 to-orange-100/50 border-2 border-orange-300 rounded-lg">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3 flex-grow">
+                              <div className="mt-1">
+                                <Ticket size={24} weight="fill" className="text-orange-600" />
+                              </div>
+                              <div className="flex-grow">
+                                <p className="font-semibold text-gray-800 text-sm mb-1">
+                                  {appliedDiscount.tenChuongTrinh}
+                                </p>
+                                <p className="text-orange-600 font-bold text-base">
+                                  - {formatCurrency(appliedDiscount.calculatedDiscount)}
+                                </p>
+                                {appliedDiscount.detail?.giaTriDonHangToiThieu && (
+                                  <p className="text-xs text-gray-600 mt-1">
+                                    Đơn tối thiểu: {formatCurrency(appliedDiscount.detail.giaTriDonHangToiThieu)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleRemoveDiscount}
+                              className="ml-2 text-gray-400 hover:text-red-600 transition-colors"
+                            >
+                              <X size={18} weight="bold" />
+                            </button>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleRemoveDiscount}
-                          className="text-xs text-red-600 hover:text-red-700 font-medium"
-                        >
-                          Xóa
-                        </button>
-                      </div>
+                      ) : (
+                        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                          <Ticket size={20} className="mx-auto mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-600">
+                            Chưa chọn voucher nào
+                          </p>
+                        </div>
+                      )}
+                      
+                      <button
+                        type="button"
+                        onClick={() => setShowVoucherModal(true)}
+                        className="w-full py-2.5 border-2 border-dashed border-orange-300 rounded-lg text-orange-600 font-medium text-sm hover:bg-orange-50 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Ticket size={18} weight="bold" />
+                        <span>
+                          {appliedDiscount 
+                            ? `Chọn voucher khác (${voucherDetails.length})` 
+                            : `Chọn voucher (${voucherDetails.length})`
+                          }
+                        </span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -752,6 +789,11 @@ export default function Checkout() {
                         {formatCurrency(cartTotal - discountAmount)}
                       </span>
                     </div>
+                    {appliedDiscount && (
+                      <p className="text-xs text-green-600 text-right mt-1">
+                        Tiết kiệm {formatCurrency(discountAmount)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -781,6 +823,116 @@ export default function Checkout() {
           </div>
         </div>
       </form>
+
+      {/* Voucher Modal */}
+      {showVoucherModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[80vh] overflow-hidden shadow-2xl">
+            <div className="sticky top-0 bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Ticket size={24} weight="fill" />
+                <h3 className="font-bold text-lg">Chọn Voucher</h3>
+              </div>
+              <button
+                onClick={() => setShowVoucherModal(false)}
+                className="p-1 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X size={24} weight="bold" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3 overflow-y-auto max-h-[calc(80vh-80px)]">
+              {/* Option to not use any voucher */}
+              <button
+                onClick={() => {
+                  setAppliedDiscount(null);
+                  setDiscountAmount(0);
+                  setShowVoucherModal(false);
+                  toast.info("Đã bỏ chọn voucher");
+                }}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                  !appliedDiscount 
+                    ? 'border-orange-500 bg-orange-50 shadow-md' 
+                    : 'border-gray-200 hover:border-orange-300 hover:shadow-sm'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full border-2 border-gray-300 flex items-center justify-center">
+                    {!appliedDiscount && <Check size={16} weight="bold" className="text-orange-600" />}
+                  </div>
+                  <div className="flex-grow">
+                    <p className="font-semibold text-gray-800 text-sm">
+                      Không sử dụng voucher
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Thanh toán với giá gốc
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Voucher list */}
+              {voucherDetails.map((voucher) => {
+                const isSelected = appliedDiscount?.phieuGiamGiaId === voucher.phieuGiamGiaId;
+                const isBest = voucher.calculatedDiscount === Math.max(...voucherDetails.map(v => v.calculatedDiscount));
+                
+                return (
+                  <button
+                    key={voucher.phieuGiamGiaId}
+                    onClick={() => handleSelectVoucher(voucher)}
+                    className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                      isSelected 
+                        ? 'border-orange-500 bg-orange-50 shadow-md' 
+                        : 'border-gray-200 hover:border-orange-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1">
+                        <Ticket size={28} weight="fill" className={isSelected ? 'text-orange-600' : 'text-gray-400'} />
+                      </div>
+                      <div className="flex-grow">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <p className="font-semibold text-gray-800 text-sm leading-tight">
+                            {voucher.tenChuongTrinh}
+                          </p>
+                          {isSelected && (
+                            <div className="flex-shrink-0 bg-orange-500 text-white rounded-full p-1">
+                              <Check size={14} weight="bold" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-orange-600 font-bold text-lg">
+                            - {formatCurrency(voucher.calculatedDiscount)}
+                          </span>
+                          {isBest && (
+                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">
+                              TỐT NHẤT
+                            </span>
+                          )}
+                        </div>
+
+                        {voucher.detail?.giaTriDonHangToiThieu && (
+                          <p className="text-xs text-gray-600 mb-1">
+                            📦 Đơn tối thiểu: {formatCurrency(voucher.detail.giaTriDonHangToiThieu)}
+                          </p>
+                        )}
+                        
+                        {voucher.detail?.ngayKetThuc && (
+                          <p className="text-xs text-gray-500">
+                            ⏰ HSD: {new Date(voucher.detail.ngayKetThuc).toLocaleDateString('vi-VN')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

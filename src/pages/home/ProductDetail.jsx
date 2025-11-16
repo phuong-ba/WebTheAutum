@@ -58,7 +58,12 @@ export default function ProductDetail() {
         if (data.isSuccess && data.data) {
           setProductDetail(data.data);
           if (data.data.mauSacList && data.data.mauSacList.length > 0) {
-            setSelectedColorId(data.data.mauSacList[0].idMauSac);
+            const firstColor = data.data.mauSacList[0];
+            setSelectedColorId(firstColor.idMauSac);
+            // Tự động chọn size đầu tiên của màu đầu tiên
+            if (firstColor.kichThuocList && firstColor.kichThuocList.length > 0) {
+              setSelectedCtspId(firstColor.kichThuocList[0].idCtsp);
+            }
           }
         } else {
           throw new Error(data.message || "Lỗi dữ liệu từ server.");
@@ -130,14 +135,40 @@ export default function ProductDetail() {
     return null;
   }, [selectedCtspId, allSizes]);
 
+  // Tính giá hiển thị
+  const displayPrice = useMemo(() => {
+    // Nếu đã chọn size, hiển thị giá của size đó
+    if (finalSelectedVariant) {
+      return finalSelectedVariant.giaBan;
+    }
+    
+    // Nếu chỉ chọn màu, hiển thị giá của size đầu tiên của màu đó
+    if (selectedColor && selectedColor.kichThuocList && selectedColor.kichThuocList.length > 0) {
+      return selectedColor.kichThuocList[0].giaBan;
+    }
+    
+    // Fallback: giá của size đầu tiên của màu đầu tiên
+    return productDetail?.mauSacList[0]?.kichThuocList[0]?.giaBan || 0;
+  }, [finalSelectedVariant, selectedColor, productDetail]);
+
+  // Tính khoảng giá của màu đang chọn
+  const colorPriceRange = useMemo(() => {
+    if (!selectedColor || !selectedColor.kichThuocList) return null;
+    
+    const prices = selectedColor.kichThuocList.map(kt => kt.giaBan);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    
+    return { minPrice, maxPrice };
+  }, [selectedColor]);
+
   const displayImage = selectedColor?.duongDanAnh || productDetail?.mauSacList[0]?.duongDanAnh || 'https://via.placeholder.com/600x800?text=No+Image';
-  const displayPrice = finalSelectedVariant?.giaBan || productDetail?.mauSacList[0]?.kichThuocList[0]?.giaBan || 0;
   const maxQuantity = finalSelectedVariant?.soLuongTon || 0;
   const isOutOfStock = maxQuantity === 0;
 
   const handleSelectColor = (idMauSac) => {
     setSelectedColorId(idMauSac);
-    setSelectedCtspId(null);
+    setSelectedCtspId(null); // Reset size khi đổi màu
     setQuantity(1);
     setErrorMessage("");
   };
@@ -303,11 +334,38 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            {/* Price */}
+            {/* Price - Hiển thị theo màu và size */}
             <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
-              <div className="text-3xl font-bold text-orange-600">
-                {formatCurrency(displayPrice)}
-              </div>
+              {finalSelectedVariant ? (
+                // Đã chọn cả màu và size - Hiển thị giá chính xác
+                <div className="text-3xl font-bold text-orange-600">
+                  {formatCurrency(displayPrice)}
+                </div>
+              ) : selectedColor && colorPriceRange ? (
+                // Chỉ chọn màu - Hiển thị khoảng giá của màu
+                <div>
+                  {colorPriceRange.minPrice === colorPriceRange.maxPrice ? (
+                    <div className="text-3xl font-bold text-orange-600">
+                      {formatCurrency(colorPriceRange.minPrice)}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="text-3xl font-bold text-orange-600">
+                        {formatCurrency(colorPriceRange.minPrice)}
+                      </div>
+                      <span className="text-gray-400 text-xl">-</span>
+                      <div className="text-3xl font-bold text-orange-600">
+                        {formatCurrency(colorPriceRange.maxPrice)}
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-sm text-gray-500 mt-1">Chọn size để xem giá chính xác</p>
+                </div>
+              ) : (
+                <div className="text-3xl font-bold text-orange-600">
+                  {formatCurrency(displayPrice)}
+                </div>
+              )}
             </div>
 
             {/* Color Selection */}
