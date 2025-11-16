@@ -34,7 +34,7 @@ export default function HeaderUser() {
             <div>
               <PhoneIcon size={24} />
             </div>
-            <div>
+            <div onClick={() => navigate("/customer/login")} className="cursor-pointer">
               <UserIcon size={24} />
             </div>
             <div>

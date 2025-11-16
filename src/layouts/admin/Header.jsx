@@ -3,6 +3,7 @@ import {
   IconMessQuestion,
   IconPhone,
 } from "@/assets/svg/externalIcon";
+import { ArrowBendDownLeftIcon, UserGearIcon } from "@phosphor-icons/react";
 import { Dropdown, Space, Avatar } from "antd";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -13,7 +14,7 @@ export default function Header() {
     id: "",
     name: "",
     role: "",
-    email: ""
+    email: "",
   });
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export default function Header() {
       id: userId || "",
       name: userName || "NGOVINHQUYEN",
       role: userRole || "Nhân viên",
-      email: userEmail || ""
+      email: userEmail || "",
     });
   }, []);
 
@@ -58,7 +59,7 @@ export default function Header() {
 
   const handleLogout = () => {
     console.log("🚪 Logging out...");
-    
+
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user_type");
     localStorage.removeItem("user_name");
@@ -73,32 +74,34 @@ export default function Header() {
     {
       label: (
         <div className="px-5 py-4 min-w-[260px] border-b border-gray-100">
-          <div className="flex items-start gap-3">
-            <Avatar 
+          <div className="flex items-center gap-4">
+            <Avatar
               size={48}
-              style={{ 
+              style={{
                 backgroundColor: getAvatarColor(userInfo.role),
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: '18px',
-                flexShrink: 0
+                color: "white",
+                fontWeight: "bold",
+                fontSize: "18px",
+                flexShrink: 0,
               }}
             >
               {getAvatarFromName(userInfo.name)}
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 text-base truncate">
+              <div className="font-semibold text-gray-900 text-base truncate">
                 {userInfo.name}
-              </p>
-              <p className="text-sm text-gray-500 mt-0.5 truncate">
+              </div>
+              <div className="text-sm text-gray-500 mt-0.5 truncate">
                 {userInfo.email}
-              </p>
-              <span className={`inline-block mt-2 px-2.5 py-1 rounded-md text-xs font-semibold ${
-                isAdmin(userInfo.role)
-                  ? "bg-gradient-to-r from-red-50 to-red-100 text-red-600 border border-red-200" 
-                  : "bg-gradient-to-r from-blue-50 to-blue-100 text-blue-600 border border-blue-200"
-              }`}>
-                {isAdmin(userInfo.role) ? "👑 Quản trị viên" : "👤 Nhân viên"}
+              </div>
+              <span
+                className={`inline-block mt-2 px-2.5 py-1 rounded-md text-xs font-semibold ${
+                  isAdmin(userInfo.role)
+                    ? "bg-gradient-to-r from-red-50 to-red-100 text-red-600 border border-red-200"
+                    : "bg-gradient-to-r from-blue-50 to-blue-100 text-blue-600 border border-blue-200"
+                }`}
+              >
+                {isAdmin(userInfo.role) ? "Quản trị viên" : " Nhân viên"}
               </span>
             </div>
           </div>
@@ -109,7 +112,7 @@ export default function Header() {
     },
     {
       label: (
-        <div 
+        <div
           onClick={() => {
             if (!userInfo.id) {
               console.error("Không tìm thấy ID người dùng");
@@ -117,13 +120,19 @@ export default function Header() {
             }
             navigate(`/admin/update-user/${userInfo.id}`);
           }}
-          className="py-2 px-3 hover:bg-blue-50 rounded-md transition-colors cursor-pointer mx-2 my-1"
+          className="py-2 px-3  rounded-md transition-colors cursor-pointer mx-2 my-1"
         >
           <div className="flex items-center gap-3">
-            <span className="text-lg">👤</span>
+            <span className="text-lg">
+              <UserGearIcon size={24} color="#701010" />
+            </span>
             <div>
-              <p className="font-medium text-gray-800 text-sm">Hồ sơ của tôi</p>
-              <p className="text-xs text-gray-500">Xem và chỉnh sửa thông tin</p>
+              <div className="font-medium text-gray-800 text-sm">
+                Hồ sơ của tôi
+              </div>
+              <div className="text-xs text-gray-500">
+                Xem và chỉnh sửa thông tin
+              </div>
             </div>
           </div>
         </div>
@@ -132,22 +141,26 @@ export default function Header() {
     },
     {
       type: "divider",
-      style: { margin: '8px 0' }
+      style: { margin: "8px 0" },
     },
     {
       label: (
-        <div 
+        <div
           onClick={(e) => {
             e.preventDefault();
             handleLogout();
           }}
-          className="py-2 px-3 hover:bg-red-50 rounded-md transition-colors cursor-pointer mx-2 my-1"
+          className="py-2 px-3  rounded-md transition-colors cursor-pointer mx-2 my-1"
         >
           <div className="flex items-center gap-3">
-            <span className="text-lg">🚪</span>
+            <span className="text-lg">
+              <ArrowBendDownLeftIcon size={24} />
+            </span>
             <div>
-              <p className="font-semibold text-red-600 text-sm">Đăng xuất</p>
-              <p className="text-xs text-red-400">Thoát khỏi hệ thống</p>
+              <div className="font-semibold text-red-600 text-sm">
+                Đăng xuất
+              </div>
+              <div className="text-xs text-red-400">Thoát khỏi hệ thống</div>
             </div>
           </div>
         </div>
@@ -192,25 +205,25 @@ export default function Header() {
         >
           <div className="cursor-pointer hover:bg-gray-50 px-4 py-2 rounded-xl transition-all duration-200 border border-transparent hover:border-gray-200 hover:shadow-sm">
             <Space size={12}>
-              <Avatar 
+              <Avatar
                 size={42}
-                style={{ 
+                style={{
                   backgroundColor: getAvatarColor(userInfo.role),
-                  color: 'white',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                  color: "white",
+                  fontWeight: "bold",
+                  fontSize: "16px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
                 }}
               >
                 {getAvatarFromName(userInfo.name)}
               </Avatar>
-              <div className="flex flex-col items-start">
-                <p className="font-semibold text-sm text-gray-900 leading-tight">
+              <div className="flex flex-col gap-1">
+                <div className="font-semibold text-sm text-gray-900 leading-tight">
                   {userInfo.name}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                </div>
+                <div className="text-xs text-gray-500 ">
                   {isAdmin(userInfo.role) ? "Quản trị viên" : "Nhân viên"}
-                </p>
+                </div>
               </div>
               <div className="ml-1">
                 <DropdownIcon />

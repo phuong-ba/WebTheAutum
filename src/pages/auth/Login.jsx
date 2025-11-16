@@ -36,34 +36,37 @@ export default function Login() {
         localStorage.setItem("user_email", data.email || "");
         localStorage.setItem("user_role", data.chucVuName);
         localStorage.setItem("user_id", data.id);
-
+        localStorage.setItem("user_img", data.hinhAnh || "");
         console.log("🎯 User Role:", data.chucVuName);
         console.log("🎯 Redirect logic checking...");
 
-        localStorage.setItem('login_success_data', JSON.stringify({
-          name: data.hoTen || 'Người dùng',
-          role: data.chucVuName || 'Nhân viên',
-          timestamp: Date.now()
-        }));
+        localStorage.setItem(
+          "login_success_data",
+          JSON.stringify({
+            name: data.hoTen || "Người dùng",
+            role: data.chucVuName || "Nhân viên",
+            timestamp: Date.now(),
+          })
+        );
 
         const role = (data.chucVuName || "").trim().toLowerCase();
         console.log(" Final role for redirect:", role);
-        
+
         if (role === "quản lý" || role === "admin") {
           console.log(" Redirect QUẢN LÝ/ADMIN to /admin");
           navigate("/admin");
         } else {
           console.log(" Redirect NHÂN VIÊN to /admin");
-          navigate("/admin"); 
+          navigate("/admin");
         }
       } else {
         messageApi.error({
           content: (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ fontWeight: 'bold' }}>
-                 Đăng nhập thất bại
-              </div>
-              <div style={{ fontSize: '13px' }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "4px" }}
+            >
+              <div style={{ fontWeight: "bold" }}>Đăng nhập thất bại</div>
+              <div style={{ fontSize: "13px" }}>
                 {data.message || "Sai email hoặc mật khẩu"}
               </div>
             </div>
@@ -73,14 +76,12 @@ export default function Login() {
       }
     } catch (error) {
       console.error("❌ Login error:", error);
-      
+
       messageApi.error({
         content: (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <div style={{ fontWeight: 'bold' }}>
-              ⚠️ Lỗi kết nối
-            </div>
-            <div style={{ fontSize: '13px' }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ fontWeight: "bold" }}>⚠️ Lỗi kết nối</div>
+            <div style={{ fontSize: "13px" }}>
               Không thể kết nối đến máy chủ. Vui lòng thử lại!
             </div>
           </div>
