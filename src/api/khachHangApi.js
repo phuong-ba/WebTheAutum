@@ -18,6 +18,7 @@ export const khachHangApi = {
     const res = await axios.get(`${API_URL}/detail/${id}`, authHeader());
     return res.data;
   },
+  
   create: async (data) => {
     const res = await axios.post(`${API_URL}/add`, data, authHeader());
     return res.data;
