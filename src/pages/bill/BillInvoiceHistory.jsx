@@ -24,6 +24,8 @@ export default function BillInvoiceHistory() {
     }
   }, [location.state?.refreshData]);
 
+
+
   const fetchPaymentHistory = async () => {
     if (!id) return;
 
@@ -37,6 +39,18 @@ export default function BillInvoiceHistory() {
       const invoiceData = response.data;
       const history = [];
 
+
+      const getStatusLabel = (trangThai) => {
+        const statusMap = {
+          0: "Chờ xác nhận",
+          1: "Chờ giao hàng",
+          2: "Đang giao hàng",
+          3: "Đã hoàn thành",
+          4: "Đã hủy"
+        };
+        return statusMap[trangThai] || "Không xác định";
+      };
+
       if (invoiceData.ngayThanhToan && invoiceData.soTien) {
         history.push({
           id: invoiceData.id,
@@ -48,7 +62,7 @@ export default function BillInvoiceHistory() {
           paymentMethod: invoiceData.hinhThucThanhToan,
           note: invoiceData.ghiChuThanhToan || invoiceData.ghiChu,
           maGiaoDich: invoiceData.maGiaoDich,
-          status: invoiceData.trangThai ? "Đã thanh toán" : "Chưa thanh toán",
+          status: getStatusLabel(invoiceData.trangThai),
         });
       }
 
@@ -63,6 +77,8 @@ export default function BillInvoiceHistory() {
     }
   };
 
+
+  
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",

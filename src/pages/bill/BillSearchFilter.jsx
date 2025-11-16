@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Input, Select, DatePicker, Button, Checkbox } from 'antd';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 
 const { Option } = Select;
 
@@ -140,7 +141,7 @@ useEffect(() => {
             <label className="font-medium text-gray-600">Ngày tạo</label>
             <DatePicker
               placeholder="Chọn ngày tạo"
-              value={filterParams.ngayTao}
+              value={filterParams.ngayTao || dayjs()}
               onChange={(date) =>
                 setFilterParams({ ...filterParams, ngayTao: date })
               }

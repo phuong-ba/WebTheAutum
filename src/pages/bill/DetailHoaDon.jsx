@@ -58,6 +58,7 @@ const DetailHoaDon = () => {
   const [phuongThucList, setPhuongThucList] = useState([]);
   const [tempStatus, setTempStatus] = useState(0);
   const [tempLoaiHoaDon, setTempLoaiHoaDon] = useState(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   const handleTempStatusChange = (newStatus) => {
     setTempStatus(newStatus);
@@ -125,29 +126,35 @@ const DetailHoaDon = () => {
   };
 
   const handleSave = async () => {
-    try {
-      const values = await editForm.validateFields();
+  try {
+    const values = await editForm.validateFields();
 
-      await hoaDonApi.updateHoaDon(id, {
-        ...values,
-        trangThai: tempStatus,
-        loaiHoaDon: tempLoaiHoaDon,
-      });
+    await hoaDonApi.updateHoaDon(id, {
+      ...values,
+      trangThai: tempStatus,
+      loaiHoaDon: tempLoaiHoaDon,
+    });
 
-      message.success("✅ Cập nhật thành công!");
-      setIsEditing(false);
-      setFormErrors({});
-      fetchInvoiceDetail();
-    } catch (err) {
-      if (err.errorFields) {
-        message.error("❌ Vui lòng kiểm tra lại thông tin!");
-      } else {
-        message.error(
-          "❌ Lưu thất bại! " + (err.response?.data?.message || "")
-        );
-      }
+    message.success("✅ Cập nhật thành công!");
+    setIsEditing(false);
+    setFormErrors({});
+    
+    // ✅ Fetch lại invoice detail trước
+    await fetchInvoiceDetail();
+    
+    // ✅ THÊM DÒNG NÀY - Refresh payment history
+    setHistoryRefreshKey(prev => prev + 1);
+    
+  } catch (err) {
+    if (err.errorFields) {
+      message.error("❌ Vui lòng kiểm tra lại thông tin!");
+    } else {
+      message.error(
+        "❌ Lưu thất bại! " + (err.response?.data?.message || "")
+      );
     }
-  };
+  }
+};
 
   const handleCancelEdit = () => {
     setIsEditing(false);
@@ -946,7 +953,7 @@ const DetailHoaDon = () => {
                   />
                 )}
               </Card>
-              <BillInvoiceHistory />
+              <BillInvoiceHistory key={historyRefreshKey} />
             </Col>
           </Row>
         </Form>
