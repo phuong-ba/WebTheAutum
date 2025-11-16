@@ -18,6 +18,7 @@ import {
   Form,
   Select,
   message,
+  InputNumber,
 } from "antd";
 import {
   EditOutlined,
@@ -36,6 +37,8 @@ import { fetchPhuongThuc } from "@/services/phuongThucThanhToanService";
 import BillOrderInformation from "./BillOrderInformation";
 import BillInvoiceStatus from "./BillInvoiceStatus";
 import BillInvoiceHistory from "./BillInvoiceHistory";
+import { FloppyDiskIcon, XCircleIcon, XIcon } from "@phosphor-icons/react";
+import BillProduct from "./BillProduct";
 
 const { Title, Text } = Typography;
 
@@ -58,7 +61,13 @@ const DetailHoaDon = () => {
   const [phuongThucList, setPhuongThucList] = useState([]);
   const [tempStatus, setTempStatus] = useState(0);
   const [tempLoaiHoaDon, setTempLoaiHoaDon] = useState(false);
-
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [customerAddresses, setCustomerAddresses] = useState([]);
+  const [showBillProduct, setShowBillProduct] = useState(false);
+  const [editingQuantities, setEditingQuantities] = useState({});
+  const [tinhList, setTinhList] = useState([]);
+  const [localQuanList, setLocalQuanList] = useState([]);
+  const [addressForm] = Form.useForm();
   const handleTempStatusChange = (newStatus) => {
     setTempStatus(newStatus);
   };
@@ -66,7 +75,25 @@ const DetailHoaDon = () => {
   const handleLoaiHoaDonChange = (newLoaiHoaDon) => {
     setTempLoaiHoaDon(newLoaiHoaDon);
   };
+  const handleTinhChange = async (idTinh) => {
+    addressForm.setFieldsValue({ quan: null });
 
+    if (quanMap[idTinh]) {
+      setLocalQuanList(quanMap[idTinh]);
+      return quanMap[idTinh];
+    }
+
+    try {
+      const res = await diaChiApi.getQuanByTinh(idTinh);
+      setQuanMap((prev) => ({ ...prev, [idTinh]: res }));
+      setLocalQuanList(res);
+      return res;
+    } catch (err) {
+      console.error("Lỗi load quận/huyện:", err);
+      messageApi.error("Không thể tải danh sách quận/huyện");
+      throw err;
+    }
+  };
   const handleEditToggle = () => {
     setIsEditing(true);
     setTempStatus(invoice?.trangThai || 0);
@@ -148,7 +175,106 @@ const DetailHoaDon = () => {
       }
     }
   };
+  const openAddressModal = async () => {
+    if (!invoice?.khachHangId) {
+      messageApi.warning("Không có thông tin khách hàng!");
+      return;
+    }
 
+    try {
+      // Giả sử bạn có API lấy danh sách địa chỉ khách hàng
+      // Nếu không có → dùng dữ liệu từ invoice hoặc gọi API
+      const addresses = invoice.allAddresses || [];
+
+      if (addresses.length === 0) {
+        messageApi.info("Khách hàng chưa có địa chỉ nào.");
+        return;
+      }
+
+      const tinhIds = [
+        ...new Set(
+          addresses
+            .map((addr) => addr.tinhThanhId || addr.id_tinh || addr.idTinh)
+            .filter(Boolean)
+        ),
+      ];
+
+      const newQuanMap = { ...quanMap };
+      await Promise.all(
+        tinhIds.map(async (idTinh) => {
+          if (!newQuanMap[idTinh]) {
+            try {
+              const res = await diaChiApi.getQuanByTinh(idTinh);
+              newQuanMap[idTinh] = res;
+            } catch (err) {
+              console.error(`Lỗi load quận cho tỉnh ${idTinh}:`, err);
+              newQuanMap[idTinh] = [];
+            }
+          }
+        })
+      );
+
+      setQuanMap(newQuanMap);
+
+      const normalized = addresses.map((addr) => {
+        const idTinh = addr.tinhThanhId || addr.id_tinh || addr.idTinh;
+        const idQuan = addr.quanHuyenId || addr.id_quan || addr.idQuan;
+
+        const tinh = tinhList.find((t) => t.id === idTinh);
+        const quanList = newQuanMap[idTinh] || [];
+        const quan = quanList.find((q) => q.id === idQuan);
+
+        return {
+          ...addr,
+          tinhTen: addr.tenTinh || tinh?.tenTinh || "Không xác định",
+          quanTen: addr.tenQuan || quan?.tenQuan || "Không xác định",
+          diaChiCuThe: addr.dia_chi_cu_the || addr.diaChiCuThe || "",
+        };
+      });
+
+      setCustomerAddresses(normalized);
+      setAddressModalVisible(true);
+    } catch (err) {
+      console.error("Lỗi tải địa chỉ:", err);
+      messageApi.error("Không thể tải danh sách địa chỉ");
+    }
+  };
+  const handleSelectAddress = async (record) => {
+    const idTinh =
+      record.tinhThanhId || record.id_tinh || record.idTinh || record.thanhPho;
+    const idQuan =
+      record.quanHuyenId || record.id_quan || record.idQuan || record.quan;
+    const diaChiCuThe = record.dia_chi_cu_the || record.diaChiCuThe || "";
+
+    try {
+      if (idTinh && !quanMap[idTinh]) {
+        const res = await diaChiApi.getQuanByTinh(idTinh);
+        setQuanMap((prev) => ({ ...prev, [idTinh]: res }));
+      }
+
+      const fullAddress = `${diaChiCuThe}, ${record.quanTen}, ${record.tinhTen}`;
+
+      // Cập nhật form nếu đang edit
+      if (isEditing) {
+        editForm.setFieldsValue({
+          diaChiKhachHang: fullAddress,
+        });
+      }
+
+      // Cập nhật invoice để hiển thị
+      setInvoice((prev) => ({
+        ...prev,
+        diaChiKhachHang: fullAddress,
+      }));
+
+      messageApi.success("Đã chọn địa chỉ thành công!");
+    } catch (err) {
+      console.error("Lỗi khi chọn địa chỉ:", err);
+      messageApi.error("Không thể cập nhật địa chỉ");
+    } finally {
+      setAddressModalVisible(false);
+    }
+  };
   const handleCancelEdit = () => {
     setIsEditing(false);
     setFormErrors({});
@@ -538,6 +664,46 @@ const DetailHoaDon = () => {
       title: "Số lượng",
       dataIndex: "soLuong",
       key: "soLuong",
+      render: (value, record) => {
+        // Dùng state để lưu tạm số lượng khi chỉnh sửa
+        const currentQuantity = editingQuantities[record.id] ?? value;
+
+        return isEditing ? (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleDecreaseQuantity(record.id)}
+              className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              disabled={currentQuantity <= 1}
+            >
+              -
+            </button>
+
+            <InputNumber
+              min={1}
+              max={1000}
+              value={currentQuantity}
+              onChange={(val) => handleQuantityChange(record.id, val)}
+              onBlur={() => handleApplyQuantity(record.id)}
+              onPressEnter={(e) => handleQuantityKeyPress(e, record.id)}
+              style={{
+                width: 40,
+                textAlign: "center",
+              }}
+              className="no-spinner"
+              size="small"
+            />
+
+            <button
+              onClick={() => handleIncreaseQuantity(record.id)}
+              className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
+            >
+              +
+            </button>
+          </div>
+        ) : (
+          <span>{value}</span>
+        );
+      },
     },
     {
       title: "Thành tiền",
@@ -623,10 +789,18 @@ const DetailHoaDon = () => {
             <Space>
               {isEditing ? (
                 <Space>
-                  <Button type="primary" onClick={handleSave}>
-                    💾 Lưu
-                  </Button>
-                  <Button onClick={handleCancelEdit}>❌ Hủy</Button>
+                  <div
+                    className="flex gap-1 items-center cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-sm text-white hover:bg-cyan-800 active:bg-cyan-800 shadow transition-colors"
+                    onClick={handleSave}
+                  >
+                    <FloppyDiskIcon size={20} weight="fill" /> Lưu
+                  </div>
+                  <div
+                    className="flex gap-1 items-center cursor-pointer select-none  text-center py-2 px-6 rounded-lg bg-[#777676] font-bold text-sm text-white   hover:bg-red-600 active:bg-rose-900 border  active:border-[#808080] shadow transition-colors"
+                    onClick={handleCancelEdit}
+                  >
+                    <XCircleIcon size={20} weight="fill" /> Hủy
+                  </div>
                 </Space>
               ) : canEdit ? (
                 <div
@@ -679,9 +853,19 @@ const DetailHoaDon = () => {
                 <Col xs={24} md={12}>
                   <Card
                     title={
-                      <>
-                        <UserOutlined /> Thông tin khách hàng
-                      </>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <UserOutlined /> Thông tin khách hàng
+                        </div>
+                        {isEditing && (
+                          <div
+                            className="cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-sm text-white hover:bg-amber-600 active:bg-cyan-800 shadow transition-colors"
+                            onClick={openAddressModal}
+                          >
+                            Chọn địa chỉ
+                          </div>
+                        )}
+                      </div>
                     }
                     style={{ height: "100%" }}
                   >
@@ -741,25 +925,69 @@ const DetailHoaDon = () => {
                         )}
                       </div>
 
-                      <div>
-                        <Text type="secondary">Địa chỉ:</Text>
-                        {isEditing ? (
+                      <Row gutter={16} wrap>
+                        <Col flex="1">
                           <Form.Item
-                            name="diaChiKhachHang"
-                            rules={validationRules.diaChiKhachHang}
-                            style={{ marginBottom: 0, marginTop: 4 }}
+                            name="thanhPho"
+                            label="Tỉnh/Thành phố"
+                            rules={[
+                              { required: true, message: "Chọn tỉnh/thành!" },
+                            ]}
                           >
-                            <Input.TextArea
-                              rows={2}
-                              placeholder="Nhập địa chỉ..."
-                            />
+                            <Select
+                              placeholder="Chọn tỉnh/thành"
+                              onChange={handleTinhChange}
+                              showSearch
+                              optionFilterProp="children"
+                              filterOption={(input, option) =>
+                                option.children
+                                  .toLowerCase()
+                                  .includes(input.toLowerCase())
+                              }
+                            >
+                              {tinhList.map((t) => (
+                                <Select.Option key={t.id} value={t.id}>
+                                  {t.tenTinh}
+                                </Select.Option>
+                              ))}
+                            </Select>
                           </Form.Item>
-                        ) : (
-                          <div>
-                            <Text strong>{invoice.diaChiKhachHang}</Text>
-                          </div>
-                        )}
-                      </div>
+                        </Col>
+                        <Col flex="1">
+                          <Form.Item
+                            name="quan"
+                            label="Quận/Huyện"
+                            rules={[
+                              { required: true, message: "Chọn quận/huyện!" },
+                            ]}
+                          >
+                            <Select
+                              placeholder="Chọn quận/huyện"
+                              disabled={!localQuanList.length}
+                              showSearch
+                              optionFilterProp="children"
+                              filterOption={(input, option) =>
+                                option.children
+                                  .toLowerCase()
+                                  .includes(input.toLowerCase())
+                              }
+                            >
+                              {localQuanList.map((q) => (
+                                <Select.Option key={q.id} value={q.id}>
+                                  {q.tenQuan}
+                                </Select.Option>
+                              ))}
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Form.Item
+                        name="diaChiCuThe"
+                        label="Số nhà, đường"
+                        rules={[{ required: true, message: "Nhập địa chỉ" }]}
+                      >
+                        <Input placeholder="Nhập địa chỉ cụ thể" />
+                      </Form.Item>
                     </Space>
                   </Card>
                 </Col>
@@ -772,7 +1000,19 @@ const DetailHoaDon = () => {
               <Card
                 title={
                   <>
-                    <ShoppingOutlined /> Danh sách sản phẩm
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <ShoppingOutlined /> Danh sách sản phẩm chọn
+                      </div>
+                      {isEditing && (
+                        <div
+                          onClick={() => setShowBillProduct((prev) => !prev)}
+                          className="cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-xs  text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+                        >
+                          Thêm sản phẩm
+                        </div>
+                      )}
+                    </div>
                   </>
                 }
                 style={{ marginBottom: 16 }}
@@ -789,6 +1029,12 @@ const DetailHoaDon = () => {
                   <Empty description="Không có sản phẩm" />
                 )}
               </Card>
+
+              {showBillProduct && (
+                <div style={{ marginBottom: 16 }}>
+                  <BillProduct />
+                </div>
+              )}
 
               <Card title="Ghi chú của khách" style={{ marginBottom: 16 }}>
                 <div>
@@ -1001,6 +1247,64 @@ const DetailHoaDon = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {addressModalVisible && (
+        <Modal
+          title={
+            <span className="text-xl font-bold">Chọn địa chỉ giao hàng</span>
+          }
+          open={addressModalVisible}
+          onCancel={() => setAddressModalVisible(false)}
+          footer={null}
+          width={800}
+        >
+          <Table
+            dataSource={customerAddresses}
+            rowKey={(record) =>
+              record.id ||
+              `${record.tinhThanhId}-${record.quanHuyenId}-${record.diaChiCuThe}`
+            }
+            pagination={false}
+            onRow={(record) => ({
+              onClick: () => handleSelectAddress(record),
+              className: "cursor-pointer hover:bg-blue-50",
+            })}
+            columns={[
+              {
+                title: <strong>Tên địa chỉ</strong>,
+                dataIndex: "tenDiaChi",
+                key: "tenDiaChi",
+                render: (text) => (
+                  <span className="font-medium">{text || "—"}</span>
+                ),
+              },
+              {
+                title: <strong>Tỉnh/Thành phố</strong>,
+                dataIndex: "tinhTen",
+                key: "tinhTen",
+                width: "30%",
+              },
+              {
+                title: <strong>Quận/Huyện</strong>,
+                dataIndex: "quanTen",
+                key: "quanTen",
+                width: "30%",
+              },
+              {
+                title: <strong>Số nhà, đường</strong>,
+                dataIndex: "diaChiCuThe",
+                key: "diaChiCuThe",
+                render: (text) => text || "—",
+              },
+            ]}
+          />
+          {customerAddresses.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              Khách hàng chưa có địa chỉ nào được lưu.
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Space, Table, Tag, message, Modal, Button } from "antd";
+import { Space, Table, Tag, message, Modal, Button, Tooltip } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchNhanVien,
@@ -217,7 +217,25 @@ export default function User() {
       align: "center",
     },
     { title: "SỐ ĐIỆN THOẠI", dataIndex: "sdt", key: "sdt" },
-    { title: "ĐỊA CHỈ", dataIndex: "diaChi", key: "diaChi" },
+    {
+      title: "ĐỊA CHỈ",
+      dataIndex: "diaChi",
+      key: "diaChi",
+      render: (text) => (
+        <Tooltip title={text}>
+          <div
+            style={{
+              maxWidth: 200, // giới hạn chiều rộng hiển thị
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {text}
+          </div>
+        </Tooltip>
+      ),
+    },
 
     { title: "EMAIL", dataIndex: "email", key: "email" },
     {

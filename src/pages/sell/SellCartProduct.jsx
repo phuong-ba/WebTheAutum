@@ -548,7 +548,6 @@ export default function SellCartProduct({ selectedBillId }) {
                             -
                           </button>
 
-                          {/* 🆕 INPUT NHẬP SỐ LƯỢNG TRỰC TIẾP */}
                           <InputNumber
                             min={1}
                             max={1000}
@@ -563,11 +562,12 @@ export default function SellCartProduct({ selectedBillId }) {
                             }
                             onBlur={() => handleApplyQuantity(product.id)}
                             style={{
-                              width: 70,
+                              width: 40,
                               textAlign: "center",
                               border: "1px solid #d9d9d9",
                               borderRadius: "6px",
                             }}
+                            className="no-spinner"
                             size="small"
                           />
 
