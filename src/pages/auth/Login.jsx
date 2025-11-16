@@ -34,16 +34,24 @@ export default function Login() {
         localStorage.setItem("user_name", data.hoTen || "");
         localStorage.setItem("user_email", data.email || "");
         localStorage.setItem("user_role", data.chucVuName);
-
         localStorage.setItem("user_id", data.id);
+
+        console.log("🎯 User Role:", data.chucVuName);
+        console.log("🎯 Redirect logic checking...");
 
         message.success("Đăng nhập thành công!");
 
         setTimeout(() => {
-          if ((data.chucVuName || "").trim().toLowerCase() === "quản lý") {
+          // 🔥 SỬA LOGIC REDIRECT Ở ĐÂY
+          const role = (data.chucVuName || "").trim().toLowerCase();
+          console.log("🎯 Final role for redirect:", role);
+          
+          if (role === "quản lý" || role === "admin") {
+            console.log("➡️ Redirect QUẢN LÝ/ADMIN to /admin");
             navigate("/admin");
           } else {
-            navigate("/");
+            console.log("➡️ Redirect NHÂN VIÊN to /admin");
+            navigate("/admin"); // ❗ NHÂN VIÊN CŨNG VÀO /admin
           }
         }, 300);
       } else {

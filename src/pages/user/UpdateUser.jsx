@@ -159,7 +159,7 @@ export default function UpdateUser() {
       };
 
       await dispatch(updateNhanVien({ id: userData.id, nhanvien: payload }));
-      setTimeout(() => navigate("admin/user"), 800);
+      setTimeout(() => navigate("/admin/user"), 800);
       messageApi.success("Cập nhật nhân viên thành công!");
     } catch (error) {
       messageApi.error("Cập nhật thất bại! Vui lòng thử lại.");
