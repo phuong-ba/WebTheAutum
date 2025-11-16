@@ -100,8 +100,8 @@ export default function UpdateUser() {
           shortAddress = shortAddress
             .replace(wardName, "")
             .replace(cityName, "")
-            .split(",") // tách ra theo dấu phẩy
-            .map((part) => part.trim()) // loại bỏ khoảng trắng thừa
+            .split(",")
+            .map((part) => part.trim())
             .filter(Boolean)
             .join(", ");
         }
@@ -159,7 +159,7 @@ export default function UpdateUser() {
       };
 
       await dispatch(updateNhanVien({ id: userData.id, nhanvien: payload }));
-      setTimeout(() => navigate("admin/user"), 800);
+      setTimeout(() => navigate("/admin/user"), 800);
       messageApi.success("Cập nhật nhân viên thành công!");
     } catch (error) {
       messageApi.error("Cập nhật thất bại! Vui lòng thử lại.");
@@ -346,9 +346,7 @@ export default function UpdateUser() {
           <div className="text-2xl font-bold mb-2 text-[#E67E22]">
             Xác nhận cập nhật nhân viên
           </div>
-          <ExclamationCircleFilled
-              style={{ fontSize: 64, color: "#faad14" }}
-            />
+          <ExclamationCircleFilled style={{ fontSize: 64, color: "#faad14" }} />
           <div className="text-gray-600 mb-4 text-center">
             Bạn có chắc chắn muốn{" "}
             <strong className="text-[#E67E22]">cập nhật</strong> thông tin nhân

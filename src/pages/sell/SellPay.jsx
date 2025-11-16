@@ -51,7 +51,8 @@ export default function SellPay({
   const [cashAmount, setCashAmount] = useState(0);
   const [transferAmount, setTransferAmount] = useState(0);
   const discountAmount = appliedDiscount?.discountAmount || 0;
-
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [pendingConfirmData, setPendingConfirmData] = useState(null);
   const actualDiscountAmount = Math.min(discountAmount, cartTotal);
   const finalAmount = Math.max(cartTotal - actualDiscountAmount, 0);
   const shippingFee = 0;
@@ -579,119 +580,30 @@ export default function SellPay({
       }
     }
 
-    let displayCustomerName = "Khách lẻ";
-    let displayCustomerPhone = "";
+    const displayCustomerName = selectedCustomer?.hoTen || "Khách lẻ";
+    const displayCustomerPhone = selectedCustomer?.sdt || "";
 
-    if (selectedCustomer) {
-      displayCustomerName = selectedCustomer.hoTen;
-      displayCustomerPhone = selectedCustomer.sdt;
+    // Chuẩn bị dữ liệu hóa đơn
+    const hoaDonMoi = prepareHoaDonData();
+    if (!hoaDonMoi || !hoaDonMoi.chiTietList?.length) {
+      messageApi.error("❌ Không có sản phẩm trong giỏ hàng!");
+      return;
     }
 
-    const confirmMessage = `XÁC NHẬN THANH TOÁN\n
-        Khách hàng: ${displayCustomerName}
-        ${displayCustomerPhone ? `Số điện thoại: ${displayCustomerPhone}` : ""}
-        ${isDelivery ? `📍 Giao hàng: Địa chỉ giao hàng` : "🏪 Mua tại quầy"}
-        Tổng tiền hàng: ${cartTotal.toLocaleString()} VND
-        Giảm giá: ${discountAmount.toLocaleString()} VND
-        ${
-          isDelivery
-            ? `Phí vận chuyển: ${shippingFee.toLocaleString()} VND`
-            : ""
-        }
-        Thành tiền: ${totalWithShipping.toLocaleString()} VND
-        Mã giảm giá: ${appliedDiscount?.code || "Không áp dụng"}
-        Phương thức: ${paymentMethod}
+    setPendingConfirmData({
+      customerName: displayCustomerName,
+      customerPhone: displayCustomerPhone,
+      isDelivery,
+      cartTotal,
+      discountAmount,
+      shippingFee,
+      totalWithShipping,
+      appliedDiscountCode: appliedDiscount?.code,
+      paymentMethod,
+      hoaDonMoi,
+    });
 
-        Bạn có chắc chắn muốn thanh toán?`;
-
-    if (!window.confirm(confirmMessage)) return;
-
-    setLoading(true);
-
-    try {
-      // Chuẩn bị dữ liệu hóa đơn
-      const hoaDonMoi = prepareHoaDonData();
-
-      // Kiểm tra nếu không có sản phẩm
-      if (
-        !hoaDonMoi ||
-        !hoaDonMoi.chiTietList ||
-        hoaDonMoi.chiTietList.length === 0
-      ) {
-        messageApi.error(
-          "❌ Không có sản phẩm trong giỏ hàng! Vui lòng thêm sản phẩm trước khi thanh toán."
-        );
-        setLoading(false);
-        return;
-      }
-
-      const currentUserId = getCurrentUserId();
-      console.log("👤 ID nhân viên từ login:", currentUserId);
-
-      if (!currentUserId) {
-        messageApi.error(
-          "❌ Không tìm thấy thông tin nhân viên. Vui lòng đăng nhập lại!"
-        );
-        setLoading(false);
-        return;
-      }
-
-      if (paymentMethod === "Chuyển khoản") {
-        // Chỉ chuẩn bị dữ liệu, KHÔNG gọi API tạo hóa đơn
-        console.log("📦 Đã chuẩn bị dữ liệu hóa đơn (chưa lưu):", hoaDonMoi);
-
-        // Hiển thị modal chọn phương thức chuyển khoản
-        showTransferMethodModal(hoaDonMoi);
-      } else if (paymentMethod === "Cả hai") {
-        // Chỉ chuẩn bị dữ liệu, KHÔNG gọi API tạo hóa đơn
-        console.log("📦 Đã chuẩn bị dữ liệu hóa đơn (chưa lưu):", hoaDonMoi);
-
-        // Hiển thị modal thanh toán kết hợp
-        showBothPaymentModal(hoaDonMoi);
-      } else {
-        // Thanh toán tiền mặt - tạo hóa đơn ngay lập tức
-        const res = await hoaDonApi.create(hoaDonMoi);
-
-        if (res.data?.isSuccess) {
-          const successMessage = isDelivery
-            ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
-            : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất.";
-
-          messageApi.success(successMessage);
-
-          if (selectedBillId) {
-            const bills =
-              JSON.parse(localStorage.getItem("pendingBills")) || [];
-            const updatedBills = bills.filter(
-              (bill) => bill.id !== selectedBillId
-            );
-            localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-            window.dispatchEvent(new Event("billsUpdated"));
-          }
-
-          if (onRemoveDiscount) onRemoveDiscount();
-          if (onClearCart) onClearCart();
-
-          const newBillId = res.data.data?.id || res.data.data;
-          if (newBillId) {
-            navigate(`/admin/detail-bill/${newBillId}`);
-          } else {
-            console.warn("Không tìm thấy ID hóa đơn mới trả về từ API");
-          }
-        } else {
-          messageApi.error(
-            "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
-          );
-        }
-      }
-    } catch (error) {
-      console.error("❌ Lỗi khi gọi API:", error);
-      messageApi.error(
-        `${isDelivery ? "Đặt hàng" : "Thanh toán"} thất bại! Vui lòng thử lại.`
-      );
-    } finally {
-      setLoading(false);
-    }
+    setConfirmModalVisible(true);
   };
 
   const paymentOptions = ["Chuyển khoản", "Tiền mặt", "Cả hai"];
@@ -1005,6 +917,142 @@ export default function SellPay({
               >
                 Đã chuyển khoản
               </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+      <Modal
+        title="Xác nhận thanh toán"
+        open={confirmModalVisible}
+        onCancel={() => setConfirmModalVisible(false)}
+        footer={null}
+      >
+        {pendingConfirmData && (
+          <div className="space-y-4">
+            <div className="border rounded-lg p-4 bg-gray-50 space-y-2">
+              <div className="flex justify-between">
+                <span className="font-medium">Khách hàng:</span>
+                <span className="font-bold">
+                  {pendingConfirmData.customerName}
+                </span>
+              </div>
+              {pendingConfirmData.customerPhone && (
+                <div className="flex justify-between">
+                  <span className="font-medium">Số điện thoại:</span>
+                  <span>{pendingConfirmData.customerPhone}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="font-medium">Hình thức mua:</span>
+                <span className="font-bold">
+                  {pendingConfirmData.isDelivery ? "Giao hàng" : "Mua tại quầy"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Tổng tiền hàng:</span>
+                <span className="font-bold">
+                  {pendingConfirmData.cartTotal.toLocaleString()} VND
+                </span>
+              </div>
+              <div className="flex justify-between text-red-600">
+                <span className="font-medium">Giảm giá:</span>
+                <span className="font-semibold">
+                  {pendingConfirmData.discountAmount.toLocaleString()} VND
+                </span>
+              </div>
+              {pendingConfirmData.isDelivery && (
+                <div className="flex justify-between">
+                  <span className="font-medium">Phí vận chuyển:</span>
+                  <span className="font-semibold">
+                    {pendingConfirmData.shippingFee.toLocaleString()} VND
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-amber-600">
+                <span>Thành tiền:</span>
+                <span>
+                  {pendingConfirmData.totalWithShipping.toLocaleString()} VND
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Mã giảm giá:</span>
+                <span>
+                  {pendingConfirmData.appliedDiscountCode || "Không áp dụng"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Phương thức thanh toán:</span>
+                <span>{pendingConfirmData.paymentMethod}</span>
+              </div>
+            </div>
+            <div className="text-center text-red-600 font-semibold">
+              Bạn có chắc chắn muốn thanh toán?
+            </div>
+            <div className="flex justify-center gap-6  w-full">
+              <div
+                className="w-40 cursor-pointer select-none  text-center py-2 rounded-xl bg-[#b8b8b8] font-bold text-white   hover:bg-red-600 active:bg-rose-900 border  active:border-[#808080] shadow "
+                onClick={() => setConfirmModalVisible(false)}
+              >
+                Hủy
+              </div>
+              <div
+                className="w-40 cursor-pointer select-none  text-center py-2 rounded-xl bg-[#E67E22] font-bold text-white   hover:bg-cyan-800 active:bg-cyan-800 border  active:border-[#808080] shadow"
+                onClick={async () => {
+                  setConfirmModalVisible(false);
+                  const { hoaDonMoi } = pendingConfirmData;
+                  if (!hoaDonMoi) return;
+
+                  if (paymentMethod === "Chuyển khoản") {
+                    showTransferMethodModal(hoaDonMoi);
+                  } else if (paymentMethod === "Cả hai") {
+                    showBothPaymentModal(hoaDonMoi);
+                  } else {
+                    setLoading(true);
+                    try {
+                      const res = await hoaDonApi.create(hoaDonMoi);
+                      if (res.data?.isSuccess) {
+                        messageApi.success(
+                          isDelivery
+                            ? " Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
+                            : " Thanh toán thành công! Đơn hàng đã hoàn tất."
+                        );
+
+                        if (selectedBillId) {
+                          const bills =
+                            JSON.parse(localStorage.getItem("pendingBills")) ||
+                            [];
+                          const updatedBills = bills.filter(
+                            (bill) => bill.id !== selectedBillId
+                          );
+                          localStorage.setItem(
+                            "pendingBills",
+                            JSON.stringify(updatedBills)
+                          );
+                          window.dispatchEvent(new Event("billsUpdated"));
+                        }
+
+                        if (onRemoveDiscount) onRemoveDiscount();
+                        if (onClearCart) onClearCart();
+
+                        const newBillId = res.data.data?.id || res.data.data;
+                        if (newBillId)
+                          navigate(`/admin/detail-bill/${newBillId}`);
+                      } else {
+                        messageApi.error(
+                          "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
+                        );
+                      }
+                    } catch (error) {
+                      console.error(error);
+                      messageApi.error("❌ Lỗi khi thanh toán!");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }
+                }}
+              >
+                Xác nhận
+              </div>
             </div>
           </div>
         )}

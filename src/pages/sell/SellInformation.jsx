@@ -15,6 +15,8 @@ import {
   message,
   Spin,
   Select,
+  Modal,
+  Table,
 } from "antd";
 import SellPay from "./SellPay";
 import { fetchPhieuGiamGia } from "@/services/phieuGiamGiaService";
@@ -49,7 +51,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const [forceUpdate, setForceUpdate] = useState(0);
   const [checkingSingleDiscount, setCheckingSingleDiscount] = useState(false);
   const [autoAppliedDiscount, setAutoAppliedDiscount] = useState(false);
-
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [customerAddresses, setCustomerAddresses] = useState([]);
   const isApplyingRef = useRef(false);
   const lastAppliedDiscountRef = useRef(null);
 
@@ -60,6 +63,9 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const [tinhList, setTinhList] = useState([]);
   const [localQuanList, setLocalQuanList] = useState([]);
   const [addressForm] = Form.useForm();
+
+  // --- SỬA: Thêm state để lưu quận theo tỉnh ---
+  const [quanMap, setQuanMap] = useState({});
 
   const getPersonalDiscountsForCustomer = () => {
     if (!selectedCustomer || !Array.isArray(giamGiaKhachHangData)) return [];
@@ -74,6 +80,107 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       (discount) =>
         discount.kieu === 1 && personalDiscountIds.includes(discount.id)
     );
+  };
+
+  // --- SỬA: openAddressModal - Load quận cho TẤT CẢ tỉnh ---
+  const openAddressModal = async () => {
+    if (!selectedCustomer) {
+      messageApi.warning("Vui lòng chọn khách hàng trước!");
+      return;
+    }
+
+    try {
+      const addresses = selectedCustomer.allAddresses || [];
+
+      if (addresses.length === 0) {
+        messageApi.info("Khách hàng chưa có địa chỉ nào.");
+        return;
+      }
+
+      // Lấy danh sách tỉnh cần load quận
+      const tinhIds = [
+        ...new Set(
+          addresses
+            .map((addr) => addr.tinhThanhId || addr.id_tinh || addr.idTinh)
+            .filter(Boolean)
+        ),
+      ];
+
+      // Load quận cho từng tỉnh
+      const newQuanMap = { ...quanMap };
+      await Promise.all(
+        tinhIds.map(async (idTinh) => {
+          if (!newQuanMap[idTinh]) {
+            try {
+              const res = await diaChiApi.getQuanByTinh(idTinh);
+              newQuanMap[idTinh] = res;
+            } catch (err) {
+              console.error(`Lỗi load quận cho tỉnh ${idTinh}:`, err);
+              newQuanMap[idTinh] = [];
+            }
+          }
+        })
+      );
+
+      setQuanMap(newQuanMap);
+
+      // Chuẩn hóa địa chỉ với tên tỉnh/quận
+      const normalized = addresses.map((addr) => {
+        const idTinh = addr.tinhThanhId || addr.id_tinh || addr.idTinh;
+        const idQuan = addr.quanHuyenId || addr.id_quan || addr.idQuan;
+
+        const tinh = tinhList.find((t) => t.id === idTinh);
+        const quanList = newQuanMap[idTinh] || [];
+        const quan = quanList.find((q) => q.id === idQuan);
+
+        return {
+          ...addr,
+          tinhTen: addr.tenTinh || tinh?.tenTinh || "Không xác định",
+          quanTen: addr.tenQuan || quan?.tenQuan || "Không xác định",
+          diaChiCuThe: addr.dia_chi_cu_the || addr.diaChiCuThe || "",
+        };
+      });
+
+      setCustomerAddresses(normalized);
+      setAddressModalVisible(true);
+    } catch (err) {
+      console.error("Lỗi tải địa chỉ:", err);
+      messageApi.error("Không thể tải danh sách địa chỉ");
+    }
+  };
+
+  const handleSelectAddress = async (record) => {
+    const idTinh =
+      record.tinhThanhId || record.id_tinh || record.idTinh || record.thanhPho;
+
+    const idQuan =
+      record.quanHuyenId || record.id_quan || record.idQuan || record.quan;
+
+    const diaChiCuThe = record.dia_chi_cu_the || record.diaChiCuThe || "";
+
+    try {
+      // BƯỚC 1: Cập nhật quận nếu tỉnh thay đổi
+      if (idTinh) {
+        await handleTinhChange(idTinh); // Đảm bảo localQuanList có dữ liệu
+      }
+
+      // BƯỚC 2: Set form
+      const formValues = {
+        HoTen: selectedCustomer.hoTen,
+        SoDienThoai: selectedCustomer.sdt,
+        thanhPho: idTinh,
+        quan: idQuan,
+        diaChiCuThe,
+      };
+
+      addressForm.setFieldsValue(formValues);
+      messageApi.success("Đã chọn địa chỉ thành công!");
+    } catch (err) {
+      console.error("Lỗi khi chọn địa chỉ:", err);
+      messageApi.error("Không thể cập nhật quận/huyện");
+    } finally {
+      setAddressModalVisible(false);
+    }
   };
 
   const getAllActiveDiscounts = () => {
@@ -222,7 +329,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     return getBestDiscount(availableDiscounts);
   }, [availableDiscounts, cartTotal]);
 
-  // EFFECT QUAN TRỌNG: Tự động áp dụng/xóa mã giảm giá dựa trên điều kiện
   useEffect(() => {
     const handleAutoDiscount = async () => {
       if (
@@ -237,10 +343,9 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
       const bestDiscount = getBestDiscount(availableDiscounts);
 
-      // Nếu có mã tốt nhất và đủ điều kiện
       if (bestDiscount && !appliedDiscount) {
         console.log(
-          "🔄 Tự động áp dụng mã giảm giá tốt nhất:",
+          "Tự động áp dụng mã giảm giá tốt nhất:",
           bestDiscount.maGiamGia
         );
 
@@ -255,7 +360,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
             await applyDiscount(bestDiscount);
             setAutoAppliedDiscount(true);
             console.log(
-              "✅ Đã tự động áp dụng mã giảm giá:",
+              "Đã tự động áp dụng mã giảm giá:",
               bestDiscount.maGiamGia
             );
           }
@@ -264,19 +369,15 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         } finally {
           isApplyingRef.current = false;
         }
-      }
-      // Nếu không có mã khả dụng hoặc không đủ điều kiện, nhưng đang có mã áp dụng
-      else if (!bestDiscount && appliedDiscount) {
-        console.log("🔄 Tự động xóa mã giảm giá do không đủ điều kiện");
+      } else if (!bestDiscount && appliedDiscount) {
+        console.log("Tự động xóa mã giảm giá do không đủ điều kiện");
         removeDiscount();
-      }
-      // Nếu mã đang áp dụng không còn khả dụng
-      else if (
+      } else if (
         appliedDiscount &&
         bestDiscount &&
         appliedDiscount.id !== bestDiscount.id
       ) {
-        console.log("🔄 Tự động chuyển sang mã giảm giá tốt hơn");
+        console.log("Tự động chuyển sang mã giảm giá tốt hơn");
         try {
           isApplyingRef.current = true;
           const condition = checkBasicDiscountConditions(
@@ -288,7 +389,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
             await applyDiscount(bestDiscount);
             setAutoAppliedDiscount(true);
             console.log(
-              "✅ Đã chuyển sang mã giảm giá tốt hơn:",
+              "Đã chuyển sang mã giảm giá tốt hơn:",
               bestDiscount.maGiamGia
             );
           }
@@ -345,6 +446,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       });
   }, [messageApi]);
 
+  // --- SỬA: Dùng quanMap để tránh gọi API nhiều lần ---
   useEffect(() => {
     if (selectedCustomer?.diaChi) {
       const idTinh =
@@ -353,23 +455,23 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         selectedCustomer.diaChi.idTinh ||
         selectedCustomer.diaChi.thanhPho;
 
-      if (idTinh) {
+      if (idTinh && !quanMap[idTinh]) {
         diaChiApi
           .getQuanByTinh(idTinh)
           .then((res) => {
+            setQuanMap((prev) => ({ ...prev, [idTinh]: res }));
             setLocalQuanList(res);
           })
           .catch((err) => {
             console.error("Lỗi load quận/huyện:", err);
-            messageApi.error("Không thể tải danh sách quận/huyện");
           });
-      } else {
-        setLocalQuanList([]);
+      } else if (quanMap[idTinh]) {
+        setLocalQuanList(quanMap[idTinh]);
       }
     } else {
       setLocalQuanList([]);
     }
-  }, [selectedCustomer, messageApi]);
+  }, [selectedCustomer, quanMap]);
 
   useEffect(() => {
     if (selectedBillId) {
@@ -387,29 +489,30 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
   useEffect(() => {
     if (selectedCustomer && isDelivery) {
-      const customerAddress = selectedCustomer.diaChi;
+      const defaultAddr = selectedCustomer.diaChi;
 
-      if (customerAddress) {
+      if (defaultAddr) {
         const formValues = {
           HoTen: selectedCustomer.hoTen,
           SoDienThoai: selectedCustomer.sdt,
           thanhPho:
-            customerAddress.tinhThanhId ||
-            customerAddress.id_tinh ||
-            customerAddress.idTinh ||
-            customerAddress.thanhPho ||
-            null,
+            defaultAddr.tinhThanhId ||
+            defaultAddr.id_tinh ||
+            defaultAddr.idTinh ||
+            defaultAddr.thanhPho,
           quan:
-            customerAddress.quanHuyenId ||
-            customerAddress.id_quan ||
-            customerAddress.idQuan ||
-            customerAddress.quan ||
-            null,
+            defaultAddr.quanHuyenId ||
+            defaultAddr.id_quan ||
+            defaultAddr.idQuan ||
+            defaultAddr.quan,
           diaChiCuThe:
-            customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "",
+            defaultAddr.dia_chi_cu_the || defaultAddr.diaChiCuThe || "",
         };
-
         addressForm.setFieldsValue(formValues);
+
+        if (formValues.thanhPho) {
+          handleTinhChange(formValues.thanhPho);
+        }
       } else {
         addressForm.setFieldsValue({
           HoTen: selectedCustomer.hoTen,
@@ -422,7 +525,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     } else if (!selectedCustomer && isDelivery) {
       addressForm.resetFields();
     }
-  }, [selectedCustomer, isDelivery, addressForm]);
+  }, [selectedCustomer, isDelivery, addressForm, tinhList]);
 
   useEffect(() => {
     if (cartTotal === 0 && appliedDiscount) {
@@ -489,14 +592,17 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const normalizeCustomerData = (customerData) => {
     if (!customerData) return null;
 
+    let addresses = [];
     let defaultAddress = null;
 
     if (customerData.diaChi && Array.isArray(customerData.diaChi)) {
+      addresses = customerData.diaChi;
       defaultAddress =
-        customerData.diaChi.find((addr) => addr.trangThai === true) ||
-        customerData.diaChi[0] ||
+        addresses.find((addr) => addr.trangThai === true) ||
+        addresses[0] ||
         null;
     } else if (customerData.diaChi && typeof customerData.diaChi === "object") {
+      addresses = [customerData.diaChi];
       defaultAddress = customerData.diaChi;
     }
 
@@ -509,6 +615,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       gioiTinh: customerData.gioi_tinh || customerData.gioiTinh,
       ngaySinh: customerData.ngay_sinh || customerData.ngaySinh,
       diaChi: defaultAddress,
+      allAddresses: addresses,
     };
   };
 
@@ -536,27 +643,35 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     }
   };
 
+  // --- SỬA: handleTinhChange trả về Promise ---
   const handleTinhChange = async (idTinh) => {
     addressForm.setFieldsValue({ quan: null });
+
+    if (quanMap[idTinh]) {
+      setLocalQuanList(quanMap[idTinh]);
+      return quanMap[idTinh];
+    }
+
     try {
       const res = await diaChiApi.getQuanByTinh(idTinh);
+      setQuanMap((prev) => ({ ...prev, [idTinh]: res }));
       setLocalQuanList(res);
+      return res;
     } catch (err) {
       console.error("Lỗi load quận/huyện:", err);
       messageApi.error("Không thể tải danh sách quận/huyện");
+      throw err;
     }
   };
 
-  // HÀM QUAN TRỌNG: Xoá khách hàng khỏi phiếu giảm giá sau khi thanh toán thành công
   const handleRemoveCustomerFromDiscount = async (discountId, customerId) => {
     try {
       const response = await removeCustomerFromDiscount(discountId, customerId);
 
       if (response?.isSuccess) {
         console.log(
-          `✅ Đã xoá khách hàng ${customerId} khỏi phiếu giảm giá ${discountId} sau khi thanh toán`
+          `Đã xoá khách hàng ${customerId} khỏi phiếu giảm giá ${discountId} sau khi thanh toán`
         );
-        // Refresh dữ liệu để cập nhật UI
         await dispatch(fetchAllGGKH());
         return true;
       } else {
@@ -574,20 +689,12 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     }
   };
 
-  // HÀM ÁP DỤNG MÃ GIẢM GIÁ - KHÔNG XOÁ KHI ÁP DỤNG, CHỈ LƯU THÔNG TIN
   const applyDiscount = async (discount) => {
-    if (!selectedBillId) return;
-
-    if (cartTotal === 0) {
-      return;
-    }
+    if (!selectedBillId || cartTotal === 0) return;
 
     try {
       const condition = checkBasicDiscountConditions(discount, cartTotal);
-
-      if (!condition.isValid) {
-        return;
-      }
+      if (!condition.isValid) return;
 
       const discountAmount = calculateDiscountAmount(discount, cartTotal);
       const final = Math.max(0, cartTotal - discountAmount);
@@ -627,7 +734,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         });
       }
 
-      console.log(`✅ Áp dụng ${discount.maGiamGia} thành công`);
+      console.log(`Áp dụng ${discount.maGiamGia} thành công`);
       window.dispatchEvent(new Event("billsUpdated"));
     } catch (error) {
       console.error("Lỗi khi áp dụng mã giảm giá:", error);
@@ -691,7 +798,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
           </div>
           {appliedDiscount.isPersonal && (
             <div className="text-md font-semibold text-amber-600">
-              ⚠️ Mã cá nhân chỉ sử dụng 1 lần duy nhất
+              Mã cá nhân chỉ sử dụng 1 lần duy nhất
             </div>
           )}
         </div>
@@ -737,7 +844,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
           </div>
           {bestDiscount.kieu === 1 && (
             <div className="text-md font-semibold text-amber-600">
-              ⚠️ Chỉ sử dụng 1 lần duy nhất
+              Chỉ sử dụng 1 lần duy nhất
             </div>
           )}
         </div>
@@ -759,9 +866,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
           ) : (
             <>
               {renderAppliedDiscount()}
-
               {renderAvailableDiscounts()}
-
               {!appliedDiscount && availableDiscounts.length === 0 && (
                 <div className="text-center py-4 text-gray-500">
                   {cartTotal > 0
@@ -924,7 +1029,12 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                 >
                   <Input placeholder="Nhập địa chỉ cụ thể" />
                 </Form.Item>
-
+                <div
+                  className="cursor-pointer select-none text-center py-2 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+                  onClick={openAddressModal}
+                >
+                  Chọn địa chỉ
+                </div>
                 <div className="flex justify-between items-center mt-4">
                   <span className="font-medium">Giao hàng tận nhà</span>
                   <Checkbox defaultChecked />
@@ -939,6 +1049,65 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
           <Tabs defaultActiveKey="1" items={items} className="custom-tabs" />
         </div>
       </div>
+
+      {/* Modal chọn địa chỉ */}
+      {addressModalVisible && (
+        <Modal
+          title={
+            <span className="text-xl font-bold">Chọn địa chỉ giao hàng</span>
+          }
+          open={addressModalVisible}
+          onCancel={() => setAddressModalVisible(false)}
+          footer={null}
+          width={800}
+        >
+          <Table
+            dataSource={customerAddresses}
+            rowKey={(record) =>
+              record.id ||
+              `${record.tinhThanhId}-${record.quanHuyenId}-${record.diaChiCuThe}`
+            }
+            pagination={false}
+            onRow={(record) => ({
+              onClick: () => handleSelectAddress(record),
+              className: "cursor-pointer hover:bg-blue-50",
+            })}
+            columns={[
+              {
+                title: <strong>Tên địa chỉ</strong>,
+                dataIndex: "tenDiaChi",
+                key: "tenDiaChi",
+                render: (text) => (
+                  <span className="font-medium">{text || "—"}</span>
+                ),
+              },
+              {
+                title: <strong>Tỉnh/Thành phố</strong>,
+                dataIndex: "tinhTen",
+                key: "tinhTen",
+                width: "30%",
+              },
+              {
+                title: <strong>Quận/Huyện</strong>,
+                dataIndex: "quanTen",
+                key: "quanTen",
+                width: "30%",
+              },
+              {
+                title: <strong>Số nhà, đường</strong>,
+                dataIndex: "diaChiCuThe",
+                key: "diaChiCuThe",
+                render: (text) => text || "—",
+              },
+            ]}
+          />
+          {customerAddresses.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              Khách hàng chưa có địa chỉ nào được lưu.
+            </div>
+          )}
+        </Modal>
+      )}
     </>
   );
 }
