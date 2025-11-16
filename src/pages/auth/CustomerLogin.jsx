@@ -3,9 +3,12 @@ import { Form, Input, message, Checkbox } from "antd";
 import { UserOutlined, LockOutlined, ShoppingOutlined, PhoneOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import logo from "/src/assets/login/logoAutumn.png";
+import CustomerForgotPassword from "./CustomerForgotPassword"; 
+
 export default function CustomerLogin() {
   const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
+  const [showForgotPassword, setShowForgotPassword] = useState(false); 
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -110,6 +113,42 @@ export default function CustomerLogin() {
     }
   };
 
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+        {contextHolder}
+        
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-orange-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
+          <div className="absolute top-40 right-10 w-72 h-72 bg-yellow-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+          <div className="absolute -bottom-8 left-1/2 w-72 h-72 bg-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
+        </div>
+
+        <div className="relative z-10 w-full max-w-md mx-4">
+          <CustomerForgotPassword onBackToLogin={() => setShowForgotPassword(false)} />
+        </div>
+
+        <style>{`
+          @keyframes blob {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
+          }
+          .animate-blob {
+            animation: blob 7s infinite;
+          }
+          .animation-delay-2000 {
+            animation-delay: 2s;
+          }
+          .animation-delay-4000 {
+            animation-delay: 4s;
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
       {contextHolder}
@@ -126,7 +165,7 @@ export default function CustomerLogin() {
           <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-center">
             <div className="flex justify-center mb-3">
               <div className="bg-white rounded-full p-3 shadow-lg transform hover:scale-105 transition-transform duration-300">
-              <img src={logo} alt="Logo" className="md:w-[75px] lg:w-[100px]" />
+                <img src={logo} alt="Logo" className="md:w-[75px] lg:w-[100px]" />
               </div>
             </div>
             <h1 className="text-2xl font-bold text-white mb-1">The Autumn</h1>
@@ -199,9 +238,13 @@ export default function CustomerLogin() {
                 <Form.Item name="remember" valuePropName="checked" className="mb-4">
                   <div className="flex justify-between items-center">
                     <Checkbox className="text-gray-600 hover:text-orange-600">Ghi nhớ đăng nhập</Checkbox>
-                    <a href="#" className="text-orange-600 hover:text-orange-700 text-sm font-medium transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-orange-600 hover:text-orange-700 text-sm font-medium transition-colors bg-transparent border-none cursor-pointer"
+                    >
                       Quên mật khẩu?
-                    </a>
+                    </button>
                   </div>
                 </Form.Item>
 

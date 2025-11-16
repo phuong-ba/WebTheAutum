@@ -48,13 +48,13 @@ const userRouters = [
             <MainCategory />
           </LazyLoad>
         ),
-      },
+      }
     ],
   },
   {
     path: "/customer/login",
     element: <CustomerLogin />,
-  },
+  }
 ];
 
 export default userRouters;
