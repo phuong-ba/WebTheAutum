@@ -152,19 +152,16 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const handleSelectAddress = async (record) => {
     const idTinh =
       record.tinhThanhId || record.id_tinh || record.idTinh || record.thanhPho;
-
     const idQuan =
       record.quanHuyenId || record.id_quan || record.idQuan || record.quan;
-
     const diaChiCuThe = record.dia_chi_cu_the || record.diaChiCuThe || "";
 
     try {
-      // BƯỚC 1: Cập nhật quận nếu tỉnh thay đổi
+      let quanList = [];
       if (idTinh) {
-        await handleTinhChange(idTinh); // Đảm bảo localQuanList có dữ liệu
+        quanList = await handleTinhChange(idTinh); // ← await để có dữ liệu
       }
 
-      // BƯỚC 2: Set form
       const formValues = {
         HoTen: selectedCustomer.hoTen,
         SoDienThoai: selectedCustomer.sdt,
@@ -173,6 +170,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         diaChiCuThe,
       };
 
+      // Đặt form SAU KHI đã có quanList
       addressForm.setFieldsValue(formValues);
       messageApi.success("Đã chọn địa chỉ thành công!");
     } catch (err) {
@@ -446,7 +444,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       });
   }, [messageApi]);
 
-  // --- SỬA: Dùng quanMap để tránh gọi API nhiều lần ---
   useEffect(() => {
     if (selectedCustomer?.diaChi) {
       const idTinh =
@@ -488,44 +485,60 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   }, [selectedBillId]);
 
   useEffect(() => {
-    if (selectedCustomer && isDelivery) {
-      const defaultAddr = selectedCustomer.diaChi;
-
-      if (defaultAddr) {
-        const formValues = {
-          HoTen: selectedCustomer.hoTen,
-          SoDienThoai: selectedCustomer.sdt,
-          thanhPho:
+    const setupAddress = async () => {
+      if (selectedCustomer && isDelivery) {
+        const defaultAddr = selectedCustomer.diaChi;
+        if (defaultAddr) {
+          const idTinh =
             defaultAddr.tinhThanhId ||
             defaultAddr.id_tinh ||
             defaultAddr.idTinh ||
-            defaultAddr.thanhPho,
-          quan:
+            defaultAddr.thanhPho;
+
+          const idQuan =
             defaultAddr.quanHuyenId ||
             defaultAddr.id_quan ||
             defaultAddr.idQuan ||
-            defaultAddr.quan,
-          diaChiCuThe:
-            defaultAddr.dia_chi_cu_the || defaultAddr.diaChiCuThe || "",
-        };
-        addressForm.setFieldsValue(formValues);
+            defaultAddr.quan;
 
-        if (formValues.thanhPho) {
-          handleTinhChange(formValues.thanhPho);
+          const diaChiCuThe =
+            defaultAddr.dia_chi_cu_the || defaultAddr.diaChiCuThe || "";
+
+          const formValues = {
+            HoTen: selectedCustomer.hoTen,
+            SoDienThoai: selectedCustomer.sdt,
+            thanhPho: idTinh,
+            quan: idQuan,
+            diaChiCuThe,
+          };
+
+          addressForm.setFieldsValue(formValues);
+
+          if (idTinh) {
+            try {
+              await handleTinhChange(idTinh);
+              // Sau khi load quận xong, mới set lại quan (nếu cần)
+              addressForm.setFieldsValue({ quan: idQuan });
+            } catch (err) {
+              console.error("Lỗi load quận mặc định:", err);
+            }
+          }
+        } else {
+          addressForm.setFieldsValue({
+            HoTen: selectedCustomer.hoTen,
+            SoDienThoai: selectedCustomer.sdt,
+            thanhPho: null,
+            quan: null,
+            diaChiCuThe: "",
+          });
         }
-      } else {
-        addressForm.setFieldsValue({
-          HoTen: selectedCustomer.hoTen,
-          SoDienThoai: selectedCustomer.sdt,
-          thanhPho: null,
-          quan: null,
-          diaChiCuThe: "",
-        });
+      } else if (!selectedCustomer && isDelivery) {
+        addressForm.resetFields();
       }
-    } else if (!selectedCustomer && isDelivery) {
-      addressForm.resetFields();
-    }
-  }, [selectedCustomer, isDelivery, addressForm, tinhList]);
+    };
+
+    setupAddress();
+  }, [selectedCustomer, isDelivery, addressForm]);
 
   useEffect(() => {
     if (cartTotal === 0 && appliedDiscount) {
@@ -545,7 +558,12 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     };
     loadDiscounts();
   }, [dispatch, messageApi]);
-
+  useEffect(() => {
+    const currentTinh = addressForm.getFieldValue("thanhPho");
+    if (currentTinh && quanMap[currentTinh]) {
+      setLocalQuanList(quanMap[currentTinh]);
+    }
+  }, [quanMap, addressForm]);
   useEffect(() => {
     const updateCartData = () => {
       if (selectedBillId) {
@@ -643,22 +661,31 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     }
   };
 
-  // --- SỬA: handleTinhChange trả về Promise ---
   const handleTinhChange = async (idTinh) => {
+    console.log("handleTinhChange called with:", idTinh);
     addressForm.setFieldsValue({ quan: null });
 
     if (quanMap[idTinh]) {
+      console.log("Dùng cache quận:", quanMap[idTinh]);
       setLocalQuanList(quanMap[idTinh]);
       return quanMap[idTinh];
     }
 
     try {
       const res = await diaChiApi.getQuanByTinh(idTinh);
-      setQuanMap((prev) => ({ ...prev, [idTinh]: res }));
+      console.log("Load quận từ API:", res);
+
+      // Cập nhật cả 2 state
+      setQuanMap((prev) => {
+        const newMap = { ...prev, [idTinh]: res };
+        return newMap;
+      });
+
+      // Quan trọng: setLocalQuanList ở đây, và return res luôn
       setLocalQuanList(res);
       return res;
     } catch (err) {
-      console.error("Lỗi load quận/huyện:", err);
+      console.error("Lỗi load quận:", err);
       messageApi.error("Không thể tải danh sách quận/huyện");
       throw err;
     }

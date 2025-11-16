@@ -11,7 +11,6 @@ import {
   Row,
   Col,
   InputNumber,
-  Form,
 } from "antd";
 import { useNavigate } from "react-router";
 import { getCurrentUserId } from "@/utils/authHelper";
@@ -50,46 +49,41 @@ export default function SellPay({
   const [pendingHoaDonData, setPendingHoaDonData] = useState(null);
   const [cashAmount, setCashAmount] = useState(0);
   const [transferAmount, setTransferAmount] = useState(0);
-  const discountAmount = appliedDiscount?.discountAmount || 0;
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [pendingConfirmData, setPendingConfirmData] = useState(null);
+
+  const discountAmount = appliedDiscount?.discountAmount || 0;
   const actualDiscountAmount = Math.min(discountAmount, cartTotal);
   const finalAmount = Math.max(cartTotal - actualDiscountAmount, 0);
   const shippingFee = 0;
+  const totalWithShipping = finalAmount + shippingFee;
+
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
-  const totalWithShipping = finalAmount + shippingFee;
-
-  // HÀM QUAN TRỌNG: Xoá phiếu giảm giá cá nhân sau khi thanh toán thành công
+  // Xóa phiếu giảm giá cá nhân sau thanh toán
   const handleRemovePersonalDiscountAfterPayment = async () => {
     if (appliedDiscount?.isPersonal && appliedDiscount?.customerId) {
       try {
-        console.log(
-          "🔄 Đang xoá phiếu giảm giá cá nhân sau khi thanh toán...",
-          appliedDiscount
-        );
         await removeCustomerFromDiscount(
           appliedDiscount.id,
           appliedDiscount.customerId
         );
-        console.log("✅ Đã xoá phiếu giảm giá cá nhân sau khi thanh toán");
       } catch (error) {
         console.error("❌ Lỗi khi xoá phiếu giảm giá cá nhân:", error);
       }
     }
   };
 
-  // Hàm chuẩn bị dữ liệu hóa đơn (KHÔNG gọi API)
+  // Chuẩn bị dữ liệu hóa đơn
   const prepareHoaDonData = (paymentInfo = {}) => {
     let shippingAddress = null;
     let formCustomerInfo = null;
 
+    // Xử lý địa chỉ giao hàng
     if (isDelivery && addressForm) {
       try {
         const formValues = addressForm.getFieldsValue();
-        console.log("📝 Form values từ SellInformation:", formValues);
-
         if (formValues.thanhPho && formValues.quan && formValues.diaChiCuThe) {
           const tinhName =
             tinhList?.find((t) => t.id === formValues.thanhPho)?.tenTinh || "";
@@ -108,8 +102,6 @@ export default function SellPay({
             diaChiCuThe: formValues.diaChiCuThe,
             hoTen: formCustomerInfo.hoTen,
             sdt: formCustomerInfo.sdt,
-            tenTinh: tinhName,
-            tenQuan: quanName,
           };
         }
       } catch (error) {
@@ -117,8 +109,8 @@ export default function SellPay({
       }
     }
 
+    // Xử lý chi tiết sản phẩm
     let chiTietList = [];
-
     if (cartItems && cartItems.length > 0) {
       chiTietList = cartItems.map((item) => ({
         idChiTietSanPham: item.idChiTietSanPham || item.id,
@@ -127,89 +119,44 @@ export default function SellPay({
         ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
         trangThai: 0,
       }));
-    } else if (selectedBillId) {
-      const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-      const currentBill = bills.find((bill) => bill.id === selectedBillId);
-
-      if (currentBill && currentBill.items && currentBill.items.length > 0) {
-        chiTietList = currentBill.items.map((item) => ({
-          idChiTietSanPham: item.idChiTietSanPham || item.id,
-          soLuong: item.quantity || item.soLuong,
-          giaBan: item.price || item.giaBan,
-          ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
-          trangThai: 0,
-        }));
-      }
     }
 
-    // Kiểm tra nếu không có sản phẩm
     if (chiTietList.length === 0) {
       return null;
     }
 
     const currentUserId = getCurrentUserId();
 
+    // Xử lý địa chỉ khách hàng
     let diaChiKhachHang = "Chưa có địa chỉ";
     let idTinh = null;
     let idQuan = null;
     let diaChiCuThe = "";
-
-    let customerType = selectedCustomer ? "Khách hàng" : "Khách lẻ";
-    let customerNote = "";
 
     if (shippingAddress) {
       diaChiKhachHang = shippingAddress.fullAddress;
       idTinh = shippingAddress.idTinh;
       idQuan = shippingAddress.idQuan;
       diaChiCuThe = shippingAddress.diaChiCuThe;
-
-      if (formCustomerInfo && !selectedCustomer) {
-        customerType = "Khách lẻ";
-        customerNote = ` - ${formCustomerInfo.hoTen}`;
-        if (formCustomerInfo.sdt) {
-          customerNote += ` - ${formCustomerInfo.sdt}`;
-        }
-      }
-    } else if (selectedCustomer) {
-      const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-      const currentBill = bills.find((bill) => bill.id === selectedBillId);
-      const savedShippingAddress = currentBill?.shippingAddress;
-
-      if (
-        savedShippingAddress &&
-        savedShippingAddress.idTinh &&
-        savedShippingAddress.idQuan
-      ) {
-        diaChiKhachHang = savedShippingAddress.fullAddress;
-        idTinh = savedShippingAddress.idTinh;
-        idQuan = savedShippingAddress.idQuan;
-        diaChiCuThe = savedShippingAddress.diaChiCuThe || "";
-      } else if (selectedCustomer?.diaChi) {
-        const customerAddress = selectedCustomer.diaChi;
-        diaChiKhachHang =
-          customerAddress.dia_chi_cu_the ||
-          customerAddress.diaChiCuThe ||
-          "Chưa có địa chỉ";
-        idTinh =
-          customerAddress.tinhThanhId ||
-          customerAddress.id_tinh ||
-          customerAddress.idTinh;
-        idQuan =
-          customerAddress.quanHuyenId ||
-          customerAddress.id_quan ||
-          customerAddress.idQuan;
-        diaChiCuThe =
-          customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "";
-      }
+    } else if (selectedCustomer?.diaChi) {
+      const customerAddress = selectedCustomer.diaChi;
+      diaChiKhachHang =
+        customerAddress.dia_chi_cu_the ||
+        customerAddress.diaChiCuThe ||
+        "Chưa có địa chỉ";
+      idTinh =
+        customerAddress.tinhThanhId ||
+        customerAddress.id_tinh ||
+        customerAddress.idTinh;
+      idQuan =
+        customerAddress.quanHuyenId ||
+        customerAddress.id_quan ||
+        customerAddress.idQuan;
+      diaChiCuThe =
+        customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "";
     }
 
-    let trangThai;
-    if (isDelivery) {
-      trangThai = 1;
-    } else {
-      trangThai = 3;
-    }
-
+    // Xác định phương thức thanh toán
     let idPhuongThucThanhToan;
     let paymentNote = "";
 
@@ -230,7 +177,14 @@ export default function SellPay({
         idPhuongThucThanhToan = 3;
     }
 
-    const hoaDonMoi = {
+    const customerType = selectedCustomer ? "Khách hàng" : "Khách lẻ";
+    const customerNote = formCustomerInfo
+      ? ` - ${formCustomerInfo.hoTen}${
+          formCustomerInfo.sdt ? ` - ${formCustomerInfo.sdt}` : ""
+        }`
+      : "";
+
+    return {
       loaiHoaDon: true,
       phiVanChuyen: isDelivery ? shippingFee : 0,
       tongTien: cartTotal,
@@ -240,67 +194,82 @@ export default function SellPay({
       }${customerType}${customerNote} - ${paymentNote}${
         appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
       }`,
-      diaChiKhachHang: diaChiKhachHang,
+      diaChiKhachHang,
       ngayThanhToan: new Date().toISOString(),
       trangThai: isDelivery ? 1 : 3,
       idKhachHang: selectedCustomer?.id || null,
       idNhanVien: currentUserId,
       idPhieuGiamGia: appliedDiscount?.id || null,
       nguoiTao: currentUserId,
-      chiTietList: chiTietList,
-      idPhuongThucThanhToan: idPhuongThucThanhToan,
+      chiTietList,
+      idPhuongThucThanhToan,
       soTienThanhToan: totalWithShipping,
-      ghiChuThanhToan: `${
-        isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
-      }${customerType}${customerNote} - ${paymentNote}`,
-      idTinh: idTinh,
-      idQuan: idQuan,
-      diaChiCuThe: diaChiCuThe,
+      idTinh,
+      idQuan,
+      diaChiCuThe,
       hoTen: formCustomerInfo?.hoTen || null,
       sdt: formCustomerInfo?.sdt || null,
-      // Thêm thông tin thanh toán kết hợp
       ...paymentInfo,
     };
-
-    return hoaDonMoi;
   };
 
-  // Hàm hiển thị modal chọn phương thức chuyển khoản
+  // Hiển thị modal chọn phương thức chuyển khoản
   const showTransferMethodModal = (hoaDonMoi) => {
-    setPendingHoaDonData(hoaDonMoi);
+    setPendingHoaDonData({
+      ...hoaDonMoi,
+      soTienThanhToan: totalWithShipping,
+    });
     setTransferMethodModalVisible(true);
   };
 
-  // Hàm hiển thị modal thanh toán kết hợp
+  // Hiển thị modal thanh toán kết hợp
   const showBothPaymentModal = (hoaDonMoi) => {
-    setPendingHoaDonData(hoaDonMoi);
+    setPendingHoaDonData({
+      ...hoaDonMoi,
+      soTienThanhToan: totalWithShipping,
+    });
     setCashAmount(0);
     setTransferAmount(totalWithShipping);
     setBothPaymentModalVisible(true);
   };
 
-  // Hàm chọn VNPay (chuyển hướng đến trang thanh toán)
+  // Hiển thị modal QR chuyển khoản
+  const showQRModal = (hoaDonMoi) => {
+    setPendingHoaDonData(hoaDonMoi);
+
+    // Tạo thông tin QR
+    setQrData({
+      amount: totalWithShipping,
+      billCode: `HD${Date.now()}`,
+      bankInfo: {
+        bankName: "Ngân hàng ABC",
+        accountNumber: "19037689713019",
+        accountHolder: "CONG TY TNHH AUTUMN STORE",
+        branch: "TP.HCM",
+        content: `Thanh toan don hang ${Date.now()}`,
+      },
+    });
+    setQrModalVisible(true);
+  };
+
+  // Xử lý thanh toán VNPay website
   const handleVNPayRedirect = async () => {
     if (!pendingHoaDonData) return;
 
     try {
       setLoading(true);
-      // CHỈ tạo payment URL, KHÔNG tạo hóa đơn
       const res = await hoaDonApi.createAndPayWithVNPAY({
         ...pendingHoaDonData,
-        soTienThanhToan: transferAmount, // Sử dụng số tiền chuyển khoản
+        soTienThanhToan: totalWithShipping,
       });
 
       if (res.data?.isSuccess) {
         const paymentUrl = res.data.data?.paymentUrl;
-
         if (paymentUrl) {
           messageApi.success(
             "✅ Đang chuyển hướng đến trang thanh toán VNPAY..."
           );
           setTransferMethodModalVisible(false);
-          setBothPaymentModalVisible(false);
-
           setTimeout(() => {
             window.location.href = paymentUrl;
           }, 1000);
@@ -320,80 +289,29 @@ export default function SellPay({
     }
   };
 
-  // Hàm tạo và hiển thị QR Code VNPay
-  const generateVNPayQR = async () => {
-    if (!pendingHoaDonData) return;
-
-    try {
-      setLoading(true);
-      // CHỈ tạo payment URL, KHÔNG tạo hóa đơn
-      const res = await hoaDonApi.createAndPayWithVNPAY({
-        ...pendingHoaDonData,
-        soTienThanhToan: transferAmount, // Sử dụng số tiền chuyển khoản
-      });
-
-      if (res.data?.isSuccess) {
-        const paymentUrl = res.data.data?.paymentUrl;
-
-        if (paymentUrl) {
-          // Tạo dữ liệu QR code từ payment URL
-          setQrData({
-            url: paymentUrl,
-            amount: transferAmount,
-            billCode: `HD${Date.now()}`,
-            bankInfo: {
-              bankName: "VNPAY QR",
-              accountNumber: "19037689713019",
-              accountHolder: "CONG TY TNHH AUTUMN STORE",
-              branch: "TP.HCM",
-            },
-          });
-          setTransferMethodModalVisible(false);
-          setBothPaymentModalVisible(false);
-          setQrModalVisible(true);
-          messageApi.success("✅ Đã tạo mã QR thanh toán VNPay!");
-          return true;
-        } else {
-          messageApi.error("❌ Không thể tạo URL thanh toán VNPAY");
-          return false;
-        }
-      } else {
-        messageApi.error(
-          "❌ Lỗi khi tạo thanh toán VNPAY: " + (res.data?.message || "")
-        );
-        return false;
-      }
-    } catch (error) {
-      console.error("❌ Lỗi khi tạo QR VNPay:", error);
-      messageApi.error("❌ Lỗi khi tạo mã QR thanh toán!");
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Hàm xác nhận đã chuyển khoản và lưu hóa đơn
+  // Xác nhận đã chuyển khoản và tạo hóa đơn
   const handleConfirmTransfer = async () => {
-    if (!pendingHoaDonData) return;
+    if (!pendingHoaDonData) {
+      messageApi.error("❌ Không tìm thấy thông tin hóa đơn!");
+      return;
+    }
 
     try {
       setLoading(true);
-
-      // Gọi API để lưu hóa đơn với trạng thái đã thanh toán
       const res = await hoaDonApi.create({
         ...pendingHoaDonData,
-        trangThai: isDelivery ? 1 : 3, // 1: Chờ giao hàng, 3: Đã hoàn thành
+        trangThai: isDelivery ? 1 : 3,
         daThanhToan: true,
       });
 
       if (res.data?.isSuccess) {
         const successMessage = isDelivery
-          ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
+          ? "✅ Thanh toán thành công! Đơn hàng đang chờ giao hàng."
           : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất.";
 
         messageApi.success(successMessage);
 
-        // Xử lý cleanup
+        // Cleanup
         if (selectedBillId) {
           const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
           const updatedBills = bills.filter(
@@ -406,41 +324,33 @@ export default function SellPay({
         if (onRemoveDiscount) onRemoveDiscount();
         if (onClearCart) onClearCart();
 
-        // Xoá phiếu giảm giá cá nhân nếu có
         if (appliedDiscount?.isPersonal) {
           await handleRemovePersonalDiscountAfterPayment();
         }
 
-        // Đóng modal QR
         setQrModalVisible(false);
 
-        // Chuyển hướng đến trang chi tiết hóa đơn
         const newBillId = res.data.data?.id || res.data.data;
         if (newBillId) {
           navigate(`/admin/detail-bill/${newBillId}`);
         }
-
-        return true;
       } else {
         messageApi.error(
           "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
         );
-        return false;
       }
     } catch (error) {
       console.error("❌ Lỗi khi xác nhận chuyển khoản:", error);
       messageApi.error("❌ Lỗi khi xác nhận thanh toán!");
-      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  // Hàm xác nhận thanh toán kết hợp
+  // Xác nhận thanh toán kết hợp
   const handleConfirmBothPayment = async () => {
     if (!pendingHoaDonData) return;
 
-    // Kiểm tra số tiền
     if (cashAmount + transferAmount !== totalWithShipping) {
       messageApi.error(
         "❌ Tổng số tiền thanh toán không khớp với tổng hóa đơn!"
@@ -450,34 +360,14 @@ export default function SellPay({
 
     try {
       setLoading(true);
-
-      // Chuẩn bị dữ liệu thanh toán kết hợp với thông tin số tiền cụ thể
-      const paymentInfo = {
-        tienMat: cashAmount,
-        chuyenKhoan: transferAmount,
-        soTienThanhToan: totalWithShipping,
-      };
-
-      // Tạo hóa đơn mới với thông tin thanh toán kết hợp
       const hoaDonWithBothPayment = {
         ...pendingHoaDonData,
         tienMat: cashAmount,
         chuyenKhoan: transferAmount,
         soTienThanhToan: totalWithShipping,
-        ghiChu: `${isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "}${
-          pendingHoaDonData.idKhachHang ? "Khách hàng" : "Khách lẻ"
-        } - Thanh toán kết hợp: Tiền mặt ${cashAmount.toLocaleString()} VND + Chuyển khoản ${transferAmount.toLocaleString()} VND${
-          appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
-        }`,
-        ghiChuThanhToan: `${
-          isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
-        }${
-          pendingHoaDonData.idKhachHang ? "Khách hàng" : "Khách lẻ"
-        } - Thanh toán kết hợp: Tiền mặt ${cashAmount.toLocaleString()} VND + Chuyển khoản ${transferAmount.toLocaleString()} VND`,
-        idPhuongThucThanhToan: 3, // Cả hai
+        idPhuongThucThanhToan: 3,
       };
 
-      // Gọi API để lưu hóa đơn
       const res = await hoaDonApi.create({
         ...hoaDonWithBothPayment,
         trangThai: isDelivery ? 1 : 3,
@@ -491,7 +381,7 @@ export default function SellPay({
 
         messageApi.success(successMessage);
 
-        // Xử lý cleanup
+        // Cleanup
         if (selectedBillId) {
           const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
           const updatedBills = bills.filter(
@@ -504,37 +394,77 @@ export default function SellPay({
         if (onRemoveDiscount) onRemoveDiscount();
         if (onClearCart) onClearCart();
 
-        // Xoá phiếu giảm giá cá nhân nếu có
         if (appliedDiscount?.isPersonal) {
           await handleRemovePersonalDiscountAfterPayment();
         }
 
-        // Đóng modal
         setBothPaymentModalVisible(false);
 
-        // Chuyển hướng đến trang chi tiết hóa đơn
         const newBillId = res.data.data?.id || res.data.data;
         if (newBillId) {
           navigate(`/admin/detail-bill/${newBillId}`);
         }
-
-        return true;
       } else {
         messageApi.error(
           "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
         );
-        return false;
       }
     } catch (error) {
       console.error("❌ Lỗi khi xác nhận thanh toán kết hợp:", error);
       messageApi.error("❌ Lỗi khi xác nhận thanh toán!");
-      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  // Hàm sao chép thông tin chuyển khoản
+  // Thanh toán tiền mặt
+  const handleCashPayment = async (hoaDonMoi) => {
+    try {
+      setLoading(true);
+      const res = await hoaDonApi.create(hoaDonMoi);
+
+      if (res.data?.isSuccess) {
+        const successMessage = isDelivery
+          ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
+          : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất.";
+
+        messageApi.success(successMessage);
+
+        // Cleanup
+        if (selectedBillId) {
+          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+          const updatedBills = bills.filter(
+            (bill) => bill.id !== selectedBillId
+          );
+          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
+          window.dispatchEvent(new Event("billsUpdated"));
+        }
+
+        if (onRemoveDiscount) onRemoveDiscount();
+        if (onClearCart) onClearCart();
+
+        if (appliedDiscount?.isPersonal) {
+          await handleRemovePersonalDiscountAfterPayment();
+        }
+
+        const newBillId = res.data.data?.id || res.data.data;
+        if (newBillId) {
+          navigate(`/admin/detail-bill/${newBillId}`);
+        }
+      } else {
+        messageApi.error(
+          "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      messageApi.error("❌ Lỗi khi thanh toán!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Utility functions
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -543,7 +473,6 @@ export default function SellPay({
     });
   };
 
-  // Hàm xử lý thay đổi số tiền
   const handleCashAmountChange = (value) => {
     setCashAmount(value || 0);
     setTransferAmount(totalWithShipping - (value || 0));
@@ -554,6 +483,7 @@ export default function SellPay({
     setCashAmount(totalWithShipping - (value || 0));
   };
 
+  // Xử lý thanh toán chính
   const handlePayment = async () => {
     if (cartTotal === 0) {
       messageApi.warning(
@@ -567,12 +497,7 @@ export default function SellPay({
       return;
     }
 
-    if (isDelivery) {
-      if (!addressForm) {
-        messageApi.warning("Vui lòng nhập địa chỉ giao hàng!");
-        return;
-      }
-
+    if (isDelivery && addressForm) {
       const formValues = addressForm.getFieldsValue();
       if (!formValues.thanhPho || !formValues.quan || !formValues.diaChiCuThe) {
         messageApi.warning("Vui lòng nhập đầy đủ thông tin địa chỉ giao hàng!");
@@ -580,29 +505,25 @@ export default function SellPay({
       }
     }
 
-    const displayCustomerName = selectedCustomer?.hoTen || "Khách lẻ";
-    const displayCustomerPhone = selectedCustomer?.sdt || "";
-
-    // Chuẩn bị dữ liệu hóa đơn
     const hoaDonMoi = prepareHoaDonData();
     if (!hoaDonMoi || !hoaDonMoi.chiTietList?.length) {
       messageApi.error("❌ Không có sản phẩm trong giỏ hàng!");
       return;
     }
 
+    // Hiển thị modal xác nhận
     setPendingConfirmData({
-      customerName: displayCustomerName,
-      customerPhone: displayCustomerPhone,
+      customerName: selectedCustomer?.hoTen || "Khách lẻ",
+      customerPhone: selectedCustomer?.sdt || "",
       isDelivery,
       cartTotal,
-      discountAmount,
+      discountAmount: actualDiscountAmount,
       shippingFee,
       totalWithShipping,
       appliedDiscountCode: appliedDiscount?.code,
       paymentMethod,
       hoaDonMoi,
     });
-
     setConfirmModalVisible(true);
   };
 
@@ -612,6 +533,7 @@ export default function SellPay({
     <>
       {contextHolder}
 
+      {/* Thông tin thanh toán */}
       <div className="bg-gray-50 p-5 rounded-lg border-l-4 border border-amber-700">
         <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-4">
@@ -622,7 +544,7 @@ export default function SellPay({
             <div className="flex justify-between font-bold">
               <span>Giảm giá:</span>
               <span className="text-red-800">
-                {actualDiscountAmount.toLocaleString()} vnd
+                -{actualDiscountAmount.toLocaleString()} vnd
               </span>
             </div>
             {isDelivery && (
@@ -641,6 +563,7 @@ export default function SellPay({
         </div>
       </div>
 
+      {/* Phương thức thanh toán */}
       <div className="flex flex-col gap-3">
         <div className="font-bold">Phương thức thanh toán:</div>
         <div className="flex gap-2">
@@ -660,6 +583,7 @@ export default function SellPay({
         </div>
       </div>
 
+      {/* Nút thanh toán */}
       <div
         onClick={handlePayment}
         className={`cursor-pointer select-none text-center py-3 rounded-xl font-bold text-white shadow ${
@@ -710,15 +634,15 @@ export default function SellPay({
             <Card
               hoverable
               className="text-center h-full"
-              onClick={generateVNPayQR}
+              onClick={() => showQRModal(pendingHoaDonData)}
             >
               <div className="flex flex-col items-center gap-3">
                 <QrcodeOutlined
                   style={{ fontSize: "48px", color: "#52c41a" }}
                 />
-                <h3 className="font-bold text-lg">Quét QR VNPay</h3>
+                <h3 className="font-bold text-lg">Quét QR chuyển khoản</h3>
                 <p className="text-gray-600">
-                  Quét mã QR để thanh toán bằng ứng dụng ngân hàng
+                  Quét mã QR để lấy thông tin chuyển khoản
                 </p>
                 <Button type="primary" icon={<QrcodeOutlined />}>
                   Chọn
@@ -729,7 +653,6 @@ export default function SellPay({
         </Row>
 
         <Divider />
-
         <div className="text-center">
           <span className="text-gray-500">
             Số tiền thanh toán:{" "}
@@ -831,12 +754,12 @@ export default function SellPay({
         </div>
       </Modal>
 
-      {/* Modal hiển thị QR Code VNPay */}
+      {/* Modal QR chuyển khoản */}
       <Modal
         title={
           <Space>
             <QrcodeOutlined />
-            <span>Thanh toán qua VNPay QR</span>
+            <span>Thanh toán chuyển khoản</span>
           </Space>
         }
         open={qrModalVisible}
@@ -854,16 +777,20 @@ export default function SellPay({
             </div>
 
             <div className="flex justify-center mb-4">
-              <QRCode value={qrData.url} size={200} icon="/vnpay-logo.png" />
+              <QRCode
+                value={`${qrData.bankInfo.accountNumber}|${qrData.amount}|${qrData.bankInfo.content}`}
+                size={200}
+              />
             </div>
 
             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
               <span className="text-gray-500">
-                Quét mã QR bằng ứng dụng ngân hàng hỗ trợ VNPay QR để thanh toán
+                Quét mã QR để lấy thông tin chuyển khoản hoặc chuyển khoản thủ
+                công theo thông tin bên dưới
               </span>
             </div>
 
-            <Divider>Hoặc chuyển khoản thủ công</Divider>
+            <Divider>Thông tin chuyển khoản</Divider>
 
             <div className="text-left mb-4">
               <Space
@@ -899,6 +826,19 @@ export default function SellPay({
                   <span>{qrData.bankInfo.branch}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="font-bold">Nội dung:</span>
+                  <Space>
+                    <span>{qrData.bankInfo.content}</span>
+                    <Button
+                      size="small"
+                      icon={copied ? <CheckOutlined /> : <CopyOutlined />}
+                      onClick={() => copyToClipboard(qrData.bankInfo.content)}
+                    >
+                      {copied ? "Đã copy" : "Copy"}
+                    </Button>
+                  </Space>
+                </div>
+                <div className="flex justify-between">
                   <span className="font-bold">Số tiền:</span>
                   <span className="font-bold text-red-600">
                     {qrData.amount.toLocaleString()} VND
@@ -921,6 +861,8 @@ export default function SellPay({
           </div>
         )}
       </Modal>
+
+      {/* Modal xác nhận thanh toán */}
       <Modal
         title="Xác nhận thanh toán"
         open={confirmModalVisible}
@@ -957,7 +899,7 @@ export default function SellPay({
               <div className="flex justify-between text-red-600">
                 <span className="font-medium">Giảm giá:</span>
                 <span className="font-semibold">
-                  {pendingConfirmData.discountAmount.toLocaleString()} VND
+                  -{pendingConfirmData.discountAmount.toLocaleString()} VND
                 </span>
               </div>
               {pendingConfirmData.isDelivery && (
@@ -988,15 +930,15 @@ export default function SellPay({
             <div className="text-center text-red-600 font-semibold">
               Bạn có chắc chắn muốn thanh toán?
             </div>
-            <div className="flex justify-center gap-6  w-full">
+            <div className="flex justify-center gap-6 w-full">
               <div
-                className="w-40 cursor-pointer select-none  text-center py-2 rounded-xl bg-[#b8b8b8] font-bold text-white   hover:bg-red-600 active:bg-rose-900 border  active:border-[#808080] shadow "
+                className="w-40 cursor-pointer select-none text-center py-2 rounded-xl bg-[#b8b8b8] font-bold text-white hover:bg-red-600 active:bg-rose-900 border active:border-[#808080] shadow"
                 onClick={() => setConfirmModalVisible(false)}
               >
                 Hủy
               </div>
               <div
-                className="w-40 cursor-pointer select-none  text-center py-2 rounded-xl bg-[#E67E22] font-bold text-white   hover:bg-cyan-800 active:bg-cyan-800 border  active:border-[#808080] shadow"
+                className="w-40 cursor-pointer select-none text-center py-2 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-cyan-800 active:bg-cyan-800 border active:border-[#808080] shadow"
                 onClick={async () => {
                   setConfirmModalVisible(false);
                   const { hoaDonMoi } = pendingConfirmData;
@@ -1007,47 +949,7 @@ export default function SellPay({
                   } else if (paymentMethod === "Cả hai") {
                     showBothPaymentModal(hoaDonMoi);
                   } else {
-                    setLoading(true);
-                    try {
-                      const res = await hoaDonApi.create(hoaDonMoi);
-                      if (res.data?.isSuccess) {
-                        messageApi.success(
-                          isDelivery
-                            ? " Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
-                            : " Thanh toán thành công! Đơn hàng đã hoàn tất."
-                        );
-
-                        if (selectedBillId) {
-                          const bills =
-                            JSON.parse(localStorage.getItem("pendingBills")) ||
-                            [];
-                          const updatedBills = bills.filter(
-                            (bill) => bill.id !== selectedBillId
-                          );
-                          localStorage.setItem(
-                            "pendingBills",
-                            JSON.stringify(updatedBills)
-                          );
-                          window.dispatchEvent(new Event("billsUpdated"));
-                        }
-
-                        if (onRemoveDiscount) onRemoveDiscount();
-                        if (onClearCart) onClearCart();
-
-                        const newBillId = res.data.data?.id || res.data.data;
-                        if (newBillId)
-                          navigate(`/admin/detail-bill/${newBillId}`);
-                      } else {
-                        messageApi.error(
-                          "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
-                        );
-                      }
-                    } catch (error) {
-                      console.error(error);
-                      messageApi.error("❌ Lỗi khi thanh toán!");
-                    } finally {
-                      setLoading(false);
-                    }
+                    await handleCashPayment(hoaDonMoi);
                   }
                 }}
               >
