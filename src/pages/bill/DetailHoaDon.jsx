@@ -39,7 +39,7 @@ import BillInvoiceStatus from "./BillInvoiceStatus";
 import BillInvoiceHistory from "./BillInvoiceHistory";
 import { FloppyDiskIcon, XCircleIcon, XIcon } from "@phosphor-icons/react";
 import BillProduct from "./BillProduct";
-
+import { diaChiApi } from "/src/api/diaChiApi";
 const { Title, Text } = Typography;
 
 const DetailHoaDon = () => {
@@ -66,8 +66,20 @@ const DetailHoaDon = () => {
   const [showBillProduct, setShowBillProduct] = useState(false);
   const [editingQuantities, setEditingQuantities] = useState({});
   const [tinhList, setTinhList] = useState([]);
+  const [quanMap, setQuanMap] = useState({}); // { idTinh: [...] }
   const [localQuanList, setLocalQuanList] = useState([]);
   const [addressForm] = Form.useForm();
+  const [messageApi, contextHolder] = message.useMessage();
+
+  useEffect(() => {
+    diaChiApi
+      .getAllTinhThanh()
+      .then(setTinhList)
+      .catch((err) => {
+        console.error("Lỗi load tỉnh/thành:", err);
+        messageApi.error("Không thể tải danh sách tỉnh/thành");
+      });
+  }, [messageApi]);
   const handleTempStatusChange = (newStatus) => {
     setTempStatus(newStatus);
   };
@@ -76,43 +88,96 @@ const DetailHoaDon = () => {
     setTempLoaiHoaDon(newLoaiHoaDon);
   };
   const handleTinhChange = async (idTinh) => {
-    addressForm.setFieldsValue({ quan: null });
-
-    if (quanMap[idTinh]) {
-      setLocalQuanList(quanMap[idTinh]);
-      return quanMap[idTinh];
+    if (!idTinh) {
+      setLocalQuanList([]);
+      editForm.setFieldsValue({ quan: null });
+      return;
     }
 
+    editForm.setFieldsValue({ quan: null });
+
+    // Luôn lấy từ quanMap trước (có thể đã được load từ modal)
+    if (quanMap[idTinh]) {
+      setLocalQuanList(quanMap[idTinh]);
+      return;
+    }
+
+    // Nếu chưa có thì mới gọi API
     try {
       const res = await diaChiApi.getQuanByTinh(idTinh);
       setQuanMap((prev) => ({ ...prev, [idTinh]: res }));
       setLocalQuanList(res);
-      return res;
     } catch (err) {
       console.error("Lỗi load quận/huyện:", err);
       messageApi.error("Không thể tải danh sách quận/huyện");
-      throw err;
     }
   };
   const handleEditToggle = () => {
-    setIsEditing(true);
-    setTempStatus(invoice?.trangThai || 0);
-    setTempLoaiHoaDon(invoice?.loaiHoaDon || false);
+  setIsEditing(true);
+  setTempStatus(invoice?.trangThai || 0);
+  setTempLoaiHoaDon(invoice?.loaiHoaDon || false);
 
-    editForm.setFieldsValue({
-      hoTenKhachHang: invoice.tenKhachHang,
-      sdtKhachHang: invoice.sdtKhachHang,
-      emailKhachHang: invoice.emailKhachHang,
-      diaChiKhachHang: invoice.diaChiKhachHang,
-      ghiChu: invoice.ghiChu,
-      trangThai: invoice.trangThai,
-      loaiHoaDon: invoice.loaiHoaDon,
-      hinhThucThanhToan: invoice.hinhThucThanhToan,
-      tenNhanVien: invoice.tenNhanVien,
-      idNhanVien: invoice.idNhanVien,
-      idPhuongThucThanhToan: invoice.idPhuongThucThanhToan,
+  const kh = invoice.khachHang || {};
+
+  // ƯU TIÊN: Lấy địa chỉ mặc định (trangThai = true)
+  const defaultAddress = kh.diaChi?.find(addr => addr.trangThai === true);
+
+  // Nếu không có mặc định → thử lấy cái đầu tiên (dự phòng)
+  const fallbackAddress = defaultAddress || (kh.diaChi?.[0] ?? null);
+
+  // Ưu tiên địa chỉ từ hóa đơn (nếu đã ghi đè)
+  let currentAddress = invoice.diaChiKhachHang || "";
+  let diaChiCuThe = "";
+  let idTinh = null;
+  let idQuan = null;
+
+  if (fallbackAddress) {
+    diaChiCuThe = fallbackAddress.diaChiCuThe || "";
+
+    // Lấy tên + ID tỉnh/thành
+    const tinhThanh = fallbackAddress.tinhThanh || {};
+    const tenTinh = tinhThanh.tenTinh || "";
+    idTinh = tinhThanh.id || fallbackAddress.tinhThanhId || fallbackAddress.idTinh;
+
+    // Lấy tên + ID quận/huyện
+    const quanHuyen = fallbackAddress.quanHuyen || {};
+    const tenQuan = quanHuyen.tenQuan || "";
+    idQuan = quanHuyen.id || fallbackAddress.quanHuyenId || fallbackAddress.idQuan;
+
+    // Nếu hóa đơn chưa có địa chỉ riêng → dùng địa chỉ mặc định để hiển thị
+    if (!currentAddress) {
+      currentAddress = [diaChiCuThe, tenQuan, tenTinh].filter(Boolean).join(", ");
+    }
+  }
+
+  // Đổ dữ liệu vào form
+  editForm.setFieldsValue({
+    hoTenKhachHang: kh.hoTen || invoice.tenKhachHang || "",
+    sdtKhachHang: kh.sdt || invoice.sdtKhachHang || "",
+    emailKhachHang: kh.email || invoice.emailKhachHang || "",
+    ghiChu: invoice.ghiChu || "",
+
+    // ĐỊA CHỈ – BÂY GIỜ ĐÚNG 100%
+    diaChiCuThe: diaChiCuThe,
+    thanhPho: idTinh,
+    quan: idQuan,
+    idDiaChi: fallbackAddress?.id || null, // Gửi ID nếu có
+
+    // Các field khác
+    trangThai: invoice.trangThai,
+    loaiHoaDon: invoice.loaiHoaDon,
+    hinhThucThanhToan: invoice.hinhThucThanhToan,
+    idNhanVien: invoice.idNhanVien,
+    idPhuongThucThanhToan: invoice.idPhuongThucThanhToan,
+  });
+
+  // Load quận/huyện nếu có tỉnh
+  if (idTinh) {
+    handleTinhChange(idTinh).then(() => {
+      editForm.setFieldsValue({ quan: idQuan });
     });
-  };
+  }
+};
 
   const validationRules = {
     hoTenKhachHang: [
@@ -155,125 +220,113 @@ const DetailHoaDon = () => {
     try {
       const values = await editForm.validateFields();
 
+      const tenTinh = values.thanhPho
+        ? tinhList.find((t) => t.id === values.thanhPho)?.tenTinh || ""
+        : "";
+      const tenQuan = values.quan
+        ? quanMap[values.thanhPho]?.find((q) => q.id === values.quan)
+            ?.tenQuan || ""
+        : "";
+
+      const fullAddress = [values.diaChiCuThe || "", tenQuan, tenTinh]
+        .filter(Boolean)
+        .join(", ")
+        .trim();
+
       await hoaDonApi.updateHoaDon(id, {
         ...values,
+        idDiaChi: values.idDiaChi, // ← GỬI ID ĐỊA CHỈ LÊN
+        diaChiCuThe: values.diaChiCuThe, // ← Gửi cụ thể
+        thanhPho: values.thanhPho, // ← id tỉnh
+        quan: values.quan, // ← id quận
+        diaChiKhachHang: fullAddress || "Chưa có địa chỉ",
         trangThai: tempStatus,
         loaiHoaDon: tempLoaiHoaDon,
       });
 
-      message.success("✅ Cập nhật thành công!");
+      message.success("Cập nhật thành công!");
       setIsEditing(false);
-      setFormErrors({});
       fetchInvoiceDetail();
     } catch (err) {
-      if (err.errorFields) {
-        message.error("❌ Vui lòng kiểm tra lại thông tin!");
-      } else {
-        message.error(
-          "❌ Lưu thất bại! " + (err.response?.data?.message || "")
-        );
-      }
+      console.error("Lỗi lưu:", err);
+      message.error("Có lỗi xảy ra khi lưu!");
     }
   };
-  const openAddressModal = async () => {
-    if (!invoice?.khachHangId) {
-      messageApi.warning("Không có thông tin khách hàng!");
+  const openAddressModal = () => {
+    // 1. Kiểm tra khách hàng có tồn tại không
+    if (!invoice?.khachHang) {
+      message.warning("Không có thông tin khách hàng!");
       return;
     }
 
-    try {
-      // Giả sử bạn có API lấy danh sách địa chỉ khách hàng
-      // Nếu không có → dùng dữ liệu từ invoice hoặc gọi API
-      const addresses = invoice.allAddresses || [];
-
-      if (addresses.length === 0) {
-        messageApi.info("Khách hàng chưa có địa chỉ nào.");
-        return;
-      }
-
-      const tinhIds = [
-        ...new Set(
-          addresses
-            .map((addr) => addr.tinhThanhId || addr.id_tinh || addr.idTinh)
-            .filter(Boolean)
-        ),
-      ];
-
-      const newQuanMap = { ...quanMap };
-      await Promise.all(
-        tinhIds.map(async (idTinh) => {
-          if (!newQuanMap[idTinh]) {
-            try {
-              const res = await diaChiApi.getQuanByTinh(idTinh);
-              newQuanMap[idTinh] = res;
-            } catch (err) {
-              console.error(`Lỗi load quận cho tỉnh ${idTinh}:`, err);
-              newQuanMap[idTinh] = [];
-            }
-          }
-        })
-      );
-
-      setQuanMap(newQuanMap);
-
-      const normalized = addresses.map((addr) => {
-        const idTinh = addr.tinhThanhId || addr.id_tinh || addr.idTinh;
-        const idQuan = addr.quanHuyenId || addr.id_quan || addr.idQuan;
-
-        const tinh = tinhList.find((t) => t.id === idTinh);
-        const quanList = newQuanMap[idTinh] || [];
-        const quan = quanList.find((q) => q.id === idQuan);
-
-        return {
-          ...addr,
-          tinhTen: addr.tenTinh || tinh?.tenTinh || "Không xác định",
-          quanTen: addr.tenQuan || quan?.tenQuan || "Không xác định",
-          diaChiCuThe: addr.dia_chi_cu_the || addr.diaChiCuThe || "",
-        };
-      });
-
-      setCustomerAddresses(normalized);
-      setAddressModalVisible(true);
-    } catch (err) {
-      console.error("Lỗi tải địa chỉ:", err);
-      messageApi.error("Không thể tải danh sách địa chỉ");
+    // 2. Kiểm tra diaChi có tồn tại và là mảng không
+    const diaChiList = invoice.khachHang.diaChi;
+    if (!diaChiList || !Array.isArray(diaChiList) || diaChiList.length === 0) {
+      message.info("Khách hàng chưa có địa chỉ nào được lưu.");
+      return;
     }
+
+    // 3. Chỉ đến đây mới chắc chắn có dữ liệu → map an toàn
+    const addresses = diaChiList.map((addr) => ({
+      ...addr,
+      tinhTen: addr.tinhThanh || addr.tenTinh || "Không xác định",
+      quanTen: addr.quanHuyen || addr.tenQuan || "Không xác định",
+      diaChiCuThe: addr.diaChiCuThe || "",
+      // Thêm fallback cho các trường hợp API trả tên khác
+      idTinh: addr.idTinh || addr.tinhThanhId,
+      idQuan: addr.idQuan || addr.quanHuyenId,
+    }));
+
+    setCustomerAddresses(addresses);
+    setAddressModalVisible(true);
   };
   const handleSelectAddress = async (record) => {
-    const idTinh =
-      record.tinhThanhId || record.id_tinh || record.idTinh || record.thanhPho;
-    const idQuan =
-      record.quanHuyenId || record.id_quan || record.idQuan || record.quan;
-    const diaChiCuThe = record.dia_chi_cu_the || record.diaChiCuThe || "";
+    if (!record) return;
 
-    try {
-      if (idTinh && !quanMap[idTinh]) {
-        const res = await diaChiApi.getQuanByTinh(idTinh);
-        setQuanMap((prev) => ({ ...prev, [idTinh]: res }));
+    const idTinh = record.idTinh || record.tinhThanhId;
+    const idQuan = record.idQuan || record.quanHuyenId;
+
+    const fullAddress = [
+      record.diaChiCuThe || "",
+      record.quanTen || "",
+      record.tinhTen || "",
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    // CẬP NHẬT FORM – THÊM DÒNG QUAN TRỌNG NHẤT
+    editForm.setFieldsValue({
+      diaChiCuThe: record.diaChiCuThe || "",
+      thanhPho: idTinh,
+      quan: idQuan,
+      idDiaChi: record.id, // ← THÊM DÒNG NÀY – QUAN TRỌNG NHẤT!!!
+    });
+
+    // Cập nhật quanMap nếu cần
+    if (idTinh && idQuan) {
+      if (!quanMap[idTinh]) {
+        const fakeQuanList = [
+          { id: idQuan, tenQuan: record.quanTen || "Quận/Huyện" },
+        ];
+        setQuanMap((prev) => ({ ...prev, [idTinh]: fakeQuanList }));
+        setLocalQuanList(fakeQuanList);
+      } else if (!quanMap[idTinh].some((q) => q.id === idQuan)) {
+        setQuanMap((prev) => ({
+          ...prev,
+          [idTinh]: [...prev[idTinh], { id: idQuan, tenQuan: record.quanTen }],
+        }));
+        setLocalQuanList((prev) => [
+          ...prev,
+          { id: idQuan, tenQuan: record.quanTen },
+        ]);
+      } else {
+        setLocalQuanList(quanMap[idTinh]);
       }
-
-      const fullAddress = `${diaChiCuThe}, ${record.quanTen}, ${record.tinhTen}`;
-
-      // Cập nhật form nếu đang edit
-      if (isEditing) {
-        editForm.setFieldsValue({
-          diaChiKhachHang: fullAddress,
-        });
-      }
-
-      // Cập nhật invoice để hiển thị
-      setInvoice((prev) => ({
-        ...prev,
-        diaChiKhachHang: fullAddress,
-      }));
-
-      messageApi.success("Đã chọn địa chỉ thành công!");
-    } catch (err) {
-      console.error("Lỗi khi chọn địa chỉ:", err);
-      messageApi.error("Không thể cập nhật địa chỉ");
-    } finally {
-      setAddressModalVisible(false);
     }
+
+    setInvoice((prev) => ({ ...prev, diaChiKhachHang: fullAddress }));
+    message.success("Đã chọn địa chỉ giao hàng!");
+    setAddressModalVisible(false);
   };
   const handleCancelEdit = () => {
     setIsEditing(false);
@@ -767,545 +820,639 @@ const DetailHoaDon = () => {
   if (!invoice) return null;
 
   return (
-    <div
-      style={{ padding: 24, backgroundColor: "#f5f5f5", minHeight: "100vh" }}
-      className="detail-hoadon"
-    >
-      <div style={{ margin: "0 auto" }} className="print-area">
-        <Card className="no-print" style={{ marginBottom: 16 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <Title level={3} style={{ margin: 0 }}>
-                CHI TIẾT ĐƠN HÀNG
-              </Title>
-              <Text type="secondary">Mã đơn hàng: {invoice.maHoaDon}</Text>
-            </div>
-            <Space>
-              {isEditing ? (
-                <Space>
+    <>
+      {" "}
+      {contextHolder}
+      <div
+        style={{ padding: 24, backgroundColor: "#f5f5f5", minHeight: "100vh" }}
+        className="detail-hoadon"
+      >
+        <div style={{ margin: "0 auto" }} className="print-area">
+          <Card className="no-print" style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <Title level={3} style={{ margin: 0 }}>
+                  CHI TIẾT ĐƠN HÀNG
+                </Title>
+                <Text type="secondary">Mã đơn hàng: {invoice.maHoaDon}</Text>
+              </div>
+              <Space>
+                {isEditing ? (
+                  <Space>
+                    <div
+                      className="flex gap-1 items-center cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-sm text-white hover:bg-cyan-800 active:bg-cyan-800 shadow transition-colors"
+                      onClick={handleSave}
+                    >
+                      <FloppyDiskIcon size={20} weight="fill" /> Lưu
+                    </div>
+                    <div
+                      className="flex gap-1 items-center cursor-pointer select-none  text-center py-2 px-6 rounded-lg bg-[#777676] font-bold text-sm text-white   hover:bg-red-600 active:bg-rose-900 border  active:border-[#808080] shadow transition-colors"
+                      onClick={handleCancelEdit}
+                    >
+                      <XCircleIcon size={20} weight="fill" /> Hủy
+                    </div>
+                  </Space>
+                ) : canEdit ? (
                   <div
-                    className="flex gap-1 items-center cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-sm text-white hover:bg-cyan-800 active:bg-cyan-800 shadow transition-colors"
-                    onClick={handleSave}
+                    onClick={handleEditToggle}
+                    className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
                   >
-                    <FloppyDiskIcon size={20} weight="fill" /> Lưu
+                    Chỉnh sửa
                   </div>
-                  <div
-                    className="flex gap-1 items-center cursor-pointer select-none  text-center py-2 px-6 rounded-lg bg-[#777676] font-bold text-sm text-white   hover:bg-red-600 active:bg-rose-900 border  active:border-[#808080] shadow transition-colors"
-                    onClick={handleCancelEdit}
-                  >
-                    <XCircleIcon size={20} weight="fill" /> Hủy
-                  </div>
-                </Space>
-              ) : canEdit ? (
-                <div
-                  onClick={handleEditToggle}
-                  className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
-                >
-                  Chỉnh sửa
-                </div>
-              ) : (
-                <Button icon={<LockOutlined />} disabled>
-                  Không thể sửa
+                ) : (
+                  <Button icon={<LockOutlined />} disabled>
+                    Không thể sửa
+                  </Button>
+                )}
+
+                <Button icon={<PrinterOutlined />} onClick={handlePrint}>
+                  In đơn hàng
                 </Button>
-              )}
+                <Button icon={<MailOutlined />} onClick={handleSendEmail}>
+                  Gửi email
+                </Button>
+              </Space>
+            </div>
+          </Card>
 
-              <Button icon={<PrinterOutlined />} onClick={handlePrint}>
-                In đơn hàng
-              </Button>
-              <Button icon={<MailOutlined />} onClick={handleSendEmail}>
-                Gửi email
-              </Button>
-            </Space>
-          </div>
-        </Card>
+          <Form form={editForm} layout="vertical">
+            <Row gutter={16}>
+              <Col xs={24} lg={16}>
+                <BillInvoiceStatus
+                  invoiceId={id}
+                  currentStatus={invoice?.trangThai}
+                  invoiceData={invoice}
+                  isEditing={isEditing}
+                  tempStatus={tempStatus}
+                  tempLoaiHoaDon={tempLoaiHoaDon}
+                  onTempStatusChange={handleTempStatusChange}
+                  onLoaiHoaDonChange={handleLoaiHoaDonChange}
+                  onStatusChange={(newStatus) => {
+                    setInvoice((prev) =>
+                      prev ? { ...prev, trangThai: newStatus } : null
+                    );
+                    fetchInvoiceDetail();
+                  }}
+                />
 
-        <Form form={editForm} layout="vertical">
-          <Row gutter={16}>
-            <Col xs={24} lg={16}>
-              <BillInvoiceStatus
-                invoiceId={id}
-                currentStatus={invoice?.trangThai}
-                invoiceData={invoice}
-                isEditing={isEditing}
-                tempStatus={tempStatus}
-                tempLoaiHoaDon={tempLoaiHoaDon}
-                onTempStatusChange={handleTempStatusChange}
-                onLoaiHoaDonChange={handleLoaiHoaDonChange}
-                onStatusChange={(newStatus) => {
-                  setInvoice((prev) =>
-                    prev ? { ...prev, trangThai: newStatus } : null
-                  );
-                  fetchInvoiceDetail();
-                }}
-              />
+                <Row
+                  gutter={16}
+                  style={{ marginBottom: 16 }}
+                  className="customer-payment-row"
+                >
+                  <Col xs={24} md={12}>
+                    <Card
+                      title={
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <UserOutlined /> Thông tin khách hàng
+                          </div>
+                          {isEditing && (
+                            <div
+                              className="cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-sm text-white hover:bg-amber-600 active:bg-cyan-800 shadow transition-colors"
+                              onClick={openAddressModal}
+                            >
+                              Chọn địa chỉ
+                            </div>
+                          )}
+                        </div>
+                      }
+                      style={{ height: "100%" }}
+                    >
+                      <Space
+                        direction="vertical"
+                        style={{ width: "100%" }}
+                        size="small"
+                      >
+                        <div>
+                          <Text type="secondary">Tên khách hàng:</Text>
+                          {isEditing ? (
+                            <Form.Item
+                              name="hoTenKhachHang"
+                              rules={validationRules.hoTenKhachHang}
+                              style={{ marginBottom: 0, marginTop: 4 }}
+                            >
+                              <Input placeholder="Nhập tên khách hàng..." />
+                            </Form.Item>
+                          ) : (
+                            <div>
+                              <Text strong>
+                                {invoice.khachHang?.hoTen ||
+                                  invoice.tenKhachHang ||
+                                  "Khách lẻ"}
+                              </Text>
+                            </div>
+                          )}
+                        </div>
+                        {/* Email */}
+                        <div>
+                          <Text type="secondary">Email:</Text>
+                          {isEditing ? (
+                            <Form.Item
+                              name="emailKhachHang"
+                              rules={validationRules.emailKhachHang}
+                              style={{ marginBottom: 0, marginTop: 4 }}
+                            >
+                              <Input placeholder="email@example.com" />
+                            </Form.Item>
+                          ) : (
+                            <div>
+                              <Text strong>
+                                {invoice.khachHang?.email ||
+                                  invoice.emailKhachHang ||
+                                  "—"}
+                              </Text>
+                            </div>
+                          )}
+                        </div>
+                        {/* Số điện thoại */}
+                        <div>
+                          <Text type="secondary">Số điện thoại:</Text>
+                          {isEditing ? (
+                            <Form.Item
+                              name="sdtKhachHang"
+                              rules={validationRules.sdtKhachHang}
+                              style={{ marginBottom: 0, marginTop: 4 }}
+                            >
+                              <Input placeholder="0912345678" />
+                            </Form.Item>
+                          ) : (
+                            <div>
+                              <Text strong>
+                                {invoice.khachHang?.sdt ||
+                                  invoice.sdtKhachHang ||
+                                  "—"}
+                              </Text>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <Text type="secondary">Địa chỉ giao hàng:</Text>
+                          <Form.Item name="idDiaChi" noStyle>
+                            <Input type="hidden" />
+                          </Form.Item>
+                          {isEditing ? (
+                            /* === CHẾ ĐỘ CHỈNH SỬA: luôn cho phép nhập địa chỉ === */
+                            <>
+                              <Row gutter={16} style={{ marginTop: 8 }}>
+                                <Col span={12}>
+                                  <Form.Item
+                                    name="thanhPho"
+                                    label="Tỉnh/Thành phố"
+                                    rules={[
+                                      {
+                                        required: true,
+                                        message: "Chọn tỉnh/thành!",
+                                      },
+                                    ]}
+                                  >
+                                    <Select
+                                      placeholder="Chọn tỉnh/thành"
+                                      onChange={handleTinhChange}
+                                      showSearch
+                                      optionFilterProp="children"
+                                      filterOption={(input, option) =>
+                                        (option?.children ?? "")
+                                          .toLowerCase()
+                                          .includes(input.toLowerCase())
+                                      }
+                                    >
+                                      {tinhList.map((t) => (
+                                        <Select.Option key={t.id} value={t.id}>
+                                          {t.tenTinh}
+                                        </Select.Option>
+                                      ))}
+                                    </Select>
+                                  </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                  <Form.Item
+                                    name="quan"
+                                    label="Quận/Huyện"
+                                    rules={[
+                                      {
+                                        required: true,
+                                        message: "Chọn quận/huyện!",
+                                      },
+                                    ]}
+                                  >
+                                    <Select
+                                      placeholder="Chọn quận/huyện"
+                                      disabled={!localQuanList.length}
+                                      showSearch
+                                    >
+                                      {localQuanList.map((q) => (
+                                        <Select.Option key={q.id} value={q.id}>
+                                          {q.tenQuan}
+                                        </Select.Option>
+                                      ))}
+                                    </Select>
+                                  </Form.Item>
+                                </Col>
+                              </Row>
 
-              <Row
-                gutter={16}
-                style={{ marginBottom: 16 }}
-                className="customer-payment-row"
-              >
-                <Col xs={24} md={12}>
-                  <Card
-                    title={
+                              <Form.Item
+                                name="diaChiCuThe"
+                                label="Số nhà, đường"
+                                rules={[
+                                  {
+                                    required: true,
+                                    message: "Nhập địa chỉ cụ thể!",
+                                  },
+                                ]}
+                              >
+                                <Input placeholder="Nhập số nhà, tên đường..." />
+                              </Form.Item>
+                            </>
+                          ) : (
+                            <div style={{ marginTop: 8 }}>
+                              <Text strong>
+                                {(() => {
+                                  // Ưu tiên 1: Hóa đơn có địa chỉ riêng
+                                  if (invoice.diaChiKhachHang) {
+                                    return invoice.diaChiKhachHang;
+                                  }
+
+                                  // Ưu tiên 2: Chỉ lấy địa chỉ có trangThai = true (mặc định)
+                                  const defaultAddress =
+                                    invoice.khachHang?.diaChi?.find(
+                                      (addr) => addr.trangThai === true
+                                    );
+
+                                  if (defaultAddress) {
+                                    const diaChiCuThe =
+                                      defaultAddress.diaChiCuThe || "";
+                                    const tenQuan =
+                                      defaultAddress.quanHuyen?.tenQuan ||
+                                      defaultAddress.tenQuan ||
+                                      "";
+                                    const tenTinh =
+                                      defaultAddress.tinhThanh?.tenTinh ||
+                                      defaultAddress.tenTinh ||
+                                      "";
+
+                                    return (
+                                      [diaChiCuThe, tenQuan, tenTinh]
+                                        .filter(Boolean)
+                                        .join(", ") ||
+                                      "Chưa có địa chỉ chi tiết"
+                                    );
+                                  }
+
+                                  // Không có địa chỉ mặc định → kiểm tra có địa chỉ nào không
+                                  if (invoice.khachHang?.diaChi?.length > 0) {
+                                    return "Có địa chỉ nhưng chưa đặt mặc định";
+                                  }
+
+                                  return invoice.tenKhachHang?.includes(
+                                    "Khách lẻ"
+                                  ) || !invoice.khachHang
+                                    ? "Khách lẻ – Nhận tại quầy"
+                                    : "Chưa có địa chỉ giao hàng";
+                                })()}
+                              </Text>
+                            </div>
+                          )}
+                        </div>
+                      </Space>
+                    </Card>
+                  </Col>
+
+                  <Col xs={24} md={12}>
+                    <BillOrderInformation />
+                  </Col>
+                </Row>
+
+                <Card
+                  title={
+                    <>
                       <div className="flex justify-between items-center">
                         <div>
-                          <UserOutlined /> Thông tin khách hàng
+                          <ShoppingOutlined /> Danh sách sản phẩm chọn
                         </div>
                         {isEditing && (
                           <div
-                            className="cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-sm text-white hover:bg-amber-600 active:bg-cyan-800 shadow transition-colors"
-                            onClick={openAddressModal}
+                            onClick={() => setShowBillProduct((prev) => !prev)}
+                            className="cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-xs  text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
                           >
-                            Chọn địa chỉ
+                            Thêm sản phẩm
                           </div>
                         )}
                       </div>
-                    }
-                    style={{ height: "100%" }}
-                  >
-                    <Space
-                      direction="vertical"
-                      style={{ width: "100%" }}
-                      size="small"
-                    >
-                      <div>
-                        <Text type="secondary">Tên khách hàng:</Text>
-                        {isEditing ? (
-                          <Form.Item
-                            name="hoTenKhachHang"
-                            rules={validationRules.hoTenKhachHang}
-                            style={{ marginBottom: 0, marginTop: 4 }}
-                          >
-                            <Input placeholder="Nhập tên khách hàng..." />
-                          </Form.Item>
-                        ) : (
-                          <div>
-                            <Text strong>{invoice.tenKhachHang}</Text>
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <Text type="secondary">Email:</Text>
-                        {isEditing ? (
-                          <Form.Item
-                            name="emailKhachHang"
-                            rules={validationRules.emailKhachHang}
-                            style={{ marginBottom: 0, marginTop: 4 }}
-                          >
-                            <Input placeholder="email@example.com" />
-                          </Form.Item>
-                        ) : (
-                          <div>
-                            <Text strong>{invoice.emailKhachHang}</Text>
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <Text type="secondary">Số điện thoại:</Text>
-                        {isEditing ? (
-                          <Form.Item
-                            name="sdtKhachHang"
-                            rules={validationRules.sdtKhachHang}
-                            style={{ marginBottom: 0, marginTop: 4 }}
-                          >
-                            <Input placeholder="0912345678" />
-                          </Form.Item>
-                        ) : (
-                          <div>
-                            <Text strong>{invoice.sdtKhachHang}</Text>
-                          </div>
-                        )}
-                      </div>
-
-                      <Row gutter={16} wrap>
-                        <Col flex="1">
-                          <Form.Item
-                            name="thanhPho"
-                            label="Tỉnh/Thành phố"
-                            rules={[
-                              { required: true, message: "Chọn tỉnh/thành!" },
-                            ]}
-                          >
-                            <Select
-                              placeholder="Chọn tỉnh/thành"
-                              onChange={handleTinhChange}
-                              showSearch
-                              optionFilterProp="children"
-                              filterOption={(input, option) =>
-                                option.children
-                                  .toLowerCase()
-                                  .includes(input.toLowerCase())
-                              }
-                            >
-                              {tinhList.map((t) => (
-                                <Select.Option key={t.id} value={t.id}>
-                                  {t.tenTinh}
-                                </Select.Option>
-                              ))}
-                            </Select>
-                          </Form.Item>
-                        </Col>
-                        <Col flex="1">
-                          <Form.Item
-                            name="quan"
-                            label="Quận/Huyện"
-                            rules={[
-                              { required: true, message: "Chọn quận/huyện!" },
-                            ]}
-                          >
-                            <Select
-                              placeholder="Chọn quận/huyện"
-                              disabled={!localQuanList.length}
-                              showSearch
-                              optionFilterProp="children"
-                              filterOption={(input, option) =>
-                                option.children
-                                  .toLowerCase()
-                                  .includes(input.toLowerCase())
-                              }
-                            >
-                              {localQuanList.map((q) => (
-                                <Select.Option key={q.id} value={q.id}>
-                                  {q.tenQuan}
-                                </Select.Option>
-                              ))}
-                            </Select>
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                      <Form.Item
-                        name="diaChiCuThe"
-                        label="Số nhà, đường"
-                        rules={[{ required: true, message: "Nhập địa chỉ" }]}
-                      >
-                        <Input placeholder="Nhập địa chỉ cụ thể" />
-                      </Form.Item>
-                    </Space>
-                  </Card>
-                </Col>
-
-                <Col xs={24} md={12}>
-                  <BillOrderInformation />
-                </Col>
-              </Row>
-
-              <Card
-                title={
-                  <>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <ShoppingOutlined /> Danh sách sản phẩm chọn
-                      </div>
-                      {isEditing && (
-                        <div
-                          onClick={() => setShowBillProduct((prev) => !prev)}
-                          className="cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-xs  text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
-                        >
-                          Thêm sản phẩm
-                        </div>
-                      )}
-                    </div>
-                  </>
-                }
-                style={{ marginBottom: 16 }}
-              >
-                {invoice.chiTietSanPhams &&
-                invoice.chiTietSanPhams.length > 0 ? (
-                  <Table
-                    columns={productColumns}
-                    dataSource={invoice.chiTietSanPhams}
-                    rowKey="id"
-                    pagination={false}
-                  />
-                ) : (
-                  <Empty description="Không có sản phẩm" />
-                )}
-              </Card>
-
-              {showBillProduct && (
-                <div style={{ marginBottom: 16 }}>
-                  <BillProduct />
-                </div>
-              )}
-
-              <Card title="Ghi chú của khách" style={{ marginBottom: 16 }}>
-                <div>
-                  <Text type="secondary">Ghi chú:</Text>
-                  {isEditing ? (
-                    <Form.Item
-                      name="ghiChu"
-                      rules={validationRules.ghiChu}
-                      style={{ marginBottom: 0, marginTop: 4 }}
-                    >
-                      <Input.TextArea rows={3} placeholder="Nhập ghi chú..." />
-                    </Form.Item>
-                  ) : (
-                    <div>
-                      <Text>{invoice.ghiChu || "Không có ghi chú"}</Text>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </Col>
-
-            <Col xs={24} lg={8}>
-              <Card title="Tóm tắt đơn hàng" style={{ marginBottom: 16 }}>
-                <Space
-                  direction="vertical"
-                  style={{ width: "100%" }}
-                  size="middle"
+                    </>
+                  }
+                  style={{ marginBottom: 16 }}
                 >
-                  <div
-                    style={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <Text>Tạm tính:</Text>
-                    <Text strong>{formatMoney(invoice.tongTien)}</Text>
-                  </div>
+                  {invoice.chiTietSanPhams &&
+                  invoice.chiTietSanPhams.length > 0 ? (
+                    <Table
+                      columns={productColumns}
+                      dataSource={invoice.chiTietSanPhams}
+                      rowKey="id"
+                      pagination={false}
+                    />
+                  ) : (
+                    <Empty description="Không có sản phẩm" />
+                  )}
+                </Card>
 
-                  {!invoice.loaiHoaDon && invoice.phiVanChuyen > 0 && (
+                {showBillProduct && (
+                  <div style={{ marginBottom: 16 }}>
+                    <BillProduct />
+                  </div>
+                )}
+
+                <Card title="Ghi chú của khách" style={{ marginBottom: 16 }}>
+                  <div>
+                    <Text type="secondary">Ghi chú:</Text>
+                    {isEditing ? (
+                      <Form.Item
+                        name="ghiChu"
+                        rules={validationRules.ghiChu}
+                        style={{ marginBottom: 0, marginTop: 4 }}
+                      >
+                        <Input.TextArea
+                          rows={3}
+                          placeholder="Nhập ghi chú..."
+                        />
+                      </Form.Item>
+                    ) : (
+                      <div>
+                        <Text>{invoice.ghiChu || "Không có ghi chú"}</Text>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </Col>
+
+              <Col xs={24} lg={8}>
+                <Card title="Tóm tắt đơn hàng" style={{ marginBottom: 16 }}>
+                  <Space
+                    direction="vertical"
+                    style={{ width: "100%" }}
+                    size="middle"
+                  >
                     <div
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
                       }}
                     >
-                      <Text>Phí vận chuyển:</Text>
-                      <Text strong>{formatMoney(invoice.phiVanChuyen)}</Text>
+                      <Text>Tạm tính:</Text>
+                      <Text strong>{formatMoney(invoice.tongTien)}</Text>
                     </div>
-                  )}
 
-                  {invoice.tongTienSauGiam &&
-                    invoice.tongTienSauGiam !== invoice.tongTien && (
+                    {!invoice.loaiHoaDon && invoice.phiVanChuyen > 0 && (
                       <div
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
-                          color: "#ff4d4f",
                         }}
                       >
-                        <Text type="danger">Giảm giá:</Text>
-                        <Text type="danger" strong>
-                          -
-                          {formatMoney(
-                            invoice.tongTien - invoice.tongTienSauGiam
-                          )}
-                        </Text>
+                        <Text>Phí vận chuyển:</Text>
+                        <Text strong>{formatMoney(invoice.phiVanChuyen)}</Text>
                       </div>
                     )}
 
-                  <Divider style={{ margin: "8px 0" }} />
-
-                  <div
-                    style={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <Text strong style={{ fontSize: 16 }}>
-                      Tổng cộng:
-                    </Text>
-                    <Text strong style={{ fontSize: 18, color: "#ff4d4f" }}>
-                      {formatMoney(
-                        (invoice.tongTienSauGiam ?? invoice.tongTien) +
-                          (!invoice.loaiHoaDon ? invoice.phiVanChuyen || 0 : 0)
+                    {invoice.tongTienSauGiam &&
+                      invoice.tongTienSauGiam !== invoice.tongTien && (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            color: "#ff4d4f",
+                          }}
+                        >
+                          <Text type="danger">Giảm giá:</Text>
+                          <Text type="danger" strong>
+                            -
+                            {formatMoney(
+                              invoice.tongTien - invoice.tongTienSauGiam
+                            )}
+                          </Text>
+                        </div>
                       )}
-                    </Text>
-                  </div>
-                </Space>
-              </Card>
 
-              <Card
-                title={
-                  <>
-                    <ClockCircleOutlined /> Lịch sử đơn hàng
-                  </>
-                }
-                className="history-section"
-              >
-                {lichSuHoaDon && lichSuHoaDon.length > 0 ? (
-                  <Timeline
-                    items={lichSuHoaDon.map((item, index) => ({
-                      dot: (
-                        <span style={{ fontSize: 18 }}>
-                          {getTimelineIcon(item.hanhDong)}
-                        </span>
-                      ),
-                      color: index === 0 ? "green" : "gray",
-                      children: (
-                        <div>
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              marginBottom: 4,
-                            }}
-                          >
-                            <Text strong>{item.hanhDong}</Text>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              {formatDate(item.ngayCapNhat)}
-                            </Text>
-                          </div>
-                          {item.moTa && (
-                            <Text
-                              type="secondary"
+                    <Divider style={{ margin: "8px 0" }} />
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text strong style={{ fontSize: 16 }}>
+                        Tổng cộng:
+                      </Text>
+                      <Text strong style={{ fontSize: 18, color: "#ff4d4f" }}>
+                        {formatMoney(
+                          (invoice.tongTienSauGiam ?? invoice.tongTien) +
+                            (!invoice.loaiHoaDon
+                              ? invoice.phiVanChuyen || 0
+                              : 0)
+                        )}
+                      </Text>
+                    </div>
+                  </Space>
+                </Card>
+
+                <Card
+                  title={
+                    <>
+                      <ClockCircleOutlined /> Lịch sử đơn hàng
+                    </>
+                  }
+                  className="history-section"
+                >
+                  {lichSuHoaDon && lichSuHoaDon.length > 0 ? (
+                    <Timeline
+                      items={lichSuHoaDon.map((item, index) => ({
+                        dot: (
+                          <span style={{ fontSize: 18 }}>
+                            {getTimelineIcon(item.hanhDong)}
+                          </span>
+                        ),
+                        color: index === 0 ? "green" : "gray",
+                        children: (
+                          <div>
+                            <div
                               style={{
-                                fontSize: 13,
-                                display: "block",
+                                display: "flex",
+                                justifyContent: "space-between",
                                 marginBottom: 4,
                               }}
                             >
-                              {item.moTa}
-                            </Text>
-                          )}
-                          {item.nguoiThucHien && (
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              Người thực hiện:{" "}
-                              <Text strong style={{ fontSize: 12 }}>
-                                {item.nguoiThucHien}
+                              <Text strong>{item.hanhDong}</Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                {formatDate(item.ngayCapNhat)}
                               </Text>
-                            </Text>
-                          )}
-                        </div>
-                      ),
-                    }))}
-                  />
-                ) : (
-                  <Timeline
-                    items={[
-                      {
-                        dot: "",
-                        children: (
-                          <Space>
-                            <Text type="secondary">
-                              {formatDate(invoice.ngayTao)}
-                            </Text>
-                            <Text>Đơn hàng được tạo thành công</Text>
-                          </Space>
+                            </div>
+                            {item.moTa && (
+                              <Text
+                                type="secondary"
+                                style={{
+                                  fontSize: 13,
+                                  display: "block",
+                                  marginBottom: 4,
+                                }}
+                              >
+                                {item.moTa}
+                              </Text>
+                            )}
+                            {item.nguoiThucHien && (
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                Người thực hiện:{" "}
+                                <Text strong style={{ fontSize: 12 }}>
+                                  {item.nguoiThucHien}
+                                </Text>
+                              </Text>
+                            )}
+                          </div>
                         ),
-                      },
-                    ]}
-                  />
-                )}
-              </Card>
-              <BillInvoiceHistory />
-            </Col>
-          </Row>
-        </Form>
-      </div>
+                      }))}
+                    />
+                  ) : (
+                    <Timeline
+                      items={[
+                        {
+                          dot: "",
+                          children: (
+                            <Space>
+                              <Text type="secondary">
+                                {formatDate(invoice.ngayTao)}
+                              </Text>
+                              <Text>Đơn hàng được tạo thành công</Text>
+                            </Space>
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
+                </Card>
+                <BillInvoiceHistory />
+              </Col>
+            </Row>
+          </Form>
+        </div>
 
-      <Modal
-        title={
-          <Space>
-            <MailOutlined /> Gửi hóa đơn qua email
-          </Space>
-        }
-        open={emailModalVisible}
-        onCancel={handleCancelEmail}
-        footer={null}
-        width={600}
-      >
-        <Form form={emailForm} layout="vertical" onFinish={handleEmailSubmit}>
-          <Form.Item
-            label="Email người nhận"
-            name="email"
-            rules={[
-              { required: true, message: "Vui lòng nhập email!" },
-              { type: "email", message: "Email không hợp lệ!" },
-            ]}
-          >
-            <Input placeholder="example@email.com" prefix={<MailOutlined />} />
-          </Form.Item>
-
-          <Form.Item
-            label="Tiêu đề"
-            name="subject"
-            rules={[{ required: true, message: "Vui lòng nhập tiêu đề!" }]}
-          >
-            <Input placeholder="Tiêu đề email" />
-          </Form.Item>
-
-          <Form.Item
-            label="Nội dung"
-            name="message"
-            rules={[{ required: true, message: "Vui lòng nhập nội dung!" }]}
-          >
-            <Input.TextArea rows={6} placeholder="Nội dung email..." />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
-            <Space>
-              <Button onClick={handleCancelEmail}>Hủy</Button>
-              <Button type="primary" htmlType="submit" loading={sendingEmail}>
-                Gửi email
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {addressModalVisible && (
         <Modal
           title={
-            <span className="text-xl font-bold">Chọn địa chỉ giao hàng</span>
+            <Space>
+              <MailOutlined /> Gửi hóa đơn qua email
+            </Space>
           }
-          open={addressModalVisible}
-          onCancel={() => setAddressModalVisible(false)}
+          open={emailModalVisible}
+          onCancel={handleCancelEmail}
           footer={null}
-          width={800}
+          width={600}
         >
-          <Table
-            dataSource={customerAddresses}
-            rowKey={(record) =>
-              record.id ||
-              `${record.tinhThanhId}-${record.quanHuyenId}-${record.diaChiCuThe}`
-            }
-            pagination={false}
-            onRow={(record) => ({
-              onClick: () => handleSelectAddress(record),
-              className: "cursor-pointer hover:bg-blue-50",
-            })}
-            columns={[
-              {
-                title: <strong>Tên địa chỉ</strong>,
-                dataIndex: "tenDiaChi",
-                key: "tenDiaChi",
-                render: (text) => (
-                  <span className="font-medium">{text || "—"}</span>
-                ),
-              },
-              {
-                title: <strong>Tỉnh/Thành phố</strong>,
-                dataIndex: "tinhTen",
-                key: "tinhTen",
-                width: "30%",
-              },
-              {
-                title: <strong>Quận/Huyện</strong>,
-                dataIndex: "quanTen",
-                key: "quanTen",
-                width: "30%",
-              },
-              {
-                title: <strong>Số nhà, đường</strong>,
-                dataIndex: "diaChiCuThe",
-                key: "diaChiCuThe",
-                render: (text) => text || "—",
-              },
-            ]}
-          />
-          {customerAddresses.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              Khách hàng chưa có địa chỉ nào được lưu.
-            </div>
-          )}
+          <Form form={emailForm} layout="vertical" onFinish={handleEmailSubmit}>
+            <Form.Item
+              label="Email người nhận"
+              name="email"
+              rules={[
+                { required: true, message: "Vui lòng nhập email!" },
+                { type: "email", message: "Email không hợp lệ!" },
+              ]}
+            >
+              <Input
+                placeholder="example@email.com"
+                prefix={<MailOutlined />}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Tiêu đề"
+              name="subject"
+              rules={[{ required: true, message: "Vui lòng nhập tiêu đề!" }]}
+            >
+              <Input placeholder="Tiêu đề email" />
+            </Form.Item>
+
+            <Form.Item
+              label="Nội dung"
+              name="message"
+              rules={[{ required: true, message: "Vui lòng nhập nội dung!" }]}
+            >
+              <Input.TextArea rows={6} placeholder="Nội dung email..." />
+            </Form.Item>
+
+            <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
+              <Space>
+                <Button onClick={handleCancelEmail}>Hủy</Button>
+                <Button type="primary" htmlType="submit" loading={sendingEmail}>
+                  Gửi email
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
         </Modal>
-      )}
-    </div>
+
+        {addressModalVisible && (
+          <Modal
+            title={
+              <span className="text-xl font-bold">Chọn địa chỉ giao hàng</span>
+            }
+            open={addressModalVisible}
+            onCancel={() => setAddressModalVisible(false)}
+            footer={null}
+            width={800}
+          >
+            <Table
+              dataSource={customerAddresses}
+              rowKey={(record) =>
+                record.id ||
+                `${record.tinhThanhId}-${record.quanHuyenId}-${record.diaChiCuThe}`
+              }
+              pagination={false}
+              onRow={(record) => ({
+                onClick: () => handleSelectAddress(record),
+                className: "cursor-pointer hover:bg-blue-50",
+              })}
+              columns={[
+                {
+                  title: <strong>Tên địa chỉ</strong>,
+                  dataIndex: "tenDiaChi",
+                  key: "tenDiaChi",
+                  render: (text) => (
+                    <span className="font-medium">{text || "—"}</span>
+                  ),
+                },
+                {
+                  title: <strong>Tỉnh/Thành phố</strong>,
+                  dataIndex: "tinhTen",
+                  key: "tinhTen",
+                  width: "30%",
+                },
+                {
+                  title: <strong>Quận/Huyện</strong>,
+                  dataIndex: "quanTen",
+                  key: "quanTen",
+                  width: "30%",
+                },
+                {
+                  title: <strong>Số nhà, đường</strong>,
+                  dataIndex: "diaChiCuThe",
+                  key: "diaChiCuThe",
+                  render: (text) => text || "—",
+                },
+              ]}
+            />
+            {customerAddresses.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                Khách hàng chưa có địa chỉ nào được lưu.
+              </div>
+            )}
+          </Modal>
+        )}
+      </div>
+    </>
   );
 };
 
