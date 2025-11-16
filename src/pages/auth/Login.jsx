@@ -161,15 +161,7 @@ export default function Login() {
               </button>
 
               <div className="flex justify-between mt-2 text-sm">
-                <a
-                  href="/register"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate("/register");
-                  }}
-                >
-                  Đăng ký
-                </a>
+                <a></a>
                 <a
                   href="/forgotpass"
                   onClick={(e) => {
