@@ -68,7 +68,7 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
       form.resetFields(["sdt"]);
       removeCustomerFromBill();
       onCustomerChange && onCustomerChange(null);
-      setSearch(""); 
+      setSearch("");
     }
   };
 
@@ -96,7 +96,6 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     });
 
     localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-    messageApi.success(`Đã chọn khách hàng: ${customer.hoTen}`);
 
     window.dispatchEvent(new Event("billsUpdated"));
   };
@@ -114,7 +113,6 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     });
 
     localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-    messageApi.success("Đã xóa khách hàng khỏi hóa đơn");
 
     window.dispatchEvent(new Event("billsUpdated"));
   };
@@ -124,9 +122,9 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
   };
 
   const handleSearchKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
-      
+
       if (filteredData && filteredData.length > 0) {
         const firstCustomer = filteredData[0];
         form.setFieldsValue({
@@ -136,7 +134,6 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
         saveCustomerToBill(firstCustomer);
         onCustomerChange && onCustomerChange(firstCustomer);
         setSearch("");
-        messageApi.info(`Đã chọn khách hàng: ${firstCustomer.hoTen}`);
       } else if (search.trim() !== "") {
         messageApi.warning("Không tìm thấy khách hàng phù hợp!");
       }
@@ -155,7 +152,7 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
   const handleQuickAddSubmit = async (values) => {
     setIsLoading(true);
     try {
-      const existingCustomer = data?.find(item => item.sdt === values.sdt);
+      const existingCustomer = data?.find((item) => item.sdt === values.sdt);
       if (existingCustomer) {
         messageApi.warning("Số điện thoại đã tồn tại!");
         return;
@@ -166,7 +163,7 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
         sdt: values.sdt,
         email: values.email,
         gioiTinh: true,
-        trangThai: true
+        trangThai: true,
       });
 
       await dispatch(fetchAllKhachHang());
@@ -181,7 +178,6 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
       messageApi.success(`Đã thêm và chọn khách hàng: ${newCustomer.hoTen}`);
       setIsQuickAddModalVisible(false);
       quickAddForm.resetFields();
-      
     } catch (error) {
       console.error("Lỗi khi thêm khách hàng:", error);
       messageApi.error("Thêm khách hàng thất bại!");
@@ -211,11 +207,7 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
           <Form layout="vertical" form={form}>
             <Row gutter={16} wrap>
               <Col flex="1">
-                <Form.Item
-                  name="customerId"
-                  label="Tên Khách hàng"
-                  rules={[{ required: true, message: "Chọn tên Khách hàng" }]}
-                >
+                <Form.Item name="customerId" label="Tên Khách hàng">
                   <Select
                     placeholder="Chọn khách hàng"
                     onChange={handleSelectChange}
@@ -242,15 +234,12 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
                 </Form.Item>
               </Col>
               <Col flex="1">
-                <Form.Item
-                  name="sdt"
-                  label="Số điện thoại"
-                >
+                <Form.Item name="sdt" label="Số điện thoại">
                   <Input
                     placeholder="Số điện thoại"
                     readOnly
                     className="readonly-input"
-                    style={{ backgroundColor: '#f5f5f5', color: '#666' }}
+                    style={{ backgroundColor: "#f5f5f5", color: "#666" }}
                   />
                 </Form.Item>
               </Col>
@@ -285,7 +274,7 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
             label="Tên khách hàng"
             rules={[
               { required: true, message: "Vui lòng nhập tên khách hàng" },
-              { min: 2, message: "Tên phải có ít nhất 2 ký tự" }
+              { min: 2, message: "Tên phải có ít nhất 2 ký tự" },
             ]}
           >
             <Input placeholder="Nhập tên khách hàng" />
@@ -305,35 +294,15 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
             <Input placeholder="Nhập số điện thoại" />
           </Form.Item>
 
-          <Form.Item
-            name="email"
-            label="Email"
-            rules={[
-              { required: true, message: "Vui lòng nhập email" },
-              {
-                pattern: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-                message: "Email không đúng định dạng",
-              },
-              {
-                max: 100,
-                message: 'Email không được vượt quá 100 ký tự',
-              }
-            ]}
-          >
-            <Input placeholder="Nhập email" />
-          </Form.Item>
-
           <Form.Item className="mb-0">
             <div className="flex gap-2 justify-end">
-              <Button onClick={handleQuickAddCancel}>
-                Hủy
-              </Button>
-              <Button 
-                type="primary" 
-                htmlType="submit" 
+              <Button onClick={handleQuickAddCancel}>Hủy</Button>
+              <Button
+                type="primary"
+                htmlType="submit"
                 loading={isLoading}
                 className="bg-[#E67E22] border-none hover:bg-amber-600 hover:border-none text-white"
-                style={{ backgroundColor: '#E67E22', borderColor: '#E67E22' }}
+                style={{ backgroundColor: "#E67E22", borderColor: "#E67E22" }}
               >
                 Thêm khách hàng
               </Button>

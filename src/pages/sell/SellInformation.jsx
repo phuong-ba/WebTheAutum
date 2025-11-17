@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   InfoIcon,
   TagIcon,
@@ -15,10 +15,15 @@ import {
   message,
   Spin,
   Select,
+  Modal,
+  Table,
 } from "antd";
 import SellPay from "./SellPay";
 import { fetchPhieuGiamGia } from "@/services/phieuGiamGiaService";
-import { fetchAllGGKH } from "@/services/giamGiaKhachHangService";
+import {
+  fetchAllGGKH,
+  removeCustomerFromDiscount,
+} from "@/services/giamGiaKhachHangService";
 import hoaDonApi from "@/api/HoaDonAPI";
 import { useDispatch, useSelector } from "react-redux";
 import dayjs from "dayjs";
@@ -44,12 +49,390 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const [cartTotal, setCartTotal] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [forceUpdate, setForceUpdate] = useState(0);
-  const [discountUsageHistory, setDiscountUsageHistory] = useState({});
   const [checkingSingleDiscount, setCheckingSingleDiscount] = useState(false);
+  const [autoAppliedDiscount, setAutoAppliedDiscount] = useState(false);
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [customerAddresses, setCustomerAddresses] = useState([]);
+  const isApplyingRef = useRef(false);
+  const lastAppliedDiscountRef = useRef(null);
+
+  const [availableDiscounts, setAvailableDiscounts] = useState([]);
+  const [unavailableDueToMinimum, setUnavailableDueToMinimum] = useState([]);
+  const [unavailableDueToUsage, setUnavailableDueToUsage] = useState([]);
 
   const [tinhList, setTinhList] = useState([]);
   const [localQuanList, setLocalQuanList] = useState([]);
   const [addressForm] = Form.useForm();
+
+  // --- SỬA: Thêm state để lưu quận theo tỉnh ---
+  const [quanMap, setQuanMap] = useState({});
+
+  const getPersonalDiscountsForCustomer = () => {
+    if (!selectedCustomer || !Array.isArray(giamGiaKhachHangData)) return [];
+
+    const personalDiscountIds = giamGiaKhachHangData
+      .filter((ggkh) => ggkh.khachHangId === selectedCustomer.id)
+      .map((ggkh) => ggkh.phieuGiamGiaId);
+
+    if (personalDiscountIds.length === 0) return [];
+
+    return discountData.filter(
+      (discount) =>
+        discount.kieu === 1 && personalDiscountIds.includes(discount.id)
+    );
+  };
+
+  // --- SỬA: openAddressModal - Load quận cho TẤT CẢ tỉnh ---
+  const openAddressModal = async () => {
+    if (!selectedCustomer) {
+      messageApi.warning("Vui lòng chọn khách hàng trước!");
+      return;
+    }
+
+    try {
+      const addresses = selectedCustomer.allAddresses || [];
+
+      if (addresses.length === 0) {
+        messageApi.info("Khách hàng chưa có địa chỉ nào.");
+        return;
+      }
+
+      // Lấy danh sách tỉnh cần load quận
+      const tinhIds = [
+        ...new Set(
+          addresses
+            .map((addr) => addr.tinhThanhId || addr.id_tinh || addr.idTinh)
+            .filter(Boolean)
+        ),
+      ];
+
+      // Load quận cho từng tỉnh
+      const newQuanMap = { ...quanMap };
+      await Promise.all(
+        tinhIds.map(async (idTinh) => {
+          if (!newQuanMap[idTinh]) {
+            try {
+              const res = await diaChiApi.getQuanByTinh(idTinh);
+              newQuanMap[idTinh] = res;
+            } catch (err) {
+              console.error(`Lỗi load quận cho tỉnh ${idTinh}:`, err);
+              newQuanMap[idTinh] = [];
+            }
+          }
+        })
+      );
+
+      setQuanMap(newQuanMap);
+
+      // Chuẩn hóa địa chỉ với tên tỉnh/quận
+      const normalized = addresses.map((addr) => {
+        const idTinh = addr.tinhThanhId || addr.id_tinh || addr.idTinh;
+        const idQuan = addr.quanHuyenId || addr.id_quan || addr.idQuan;
+
+        const tinh = tinhList.find((t) => t.id === idTinh);
+        const quanList = newQuanMap[idTinh] || [];
+        const quan = quanList.find((q) => q.id === idQuan);
+
+        return {
+          ...addr,
+          tinhTen: addr.tenTinh || tinh?.tenTinh || "Không xác định",
+          quanTen: addr.tenQuan || quan?.tenQuan || "Không xác định",
+          diaChiCuThe: addr.dia_chi_cu_the || addr.diaChiCuThe || "",
+        };
+      });
+
+      setCustomerAddresses(normalized);
+      setAddressModalVisible(true);
+    } catch (err) {
+      console.error("Lỗi tải địa chỉ:", err);
+      messageApi.error("Không thể tải danh sách địa chỉ");
+    }
+  };
+
+  const handleSelectAddress = async (record) => {
+    const idTinh =
+      record.tinhThanhId || record.id_tinh || record.idTinh || record.thanhPho;
+    const idQuan =
+      record.quanHuyenId || record.id_quan || record.idQuan || record.quan;
+    const diaChiCuThe = record.dia_chi_cu_the || record.diaChiCuThe || "";
+
+    try {
+      let quanList = [];
+      if (idTinh) {
+        quanList = await handleTinhChange(idTinh); // ← await để có dữ liệu
+      }
+
+      const formValues = {
+        HoTen: selectedCustomer.hoTen,
+        SoDienThoai: selectedCustomer.sdt,
+        thanhPho: idTinh,
+        quan: idQuan,
+        diaChiCuThe,
+      };
+
+      // Đặt form SAU KHI đã có quanList
+      addressForm.setFieldsValue(formValues);
+      messageApi.success("Đã chọn địa chỉ thành công!");
+    } catch (err) {
+      console.error("Lỗi khi chọn địa chỉ:", err);
+      messageApi.error("Không thể cập nhật quận/huyện");
+    } finally {
+      setAddressModalVisible(false);
+    }
+  };
+
+  const getAllActiveDiscounts = () => {
+    if (!Array.isArray(discountData)) return [];
+
+    const now = dayjs();
+
+    const publicDiscounts = discountData.filter((discount) => {
+      const isActive =
+        discount.trangThai === 1 &&
+        now.isBetween(
+          dayjs(discount.ngayBatDau),
+          dayjs(discount.ngayKetThuc),
+          null,
+          "[]"
+        );
+
+      return isActive && discount.kieu === 0;
+    });
+
+    const personalDiscounts = getPersonalDiscountsForCustomer().filter(
+      (discount) => {
+        const isActive =
+          discount.trangThai === 1 &&
+          now.isBetween(
+            dayjs(discount.ngayBatDau),
+            dayjs(discount.ngayKetThuc),
+            null,
+            "[]"
+          );
+
+        return isActive;
+      }
+    );
+
+    return [...publicDiscounts, ...personalDiscounts];
+  };
+
+  const checkBasicDiscountConditions = (discount, totalAmount) => {
+    if (!discount)
+      return { isValid: false, message: "Mã giảm giá không tồn tại" };
+
+    const now = dayjs();
+    const start = dayjs(discount.ngayBatDau);
+    const end = dayjs(discount.ngayKetThuc);
+
+    if (now.isBefore(start))
+      return { isValid: false, message: "Chưa tới thời gian áp dụng" };
+    if (now.isAfter(end))
+      return { isValid: false, message: "Mã giảm giá đã hết hạn" };
+    if (discount.trangThai !== 1)
+      return { isValid: false, message: "Mã giảm giá không khả dụng" };
+
+    if (
+      discount.giaTriDonHangToiThieu &&
+      totalAmount < discount.giaTriDonHangToiThieu
+    ) {
+      return {
+        isValid: false,
+        message: `Đơn tối thiểu ${discount.giaTriDonHangToiThieu.toLocaleString()} VND`,
+        isMinimumAmountNotMet: true,
+      };
+    }
+
+    if (discount.kieu === 1) {
+      if (!selectedCustomer)
+        return {
+          isValid: false,
+          message: "Yêu cầu chọn khách hàng để áp dụng mã cá nhân",
+        };
+
+      const isCustomerHasDiscount = giamGiaKhachHangData?.some(
+        (ggkh) =>
+          ggkh.phieuGiamGiaId === discount.id &&
+          ggkh.khachHangId === selectedCustomer.id
+      );
+
+      if (!isCustomerHasDiscount) {
+        return {
+          isValid: false,
+          message: `Mã không áp dụng cho khách hàng ${selectedCustomer.hoTen}`,
+        };
+      }
+    }
+
+    return { isValid: true, message: "OK" };
+  };
+
+  const calculateDiscountAmount = (discount, total) => {
+    if (discount.loaiGiamGia) {
+      return Math.min(discount.giaTriGiamGia, total);
+    } else {
+      const amount = (total * discount.giaTriGiamGia) / 100;
+      if (discount.mucGiaGiamToiDa && amount > discount.mucGiaGiamToiDa) {
+        return discount.mucGiaGiamToiDa;
+      }
+      return amount;
+    }
+  };
+
+  const getBestDiscount = (available) => {
+    if (!available.length) return null;
+
+    let best = available[0];
+    let max = calculateDiscountAmount(best, cartTotal);
+
+    for (let d of available) {
+      const val = calculateDiscountAmount(d, cartTotal);
+      if (val > max) {
+        max = val;
+        best = d;
+      }
+    }
+
+    return best;
+  };
+
+  useEffect(() => {
+    const updateDiscounts = () => {
+      const allActiveDiscounts = getAllActiveDiscounts();
+      const available = [];
+      const unavailableMin = [];
+
+      for (const discount of allActiveDiscounts) {
+        const condition = checkBasicDiscountConditions(discount, cartTotal);
+
+        if (condition.isValid) {
+          available.push(discount);
+        } else if (condition.isMinimumAmountNotMet) {
+          unavailableMin.push({
+            discount,
+            reason: condition.message,
+          });
+        }
+      }
+
+      setAvailableDiscounts(available);
+      setUnavailableDueToMinimum(unavailableMin);
+      setUnavailableDueToUsage([]);
+    };
+
+    updateDiscounts();
+  }, [discountData, giamGiaKhachHangData, selectedCustomer, cartTotal]);
+
+  const bestDiscount = useMemo(() => {
+    return getBestDiscount(availableDiscounts);
+  }, [availableDiscounts, cartTotal]);
+
+  useEffect(() => {
+    const handleAutoDiscount = async () => {
+      if (
+        !selectedBillId ||
+        cartTotal === 0 ||
+        loading ||
+        checkingSingleDiscount ||
+        isApplyingRef.current
+      ) {
+        return;
+      }
+
+      const bestDiscount = getBestDiscount(availableDiscounts);
+
+      if (bestDiscount && !appliedDiscount) {
+        console.log(
+          "Tự động áp dụng mã giảm giá tốt nhất:",
+          bestDiscount.maGiamGia
+        );
+
+        try {
+          isApplyingRef.current = true;
+          const condition = checkBasicDiscountConditions(
+            bestDiscount,
+            cartTotal
+          );
+
+          if (condition.isValid) {
+            await applyDiscount(bestDiscount);
+            setAutoAppliedDiscount(true);
+            console.log(
+              "Đã tự động áp dụng mã giảm giá:",
+              bestDiscount.maGiamGia
+            );
+          }
+        } catch (error) {
+          console.error("Lỗi khi tự động áp dụng mã giảm giá:", error);
+        } finally {
+          isApplyingRef.current = false;
+        }
+      } else if (!bestDiscount && appliedDiscount) {
+        console.log("Tự động xóa mã giảm giá do không đủ điều kiện");
+        removeDiscount();
+      } else if (
+        appliedDiscount &&
+        bestDiscount &&
+        appliedDiscount.id !== bestDiscount.id
+      ) {
+        console.log("Tự động chuyển sang mã giảm giá tốt hơn");
+        try {
+          isApplyingRef.current = true;
+          const condition = checkBasicDiscountConditions(
+            bestDiscount,
+            cartTotal
+          );
+
+          if (condition.isValid) {
+            await applyDiscount(bestDiscount);
+            setAutoAppliedDiscount(true);
+            console.log(
+              "Đã chuyển sang mã giảm giá tốt hơn:",
+              bestDiscount.maGiamGia
+            );
+          }
+        } catch (error) {
+          console.error("Lỗi khi chuyển mã giảm giá:", error);
+        } finally {
+          isApplyingRef.current = false;
+        }
+      }
+    };
+
+    handleAutoDiscount();
+  }, [
+    selectedBillId,
+    cartTotal,
+    appliedDiscount,
+    availableDiscounts,
+    loading,
+    checkingSingleDiscount,
+    selectedCustomer,
+  ]);
+
+  useEffect(() => {
+    setAutoAppliedDiscount(false);
+    lastAppliedDiscountRef.current = null;
+    isApplyingRef.current = false;
+  }, [selectedBillId]);
+
+  useEffect(() => {
+    if (selectedCustomer && appliedDiscount?.isPersonal) {
+      const currentCustomerId = selectedCustomer.id;
+
+      const isDiscountForCurrentCustomer = giamGiaKhachHangData?.some(
+        (ggkh) =>
+          ggkh.phieuGiamGiaId === appliedDiscount.id &&
+          ggkh.khachHangId === currentCustomerId
+      );
+
+      if (!isDiscountForCurrentCustomer) {
+        removeDiscount();
+      }
+    } else if (!selectedCustomer && appliedDiscount?.isPersonal) {
+      removeDiscount();
+    }
+  }, [selectedCustomer, appliedDiscount, giamGiaKhachHangData]);
 
   useEffect(() => {
     diaChiApi
@@ -69,43 +452,23 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         selectedCustomer.diaChi.idTinh ||
         selectedCustomer.diaChi.thanhPho;
 
-      if (idTinh) {
+      if (idTinh && !quanMap[idTinh]) {
         diaChiApi
           .getQuanByTinh(idTinh)
           .then((res) => {
+            setQuanMap((prev) => ({ ...prev, [idTinh]: res }));
             setLocalQuanList(res);
           })
           .catch((err) => {
             console.error("Lỗi load quận/huyện:", err);
-            messageApi.error("Không thể tải danh sách quận/huyện");
           });
-      } else {
-        setLocalQuanList([]);
+      } else if (quanMap[idTinh]) {
+        setLocalQuanList(quanMap[idTinh]);
       }
     } else {
       setLocalQuanList([]);
     }
-  }, [selectedCustomer, messageApi]);
-
-  useEffect(() => {
-    if (selectedCustomer && appliedDiscount?.isPersonal) {
-      const currentCustomerId = selectedCustomer.id;
-      
-      const isDiscountForCurrentCustomer = giamGiaKhachHangData?.some(
-        (ggkh) => 
-          ggkh.phieuGiamGiaId === appliedDiscount.id && 
-          ggkh.khachHangId === currentCustomerId
-      );
-
-      if (!isDiscountForCurrentCustomer) {
-        console.log("🔄 Khách hàng thay đổi, tự động xóa mã giảm giá cá nhân");
-        removeDiscount();
-      }
-    } else if (!selectedCustomer && appliedDiscount) {
-      console.log("🔄 Đã bỏ chọn khách hàng, tự động xóa mã giảm giá");
-      removeDiscount();
-    }
-  }, [selectedCustomer, appliedDiscount, giamGiaKhachHangData]);
+  }, [selectedCustomer, quanMap]);
 
   useEffect(() => {
     if (selectedBillId) {
@@ -122,42 +485,59 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   }, [selectedBillId]);
 
   useEffect(() => {
-    if (selectedCustomer && isDelivery) {
-      const customerAddress = selectedCustomer.diaChi;
+    const setupAddress = async () => {
+      if (selectedCustomer && isDelivery) {
+        const defaultAddr = selectedCustomer.diaChi;
+        if (defaultAddr) {
+          const idTinh =
+            defaultAddr.tinhThanhId ||
+            defaultAddr.id_tinh ||
+            defaultAddr.idTinh ||
+            defaultAddr.thanhPho;
 
-      if (customerAddress) {
-        const formValues = {
-          HoTen: selectedCustomer.hoTen,
-          SoDienThoai: selectedCustomer.sdt,
-          thanhPho:
-            customerAddress.tinhThanhId ||
-            customerAddress.id_tinh ||
-            customerAddress.idTinh ||
-            customerAddress.thanhPho ||
-            null,
-          quan:
-            customerAddress.quanHuyenId ||
-            customerAddress.id_quan ||
-            customerAddress.idQuan ||
-            customerAddress.quan ||
-            null,
-          diaChiCuThe:
-            customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "",
-        };
+          const idQuan =
+            defaultAddr.quanHuyenId ||
+            defaultAddr.id_quan ||
+            defaultAddr.idQuan ||
+            defaultAddr.quan;
 
-        addressForm.setFieldsValue(formValues);
-      } else {
-        addressForm.setFieldsValue({
-          HoTen: selectedCustomer.hoTen,
-          SoDienThoai: selectedCustomer.sdt,
-          thanhPho: null,
-          quan: null,
-          diaChiCuThe: "",
-        });
+          const diaChiCuThe =
+            defaultAddr.dia_chi_cu_the || defaultAddr.diaChiCuThe || "";
+
+          const formValues = {
+            HoTen: selectedCustomer.hoTen,
+            SoDienThoai: selectedCustomer.sdt,
+            thanhPho: idTinh,
+            quan: idQuan,
+            diaChiCuThe,
+          };
+
+          addressForm.setFieldsValue(formValues);
+
+          if (idTinh) {
+            try {
+              await handleTinhChange(idTinh);
+              // Sau khi load quận xong, mới set lại quan (nếu cần)
+              addressForm.setFieldsValue({ quan: idQuan });
+            } catch (err) {
+              console.error("Lỗi load quận mặc định:", err);
+            }
+          }
+        } else {
+          addressForm.setFieldsValue({
+            HoTen: selectedCustomer.hoTen,
+            SoDienThoai: selectedCustomer.sdt,
+            thanhPho: null,
+            quan: null,
+            diaChiCuThe: "",
+          });
+        }
+      } else if (!selectedCustomer && isDelivery) {
+        addressForm.resetFields();
       }
-    } else if (!selectedCustomer && isDelivery) {
-      addressForm.resetFields();
-    }
+    };
+
+    setupAddress();
   }, [selectedCustomer, isDelivery, addressForm]);
 
   useEffect(() => {
@@ -178,44 +558,12 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     };
     loadDiscounts();
   }, [dispatch, messageApi]);
-
-  // ĐÃ SỬA: Chỉ load lịch sử khi cần thiết và giới hạn số lượng
   useEffect(() => {
-    const loadEssentialDiscountUsage = async () => {
-      if (!selectedCustomer || !Array.isArray(giamGiaKhachHangData)) {
-        setDiscountUsageHistory({});
-        return;
-      }
-
-      const personalDiscountIds = giamGiaKhachHangData
-        .filter((ggkh) => ggkh.khachHangId === selectedCustomer.id)
-        .map((ggkh) => ggkh.phieuGiamGiaId);
-
-      if (personalDiscountIds.length === 0) {
-        setDiscountUsageHistory({});
-        return;
-      }
-
-      // Giới hạn chỉ kiểm tra 3 mã đầu tiên để tăng tốc độ
-      const limitedDiscountIds = personalDiscountIds.slice(0, 3);
-      const usageHistory = {};
-      
-      for (const discountId of limitedDiscountIds) {
-        try {
-          const response = await hoaDonApi.checkDiscountUsage(discountId, selectedCustomer.id);
-          usageHistory[discountId] = response.data?.daSuDung || false;
-        } catch (error) {
-          console.error(`Lỗi khi kiểm tra phiếu ${discountId}:`, error);
-          usageHistory[discountId] = false;
-        }
-      }
-
-      setDiscountUsageHistory(usageHistory);
-    };
-
-    loadEssentialDiscountUsage();
-  }, [selectedCustomer, giamGiaKhachHangData]);
-
+    const currentTinh = addressForm.getFieldValue("thanhPho");
+    if (currentTinh && quanMap[currentTinh]) {
+      setLocalQuanList(quanMap[currentTinh]);
+    }
+  }, [quanMap, addressForm]);
   useEffect(() => {
     const updateCartData = () => {
       if (selectedBillId) {
@@ -262,14 +610,17 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const normalizeCustomerData = (customerData) => {
     if (!customerData) return null;
 
+    let addresses = [];
     let defaultAddress = null;
 
     if (customerData.diaChi && Array.isArray(customerData.diaChi)) {
+      addresses = customerData.diaChi;
       defaultAddress =
-        customerData.diaChi.find((addr) => addr.trangThai === true) ||
-        customerData.diaChi[0] ||
+        addresses.find((addr) => addr.trangThai === true) ||
+        addresses[0] ||
         null;
     } else if (customerData.diaChi && typeof customerData.diaChi === "object") {
+      addresses = [customerData.diaChi];
       defaultAddress = customerData.diaChi;
     }
 
@@ -282,6 +633,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       gioiTinh: customerData.gioi_tinh || customerData.gioiTinh,
       ngaySinh: customerData.ngay_sinh || customerData.ngaySinh,
       diaChi: defaultAddress,
+      allAddresses: addresses,
     };
   };
 
@@ -310,257 +662,66 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   };
 
   const handleTinhChange = async (idTinh) => {
+    console.log("handleTinhChange called with:", idTinh);
     addressForm.setFieldsValue({ quan: null });
+
+    if (quanMap[idTinh]) {
+      console.log("Dùng cache quận:", quanMap[idTinh]);
+      setLocalQuanList(quanMap[idTinh]);
+      return quanMap[idTinh];
+    }
+
     try {
       const res = await diaChiApi.getQuanByTinh(idTinh);
+      console.log("Load quận từ API:", res);
+
+      // Cập nhật cả 2 state
+      setQuanMap((prev) => {
+        const newMap = { ...prev, [idTinh]: res };
+        return newMap;
+      });
+
+      // Quan trọng: setLocalQuanList ở đây, và return res luôn
       setLocalQuanList(res);
+      return res;
     } catch (err) {
-      console.error("Lỗi load quận/huyện:", err);
+      console.error("Lỗi load quận:", err);
       messageApi.error("Không thể tải danh sách quận/huyện");
+      throw err;
     }
   };
 
-  const getPersonalDiscountsForCustomer = () => {
-    if (!selectedCustomer || !Array.isArray(giamGiaKhachHangData)) return [];
+  const handleRemoveCustomerFromDiscount = async (discountId, customerId) => {
+    try {
+      const response = await removeCustomerFromDiscount(discountId, customerId);
 
-    const personalDiscountIds = giamGiaKhachHangData
-      .filter((ggkh) => ggkh.khachHangId === selectedCustomer.id)
-      .map((ggkh) => ggkh.phieuGiamGiaId);
-
-    if (personalDiscountIds.length === 0) return [];
-
-    return discountData.filter(
-      (discount) =>
-        discount.kieu === 1 && personalDiscountIds.includes(discount.id)
-    );
-  };
-
-  const getAllActiveDiscounts = () => {
-    if (!Array.isArray(discountData)) return [];
-
-    const now = dayjs();
-
-    const publicDiscounts = discountData.filter((discount) => {
-      const isActive =
-        discount.trangThai === 1 &&
-        now.isBetween(
-          dayjs(discount.ngayBatDau),
-          dayjs(discount.ngayKetThuc),
-          null,
-          "[]"
+      if (response?.isSuccess) {
+        console.log(
+          `Đã xoá khách hàng ${customerId} khỏi phiếu giảm giá ${discountId} sau khi thanh toán`
         );
-
-      return isActive && discount.kieu === 0;
-    });
-
-    const personalDiscounts = getPersonalDiscountsForCustomer().filter(
-      (discount) => {
-        const isActive =
-          discount.trangThai === 1 &&
-          now.isBetween(
-            dayjs(discount.ngayBatDau),
-            dayjs(discount.ngayKetThuc),
-            null,
-            "[]"
-          );
-
-        return isActive;
+        await dispatch(fetchAllGGKH());
+        return true;
+      } else {
+        console.warn(
+          "Không thể xoá khách hàng khỏi giảm giá sau khi thanh toán"
+        );
+        return false;
       }
-    );
-
-    return [...publicDiscounts, ...personalDiscounts];
-  };
-
-  // ĐÃ SỬA: Tách thành 2 hàm - 1 hàm nhanh cho danh sách, 1 hàm chi tiết cho áp dụng
-  const checkBasicDiscountConditions = (discount, totalAmount) => {
-    if (!discount)
-      return { isValid: false, message: "Mã giảm giá không tồn tại" };
-
-    const now = dayjs();
-    const start = dayjs(discount.ngayBatDau);
-    const end = dayjs(discount.ngayKetThuc);
-
-    if (now.isBefore(start))
-      return { isValid: false, message: "Chưa tới thời gian áp dụng" };
-    if (now.isAfter(end))
-      return { isValid: false, message: "Mã giảm giá đã hết hạn" };
-    if (discount.trangThai !== 1)
-      return { isValid: false, message: "Mã giảm giá không khả dụng" };
-
-    if (
-      discount.giaTriDonHangToiThieu &&
-      totalAmount < discount.giaTriDonHangToiThieu
-    ) {
-      return {
-        isValid: false,
-        message: `Đơn tối thiểu ${discount.giaTriDonHangToiThieu.toLocaleString()} VND`,
-        isMinimumAmountNotMet: true,
-      };
-    }
-
-    if (discount.kieu === 1) {
-      if (!selectedCustomer)
-        return {
-          isValid: false,
-          message: "Yêu cầu chọn khách hàng để áp dụng mã cá nhân",
-        };
-
-      const isCustomerHasDiscount = giamGiaKhachHangData?.some(
-        (ggkh) =>
-          ggkh.phieuGiamGiaId === discount.id &&
-          ggkh.khachHangId === selectedCustomer.id
+    } catch (error) {
+      console.error(
+        "Lỗi khi xoá khách hàng khỏi giảm giá sau khi thanh toán:",
+        error
       );
-
-      if (!isCustomerHasDiscount) {
-        return {
-          isValid: false,
-          message: `Mã không áp dụng cho khách hàng ${selectedCustomer.hoTen}`,
-        };
-      }
-
-      // Chỉ kiểm tra trong cache (nhanh)
-      const hasUsedDiscount = discountUsageHistory[discount.id];
-      if (hasUsedDiscount) {
-        return {
-          isValid: false,
-          message: `Khách hàng đã sử dụng mã này trước đây. Mỗi khách hàng chỉ được sử dụng 1 lần.`,
-          isAlreadyUsed: true,
-        };
-      }
-    }
-
-    return { isValid: true, message: "OK" };
-  };
-
-  // Hàm kiểm tra chi tiết (chỉ dùng khi áp dụng mã)
-  const checkDetailedDiscountConditions = async (discount, totalAmount) => {
-    const basicCondition = checkBasicDiscountConditions(discount, totalAmount);
-    if (!basicCondition.isValid) return basicCondition;
-
-    // Chỉ kiểm tra real-time cho mã cá nhân và khi chưa có trong cache
-    if (discount.kieu === 1 && selectedCustomer && !discountUsageHistory[discount.id]) {
-      try {
-        setCheckingSingleDiscount(true);
-        const realTimeCheck = await hoaDonApi.checkDiscountUsage(discount.id, selectedCustomer.id);
-        const hasUsedRealTime = realTimeCheck.data?.daSuDung || false;
-        
-        if (hasUsedRealTime) {
-          // Cập nhật cache
-          setDiscountUsageHistory(prev => ({
-            ...prev,
-            [discount.id]: true
-          }));
-          return {
-            isValid: false,
-            message: `Khách hàng đã sử dụng mã này. Mỗi khách hàng chỉ được sử dụng 1 lần.`,
-            isAlreadyUsed: true,
-          };
-        }
-      } catch (error) {
-        console.error("Lỗi kiểm tra real-time:", error);
-        // Nếu có lỗi, vẫn cho phép áp dụng nhưng cảnh báo
-        return {
-          isValid: true,
-          message: "OK - Lưu ý: Không thể kiểm tra lịch sử sử dụng mã",
-        };
-      } finally {
-        setCheckingSingleDiscount(false);
-      }
-    }
-
-    return { isValid: true, message: "OK" };
-  };
-
-  const calculateDiscountAmount = (discount, total) => {
-    if (discount.loaiGiamGia) {
-      return Math.min(discount.giaTriGiamGia, total);
-    } else {
-      const amount = (total * discount.giaTriGiamGia) / 100;
-      if (discount.mucGiaGiamToiDa && amount > discount.mucGiaGiamToiDa) {
-        return discount.mucGiaGiamToiDa;
-      }
-      return amount;
+      return false;
     }
   };
 
-  const [availableDiscounts, setAvailableDiscounts] = useState([]);
-  const [unavailableDueToMinimum, setUnavailableDueToMinimum] = useState([]);
-  const [unavailableDueToUsage, setUnavailableDueToUsage] = useState([]);
-
-  // ĐÃ SỬA: Sử dụng hàm kiểm tra cơ bản (nhanh) cho danh sách
-  useEffect(() => {
-    const updateDiscounts = () => {
-      const allActiveDiscounts = getAllActiveDiscounts();
-      const available = [];
-      const unavailableMin = [];
-      const unavailableUsage = [];
-
-      for (const discount of allActiveDiscounts) {
-        const condition = checkBasicDiscountConditions(discount, cartTotal);
-        
-        if (condition.isValid) {
-          available.push(discount);
-        } else if (condition.isMinimumAmountNotMet) {
-          unavailableMin.push({
-            discount,
-            reason: condition.message,
-          });
-        } else if (condition.isAlreadyUsed) {
-          unavailableUsage.push({
-            discount,
-            reason: condition.message,
-          });
-        }
-      }
-
-      setAvailableDiscounts(available);
-      setUnavailableDueToMinimum(unavailableMin);
-      setUnavailableDueToUsage(unavailableUsage);
-    };
-
-    updateDiscounts();
-  }, [discountData, giamGiaKhachHangData, selectedCustomer, cartTotal, discountUsageHistory]);
-
-  const getBestDiscount = (available) => {
-    if (!available.length) return null;
-
-    let best = available[0];
-    let max = calculateDiscountAmount(best, cartTotal);
-
-    for (let d of available) {
-      const val = calculateDiscountAmount(d, cartTotal);
-      if (val > max) {
-        max = val;
-        best = d;
-      }
-    }
-
-    return best;
-  };
-
-  const bestDiscount = useMemo(() => {
-    return getBestDiscount(availableDiscounts);
-  }, [availableDiscounts, cartTotal]);
-
-  // ĐÃ SỬA: Sử dụng hàm kiểm tra chi tiết khi áp dụng mã
   const applyDiscount = async (discount) => {
-    if (!selectedBillId) return messageApi.warning("Vui lòng chọn hóa đơn!");
-
-    if (cartTotal === 0) {
-      return messageApi.warning("Không thể áp dụng mã giảm giá khi giỏ hàng trống!");
-    }
-
-    const loadingMessage = messageApi.loading("Đang kiểm tra mã giảm giá...", 0);
+    if (!selectedBillId || cartTotal === 0) return;
 
     try {
-      const condition = await checkDetailedDiscountConditions(discount, cartTotal);
-
-      messageApi.destroy(loadingMessage);
-
-      if (!condition.isValid) {
-        messageApi.warning(condition.message);
-        return;
-      }
+      const condition = checkBasicDiscountConditions(discount, cartTotal);
+      if (!condition.isValid) return;
 
       const discountAmount = calculateDiscountAmount(discount, cartTotal);
       const final = Math.max(0, cartTotal - discountAmount);
@@ -580,6 +741,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                 value: discount.giaTriGiamGia,
                 loaiPhieu: discount.kieu === 1 ? "CÁ_NHÂN" : "CÔNG_KHAI",
                 isPersonal: discount.kieu === 1,
+                customerId: selectedCustomer?.id,
+                shouldRemoveAfterPayment: discount.kieu === 1,
               },
             }
           : b
@@ -598,13 +761,11 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         });
       }
 
-      messageApi.success(`✅ Áp dụng ${discount.maGiamGia} thành công`);
+      console.log(`Áp dụng ${discount.maGiamGia} thành công`);
       window.dispatchEvent(new Event("billsUpdated"));
-      
     } catch (error) {
-      messageApi.destroy(loadingMessage);
       console.error("Lỗi khi áp dụng mã giảm giá:", error);
-      messageApi.error("Có lỗi xảy ra khi áp dụng mã giảm giá!");
+      messageApi.error("Lỗi khi áp dụng mã giảm giá");
     }
   };
 
@@ -622,6 +783,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
     localStorage.setItem("pendingBills", JSON.stringify(updated));
     setAppliedDiscount(null);
+    setAutoAppliedDiscount(false);
+    lastAppliedDiscountRef.current = null;
 
     if (onDiscountApplied) {
       onDiscountApplied({
@@ -631,73 +794,87 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       });
     }
 
-    messageApi.success("✅ Đã xóa mã giảm giá!");
     window.dispatchEvent(new Event("billsUpdated"));
   };
 
-  const renderUnavailableDiscounts = () => {
-    const allUnavailable = [...unavailableDueToMinimum, ...unavailableDueToUsage];
-    
-    if (allUnavailable.length === 0) return null;
+  const renderAppliedDiscount = () => {
+    if (!appliedDiscount) return null;
 
     return (
-      <div className="mt-6">
-        <div className="mb-3 p-3 bg-gray-50 border border-gray-300 rounded-lg">
-          <div className="font-semibold text-gray-700">
-            Mã giảm giá không khả dụng
-          </div>
-          <div className="text-sm text-gray-600 mt-1">
-            Tổng số: {allUnavailable.length} mã
-          </div>
+      <div className="relative p-4 border-2 border-[#00A96C] bg-[#E9FBF4] rounded-xl flex flex-col items-start gap-3">
+        <div className="absolute font-semibold bg-[#00A96C] right-0 top-0 rounded-tr-xl rounded-bl-xl py-1 px-4 text-white">
+          Đã áp dụng
         </div>
-
-        {allUnavailable.map(({ discount, reason }) => (
-          <div
-            key={discount.id}
-            className="relative p-4 border-2 border-gray-300 rounded-xl flex flex-col items-start gap-3 bg-gray-100 opacity-60 cursor-not-allowed"
-          >
-            {discount.kieu === 1 && (
-              <div className="absolute font-semibold bg-gray-500 right-0 top-0 rounded-tr-xl rounded-bl-xl py-1 px-4 text-white">
-                Cá nhân
-              </div>
-            )}
-            <div className="text-white font-semibold px-5 py-1 rounded-md bg-gray-500">
-              {discount.maGiamGia}
+        <div className="text-white font-semibold px-5 py-1 rounded-md bg-[#00A96C]">
+          {appliedDiscount.code}
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex gap-2 items-center">
+              <TagIcon size={24} weight="fill" />
+              <span className="font-semibold text-xl">Giảm:</span>
             </div>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <div className="flex gap-2 items-center">
-                  <TagIcon size={24} weight="fill" />
-                  <span className="font-semibold text-xl">Giảm:</span>
-                </div>
-                <span className="text-lg font-semibold text-red-800">
-                  {discount.loaiGiamGia
-                    ? `-${discount.giaTriGiamGia.toLocaleString()} VND`
-                    : `-${discount.giaTriGiamGia}%`}
-                </span>
-              </div>
-              <div className="text-md font-semibold text-gray-700">
-                Hết hạn: {dayjs(discount.ngayKetThuc).format("DD/MM/YYYY")}
-              </div>
-              <div className="text-md font-semibold text-gray-700">
-                {discount.giaTriDonHangToiThieu
-                  ? `Đơn tối thiểu: ${discount.giaTriDonHangToiThieu.toLocaleString()} VND`
-                  : discount.mucGiaGiamToiDa
-                  ? `Giảm tối đa: ${discount.mucGiaGiamToiDa.toLocaleString()} VND`
-                  : "Không có điều kiện"}
-              </div>
-              <div className="text-md font-semibold text-red-600 mt-2">
-                ⚠️ {reason}
-              </div>
-            </div>
-            <button
-              disabled
-              className="bg-gray-400 text-white px-4 py-2 rounded-md font-semibold cursor-not-allowed"
-            >
-              Không thể áp dụng
-            </button>
+            <span className="text-lg font-semibold text-red-800">
+              {appliedDiscount.type === "fixed"
+                ? `-${appliedDiscount.value.toLocaleString()} VND`
+                : `-${appliedDiscount.value}%`}
+            </span>
           </div>
-        ))}
+          <div className="text-md font-semibold text-gray-700">
+            {appliedDiscount.name}
+          </div>
+          {appliedDiscount.isPersonal && (
+            <div className="text-md font-semibold text-amber-600">
+              Mã cá nhân chỉ sử dụng 1 lần duy nhất
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAvailableDiscounts = () => {
+    if (availableDiscounts.length === 0 || appliedDiscount) return null;
+
+    const bestDiscount = getBestDiscount(availableDiscounts);
+    if (!bestDiscount) return null;
+
+    return (
+      <div className="relative p-4 border-2 border-amber-500 bg-amber-50 rounded-xl flex flex-col items-start gap-3">
+        <div className="absolute font-semibold bg-amber-700 right-0 top-0 rounded-tr-xl rounded-bl-xl py-1 px-4 text-white">
+          Mã tốt nhất
+        </div>
+        <div className="text-white font-semibold px-5 py-1 rounded-md bg-amber-700">
+          {bestDiscount.maGiamGia}
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex gap-2 items-center">
+              <TagIcon size={24} weight="fill" />
+              <span className="font-semibold text-xl">Giảm:</span>
+            </div>
+            <span className="text-lg font-semibold text-red-800">
+              {bestDiscount.loaiGiamGia
+                ? `-${bestDiscount.giaTriGiamGia.toLocaleString()} VND`
+                : `-${bestDiscount.giaTriGiamGia}%`}
+            </span>
+          </div>
+          <div className="text-md font-semibold text-gray-700">
+            Hết hạn: {dayjs(bestDiscount.ngayKetThuc).format("DD/MM/YYYY")}
+          </div>
+          <div className="text-md font-semibold text-gray-700">
+            {bestDiscount.giaTriDonHangToiThieu
+              ? `Đơn tối thiểu: ${bestDiscount.giaTriDonHangToiThieu.toLocaleString()} VND`
+              : bestDiscount.mucGiaGiamToiDa
+              ? `Giảm tối đa: ${bestDiscount.mucGiaGiamToiDa.toLocaleString()} VND`
+              : "Không có điều kiện"}
+          </div>
+          {bestDiscount.kieu === 1 && (
+            <div className="text-md font-semibold text-amber-600">
+              Chỉ sử dụng 1 lần duy nhất
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -705,7 +882,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const items = [
     {
       key: "1",
-      label: "Mã tốt nhất",
+      label: "Mã giảm giá",
       children: (
         <div className="flex flex-col gap-4">
           {loading || checkingSingleDiscount ? (
@@ -713,64 +890,22 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
               <Spin size="large" />
               <div>Đang tải mã giảm giá...</div>
             </div>
-          ) : bestDiscount ? (
-            <div
-              className={`relative p-4 border-2 rounded-xl flex flex-col items-start gap-3 
-    ${
-      appliedDiscount?.id === bestDiscount.id
-        ? "border-[#00A96C] bg-[#E9FBF4]"
-        : "border-gray-300 bg-amber-50"
-    }`}
-            >
-              <div className="absolute font-semibold bg-amber-700 right-0 top-0 rounded-tr-xl rounded-bl-xl py-1 px-4 text-white">
-                Mã tốt nhất
-              </div>
-              <div className="text-white font-semibold px-5 py-1 rounded-md bg-amber-700">
-                {bestDiscount.maGiamGia}
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-2 items-center">
-                    <TagIcon size={24} weight="fill" />
-                    <span className="font-semibold text-xl">Giảm:</span>
-                  </div>
-                  <span className="text-lg font-semibold text-red-800">
-                    {bestDiscount.loaiGiamGia
-                      ? `-${bestDiscount.giaTriGiamGia.toLocaleString()} VND`
-                      : `-${bestDiscount.giaTriGiamGia}%`}
-                  </span>
-                </div>
-                <div className="text-md font-semibold text-gray-700">
-                  Hết hạn:{" "}
-                  {dayjs(bestDiscount.ngayKetThuc).format("DD/MM/YYYY")}
-                </div>
-                <div className="text-md font-semibold text-gray-700">
-                  {bestDiscount.giaTriDonHangToiThieu
-                    ? `Đơn tối thiểu: ${bestDiscount.giaTriDonHangToiThieu.toLocaleString()} VND`
-                    : bestDiscount.mucGiaGiamToiDa
-                    ? `Giảm tối đa: ${bestDiscount.mucGiaGiamToiDa.toLocaleString()} VND`
-                    : "Không có điều kiện"}
-                </div>
-                {bestDiscount.kieu === 1 && selectedCustomer && (
-                  <div className="text-md font-semibold text-[#00A96C]">
-                    ✓ Mã cá nhân dành riêng cho {selectedCustomer.hoTen}
-                  </div>
-                )}
-              </div>
-              <div
-                onClick={() => applyDiscount(bestDiscount)}
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-semibold select-none cursor-pointer active:bg-cyan-900"
-              >
-                Áp dụng mã này
-              </div>
-            </div>
           ) : (
-            <div className="text-center py-4 text-gray-500">
-              {selectedCustomer
-                ? "Không có mã giảm giá khả dụng cho khách hàng này"
-                : "Không có mã giảm giá khả dụng. Vui lòng chọn khách hàng để xem thêm mã giảm giá cá nhân."}
-            </div>
+            <>
+              {renderAppliedDiscount()}
+              {renderAvailableDiscounts()}
+              {!appliedDiscount && availableDiscounts.length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  {cartTotal > 0
+                    ? selectedCustomer
+                      ? "Không có mã giảm giá khả dụng cho khách hàng này"
+                      : "Không có mã giảm giá khả dụng. Vui lòng chọn khách hàng để xem thêm mã giảm giá cá nhân."
+                    : "Thêm sản phẩm vào giỏ hàng để xem mã giảm giá"}
+                </div>
+              )}
+            </>
           )}
+
           <SellPay
             cartTotal={cartTotal}
             appliedDiscount={appliedDiscount}
@@ -782,89 +917,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
             addressForm={addressForm}
             tinhList={tinhList}
             localQuanList={localQuanList}
+            removeCustomerFromDiscount={handleRemoveCustomerFromDiscount}
           />
-        </div>
-      ),
-    },
-    {
-      key: "2",
-      label: "Mã thay thế",
-      children: (
-        <div className="flex flex-col gap-2">
-          {loading || checkingSingleDiscount ? (
-            <div className="text-center py-4">
-              <Spin size="large" />
-              <div>Đang tải mã giảm giá...</div>
-            </div>
-          ) : availableDiscounts.length > 0 ||
-            unavailableDueToMinimum.length > 0 ||
-            unavailableDueToUsage.length > 0 ? (
-            <>
-              {availableDiscounts.map((discount) => (
-                <div
-                  key={discount.id}
-                  className={`relative p-4 border-2 rounded-xl flex flex-col items-start gap-3 ${
-                    discount.kieu === 1
-                      ? "border-[#00A96C] bg-[#E9FBF4]"
-                      : "border-gray-300 bg-amber-50"
-                  }`}
-                >
-                  {discount.kieu === 1 && (
-                    <div className="absolute font-semibold bg-[#00A96C] right-0 top-0 rounded-tr-xl rounded-bl-xl py-1 px-4 text-white">
-                      Cá nhân
-                    </div>
-                  )}
-                  <div
-                    className={`text-white font-semibold px-5 py-1 rounded-md ${
-                      discount.kieu === 1 ? "bg-[#00A96C]" : "bg-amber-700"
-                    }`}
-                  >
-                    {discount.maGiamGia}
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-2 items-center">
-                        <TagIcon size={24} weight="fill" />
-                        <span className="font-semibold text-xl">Giảm:</span>
-                      </div>
-                      <span className="text-lg font-semibold text-red-800">
-                        {discount.loaiGiamGia
-                          ? `-${discount.giaTriGiamGia.toLocaleString()} VND`
-                          : `-${discount.giaTriGiamGia}%`}
-                      </span>
-                    </div>
-                    <div className="text-md font-semibold text-gray-700">
-                      Hết hạn:{" "}
-                      {dayjs(discount.ngayKetThuc).format("DD/MM/YYYY")}
-                    </div>
-                    <div className="text-md font-semibold text-gray-700">
-                      {discount.giaTriDonHangToiThieu
-                        ? `Đơn tối thiểu: ${discount.giaTriDonHangToiThieu.toLocaleString()} VND`
-                        : discount.mucGiaGiamToiDa
-                        ? `Giảm tối đa: ${discount.mucGiaGiamToiDa.toLocaleString()} VND`
-                        : "Không có điều kiện"}
-                    </div>
-                    {discount.kieu === 1 && selectedCustomer && (
-                      <div className="text-md font-semibold text-[#00A96C]">
-                        ✓ Mã cá nhân dành riêng cho {selectedCustomer.hoTen}
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    onClick={() => applyDiscount(discount)}
-                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-semibold cursor-pointer select-none active:bg-cyan-900"
-                  >
-                    Áp dụng mã này
-                  </div>
-                </div>
-              ))}
-              {renderUnavailableDiscounts()}
-            </>
-          ) : (
-            <div className="text-center py-4 text-gray-500">
-              Không có mã giảm giá thay thế khả dụng
-            </div>
-          )}
         </div>
       ),
     },
@@ -904,7 +958,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         {isDelivery && (
           <div className="p-4 flex flex-col gap-4">
             <div className="font-semibold text-2xl">Thông tin người nhận</div>
-
             <div className="p-4 border border-gray-300 rounded-xl">
               <Form
                 layout="vertical"
@@ -1003,7 +1056,12 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                 >
                   <Input placeholder="Nhập địa chỉ cụ thể" />
                 </Form.Item>
-
+                <div
+                  className="cursor-pointer select-none text-center py-2 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+                  onClick={openAddressModal}
+                >
+                  Chọn địa chỉ
+                </div>
                 <div className="flex justify-between items-center mt-4">
                   <span className="font-medium">Giao hàng tận nhà</span>
                   <Checkbox defaultChecked />
@@ -1018,6 +1076,65 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
           <Tabs defaultActiveKey="1" items={items} className="custom-tabs" />
         </div>
       </div>
+
+      {/* Modal chọn địa chỉ */}
+      {addressModalVisible && (
+        <Modal
+          title={
+            <span className="text-xl font-bold">Chọn địa chỉ giao hàng</span>
+          }
+          open={addressModalVisible}
+          onCancel={() => setAddressModalVisible(false)}
+          footer={null}
+          width={800}
+        >
+          <Table
+            dataSource={customerAddresses}
+            rowKey={(record) =>
+              record.id ||
+              `${record.tinhThanhId}-${record.quanHuyenId}-${record.diaChiCuThe}`
+            }
+            pagination={false}
+            onRow={(record) => ({
+              onClick: () => handleSelectAddress(record),
+              className: "cursor-pointer hover:bg-blue-50",
+            })}
+            columns={[
+              {
+                title: <strong>Tên địa chỉ</strong>,
+                dataIndex: "tenDiaChi",
+                key: "tenDiaChi",
+                render: (text) => (
+                  <span className="font-medium">{text || "—"}</span>
+                ),
+              },
+              {
+                title: <strong>Tỉnh/Thành phố</strong>,
+                dataIndex: "tinhTen",
+                key: "tinhTen",
+                width: "30%",
+              },
+              {
+                title: <strong>Quận/Huyện</strong>,
+                dataIndex: "quanTen",
+                key: "quanTen",
+                width: "30%",
+              },
+              {
+                title: <strong>Số nhà, đường</strong>,
+                dataIndex: "diaChiCuThe",
+                key: "diaChiCuThe",
+                render: (text) => text || "—",
+              },
+            ]}
+          />
+          {customerAddresses.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              Khách hàng chưa có địa chỉ nào được lưu.
+            </div>
+          )}
+        </Modal>
+      )}
     </>
   );
 }

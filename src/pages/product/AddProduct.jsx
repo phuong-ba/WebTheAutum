@@ -214,7 +214,6 @@ export default function AddProduct() {
 
   const handleAddNew = async (values) => {
     try {
-      console.log(`🎯 Bắt đầu thêm mới ${modalType}:`, values);
 
       if (!values.ten?.trim()) {
         message.error(`Vui lòng nhập tên ${getModalTitle()}`);

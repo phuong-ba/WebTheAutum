@@ -1,9 +1,9 @@
 import Banner from "@/layouts/user/Banner";
 import React from "react";
-import ProductNew from "../product/ProductNew";
-import ProductSeller from "../product/ProductSeller";
-import ProductCollection from "../product/ProductCollection";
-import ProductBigSale from "../product/ProductBigSale";
+import ProductNew from "../ProductNew";
+import ProductSeller from "../ProductSeller";
+import ProductCollection from "../ProductCollection";
+import ProductBigSale from "../ProductBigSale";
 import Advise from "@/layouts/user/Advise";
 
 export default function MainHome() {

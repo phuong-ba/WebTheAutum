@@ -25,7 +25,6 @@ export default function ResetPassword() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      console.log("🔄 Resetting password with token:", token);
 
       const response = await fetch("http://localhost:8080/api/auth/reset-password", {
         method: "POST",
@@ -39,7 +38,6 @@ export default function ResetPassword() {
       });
 
       const data = await response.json();
-      console.log("✅ Reset password response:", data);
 
       if (data.success) {
         message.success(data.message);
@@ -57,7 +55,6 @@ export default function ResetPassword() {
   };
 
   const onFinishFailed = (errorInfo) => {
-    console.log("Failed:", errorInfo);
     message.error("Vui lòng kiểm tra lại thông tin!");
   };
 

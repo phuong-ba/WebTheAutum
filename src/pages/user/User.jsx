@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Space, Table, Tag, message, Modal, Button } from "antd";
+import { Space, Table, Tag, message, Modal, Button, Tooltip } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchNhanVien,
@@ -28,7 +28,7 @@ export default function User() {
   const fileInputRef = useRef(null);
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [selectedRecord, setSelectedRecord] = React.useState(null);
-
+  const currentRole = localStorage.getItem("user_role");
   const showCustomModal = (record) => {
     setSelectedRecord(record);
     setIsModalVisible(true);
@@ -217,7 +217,25 @@ export default function User() {
       align: "center",
     },
     { title: "SỐ ĐIỆN THOẠI", dataIndex: "sdt", key: "sdt" },
-    { title: "ĐỊA CHỈ", dataIndex: "diaChi", key: "diaChi" },
+    {
+      title: "ĐỊA CHỈ",
+      dataIndex: "diaChi",
+      key: "diaChi",
+      render: (text) => (
+        <Tooltip title={text}>
+          <div
+            style={{
+              maxWidth: 200, // giới hạn chiều rộng hiển thị
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {text}
+          </div>
+        </Tooltip>
+      ),
+    },
 
     { title: "EMAIL", dataIndex: "email", key: "email" },
     {
@@ -262,12 +280,20 @@ export default function User() {
           </a>
           <a
             onClick={() => {
+              if (currentRole === "Quản lý" && record.chucVuName === "Quản lý") {
+                messageApi.warning(
+                  "Bạn không được chỉnh sửa nhân viên có cùng chức vụ!"
+                );
+                return;
+              }
+
               if (!record.trangThai) {
                 messageApi.warning(
                   "Không thể cập nhật! Nhân viên này đã bị khóa."
                 );
                 return;
               }
+
               navigate(`/admin/update-user/${record.id}`);
             }}
           >
@@ -277,6 +303,7 @@ export default function User() {
       ),
     },
   ];
+
   return (
     <>
       {contextHolder}

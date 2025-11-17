@@ -113,6 +113,7 @@ export default function BillInvoiceStatus({
     setStatusStep(newStatus);
     onTempStatusChange && onTempStatusChange(newStatus);
   };
+  
 
   const handleLoaiHoaDonChange = (value) => {
     if (!isEditing) return;
@@ -121,12 +122,12 @@ export default function BillInvoiceStatus({
     let newStatus = tempStatus;
 
     if (newLoaiHoaDon) {
-      newStatus = 3; // Tại quầy
+      newStatus = 3;
       message.info(
         "Đã chuyển sang loại Tại quầy - Trạng thái mặc định: Đã hoàn thành"
       );
     } else {
-      newStatus = 1; // Online
+      newStatus = 1;
       message.info(
         "Đã chuyển sang loại Online - Trạng thái mặc định: Chờ giao hàng"
       );
@@ -141,19 +142,16 @@ export default function BillInvoiceStatus({
 
   const getStatusColor = (index) => {
     if (index <= statusStep) return "bg-emerald-500";
-    if (index === statusStep + 1) return "bg-amber-500";
     return "bg-gray-400";
   };
 
   const getLineColor = (index) => {
     if (index < statusStep) return "bg-emerald-500";
-    if (index === statusStep) return "bg-amber-500";
     return "bg-gray-400";
   };
 
   const getTextColor = (index) => {
     if (index <= statusStep) return "text-emerald-600";
-    if (index === statusStep + 1) return "text-amber-600";
     return "text-gray-500";
   };
 
@@ -180,109 +178,114 @@ export default function BillInvoiceStatus({
   const isFalseStatus = statusStep === 4;
 
   return (
-    <div className="bg-white flex flex-col gap-3 rounded-lg shadow overflow-hidden mb-5">
-      <div>
-        <div className="flex justify-between items-center p-4 bg-gray-200">
-          <div className="text-lg font-bold flex gap-2 items-center">
-            <ClockCountdownIcon size={24} />
-            Trạng thái hóa đơn
-          </div>
-
-          {isEditing && (
-            <div className="flex gap-4 items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Loại hóa đơn:</span>
-                <Select
-                  value={currentLoaiHoaDon?.toString() || "false"}
-                  className="min-w-[140px]"
-                  onChange={handleLoaiHoaDonChange}
-                >
-                  <Option value="false">Online</Option>
-                  <Option value="true">Tại quầy</Option>
-                </Select>
-              </div>
-
-              <Select
-                value={statusStep?.toString() || "0"}
-                className="min-w-[160px]"
-                onChange={handleStatusChange}
-              >
-                {steps.map((step, index) => (
-                  <Option key={index} value={step.value.toString()}>
-                    {step.label}
-                  </Option>
-                ))}
-              </Select>
+    <>
+      <div className="bg-white flex flex-col gap-3 rounded-lg shadow overflow-hidden mb-5">
+        <div>
+          <div className="flex justify-between items-center p-4 bg-gray-200">
+            <div className="text-lg font-bold flex gap-2 items-center">
+              <ClockCountdownIcon size={24} />
+              Trạng thái hóa đơn
             </div>
-          )}
-        </div>
 
-        <div
-          className={`px-5 py-10 ${
-            isFinalStatus || isFalseStatus
-              ? "flex justify-center"
-              : "flex justify-between items-center"
-          }`}
-        >
-          {steps.map((step, index) => {
-            const Icon = step.icon;
-            const isCurrent = index === statusStep;
-            const isDone = index <= statusStep;
-
-            if ((isFinalStatus || isFalseStatus) && index !== statusStep) {
-              return null;
-            }
-
-            return (
-              <React.Fragment key={index}>
-                <div className="flex flex-col items-center gap-2">
-                  <div
-                    className={`rounded-full p-3 transition-colors duration-300 ${
-                      isFalseStatus ? "bg-orange-600" : getStatusColor(index)
-                    }`}
+            {isEditing && (
+              <div className="flex gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Loại hóa đơn:</span>
+                  <Select
+                    value={currentLoaiHoaDon?.toString() || "false"}
+                    className="min-w-[140px]"
+                    onChange={handleLoaiHoaDonChange}
                   >
-                    {isFalseStatus ? (
-                      <XCircleIcon
-                        size={24}
-                        className="text-white"
-                        weight="fill"
-                      />
-                    ) : (
-                      <Icon
-                        size={24}
-                        className="text-white"
-                        weight={isDone ? "fill" : "regular"}
-                      />
-                    )}
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`font-bold ${
-                        isFalseStatus ? "text-orange-600" : getTextColor(index)
-                      }`}
-                    >
-                      {step.label}
-                    </div>
-                    <div className="text-gray-500 font-semibold text-xs text-center max-w-[120px]">
-                      {getStatusDate(index)}
-                    </div>
-                  </div>
+                    <Option value="false">Online</Option>
+                    <Option value="true">Tại quầy</Option>
+                  </Select>
                 </div>
 
-                {!isFinalStatus &&
-                  !isFalseStatus &&
-                  index < steps.length - 1 && (
+                <Select
+                  value={statusStep?.toString() || "0"}
+                  className="min-w-[160px]"
+                  onChange={handleStatusChange}
+                >
+                  {steps.map((step, index) => (
+                    <Option key={index} value={step.value.toString()}>
+                      {step.label}
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <div
+            className={`px-5 py-10 ${
+              isFinalStatus || isFalseStatus
+                ? "flex justify-center"
+                : "flex justify-between items-center"
+            }`}
+          >
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+              const isCurrent = index === statusStep;
+              const isDone = index <= statusStep;
+
+              if ((isFinalStatus || isFalseStatus) && index !== statusStep) {
+                return null;
+              }
+
+              return (
+                <React.Fragment key={index}>
+                  <div className="flex flex-col items-center gap-2">
                     <div
-                      className={`flex-1 h-[2px] mb-12 ${getLineColor(
-                        index
-                      )} transition-all duration-300`}
-                    ></div>
-                  )}
-              </React.Fragment>
-            );
-          })}
+                      className={`rounded-full p-3 transition-colors duration-300 ${
+                        isFalseStatus ? "bg-orange-600" : getStatusColor(index)
+                      }`}
+                    >
+                      {isFalseStatus ? (
+                        <XCircleIcon
+                          size={24}
+                          className="text-white"
+                          weight="fill"
+                        />
+                      ) : (
+                        <Icon
+                          size={24}
+                          className="text-white"
+                          weight={isDone ? "fill" : "regular"}
+                        />
+                      )}
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={`font-bold ${
+                          isFalseStatus
+                            ? "text-orange-600"
+                            : getTextColor(index)
+                        }`}
+                      >
+                        {step.label}
+                      </div>
+                      <div className="text-gray-500 font-semibold text-xs text-center max-w-[120px]">
+                        {getStatusDate(index)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {!isFinalStatus &&
+                    !isFalseStatus &&
+                    index < steps.length - 1 && (
+                      <div
+                        className={`flex-1 h-[2px] mb-12 ${getLineColor(
+                          index
+                        )} transition-all duration-300`}
+                      ></div>
+                    )}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
+      
+    </>
   );
 }
