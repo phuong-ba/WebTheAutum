@@ -355,12 +355,10 @@ export default function SellCartProduct({ selectedBillId }) {
       const quantityDiff = newQuantity - product.quantity;
 
       if (quantityDiff > 0) {
-        // Tăng số lượng - giảm tồn kho
         await dispatch(
           giamSoLuong({ id: productId, soLuong: quantityDiff })
         ).unwrap();
       } else {
-        // Giảm số lượng - tăng tồn kho
         await dispatch(
           tangSoLuong({ id: productId, soLuong: Math.abs(quantityDiff) })
         ).unwrap();
@@ -385,7 +383,6 @@ export default function SellCartProduct({ selectedBillId }) {
       console.error(error);
       messageApi.error("Lỗi khi cập nhật số lượng sản phẩm!");
 
-      // Reset về số lượng cũ nếu có lỗi
       setEditingQuantities((prev) => ({
         ...prev,
         [productId]: product.quantity,
@@ -393,7 +390,6 @@ export default function SellCartProduct({ selectedBillId }) {
     }
   };
 
-  // 🆕 HÀM MỚI: Xử lý khi nhấn Enter trong input
   const handleQuantityKeyPress = (e, productId) => {
     if (e.key === "Enter") {
       handleApplyQuantity(productId);

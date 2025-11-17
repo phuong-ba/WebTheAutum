@@ -136,10 +136,18 @@ export default function SellListProduct({ selectedBillId }) {
     setSortBy("default");
   };
 
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 5,
+  });
+
   const columns = [
     {
       title: "STT",
-      render: (_, __, index) => index + 1,
+      key: "stt",
+      render: (_, __, index) =>
+        (pagination.current - 1) * pagination.pageSize + index + 1,
+      width: 60,
       align: "center",
     },
     {
@@ -279,7 +287,12 @@ export default function SellListProduct({ selectedBillId }) {
             columns={columns}
             dataSource={filteredData}
             rowKey="id"
-            pagination={{ pageSize: 5 }}
+            pagination={{
+              current: pagination.current,
+              pageSize: pagination.pageSize,
+              onChange: (page, pageSize) =>
+                setPagination({ current: page, pageSize }),
+            }}
           />
         </div>
       </div>
