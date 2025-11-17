@@ -15,7 +15,6 @@ export default function CustomerLogin() {
   const onLoginFinish = async (values) => {
     setLoading(true);
     try {
-      console.log("📧 Customer login attempt:", values);
 
       const response = await fetch("http://localhost:8080/api/customer/auth/login", {
         method: "POST",
@@ -29,7 +28,6 @@ export default function CustomerLogin() {
       });
 
       const data = await response.json();
-      console.log("✅ Customer login response:", data);
 
       if (data.accessToken) {
         localStorage.setItem("customer_token", data.accessToken);
@@ -73,7 +71,6 @@ export default function CustomerLogin() {
   const onRegisterFinish = async (values) => {
     setLoading(true);
     try {
-      console.log("📝 Customer register attempt:", values);
 
       const response = await fetch("http://localhost:8080/api/customer/auth/register", {
         method: "POST",

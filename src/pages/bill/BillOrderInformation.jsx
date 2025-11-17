@@ -37,7 +37,6 @@ export default function BillOrderInformation() {
 
   useEffect(() => {
     if (location.state?.refreshData) {
-      console.log("🔄 Refreshing data...");
       fetchInvoiceDetail();
       window.history.replaceState({}, document.title, window.location.pathname);
     }

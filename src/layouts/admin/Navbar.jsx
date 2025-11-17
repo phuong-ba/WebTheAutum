@@ -27,7 +27,6 @@ export default function Navbar() {
   // Lấy thông tin user từ localStorage
   useEffect(() => {
     const role = localStorage.getItem("user_role") || "STAFF";
-    console.log("🎯 Navbar - User Role:", role);
     setUserRole(role);
   }, []);
 
@@ -95,10 +94,8 @@ export default function Navbar() {
   const getMenuItems = () => {
     // Role "Quản lý" hoặc "ADMIN" đều có full quyền
     if (userRole === "ADMIN" || userRole === "Quản lý") {
-      console.log("🎯 Hiển thị menu ADMIN/QUẢN LÝ - Full quyền");
       return adminMenuItems;
     } else {
-      console.log("🎯 Hiển thị menu STAFF - Quyền hạn chế");
       return staffMenuItems;
     }
   };

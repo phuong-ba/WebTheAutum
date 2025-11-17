@@ -47,7 +47,6 @@ const hoaDonApi = {
       }
     });
 
-    console.log('📤 Gửi params:', cleanParams);
 
     return axios.get(`${API_URL}`, {
       params: cleanParams

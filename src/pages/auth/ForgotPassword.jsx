@@ -13,7 +13,6 @@ export default function ForgotPassword() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      console.log("📧 Forgot password request:", values);
 
       const response = await fetch("http://localhost:8080/api/auth/forgot-password", {
         method: "POST",
@@ -26,7 +25,6 @@ export default function ForgotPassword() {
       });
 
       const data = await response.json();
-      console.log("✅ Forgot password response:", data);
 
       if (data.success) {
         message.success(data.message);
@@ -44,7 +42,6 @@ export default function ForgotPassword() {
   };
 
   const onFinishFailed = (errorInfo) => {
-    console.log("Failed:", errorInfo);
     message.error("Vui lòng điền đầy đủ thông tin!");
   };
 

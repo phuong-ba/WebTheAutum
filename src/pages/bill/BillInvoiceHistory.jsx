@@ -18,7 +18,6 @@ export default function BillInvoiceHistory() {
 
   useEffect(() => {
     if (location.state?.refreshData) {
-      console.log("🔄 Refreshing payment history...");
       fetchPaymentHistory();
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -32,7 +31,6 @@ export default function BillInvoiceHistory() {
       setError(null);
 
       const response = await hoaDonApi.getDetail(id);
-      console.log("📦 Payment history data:", response.data);
 
       const invoiceData = response.data;
       const history = [];

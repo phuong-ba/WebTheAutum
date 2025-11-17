@@ -1,6 +1,6 @@
 import { fetchChiTietSanPham } from "@/services/chiTietSanPhamService";
 import { ClipboardTextIcon, ShoppingCartIcon } from "@phosphor-icons/react";
-import { Table, Space, message, Input, Select } from "antd";
+import { Table, Space, message, Input, Select, Tooltip } from "antd";
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -128,7 +128,7 @@ export default function BillProduct({ onAddProduct }) {
     {
       title: "Ảnh",
       dataIndex: "anhs",
-      width: 80,
+      width: 60,
       render: (anhs) =>
         anhs?.[0]?.duongDanAnh ? (
           <img
@@ -160,22 +160,39 @@ export default function BillProduct({ onAddProduct }) {
     {
       title: "Tên sản phẩm",
       dataIndex: "tenSanPham",
-      ellipsis: true,
+      width: 100,
+      render: (text) => (
+        <Tooltip title={text}>
+          <div
+            style={{
+              maxWidth: 100, // giới hạn chiều rộng hiển thị
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {text}
+          </div>
+        </Tooltip>
+      ),
     },
     {
       title: "Màu sắc",
       dataIndex: "tenMauSac",
-      width: 100,
+      align: "center",
+      width: 0,
     },
     {
       title: "Kích thước",
       dataIndex: "tenKichThuoc",
-      width: 100,
+      align: "center",
+      width: 80,
     },
     {
       title: "Trọng lượng",
       dataIndex: "tenTrongLuong",
-      width: 110,
+      align: "center",
+      width: 90,
     },
     {
       title: "Tồn kho",
@@ -194,7 +211,7 @@ export default function BillProduct({ onAddProduct }) {
     },
     {
       title: "Giá bán",
-      width: 130,
+      width: 60,
       render: (record) => {
         const currentPrice = record.giaSauGiam ?? record.giaBan ?? 0;
         const hasDiscount =
@@ -218,7 +235,7 @@ export default function BillProduct({ onAddProduct }) {
       title: "HÀNH ĐỘNG",
       key: "action",
       align: "center",
-      width: 120,
+      width: 100,
       render: (_, record) => (
         <Space size="middle">
           <button
@@ -317,7 +334,6 @@ export default function BillProduct({ onAddProduct }) {
               onChange: (page, pageSize) =>
                 setPagination({ current: page, pageSize }),
             }}
-            scroll={{ x: 1200 }}
           />
         </div>
       </div>

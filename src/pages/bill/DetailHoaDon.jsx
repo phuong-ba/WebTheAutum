@@ -63,9 +63,6 @@ const DetailHoaDon = () => {
   const [emailForm] = Form.useForm();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm] = Form.useForm();
-  const [formErrors, setFormErrors] = useState({});
-  const [nhanVienList, setNhanVienList] = useState([]);
-  const [phuongThucList, setPhuongThucList] = useState([]);
   const [tempStatus, setTempStatus] = useState(0);
   const [tempLoaiHoaDon, setTempLoaiHoaDon] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
@@ -84,9 +81,24 @@ const DetailHoaDon = () => {
   const { data: productList } = useSelector((state) => state.chiTietSanPham);
 
   const getProductKey = (product) => {
-    return product.id || `temp-${product.idChiTietSanPham}`;
+    return product.idChiTietSanPham;
   };
 
+  useEffect(() => {
+    if (invoice?.chiTietSanPhams) {
+      setInvoiceProducts(invoice.chiTietSanPhams);
+
+      const initialQuantities = {};
+      invoice.chiTietSanPhams.forEach((product) => {
+        const key = getProductKey(product);
+        initialQuantities[key] = product.soLuong;
+      });
+      setEditingQuantities(initialQuantities);
+
+      // QUAN TRỌNG: Re-fetch danh sách sản phẩm để cập nhật tồn kho realtime
+      dispatch(fetchChiTietSanPham());
+    }
+  }, [invoice, dispatch]);
   useEffect(() => {
     dispatch(fetchChiTietSanPham());
   }, [dispatch]);
@@ -379,47 +391,91 @@ const DetailHoaDon = () => {
     editForm.resetFields();
   };
 
-  const handleDeleteProductFromInvoice = async (productId) => {
+  const handleDeleteProductFromInvoice = async (productKey) => {
+    const product = invoiceProducts.find(
+      (p) => getProductKey(p) === productKey
+    );
+    if (!product) return;
+
+    const chiTietId = getChiTietSanPhamId(product);
+    if (chiTietId && product.soLuong > 0) {
+      try {
+        await dispatch(
+          tangSoLuong({ id: chiTietId, soLuong: product.soLuong })
+        ).unwrap();
+      } catch (err) {
+        messageApi.error("Không thể trả lại tồn kho!");
+        return;
+      }
+    }
+
+    const updated = invoiceProducts.filter(
+      (p) => getProductKey(p) !== productKey
+    );
+    setInvoiceProducts(updated);
+    setEditingQuantities((prev) => {
+      const newState = { ...prev };
+      delete newState[productKey];
+      return newState;
+    });
+
+    messageApi.success("Đã xóa sản phẩm!");
+  };
+
+  const handleIncreaseQuantity = async (productKey) => {
+    const product = invoiceProducts.find(
+      (p) => getProductKey(p) === productKey
+    );
+    if (!product) return;
+
+    const chiTietId = getChiTietSanPhamId(product);
+    if (!chiTietId) return;
+
     try {
-      const productToDelete = invoiceProducts.find((p) => p.id === productId);
-      if (!productToDelete) return;
+      await dispatch(giamSoLuong({ id: chiTietId, soLuong: 1 })).unwrap();
 
-      await dispatch(
-        tangSoLuong({ id: productId, soLuong: productToDelete.soLuong })
-      ).unwrap();
-
-      const updatedProducts = invoiceProducts.filter((p) => p.id !== productId);
-      setInvoiceProducts(updatedProducts);
-
-      setEditingQuantities((prev) => {
-        const newState = { ...prev };
-        delete newState[productId];
-        return newState;
+      const updatedProducts = invoiceProducts.map((p) => {
+        if (getProductKey(p) === productKey) {
+          return {
+            ...p,
+            soLuong: p.soLuong + 1,
+            thanhTien: (p.soLuong + 1) * p.giaBan,
+          };
+        }
+        return p;
       });
 
-      await dispatch(fetchChiTietSanPham());
-      messageApi.success("Đã xóa sản phẩm khỏi hóa đơn!");
+      setInvoiceProducts(updatedProducts);
+      setEditingQuantities((prev) => ({
+        ...prev,
+        [productKey]: product.soLuong + 1,
+      }));
+
+      messageApi.success("Đã tăng số lượng!");
     } catch (error) {
-      console.error(error);
-      messageApi.error("Lỗi khi xóa sản phẩm!");
+      messageApi.error("Không thể tăng (hết hàng hoặc lỗi hệ thống)");
     }
   };
 
-  const handleDecreaseQuantity = async (productId) => {
-    const product = invoiceProducts.find((p) => getProductKey(p) === productId);
+  // ĐÚNG: Giảm số lượng → trả lại kho → TĂNG tồn kho
+  const handleDecreaseQuantity = async (productKey) => {
+    const product = invoiceProducts.find(
+      (p) => getProductKey(p) === productKey
+    );
     if (!product || product.soLuong <= 1) return;
 
     try {
-      const realId = product.id || product.idChiTietSanPham;
-      await dispatch(tangSoLuong({ id: realId, soLuong: 1 })).unwrap();
+      const chiTietId = getChiTietSanPhamId(product);
+
+      // ĐÚNG: Hủy bán → trả lại kho → TĂNG tồn kho
+      await dispatch(tangSoLuong({ id: chiTietId, soLuong: 1 })).unwrap();
 
       const updatedProducts = invoiceProducts.map((p) => {
-        if (getProductKey(p) === productId) {
-          const newQty = p.soLuong - 1;
+        if (getProductKey(p) === productKey) {
           return {
             ...p,
-            soLuong: newQty,
-            thanhTien: newQty * p.giaBan,
+            soLuong: p.soLuong - 1,
+            thanhTien: (p.soLuong - 1) * p.giaBan,
           };
         }
         return p;
@@ -428,55 +484,21 @@ const DetailHoaDon = () => {
       setInvoiceProducts(updatedProducts);
       setEditingQuantities((prev) => ({
         ...prev,
-        [productId]: updatedProducts.find((p) => getProductKey(p) === productId)
-          .soLuong,
+        [productKey]: product.soLuong - 1,
       }));
 
-      await dispatch(fetchChiTietSanPham());
-      messageApi.success("Đã giảm số lượng sản phẩm!");
+      messageApi.success("Đã giảm số lượng!");
     } catch (error) {
-      console.error(error);
       messageApi.error("Lỗi khi giảm số lượng!");
     }
   };
-
-  const handleIncreaseQuantity = async (productId) => {
-    const product = invoiceProducts.find((p) => p.id === productId);
-    if (!product) return;
-
-    const currentProduct = productList.find((p) => p.id === productId);
-    if (currentProduct && currentProduct.soLuongTon <= 0) {
-      messageApi.warning("Sản phẩm đã hết hàng!");
-      return;
-    }
-
-    try {
-      await dispatch(giamSoLuong({ id: productId, soLuong: 1 })).unwrap();
-
-      const updatedProducts = invoiceProducts.map((p) => {
-        if (p.id === productId) {
-          const newQty = p.soLuong + 1;
-          return {
-            ...p,
-            soLuong: newQty,
-            thanhTien: newQty * p.giaBan,
-          };
-        }
-        return p;
-      });
-
-      setInvoiceProducts(updatedProducts);
-      setEditingQuantities((prev) => ({
-        ...prev,
-        [productId]: updatedProducts.find((p) => p.id === productId).soLuong,
-      }));
-
-      await dispatch(fetchChiTietSanPham());
-      messageApi.success("Đã tăng số lượng sản phẩm!");
-    } catch (error) {
-      console.error(error);
-      messageApi.error("Lỗi khi tăng số lượng!");
-    }
+  const getChiTietSanPhamId = (product) => {
+    return (
+      product.idChiTietSanPham ||
+      product.chiTietSanPham?.id ||
+      product.idCTSP || // nếu backend trả kiểu này
+      product.id
+    );
   };
 
   const handleQuantityChange = (productId, newQuantity) => {
@@ -490,18 +512,22 @@ const DetailHoaDon = () => {
 
   const handleApplyQuantity = async (productId) => {
     const newQuantity = editingQuantities[productId];
-    const product = invoiceProducts.find((p) => p.id === productId);
-
+    const product = invoiceProducts.find((p) => getProductKey(p) === productId);
     if (!product || !newQuantity || newQuantity === product.soLuong) return;
 
-    const currentProduct = productList.find((p) => p.id === productId);
-    if (
-      currentProduct &&
-      newQuantity > currentProduct.soLuongTon + product.soLuong
-    ) {
-      messageApi.warning(
-        `Số lượng vượt quá tồn kho! Tồn kho hiện có: ${currentProduct.soLuongTon}`
-      );
+    const chiTietId = getChiTietSanPhamId(product);
+    if (!chiTietId) {
+      messageApi.error("Không xác định được sản phẩm!");
+      return;
+    }
+
+    const currentProduct = productList.find((p) => p.id === chiTietId);
+    const currentStock = currentProduct
+      ? currentProduct.soLuongTon + product.soLuong
+      : Infinity;
+
+    if (newQuantity > currentStock) {
+      messageApi.warning(`Chỉ còn ${currentStock} sản phẩm trong kho!`);
       setEditingQuantities((prev) => ({
         ...prev,
         [productId]: product.soLuong,
@@ -513,17 +539,19 @@ const DetailHoaDon = () => {
       const quantityDiff = newQuantity - product.soLuong;
 
       if (quantityDiff > 0) {
+        // Cần giảm thêm tồn kho
         await dispatch(
-          giamSoLuong({ id: productId, soLuong: quantityDiff })
+          giamSoLuong({ id: chiTietId, soLuong: quantityDiff })
         ).unwrap();
-      } else {
+      } else if (quantityDiff < 0) {
+        // Trả lại kho
         await dispatch(
-          tangSoLuong({ id: productId, soLuong: Math.abs(quantityDiff) })
+          tangSoLuong({ id: chiTietId, soLuong: Math.abs(quantityDiff) })
         ).unwrap();
       }
 
       const updatedProducts = invoiceProducts.map((p) => {
-        if (p.id === productId) {
+        if (getProductKey(p) === productId) {
           return {
             ...p,
             soLuong: newQuantity,
@@ -534,11 +562,9 @@ const DetailHoaDon = () => {
       });
 
       setInvoiceProducts(updatedProducts);
-      await dispatch(fetchChiTietSanPham());
-      messageApi.success(`Đã cập nhật số lượng thành ${newQuantity}!`);
+      messageApi.success(`Cập nhật số lượng thành ${newQuantity}`);
     } catch (error) {
-      console.error(error);
-      messageApi.error("Lỗi khi cập nhật số lượng!");
+      messageApi.error("Cập nhật số lượng thất bại!");
       setEditingQuantities((prev) => ({
         ...prev,
         [productId]: product.soLuong,
@@ -559,24 +585,29 @@ const DetailHoaDon = () => {
         return;
       }
 
-      await dispatch(giamSoLuong({ id: product.id, soLuong: 1 })).unwrap();
+      const productIdToCheck = product.id;
 
+      // 1. Giảm tồn kho trước (đúng rồi)
+      await dispatch(
+        giamSoLuong({ id: productIdToCheck, soLuong: 1 })
+      ).unwrap();
+
+      // 2. TÌM sản phẩm hiện có trong hóa đơn
       const existingProduct = invoiceProducts.find(
-        (p) => p.idChiTietSanPham === product.id || p.id === product.id
+        (p) => p.idChiTietSanPham === productIdToCheck
       );
 
       let updatedProducts;
       if (existingProduct) {
         updatedProducts = invoiceProducts.map((p) => {
-          const matches =
-            p.idChiTietSanPham === product.id || p.id === product.id;
-          return matches
-            ? {
-                ...p,
-                soLuong: p.soLuong + 1,
-                thanhTien: (p.soLuong + 1) * p.giaBan,
-              }
-            : p;
+          if (p.idChiTietSanPham === productIdToCheck) {
+            return {
+              ...p,
+              soLuong: p.soLuong + 1,
+              thanhTien: (p.soLuong + 1) * p.giaBan,
+            };
+          }
+          return p;
         });
       } else {
         const newProduct = {
@@ -595,20 +626,16 @@ const DetailHoaDon = () => {
 
       setInvoiceProducts(updatedProducts);
 
-      setEditingQuantities((prev) => {
-        const updated = { ...prev };
-        updatedProducts.forEach((p) => {
-          const key = getProductKey(p);
-          updated[key] = p.soLuong;
-        });
-        return updated;
-      });
+      // QUAN TRỌNG: Cập nhật editingQuantities cho sản phẩm mới thêm
+      setEditingQuantities((prev) => ({
+        ...prev,
+        [productIdToCheck]: (prev[productIdToCheck] || 0) + 1,
+      }));
 
-      await dispatch(fetchChiTietSanPham());
       messageApi.success("Đã thêm sản phẩm vào hóa đơn!");
     } catch (error) {
-      console.error(error);
-      messageApi.error("Thêm sản phẩm thất bại!");
+      console.error("Thêm sản phẩm thất bại:", error);
+      messageApi.error("Thêm sản phẩm thất bại! Có thể đã hết hàng.");
     }
   };
 
@@ -622,7 +649,6 @@ const DetailHoaDon = () => {
 
   useEffect(() => {
     if (location.state?.refreshData) {
-      console.log("🔄 Refreshing data...");
       fetchInvoiceDetail();
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -631,26 +657,10 @@ const DetailHoaDon = () => {
   const fetchInvoiceDetail = async () => {
     try {
       setLoading(true);
-      console.log("🔍 Đang gọi API với ID:", id);
 
       const response = await hoaDonApi.getDetail(id);
-      console.log("📦 Full response:", response);
-      console.log("📦 Response data:", response.data);
-      console.log("📦 Response data.data:", response.data?.data);
 
       let invoiceData = response.data?.data || response.data;
-
-      console.log("✅ Invoice data sau khi parse:", invoiceData);
-      console.log(
-        "🔍 Tất cả keys trong invoiceData:",
-        Object.keys(invoiceData || {})
-      );
-
-      console.log("🔍 Các field quan trọng:");
-      console.log("  - id:", invoiceData?.id);
-      console.log("  - maHoaDon:", invoiceData?.maHoaDon);
-      console.log("  - trangThai:", invoiceData?.trangThai);
-      console.log("  - loaiHoaDon:", invoiceData?.loaiHoaDon);
 
       if (!invoiceData || !invoiceData.id) {
         throw new Error("Dữ liệu hóa đơn không hợp lệ");
@@ -683,7 +693,6 @@ const DetailHoaDon = () => {
   const fetchLichSuHoaDon = async () => {
     try {
       const response = await hoaDonApi.getLichSu(id);
-      console.log("📜 Lịch sử:", response.data);
       setLichSuHoaDon(response.data || []);
     } catch (err) {
       console.error("❌ Lỗi tải lịch sử:", err);
@@ -694,7 +703,6 @@ const DetailHoaDon = () => {
   const fetchAllNhanVien = async () => {
     try {
       const res = await fetchNhanVien();
-      console.log("👥 Danh sách nhân viên:", res.data);
       setNhanVienList(res.data || []);
     } catch (err) {
       console.error("❌ Lỗi tải nhân viên:", err);
@@ -704,7 +712,6 @@ const DetailHoaDon = () => {
   const getAllPhuongThucThanhToan = async () => {
     try {
       const res = await fetchPhuongThuc();
-      console.log("💳 Danh sách phương thức:", res.data);
       setPhuongThucList(res.data || []);
     } catch (err) {
       console.error("❌ Lỗi tải phương thức:", err);

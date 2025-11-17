@@ -113,10 +113,10 @@ export default function SellPay({
     let chiTietList = [];
     if (cartItems && cartItems.length > 0) {
       chiTietList = cartItems.map((item) => ({
-        idChiTietSanPham: item.idChiTietSanPham || item.id,
-        soLuong: item.quantity || item.soLuong,
-        giaBan: item.price || item.giaBan,
-        ghiChu: typeof item.ghiChu === "string" ? item.ghiChu : "",
+        idChiTietSanPham: item.idChiTietSanPham, // BẮT BUỘC dùng field này
+        soLuong: item.quantity || 1,
+        giaBan: item.unitPrice || item.price || item.giaBan || 0,
+        ghiChu: item.ghiChu || "",
         trangThai: 0,
       }));
     }

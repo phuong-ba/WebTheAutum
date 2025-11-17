@@ -13,7 +13,6 @@ export default function Login() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      console.log("📧 Login attempt:", values);
 
       const response = await fetch("http://localhost:8080/api/auth/login", {
         method: "POST",
@@ -27,7 +26,6 @@ export default function Login() {
       });
 
       const data = await response.json();
-      console.log("✅ Login response:", data);
 
       if (data.accessToken) {
         localStorage.setItem("auth_token", data.accessToken);
@@ -37,8 +35,6 @@ export default function Login() {
         localStorage.setItem("user_role", data.chucVuName);
         localStorage.setItem("user_id", data.id);
         localStorage.setItem("user_img", data.hinhAnh || "");
-        console.log("🎯 User Role:", data.chucVuName);
-        console.log("🎯 Redirect logic checking...");
 
         localStorage.setItem(
           "login_success_data",
@@ -50,13 +46,10 @@ export default function Login() {
         );
 
         const role = (data.chucVuName || "").trim().toLowerCase();
-        console.log(" Final role for redirect:", role);
 
         if (role === "quản lý" || role === "admin") {
-          console.log(" Redirect QUẢN LÝ/ADMIN to /admin");
           navigate("/admin");
         } else {
-          console.log(" Redirect NHÂN VIÊN to /admin");
           navigate("/admin");
         }
       } else {

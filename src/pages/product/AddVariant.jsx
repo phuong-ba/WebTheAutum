@@ -127,14 +127,12 @@ export default function AddVariant() {
         idKichThuoc: values.idKichThuoc,
       };
 
-      console.log("📤 Gửi request tạo biến thể:", requestData);
 
       const response = await baseUrl.post(
         "/chi-tiet-san-pham/tao-bien-the-cho-san-pham",
         requestData
       );
 
-      console.log("✅ Response từ API:", response.data);
 
       if (response.data.success) {
         const newVariants = response.data.data || [];
@@ -165,7 +163,6 @@ export default function AddVariant() {
 
   const handleUpdateVariantInfo = async (variantId, values) => {
     try {
-      console.log("📤 Cập nhật thông tin biến thể:", variantId, values);
 
       const updateData = {};
 
