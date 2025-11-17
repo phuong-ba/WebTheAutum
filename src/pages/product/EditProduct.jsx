@@ -32,7 +32,6 @@ export default function EditProduct() {
 
   const fetchDropdownData = async () => {
     try {
-      console.log("🔄 Đang tải danh sách dropdown...");
 
       const [nhaSanXuatsRes, chatLieusRes, kieuDangsRes, xuatXusRes, coAosRes, tayAosRes, kichThuocsRes, mauSacsRes] =
         await Promise.all([
@@ -57,7 +56,6 @@ export default function EditProduct() {
         mauSacs: mauSacsRes.data?.data || mauSacsRes.data || [],
       });
 
-      console.log("✅ Đã tải dropdown data");
     } catch (error) {
       console.error("💥 Lỗi tải dropdown data:", error);
       message.error("Lỗi khi tải dữ liệu dropdown");
@@ -67,7 +65,6 @@ export default function EditProduct() {
   const fetchProductDetail = async () => {
     setLoading(true);
     try {
-      console.log("🔄 Đang tải chi tiết sản phẩm ID:", id);
 
       const response = await baseUrl.get(`/san-pham/${id}/detail`);
 
@@ -82,7 +79,6 @@ export default function EditProduct() {
           trangThai: data.trangThai,
         });
 
-        console.log("✅ Đã tải chi tiết sản phẩm với", data.chiTietSanPhams?.length || 0, "biến thể");
       } else {
         message.error(response.data.message || "Lỗi khi tải dữ liệu");
         navigate(-1);
@@ -182,7 +178,6 @@ export default function EditProduct() {
   const onFinish = async (values) => {
     setSubmitLoading(true);
     try {
-      console.log("📤 Bắt đầu lưu thay đổi...");
 
       const productResponse = await baseUrl.put(`/san-pham/${id}`, values);
       
@@ -190,7 +185,6 @@ export default function EditProduct() {
         throw new Error(productResponse.data.message || "Cập nhật sản phẩm thất bại");
       }
 
-      console.log("✅ Đã cập nhật thông tin sản phẩm");
 
       const variantUpdates = Object.entries(modifiedVariants).map(async ([variantId, changes]) => {
         const variant = variants.find(v => v.id === parseInt(variantId));
@@ -224,7 +218,6 @@ export default function EditProduct() {
 
       await Promise.all(variantUpdates);
 
-      console.log("✅ Đã cập nhật tất cả biến thể");
 
       message.success("Cập nhật sản phẩm và biến thể thành công!");
       

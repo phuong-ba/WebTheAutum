@@ -13,7 +13,6 @@ export default function Register() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      console.log("📝 Register attempt:", values);
 
       const response = await fetch("http://localhost:8080/api/auth/register", {
         method: "POST",
@@ -33,11 +32,9 @@ export default function Register() {
         data = await response.json();
       } else {
         const text = await response.text();
-        console.log("Server returned non-JSON:", text);
         data = { messageApi: text };
       }
 
-      console.log("✅ Register response:", data);
       if (response.ok) {
         messageApi.success("Đăng ký thành công!");
         navigate("/login");
@@ -53,7 +50,6 @@ export default function Register() {
   };
 
   const onFinishFailed = (errorInfo) => {
-    console.log("Failed:", errorInfo);
     messageApi.error("Vui lòng kiểm tra lại thông tin!");
   };
 

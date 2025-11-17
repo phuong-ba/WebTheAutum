@@ -22,18 +22,15 @@ export default function Header() {
     const userName = localStorage.getItem("user_name");
     const userRole = localStorage.getItem("user_role");
     const userEmail = localStorage.getItem("user_email");
+    const userImg = localStorage.getItem("user_img");
 
-    console.log("👤 Header - User info from localStorage:");
-    console.log("   - ID:", userId);
-    console.log("   - Name:", userName);
-    console.log("   - Role:", userRole);
-    console.log("   - Email:", userEmail);
 
     setUserInfo({
       id: userId || "",
       name: userName || "NGOVINHQUYEN",
       role: userRole || "Nhân viên",
       email: userEmail || "",
+      img: userImg || "",
     });
   }, []);
 
@@ -58,7 +55,6 @@ export default function Header() {
   };
 
   const handleLogout = () => {
-    console.log("🚪 Logging out...");
 
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user_type");
@@ -66,7 +62,6 @@ export default function Header() {
     localStorage.removeItem("user_email");
     localStorage.removeItem("user_role");
 
-    console.log("✅ Đã xoá thông tin đăng nhập");
     navigate("/login");
   };
 
@@ -77,15 +72,14 @@ export default function Header() {
           <div className="flex items-center gap-4">
             <Avatar
               size={48}
+              src={userInfo.img}
               style={{
                 backgroundColor: getAvatarColor(userInfo.role),
-                color: "white",
                 fontWeight: "bold",
                 fontSize: "18px",
-                flexShrink: 0,
               }}
             >
-              {getAvatarFromName(userInfo.name)}
+              {!userInfo.img && getAvatarFromName(userInfo.name)}
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-gray-900 text-base truncate">
@@ -101,7 +95,7 @@ export default function Header() {
                     : "bg-gradient-to-r from-blue-50 to-blue-100 text-blue-600 border border-blue-200"
                 }`}
               >
-                {isAdmin(userInfo.role) ? "Quản trị viên" : " Nhân viên"}
+                {isAdmin(userInfo.role) ? "Quản lý" : " Nhân viên"}
               </span>
             </div>
           </div>
@@ -207,22 +201,21 @@ export default function Header() {
             <Space size={12}>
               <Avatar
                 size={42}
+                src={userInfo.img}
                 style={{
                   backgroundColor: getAvatarColor(userInfo.role),
-                  color: "white",
                   fontWeight: "bold",
                   fontSize: "16px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
                 }}
               >
-                {getAvatarFromName(userInfo.name)}
+                {!userInfo.img && getAvatarFromName(userInfo.name)}
               </Avatar>
               <div className="flex flex-col gap-1">
                 <div className="font-semibold text-sm text-gray-900 leading-tight">
                   {userInfo.name}
                 </div>
                 <div className="text-xs text-gray-500 ">
-                  {isAdmin(userInfo.role) ? "Quản trị viên" : "Nhân viên"}
+                  {isAdmin(userInfo.role) ? "Quản lý" : "Nhân viên"}
                 </div>
               </div>
               <div className="ml-1">

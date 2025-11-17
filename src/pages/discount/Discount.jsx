@@ -23,7 +23,6 @@ export default function Discount() {
   const [modal, contextHolder] = Modal.useModal();
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [selectedRecord, setSelectedRecord] = React.useState(null);
-  console.log("🚀 ~ Discount ~ selectedRecord:", selectedRecord);
 
   // Thêm state để theo dõi lần cuối cập nhật
   const [lastUpdate, setLastUpdate] = useState(Date.now());

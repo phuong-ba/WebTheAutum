@@ -48,7 +48,6 @@ export default function FliterDiscount({ handleExportExcel }) {
       )
     );
 
-    console.log("Search query:", cleanQuery);
     dispatch(searchPhieuGiamGia(cleanQuery));
   };
 
