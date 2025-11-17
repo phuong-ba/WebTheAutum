@@ -28,7 +28,7 @@ export default function User() {
   const fileInputRef = useRef(null);
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [selectedRecord, setSelectedRecord] = React.useState(null);
-
+  const currentRole = localStorage.getItem("user_role");
   const showCustomModal = (record) => {
     setSelectedRecord(record);
     setIsModalVisible(true);
@@ -280,12 +280,20 @@ export default function User() {
           </a>
           <a
             onClick={() => {
+              if (currentRole === "Quản lý" && record.chucVuName === "Quản lý") {
+                messageApi.warning(
+                  "Bạn không được chỉnh sửa nhân viên có cùng chức vụ!"
+                );
+                return;
+              }
+
               if (!record.trangThai) {
                 messageApi.warning(
                   "Không thể cập nhật! Nhân viên này đã bị khóa."
                 );
                 return;
               }
+
               navigate(`/admin/update-user/${record.id}`);
             }}
           >
@@ -295,6 +303,7 @@ export default function User() {
       ),
     },
   ];
+
   return (
     <>
       {contextHolder}

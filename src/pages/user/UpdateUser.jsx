@@ -149,13 +149,13 @@ export default function UpdateUser() {
         gioiTinh: values.gioiTinh === "Nam",
         sdt: values.soDienThoai,
         diaChi: values.diaChi,
-        cccd: values.cccd || userData.cccd,
-        email: values.email || userData.email,
+        cccd: values.cccd ?? userData.cccd,
+        email: values.email ?? userData.email,
         chucVuId: values.chucVu,
         ngaySinh: values.ngaySinh?.toISOString(),
         trangThai: true,
         matKhau: userData.matKhau,
-        hinhAnh: imageUrl,
+        hinhAnh: imageUrl ?? userData.hinhAnh,
       };
 
       await dispatch(updateNhanVien({ id: userData.id, nhanvien: payload }));
