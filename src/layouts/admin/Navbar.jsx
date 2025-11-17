@@ -46,7 +46,11 @@ export default function Navbar() {
       label: "Quản lý phiếu giảm giá",
     },
 
-    { key: "/admin/promo", icon: <IconDiscount />, label: "Quản lý đợt giảm giá" },
+    {
+      key: "/admin/promo",
+      icon: <IconDiscount />,
+      label: "Quản lý đợt giảm giá",
+    },
     {
       key: "/admin/user",
       icon: <AppstoreOutlined />,
@@ -56,6 +60,11 @@ export default function Navbar() {
       key: "/admin/customer",
       icon: <AppstoreOutlined />,
       label: "Quản lý khách hàng",
+    },
+    {
+      key: "/admin/chatbot",
+      icon: <AppstoreOutlined />,
+      label: "Quản lý chat",
     },
   ];
 
