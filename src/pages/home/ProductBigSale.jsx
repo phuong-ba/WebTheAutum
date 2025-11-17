@@ -12,7 +12,7 @@ export default function ProductBigSale() {
     { id: 4, name: "Giày sneaker", price: "1.500.000₫", color: ["black"] },
   ];
 
-  const itemWidth = 880;
+  const itemWidth = 880; // Gần bằng 1 sản phẩm
   const total = products.length;
 
   const scrollToIndex = (i) => {
@@ -31,12 +31,13 @@ export default function ProductBigSale() {
     scrollToIndex(newIndex);
   };
 
+  // Tự động chạy 5s/lần
   useEffect(() => {
     const interval = setInterval(() => {
       handleScroll("right");
     }, 5000);
     return () => clearInterval(interval);
-  }, [index]);
+  }, [index]); // Cập nhật khi index thay đổi
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -61,6 +62,7 @@ export default function ProductBigSale() {
           ))}
         </div>
 
+        {/* Nút điều hướng */}
         <div className="flex justify-between items-center gap-30">
           <ArrowLeftIcon
             size={64}
