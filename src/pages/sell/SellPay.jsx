@@ -244,8 +244,8 @@ export default function SellPay({
       bankInfo: {
         bankName: "Ngân hàng ABC",
         accountNumber: "19037689713019",
-        accountHolder: "CONG TY TNHH AUTUMN STORE",
-        branch: "TP.HCM",
+        accountHolder: "THE AUTUMN STORE",
+        branch: "HÀ NỘI",
         content: `Thanh toan don hang ${Date.now()}`,
       },
     });

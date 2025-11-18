@@ -83,7 +83,7 @@ export default function SellBill({ onSelectBill }) {
       const restorePromises = billToDelete.cart.map(async (product) => {
         await dispatch(
           tangSoLuong({
-            id: product.id,
+            id: product.idChiTietSanPham,
             soLuong: product.quantity,
           })
         ).unwrap();
