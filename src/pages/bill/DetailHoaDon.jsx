@@ -76,12 +76,112 @@ const DetailHoaDon = () => {
   const [messageApi, contextHolder] = message.useMessage();
   const dispatch = useDispatch();
 
+  const [deletedProducts, setDeletedProducts] = useState([]);
+
   const [invoiceProducts, setInvoiceProducts] = useState([]);
 
   const { data: productList } = useSelector((state) => state.chiTietSanPham);
 
+  const [nhanVienList, setNhanVienList] = useState([]);
+  const [phuongThucList, setPhuongThucList] = useState([]);
+  const [formErrors, setFormErrors] = useState({});
+  const [lichSuThanhToan, setLichSuThanhToan] = useState([]);
+
+  const [canEditCustomerInfo, setCanEditCustomerInfo] = useState(false);
+  const [canEditProducts, setCanEditProducts] = useState(false);
+  const [tongTien, setTongTien] = useState(0);
+
   const getProductKey = (product) => {
     return product.idChiTietSanPham;
+  };
+
+  const fetchLichSuThanhToan = async () => {
+    try {
+      const response = await hoaDonApi.getLichSuThanhToan(id);
+      setLichSuThanhToan(response.data || []);
+    } catch (err) {
+      console.error("❌ Lỗi tải lịch sử thanh toán:", err);
+      setLichSuThanhToan([]);
+    }
+  };
+
+  const calculateTotal = (products) => {
+    return products.reduce((total, product) => {
+      return (
+        total + (product.thanhTien || product.giaBan * product.soLuong || 0)
+      );
+    }, 0);
+  };
+
+  const calculateFinalTotal = () => {
+    if (!invoice)
+      return {
+        tongTienSanPham: 0,
+        phiVanChuyen: 0,
+        tongTienTruocGiam: 0,
+        tienGiamGia: 0,
+        tongTienCuoiCung: 0,
+        phieuGiamGiaInfo: null,
+      };
+
+    const tongTienSanPham = calculateTotal(invoiceProducts);
+
+    const phiVanChuyen = !invoice.loaiHoaDon ? invoice.phiVanChuyen || 0 : 0;
+
+    let tienGiamGia = 0;
+    let tongTienCuoiCung = tongTienSanPham + phiVanChuyen;
+    let phieuGiamGiaInfo = null;
+
+    if (invoice.tongTienSauGiam != null && invoice.tongTien != null) {
+      tienGiamGia = invoice.tongTien - invoice.tongTienSauGiam;
+      tongTienCuoiCung = invoice.tongTienSauGiam;
+    } else if (invoice.phieuGiamGia) {
+      const pgg = invoice.phieuGiamGia;
+      phieuGiamGiaInfo = {
+        maPhieu: pgg.maPhieu || "PGG" + pgg.id,
+        tenPhieu: pgg.tenPhieu || "Phiếu giảm giá",
+        loaiGiamGia: pgg.loaiGiamGia,
+        giaTriGiamGia: pgg.giaTriGiamGia,
+        giamToiDa: pgg.mucGiaGiamToiDa || pgg.giamToiDa,
+      };
+
+      if (invoice.tongTienSauGiam != null) {
+        tongTienCuoiCung = invoice.tongTienSauGiam;
+        tienGiamGia =
+          (invoice.tongTien || tongTienSanPham + phiVanChuyen) -
+          tongTienCuoiCung;
+      }
+    } else if (invoice.maGiamGia || invoice.tenChuongTrinh) {
+      console.warn("Backend chưa trả tongTienSauGiam dù có mã giảm giá!");
+    }
+
+    tongTienCuoiCung = Math.max(0, tongTienCuoiCung);
+    tienGiamGia = Math.max(0, tienGiamGia);
+
+    return {
+      tongTienSanPham,
+      phiVanChuyen,
+      tongTienTruocGiam: tongTienSanPham + phiVanChuyen,
+      tienGiamGia,
+      tongTienCuoiCung,
+      phieuGiamGiaInfo,
+    };
+  };
+
+  useEffect(() => {
+    const total = calculateTotal(invoiceProducts);
+    setTongTien(total);
+    console.log(`💰 Tổng tiền cập nhật: ${formatMoney(total)}`);
+  }, [invoiceProducts]);
+
+  const checkEditPermissions = (status) => {
+    if (status === 0) {
+      setCanEditCustomerInfo(true);
+      setCanEditProducts(true);
+    } else {
+      setCanEditCustomerInfo(false);
+      setCanEditProducts(false);
+    }
   };
 
   useEffect(() => {
@@ -95,7 +195,6 @@ const DetailHoaDon = () => {
       });
       setEditingQuantities(initialQuantities);
 
-      // QUAN TRỌNG: Re-fetch danh sách sản phẩm để cập nhật tồn kho realtime
       dispatch(fetchChiTietSanPham());
     }
   }, [invoice, dispatch]);
@@ -141,13 +240,11 @@ const DetailHoaDon = () => {
 
     editForm.setFieldsValue({ quan: null });
 
-    // Luôn lấy từ quanMap trước (có thể đã được load từ modal)
     if (quanMap[idTinh]) {
       setLocalQuanList(quanMap[idTinh]);
       return;
     }
 
-    // Nếu chưa có thì mới gọi API
     try {
       const res = await diaChiApi.getQuanByTinh(idTinh);
       setQuanMap((prev) => ({ ...prev, [idTinh]: res }));
@@ -164,13 +261,10 @@ const DetailHoaDon = () => {
 
     const kh = invoice.khachHang || {};
 
-    // ƯU TIÊN: Lấy địa chỉ mặc định (trangThai = true)
     const defaultAddress = kh.diaChi?.find((addr) => addr.trangThai === true);
 
-    // Nếu không có mặc định → thử lấy cái đầu tiên (dự phòng)
     const fallbackAddress = defaultAddress || (kh.diaChi?.[0] ?? null);
 
-    // Ưu tiên địa chỉ từ hóa đơn (nếu đã ghi đè)
     let currentAddress = invoice.diaChiKhachHang || "";
     let diaChiCuThe = "";
     let idTinh = null;
@@ -179,19 +273,16 @@ const DetailHoaDon = () => {
     if (fallbackAddress) {
       diaChiCuThe = fallbackAddress.diaChiCuThe || "";
 
-      // Lấy tên + ID tỉnh/thành
       const tinhThanh = fallbackAddress.tinhThanh || {};
       const tenTinh = tinhThanh.tenTinh || "";
       idTinh =
         tinhThanh.id || fallbackAddress.tinhThanhId || fallbackAddress.idTinh;
 
-      // Lấy tên + ID quận/huyện
       const quanHuyen = fallbackAddress.quanHuyen || {};
       const tenQuan = quanHuyen.tenQuan || "";
       idQuan =
         quanHuyen.id || fallbackAddress.quanHuyenId || fallbackAddress.idQuan;
 
-      // Nếu hóa đơn chưa có địa chỉ riêng → dùng địa chỉ mặc định để hiển thị
       if (!currentAddress) {
         currentAddress = [diaChiCuThe, tenQuan, tenTinh]
           .filter(Boolean)
@@ -199,20 +290,17 @@ const DetailHoaDon = () => {
       }
     }
 
-    // Đổ dữ liệu vào form
     editForm.setFieldsValue({
       hoTenKhachHang: kh.hoTen || invoice.tenKhachHang || "",
       sdtKhachHang: kh.sdt || invoice.sdtKhachHang || "",
       emailKhachHang: kh.email || invoice.emailKhachHang || "",
       ghiChu: invoice.ghiChu || "",
 
-      // ĐỊA CHỈ – BÂY GIỜ ĐÚNG 100%
       diaChiCuThe: diaChiCuThe,
       thanhPho: idTinh,
       quan: idQuan,
-      idDiaChi: fallbackAddress?.id || null, // Gửi ID nếu có
+      idDiaChi: fallbackAddress?.id || null,
 
-      // Các field khác
       trangThai: invoice.trangThai,
       loaiHoaDon: invoice.loaiHoaDon,
       hinhThucThanhToan: invoice.hinhThucThanhToan,
@@ -220,7 +308,6 @@ const DetailHoaDon = () => {
       idPhuongThucThanhToan: invoice.idPhuongThucThanhToan,
     });
 
-    // Load quận/huyện nếu có tỉnh
     if (idTinh) {
       handleTinhChange(idTinh).then(() => {
         editForm.setFieldsValue({ quan: idQuan });
@@ -269,44 +356,66 @@ const DetailHoaDon = () => {
     try {
       const values = await editForm.validateFields();
 
-      const tenTinh = values.thanhPho
-        ? tinhList.find((t) => t.id === values.thanhPho)?.tenTinh || ""
-        : "";
-      const tenQuan = values.quan
-        ? quanMap[values.thanhPho]?.find((q) => q.id === values.quan)
-            ?.tenQuan || ""
-        : "";
+      const tenTinh =
+        values.thanhPho && tinhList.length > 0
+          ? tinhList.find((t) => t.id === values.thanhPho)?.tenTinh || ""
+          : "";
+      const tenQuan =
+        values.thanhPho && quanMap[values.thanhPho]
+          ? quanMap[values.thanhPho].find((q) => q.id === values.quan)
+              ?.tenQuan || ""
+          : "";
 
       const fullAddress = [values.diaChiCuThe || "", tenQuan, tenTinh]
         .filter(Boolean)
         .join(", ")
         .trim();
 
-      await hoaDonApi.updateHoaDon(id, {
+      const currentChiTietSanPhams = invoiceProducts.map((product) => ({
+        idChiTietSanPham: getChiTietSanPhamId(product),
+        soLuong: product.soLuong,
+        giaBan: product.giaBan || product.giaSauGiam || 0,
+        ghiChu: product.ghiChu || "",
+      }));
+
+      const requestData = {
         ...values,
-        idDiaChi: values.idDiaChi,
-        diaChiCuThe: values.diaChiCuThe,
-        thanhPho: values.thanhPho,
-        quan: values.quan,
+        idDiaChi: values.idDiaChi ?? null,
+        diaChiCuThe: values.diaChiCuThe ?? null,
+        thanhPho: values.thanhPho ?? null,
+        quan: values.quan ?? null,
         diaChiKhachHang: fullAddress || "Chưa có địa chỉ",
+
         trangThai: tempStatus,
         loaiHoaDon: tempLoaiHoaDon,
-        chiTietSanPhams: invoiceProducts
-          .map((product) => ({
-            id: product.id,
-            idChiTietSanPham: product.idChiTietSanPham || product.id,
-            soLuong: product.soLuong,
-            giaBan: product.giaBan,
-          }))
-          .filter((product) => product.idChiTietSanPham != null),
+
+        chiTietSanPhams: currentChiTietSanPhams,
+      };
+
+      console.log("Gửi cập nhật hóa đơn:", {
+        chiTietSanPhams: requestData.chiTietSanPhams,
+        totalProducts: requestData.chiTietSanPhams.length,
       });
 
-      message.success("Cập nhật thành công!");
+      await hoaDonApi.updateHoaDon(id, requestData);
+
+      message.success("Cập nhật hóa đơn thành công!");
       setIsEditing(false);
-      fetchInvoiceDetail();
+      setDeletedProducts([]);
+      setEditingQuantities({});
+      setInvoiceProducts([]);
+
+      await fetchInvoiceDetail();
+      await fetchLichSuThanhToan();
     } catch (err) {
-      console.error("Lỗi lưu:", err);
-      message.error("Có lỗi xảy ra khi lưu!");
+      console.error("Lỗi khi lưu hóa đơn:", err);
+      if (err.errorFields) {
+        message.error("Vui lòng kiểm tra lại các trường thông tin!");
+      } else {
+        message.error(
+          err.response?.data?.message || "Cập nhật hóa đơn thất bại!"
+        );
+      }
     }
   };
 
@@ -348,15 +457,13 @@ const DetailHoaDon = () => {
       .filter(Boolean)
       .join(", ");
 
-    // CẬP NHẬT FORM – THÊM DÒNG QUAN TRỌNG NHẤT
     editForm.setFieldsValue({
       diaChiCuThe: record.diaChiCuThe || "",
       thanhPho: idTinh,
       quan: idQuan,
-      idDiaChi: record.id, // ← THÊM DÒNG NÀY – QUAN TRỌNG NHẤT!!!
+      idDiaChi: record.id,
     });
 
-    // Cập nhật quanMap nếu cần
     if (idTinh && idQuan) {
       if (!quanMap[idTinh]) {
         const fakeQuanList = [
@@ -388,10 +495,16 @@ const DetailHoaDon = () => {
     setTempStatus(invoice?.trangThai || 0);
     setTempLoaiHoaDon(invoice?.loaiHoaDon || false);
     setInvoiceProducts(invoice?.chiTietSanPhams || []);
+    setDeletedProducts([]);
     editForm.resetFields();
   };
 
   const handleDeleteProductFromInvoice = async (productKey) => {
+    if (!canEditProducts) {
+      message.warning("Không thể xóa sản phẩm ở trạng thái hiện tại!");
+      return;
+    }
+
     const product = invoiceProducts.find(
       (p) => getProductKey(p) === productKey
     );
@@ -403,11 +516,22 @@ const DetailHoaDon = () => {
         await dispatch(
           tangSoLuong({ id: chiTietId, soLuong: product.soLuong })
         ).unwrap();
+        messageApi.success(`Đã trả ${product.soLuong} sản phẩm về tồn kho!`);
       } catch (err) {
+        console.error("Lỗi khi trả tồn kho:", err);
         messageApi.error("Không thể trả lại tồn kho!");
         return;
       }
     }
+
+    setDeletedProducts((prev) => [
+      ...prev,
+      {
+        idChiTietSanPham: chiTietId,
+        soLuong: product.soLuong,
+        productKey: productKey,
+      },
+    ]);
 
     const updated = invoiceProducts.filter(
       (p) => getProductKey(p) !== productKey
@@ -419,10 +543,16 @@ const DetailHoaDon = () => {
       return newState;
     });
 
-    messageApi.success("Đã xóa sản phẩm!");
+    await dispatch(fetchChiTietSanPham()).unwrap();
+    messageApi.success("Đã xóa sản phẩm khỏi hóa đơn!");
   };
 
   const handleIncreaseQuantity = async (productKey) => {
+    if (!canEditProducts) {
+      message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
+      return;
+    }
+
     const product = invoiceProducts.find(
       (p) => getProductKey(p) === productKey
     );
@@ -432,14 +562,22 @@ const DetailHoaDon = () => {
     if (!chiTietId) return;
 
     try {
+      const currentProduct = productList.find((p) => p.id === chiTietId);
+      if (!currentProduct || currentProduct.soLuongTon <= 0) {
+        messageApi.warning("Sản phẩm đã hết hàng!");
+        return;
+      }
+
       await dispatch(giamSoLuong({ id: chiTietId, soLuong: 1 })).unwrap();
 
       const updatedProducts = invoiceProducts.map((p) => {
         if (getProductKey(p) === productKey) {
+          const newQuantity = p.soLuong + 1;
+          const newThanhTien = newQuantity * p.giaBan;
           return {
             ...p,
-            soLuong: p.soLuong + 1,
-            thanhTien: (p.soLuong + 1) * p.giaBan,
+            soLuong: newQuantity,
+            thanhTien: newThanhTien,
           };
         }
         return p;
@@ -451,14 +589,20 @@ const DetailHoaDon = () => {
         [productKey]: product.soLuong + 1,
       }));
 
+      await dispatch(fetchChiTietSanPham()).unwrap();
       messageApi.success("Đã tăng số lượng!");
     } catch (error) {
-      messageApi.error("Không thể tăng (hết hàng hoặc lỗi hệ thống)");
+      console.error("Lỗi khi tăng số lượng:", error);
+      messageApi.error("Không thể tăng số lượng (hết hàng hoặc lỗi hệ thống)");
     }
   };
 
-  // ĐÚNG: Giảm số lượng → trả lại kho → TĂNG tồn kho
   const handleDecreaseQuantity = async (productKey) => {
+    if (!canEditProducts) {
+      message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
+      return;
+    }
+
     const product = invoiceProducts.find(
       (p) => getProductKey(p) === productKey
     );
@@ -467,15 +611,16 @@ const DetailHoaDon = () => {
     try {
       const chiTietId = getChiTietSanPhamId(product);
 
-      // ĐÚNG: Hủy bán → trả lại kho → TĂNG tồn kho
       await dispatch(tangSoLuong({ id: chiTietId, soLuong: 1 })).unwrap();
 
       const updatedProducts = invoiceProducts.map((p) => {
         if (getProductKey(p) === productKey) {
+          const newQuantity = p.soLuong - 1;
+          const newThanhTien = newQuantity * p.giaBan;
           return {
             ...p,
-            soLuong: p.soLuong - 1,
-            thanhTien: (p.soLuong - 1) * p.giaBan,
+            soLuong: newQuantity,
+            thanhTien: newThanhTien,
           };
         }
         return p;
@@ -487,21 +632,29 @@ const DetailHoaDon = () => {
         [productKey]: product.soLuong - 1,
       }));
 
+      await dispatch(fetchChiTietSanPham()).unwrap();
       messageApi.success("Đã giảm số lượng!");
     } catch (error) {
+      console.error("Lỗi khi giảm số lượng:", error);
       messageApi.error("Lỗi khi giảm số lượng!");
     }
   };
+
   const getChiTietSanPhamId = (product) => {
     return (
       product.idChiTietSanPham ||
       product.chiTietSanPham?.id ||
-      product.idCTSP || // nếu backend trả kiểu này
+      product.idCTSP ||
       product.id
     );
   };
 
   const handleQuantityChange = (productId, newQuantity) => {
+    if (!canEditProducts) {
+      message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
+      return;
+    }
+
     if (!newQuantity || newQuantity < 1) return;
 
     setEditingQuantities((prev) => ({
@@ -511,6 +664,11 @@ const DetailHoaDon = () => {
   };
 
   const handleApplyQuantity = async (productId) => {
+    if (!canEditProducts) {
+      message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
+      return;
+    }
+
     const newQuantity = editingQuantities[productId];
     const product = invoiceProducts.find((p) => getProductKey(p) === productId);
     if (!product || !newQuantity || newQuantity === product.soLuong) return;
@@ -521,30 +679,26 @@ const DetailHoaDon = () => {
       return;
     }
 
-    const currentProduct = productList.find((p) => p.id === chiTietId);
-    const currentStock = currentProduct
-      ? currentProduct.soLuongTon + product.soLuong
-      : Infinity;
-
-    if (newQuantity > currentStock) {
-      messageApi.warning(`Chỉ còn ${currentStock} sản phẩm trong kho!`);
-      setEditingQuantities((prev) => ({
-        ...prev,
-        [productId]: product.soLuong,
-      }));
-      return;
-    }
+    const quantityDiff = newQuantity - product.soLuong;
 
     try {
-      const quantityDiff = newQuantity - product.soLuong;
-
       if (quantityDiff > 0) {
-        // Cần giảm thêm tồn kho
+        const currentProduct = productList.find((p) => p.id === chiTietId);
+        if (!currentProduct || currentProduct.soLuongTon < quantityDiff) {
+          messageApi.warning(
+            `Chỉ còn ${currentProduct?.soLuongTon || 0} sản phẩm trong kho!`
+          );
+          setEditingQuantities((prev) => ({
+            ...prev,
+            [productId]: product.soLuong,
+          }));
+          return;
+        }
+
         await dispatch(
           giamSoLuong({ id: chiTietId, soLuong: quantityDiff })
         ).unwrap();
       } else if (quantityDiff < 0) {
-        // Trả lại kho
         await dispatch(
           tangSoLuong({ id: chiTietId, soLuong: Math.abs(quantityDiff) })
         ).unwrap();
@@ -552,18 +706,22 @@ const DetailHoaDon = () => {
 
       const updatedProducts = invoiceProducts.map((p) => {
         if (getProductKey(p) === productId) {
+          const newThanhTien = newQuantity * p.giaBan;
           return {
             ...p,
             soLuong: newQuantity,
-            thanhTien: newQuantity * p.giaBan,
+            thanhTien: newThanhTien,
           };
         }
         return p;
       });
 
       setInvoiceProducts(updatedProducts);
+
+      await dispatch(fetchChiTietSanPham()).unwrap();
       messageApi.success(`Cập nhật số lượng thành ${newQuantity}`);
     } catch (error) {
+      console.error("Cập nhật số lượng thất bại:", error);
       messageApi.error("Cập nhật số lượng thất bại!");
       setEditingQuantities((prev) => ({
         ...prev,
@@ -579,6 +737,11 @@ const DetailHoaDon = () => {
   };
 
   const handleAddProductToInvoice = async (product) => {
+    if (!canEditProducts) {
+      message.warning("Không thể thêm sản phẩm ở trạng thái hiện tại!");
+      return;
+    }
+
     try {
       if (product.soLuongTon <= 0) {
         messageApi.warning("Sản phẩm đã hết hàng!");
@@ -587,12 +750,10 @@ const DetailHoaDon = () => {
 
       const productIdToCheck = product.id;
 
-      // 1. Giảm tồn kho trước (đúng rồi)
       await dispatch(
         giamSoLuong({ id: productIdToCheck, soLuong: 1 })
       ).unwrap();
 
-      // 2. TÌM sản phẩm hiện có trong hóa đơn
       const existingProduct = invoiceProducts.find(
         (p) => p.idChiTietSanPham === productIdToCheck
       );
@@ -624,14 +785,35 @@ const DetailHoaDon = () => {
         updatedProducts = [...invoiceProducts, newProduct];
       }
 
-      setInvoiceProducts(updatedProducts);
+      const finalProducts = [];
+      const productMap = new Map();
 
-      // QUAN TRỌNG: Cập nhật editingQuantities cho sản phẩm mới thêm
+      updatedProducts.forEach((p) => {
+        const key = p.idChiTietSanPham;
+        if (productMap.has(key)) {
+          const existing = productMap.get(key);
+          existing.soLuong += p.soLuong;
+          existing.thanhTien = existing.soLuong * existing.giaBan;
+        } else {
+          productMap.set(key, { ...p });
+        }
+      });
+
+      finalProducts.push(...productMap.values());
+
+      console.log(`📊 Kết quả cuối cùng: ${finalProducts.length} sản phẩm`);
+      finalProducts.forEach((p) => {
+        console.log(`   - ${p.tenSanPham}: ${p.soLuong} cái`);
+      });
+
+      setInvoiceProducts(finalProducts);
+
       setEditingQuantities((prev) => ({
         ...prev,
         [productIdToCheck]: (prev[productIdToCheck] || 0) + 1,
       }));
 
+      await dispatch(fetchChiTietSanPham()).unwrap();
       messageApi.success("Đã thêm sản phẩm vào hóa đơn!");
     } catch (error) {
       console.error("Thêm sản phẩm thất bại:", error);
@@ -642,6 +824,7 @@ const DetailHoaDon = () => {
   useEffect(() => {
     fetchInvoiceDetail();
     fetchLichSuHoaDon();
+    fetchLichSuThanhToan();
     checkCanEdit();
     fetchAllNhanVien();
     getAllPhuongThucThanhToan();
@@ -669,6 +852,7 @@ const DetailHoaDon = () => {
       setInvoice(invoiceData);
       setTempStatus(invoiceData.trangThai || 0);
       setTempLoaiHoaDon(invoiceData.loaiHoaDon || false);
+      checkEditPermissions(invoiceData.trangThai || 0);
       setError(null);
     } catch (err) {
       console.error("❌ Lỗi tải chi tiết hóa đơn:", err);
@@ -1045,8 +1229,28 @@ const DetailHoaDon = () => {
       title: "Thành tiền",
       dataIndex: "thanhTien",
       key: "thanhTien",
-      render: (value) => (value || 0).toLocaleString("vi-VN") + " ₫",
+      render: (value) => formatMoney(value || 0),
     },
+    ...(isEditing && canEditProducts
+      ? [
+          {
+            title: "Thao tác",
+            key: "actions",
+            render: (_, record) => {
+              const productKey = getProductKey(record);
+              return (
+                <Button
+                  type="text"
+                  danger
+                  icon={<TrashIcon size={16} />}
+                  onClick={() => handleDeleteProductFromInvoice(productKey)}
+                  title="Xóa sản phẩm"
+                />
+              );
+            },
+          },
+        ]
+      : []),
   ];
 
   if (loading) {
@@ -1102,9 +1306,10 @@ const DetailHoaDon = () => {
 
   if (!invoice) return null;
 
+  const finalTotal = calculateFinalTotal();
+
   return (
     <>
-      {" "}
       {contextHolder}
       <div
         style={{ padding: 24, backgroundColor: "#f5f5f5", minHeight: "100vh" }}
@@ -1123,7 +1328,7 @@ const DetailHoaDon = () => {
                 <Title level={3} style={{ margin: 0 }}>
                   CHI TIẾT ĐƠN HÀNG
                 </Title>
-                <Text type="secondary">Mã đơn hàng: {invoice.maHoaDon}</Text>
+                <Text type="secondary">Mã đơn hàng: {invoice?.maHoaDon}</Text>
               </div>
               <Space>
                 {isEditing ? (
@@ -1195,7 +1400,7 @@ const DetailHoaDon = () => {
                           <div>
                             <UserOutlined /> Thông tin khách hàng
                           </div>
-                          {isEditing && (
+                          {isEditing && canEditCustomerInfo && (
                             <div
                               className="cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-sm text-white hover:bg-amber-600 active:bg-cyan-800 shadow transition-colors"
                               onClick={openAddressModal}
@@ -1214,7 +1419,7 @@ const DetailHoaDon = () => {
                       >
                         <div>
                           <Text type="secondary">Tên khách hàng:</Text>
-                          {isEditing ? (
+                          {isEditing && canEditCustomerInfo ? (
                             <Form.Item
                               name="hoTenKhachHang"
                               rules={validationRules.hoTenKhachHang}
@@ -1225,8 +1430,8 @@ const DetailHoaDon = () => {
                           ) : (
                             <div>
                               <Text strong>
-                                {invoice.khachHang?.hoTen ||
-                                  invoice.tenKhachHang ||
+                                {invoice?.khachHang?.hoTen ||
+                                  invoice?.tenKhachHang ||
                                   "Khách lẻ"}
                               </Text>
                             </div>
@@ -1235,7 +1440,7 @@ const DetailHoaDon = () => {
                         {/* Email */}
                         <div>
                           <Text type="secondary">Email:</Text>
-                          {isEditing ? (
+                          {isEditing && canEditCustomerInfo ? (
                             <Form.Item
                               name="emailKhachHang"
                               rules={validationRules.emailKhachHang}
@@ -1246,8 +1451,8 @@ const DetailHoaDon = () => {
                           ) : (
                             <div>
                               <Text strong>
-                                {invoice.khachHang?.email ||
-                                  invoice.emailKhachHang ||
+                                {invoice?.khachHang?.email ||
+                                  invoice?.emailKhachHang ||
                                   "—"}
                               </Text>
                             </div>
@@ -1256,7 +1461,7 @@ const DetailHoaDon = () => {
                         {/* Số điện thoại */}
                         <div>
                           <Text type="secondary">Số điện thoại:</Text>
-                          {isEditing ? (
+                          {isEditing && canEditCustomerInfo ? (
                             <Form.Item
                               name="sdtKhachHang"
                               rules={validationRules.sdtKhachHang}
@@ -1267,8 +1472,8 @@ const DetailHoaDon = () => {
                           ) : (
                             <div>
                               <Text strong>
-                                {invoice.khachHang?.sdt ||
-                                  invoice.sdtKhachHang ||
+                                {invoice?.khachHang?.sdt ||
+                                  invoice?.sdtKhachHang ||
                                   "—"}
                               </Text>
                             </div>
@@ -1279,7 +1484,7 @@ const DetailHoaDon = () => {
                           <Form.Item name="idDiaChi" noStyle>
                             <Input type="hidden" />
                           </Form.Item>
-                          {isEditing ? (
+                          {isEditing && canEditCustomerInfo ? (
                             <>
                               <Row gutter={16} style={{ marginTop: 8 }}>
                                 <Col span={12}>
@@ -1355,12 +1560,12 @@ const DetailHoaDon = () => {
                             <div style={{ marginTop: 8 }}>
                               <Text strong>
                                 {(() => {
-                                  if (invoice.diaChiKhachHang) {
+                                  if (invoice?.diaChiKhachHang) {
                                     return invoice.diaChiKhachHang;
                                   }
 
                                   const defaultAddress =
-                                    invoice.khachHang?.diaChi?.find(
+                                    invoice?.khachHang?.diaChi?.find(
                                       (addr) => addr.trangThai === true
                                     );
 
@@ -1384,13 +1589,13 @@ const DetailHoaDon = () => {
                                     );
                                   }
 
-                                  if (invoice.khachHang?.diaChi?.length > 0) {
+                                  if (invoice?.khachHang?.diaChi?.length > 0) {
                                     return "Có địa chỉ nhưng chưa đặt mặc định";
                                   }
 
-                                  return invoice.tenKhachHang?.includes(
+                                  return invoice?.tenKhachHang?.includes(
                                     "Khách lẻ"
-                                  ) || !invoice.khachHang
+                                  ) || !invoice?.khachHang
                                     ? "Khách lẻ – Nhận tại quầy"
                                     : "Chưa có địa chỉ giao hàng";
                                 })()}
@@ -1414,7 +1619,7 @@ const DetailHoaDon = () => {
                         <div>
                           <ShoppingOutlined /> Danh sách sản phẩm chọn
                         </div>
-                        {isEditing && (
+                        {isEditing && canEditProducts && (
                           <div
                             onClick={() => setShowBillProduct((prev) => !prev)}
                             className="cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-xs text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
@@ -1439,7 +1644,7 @@ const DetailHoaDon = () => {
                   )}
                 </Card>
 
-                {showBillProduct && isEditing && (
+                {showBillProduct && isEditing && canEditProducts && (
                   <div style={{ marginBottom: 16 }}>
                     <BillProduct onAddProduct={handleAddProductToInvoice} />
                   </div>
@@ -1447,7 +1652,7 @@ const DetailHoaDon = () => {
                 <Card title="Ghi chú của khách" style={{ marginBottom: 16 }}>
                   <div>
                     <Text type="secondary">Ghi chú:</Text>
-                    {isEditing ? (
+                    {isEditing && canEditCustomerInfo ? (
                       <Form.Item
                         name="ghiChu"
                         rules={validationRules.ghiChu}
@@ -1460,7 +1665,7 @@ const DetailHoaDon = () => {
                       </Form.Item>
                     ) : (
                       <div>
-                        <Text>{invoice.ghiChu || "Không có ghi chú"}</Text>
+                        <Text>{invoice?.ghiChu || "Không có ghi chú"}</Text>
                       </div>
                     )}
                   </div>
@@ -1480,11 +1685,13 @@ const DetailHoaDon = () => {
                         justifyContent: "space-between",
                       }}
                     >
-                      <Text>Tạm tính:</Text>
-                      <Text strong>{formatMoney(invoice.tongTien)}</Text>
+                      <Text>Tạm tính sản phẩm:</Text>
+                      <Text strong>
+                        {formatMoney(finalTotal.tongTienSanPham)}
+                      </Text>
                     </div>
 
-                    {!invoice.loaiHoaDon && invoice.phiVanChuyen > 0 && (
+                    {!invoice.loaiHoaDon && finalTotal.phiVanChuyen > 0 && (
                       <div
                         style={{
                           display: "flex",
@@ -1492,12 +1699,14 @@ const DetailHoaDon = () => {
                         }}
                       >
                         <Text>Phí vận chuyển:</Text>
-                        <Text strong>{formatMoney(invoice.phiVanChuyen)}</Text>
+                        <Text strong>
+                          {formatMoney(finalTotal.phiVanChuyen)}
+                        </Text>
                       </div>
                     )}
 
-                    {invoice.tongTienSauGiam &&
-                      invoice.tongTienSauGiam !== invoice.tongTien && (
+                    {finalTotal.tienGiamGia > 0 && (
+                      <>
                         <div
                           style={{
                             display: "flex",
@@ -1507,15 +1716,31 @@ const DetailHoaDon = () => {
                         >
                           <Text type="danger">Giảm giá:</Text>
                           <Text type="danger" strong>
-                            -
-                            {formatMoney(
-                              invoice.tongTien - invoice.tongTienSauGiam
-                            )}
+                            -{formatMoney(finalTotal.tienGiamGia)}
                           </Text>
                         </div>
-                      )}
+                        {finalTotal.phieuGiamGiaInfo && (
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#d4380d",
+                              background: "#fff2e8",
+                              padding: "4px 8px",
+                              borderRadius: 4,
+                            }}
+                          >
+                            Áp dụng:{" "}
+                            <strong>
+                              {finalTotal.phieuGiamGiaInfo.tenPhieu}
+                            </strong>
+                            {finalTotal.phieuGiamGiaInfo.maPhieu &&
+                              ` (${finalTotal.phieuGiamGiaInfo.maPhieu})`}
+                          </div>
+                        )}
+                      </>
+                    )}
 
-                    <Divider style={{ margin: "8px 0" }} />
+                    <Divider style={{ margin: "12px 0" }} />
 
                     <div
                       style={{
@@ -1523,16 +1748,11 @@ const DetailHoaDon = () => {
                         justifyContent: "space-between",
                       }}
                     >
-                      <Text strong style={{ fontSize: 16 }}>
+                      <Text strong style={{ fontSize: 18 }}>
                         Tổng cộng:
                       </Text>
-                      <Text strong style={{ fontSize: 18, color: "#ff4d4f" }}>
-                        {formatMoney(
-                          (invoice.tongTienSauGiam ?? invoice.tongTien) +
-                            (!invoice.loaiHoaDon
-                              ? invoice.phiVanChuyen || 0
-                              : 0)
-                        )}
+                      <Text strong style={{ fontSize: 20, color: "#ff4d4f" }}>
+                        {formatMoney(finalTotal.tongTienCuoiCung)}
                       </Text>
                     </div>
                   </Space>

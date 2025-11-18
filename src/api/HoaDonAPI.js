@@ -112,7 +112,10 @@ create(hoaDon) {
     }
   });
   },
-  
+
+  getLichSuThanhToan: (id) => {
+    return axios.get(`${API_URL}/${id}/lich-su-thanh-toan`);
+  },
 
 };
 
