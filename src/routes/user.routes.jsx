@@ -12,6 +12,7 @@ const OrderDetail = React.lazy(() => import("@/components/OrderDetail"));
 const ProductDetail = React.lazy(() => import("@/pages/home/ProductDetail"));
 const PaymentSuccess = React.lazy(() => import("@/components/PaymentSuccess"));
 const PaymentFailed = React.lazy(() => import("@/components/PaymentFailed"))
+const AllProducts = React.lazy(() => import("@/pages/home/AllProducts"));
 const contentStyle = {
   padding: 50,
   background: "rgba(0, 0, 0, 0.05)",
@@ -80,6 +81,10 @@ const userRouters = [
       {
         path: "/payment/failed", 
         element: ( <LazyLoad> <PaymentFailed  /> </LazyLoad> ),
+      },
+      {
+        path: "/products", 
+        element: ( <LazyLoad> <AllProducts  /> </LazyLoad> ),
       },
       
     ],
