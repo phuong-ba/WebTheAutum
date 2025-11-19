@@ -24,7 +24,10 @@ export default function SellListProduct({ selectedBillId }) {
     dispatch(fetchChiTietSanPham());
   }, [dispatch]);
 
-  const filteredData = data?.filter((product) => product.soLuongTon > 0) || [];
+  const filteredData =
+    data?.filter(
+      (product) => product.soLuongTon > 0 && product.trangThai === true
+    ) || [];
 
   const handleAddToCart = async (product) => {
     console.log("Đã thêm sản phẩm ID thực tế (ChiTietSanPham):", product.id);
