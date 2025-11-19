@@ -25,7 +25,6 @@ export default function HeaderUser() {
 
   useEffect(() => {
     const token = localStorage.getItem("customer_token");
-
     if (token) {
       const userInfo = {
         id: localStorage.getItem("customer_id"),
@@ -57,7 +56,6 @@ export default function HeaderUser() {
     localStorage.removeItem("customer_id");
     localStorage.removeItem("customer_phone");
     localStorage.removeItem("customer_login_success");
-
     setCurrentUser(null);
     setIsUserModalOpen(false);
     navigate("/customer/login");
@@ -147,7 +145,6 @@ export default function HeaderUser() {
                         className="fixed inset-0 z-40"
                         onClick={() => setIsUserModalOpen(false)}
                       />
-
                       <div className="absolute right-0 top-full mt-2 w-[400px] bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50">
                         {currentUser ? (
                           <div className="py-4">

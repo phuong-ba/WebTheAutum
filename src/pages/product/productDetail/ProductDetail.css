@@ -6,3 +6,140 @@
   width: 240px !important;
   height: 271px !important;
 }
+.validation-summary {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 20px;
+  animation: slideDown 0.3s ease-out;
+}
+
+.validation-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.validation-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.validation-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: #ffebe9;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.error-count {
+  background: #ff4d4f;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.validation-errors-list {
+  border-top: 1px solid #ffd8d6;
+  padding-top: 12px;
+}
+
+.validation-error-item {
+  color: #ff4d4f;
+  font-size: 13px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  line-height: 1.4;
+}
+
+.validation-more {
+  color: #8c8c8c;
+  font-size: 12px;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.error-cell {
+  position: relative;
+  background-color: #fff2f0 !important;
+  border: 1px solid #ffccc7 !important;
+  animation: pulse-error 2s infinite;
+}
+
+.cell-container {
+  position: relative;
+  padding: 4px;
+}
+
+.input-with-validation {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.error-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ff4d4f;
+  color: white;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 1000;
+  white-space: normal;
+  margin-top: 2px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  line-height: 1.3;
+}
+
+@keyframes pulse-error {
+  0% { background-color: #fff2f0; }
+  50% { background-color: #ffebe9; }
+  100% { background-color: #fff2f0; }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ant-table-row.error-row > td {
+  background-color: #fff2f0 !important;
+}
+
+.ant-table-row.error-row:hover > td {
+  background-color: #ffece8 !important;
+}
+
+@media (max-width: 768px) {
+  .validation-stats {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .validation-stat-item {
+    justify-content: flex-start;
+  }
+}
