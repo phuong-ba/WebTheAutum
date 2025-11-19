@@ -248,6 +248,7 @@ export default function ProductDetail() {
       }
 
       localStorage.setItem("cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("cartUpdated"));
       toast.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng!`);
       
     } catch (error) {

@@ -25,7 +25,6 @@ export default function HeaderUser() {
 
   useEffect(() => {
     const token = localStorage.getItem("customer_token");
-    
     if (token) {
       const userInfo = {
         id: localStorage.getItem("customer_id"),
@@ -57,7 +56,6 @@ export default function HeaderUser() {
     localStorage.removeItem("customer_id");
     localStorage.removeItem("customer_phone");
     localStorage.removeItem("customer_login_success");
-    
     setCurrentUser(null);
     setIsUserModalOpen(false);
     navigate("/customer/login");
@@ -147,7 +145,6 @@ export default function HeaderUser() {
                         className="fixed inset-0 z-40"
                         onClick={() => setIsUserModalOpen(false)}
                       />
-                      
                       <div className="absolute right-0 top-full mt-2 w-[400px] bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50">
                         {currentUser ? (
                           <div className="py-4">
@@ -163,7 +160,9 @@ export default function HeaderUser() {
                                 <p className="font-semibold text-lg text-gray-800">
                                   {currentUser.hoTen || currentUser.email}
                                 </p>
-                                <p className="text-sm text-gray-500">{currentUser.email}</p>
+                                <p className="text-sm text-gray-500">
+                                  {currentUser.email}
+                                </p>
                               </div>
                             </div>
 
@@ -175,7 +174,10 @@ export default function HeaderUser() {
                                 }}
                                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-orange-50 rounded-lg transition-colors text-left"
                               >
-                                <PackageIcon size={22} className="text-gray-600" />
+                                <PackageIcon
+                                  size={22}
+                                  className="text-gray-600"
+                                />
                                 <span className="font-medium text-gray-700">
                                   Đơn hàng của tôi
                                 </span>
@@ -188,23 +190,36 @@ export default function HeaderUser() {
                                 }}
                                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-orange-50 rounded-lg transition-colors text-left"
                               >
-                                <ShoppingCartIcon size={22} className="text-gray-600" />
-                                <span className="font-medium text-gray-700">Giỏ hàng</span>
+                                <ShoppingCartIcon
+                                  size={22}
+                                  className="text-gray-600"
+                                />
+                                <span className="font-medium text-gray-700">
+                                  Giỏ hàng
+                                </span>
                               </button>
 
                               <button
                                 onClick={handleLogout}
                                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 rounded-lg transition-colors text-left"
                               >
-                                <SignOutIcon size={22} className="text-red-600" />
-                                <span className="font-medium text-red-600">Đăng xuất</span>
+                                <SignOutIcon
+                                  size={22}
+                                  className="text-red-600"
+                                />
+                                <span className="font-medium text-red-600">
+                                  Đăng xuất
+                                </span>
                               </button>
                             </div>
                           </div>
                         ) : (
                           <div className="py-6 text-center px-6">
                             <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <UserCircleIcon size={48} className="text-orange-500" />
+                              <UserCircleIcon
+                                size={48}
+                                className="text-orange-500"
+                              />
                             </div>
                             <h3 className="text-xl font-bold text-gray-800 mb-2">
                               Chào mừng bạn!
@@ -255,8 +270,6 @@ export default function HeaderUser() {
           </div>
         </div>
       </div>
-
-
     </>
   );
 }

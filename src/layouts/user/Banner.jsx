@@ -3,7 +3,7 @@ import { Carousel } from "antd";
 import img1 from "../../assets/img/74c344f93b409ea2fa0189faf9dfe2e1.webp";
 import img2 from "../../assets/img/678bf312081fa01bb8d10c0e8c6b73e2.webp";
 import img3 from "../../assets/img/a74138038a7c1cb247d160891f352e69.webp";
-import img4 from "../../assets/img/dc4137332f27554fe35c568a679a6f42.webp";
+import img4 from "../../assets/img/banner-ao-thun-nam-dep-2025.webp";
 const contentStyle = {
   margin: 0,
   minHeight: "720px",
