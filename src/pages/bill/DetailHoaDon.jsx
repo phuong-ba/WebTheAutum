@@ -157,9 +157,6 @@ const DetailHoaDon = () => {
     let tongTienCuoiCung = tongTienTruocGiam;
     let phieuGiamGiaInfo = null;
 
-    // =======================================================
-    // 🔥 FIX CHÍNH: LUÔN ƯU TIÊN tongTienSauGiam NẾU CÓ
-    // =======================================================
     if (invoice.tongTienSauGiam != null) {
       tongTienCuoiCung = invoice.tongTienSauGiam;
       tienGiamGia = tongTienTruocGiam - tongTienCuoiCung;
@@ -175,12 +172,7 @@ const DetailHoaDon = () => {
           giaTriDonHangToiThieu: p.giaTriDonHangToiThieu,
         };
       }
-    }
-
-    // =======================================================
-    // 🔥 Nếu không có tongTienSauGiam → FE tự tính giảm giá
-    // =======================================================
-    else if (invoice.phieuGiamGia) {
+    } else if (invoice.phieuGiamGia) {
       const p = invoice.phieuGiamGia;
 
       phieuGiamGiaInfo = {
@@ -207,9 +199,6 @@ const DetailHoaDon = () => {
       tongTienCuoiCung = tongTienTruocGiam - tienGiamGia;
     }
 
-    // =======================================================
-    // CHỐT GIÁ
-    // =======================================================
     tongTienCuoiCung = Math.max(0, tongTienCuoiCung);
     tienGiamGia = Math.max(0, tienGiamGia);
 
@@ -253,6 +242,7 @@ const DetailHoaDon = () => {
       dispatch(fetchChiTietSanPham());
     }
   }, [invoice, dispatch]);
+
   useEffect(() => {
     dispatch(fetchChiTietSanPham());
   }, [dispatch]);
@@ -1218,6 +1208,20 @@ const DetailHoaDon = () => {
 
   const productColumns = [
     {
+      title: "STT",
+      key: "stt",
+      width: 60,
+      align: "center",
+      render: (_, record, index) => index + 1,
+    },
+    {
+      title: "Mã vạch",
+      dataIndex: "maVach",
+      key: "maVach",
+      width: 120,
+      render: (value) => value || "—",
+    },
+    {
       title: "Sản phẩm",
       key: "product",
       render: (_, record) => (
@@ -1266,21 +1270,41 @@ const DetailHoaDon = () => {
       ),
     },
     {
-      title: "Giá bán",
-      dataIndex: "giaBan",
+      title: "Giá gốc",
       key: "giaBan",
-      render: (value) => value.toLocaleString("vi-VN") + " ₫",
+      width: 120,
+      align: "right",
+      render: (_, record) => {
+        return (
+          <div style={{ fontWeight: 500 }}>{formatMoney(record.giaBan)}</div>
+        );
+      },
+    },
+    {
+      title: "Giá bán",
+      key: "giaSauGiam",
+      width: 120,
+      align: "right",
+      render: (_, record) => {
+        return (
+          <div style={{ fontWeight: 500 }}>
+            {formatMoney(record.giaSauGiam)}
+          </div>
+        );
+      },
     },
     {
       title: "Số lượng",
       dataIndex: "soLuong",
       key: "soLuong",
+      width: 150,
+      align: "center",
       render: (value, record) => {
         const productKey = getProductKey(record);
         const currentQuantity = editingQuantities[productKey] ?? value;
 
         return isEditing ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-center">
             <button
               onClick={() => handleDecreaseQuantity(productKey)}
               className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -1312,21 +1336,34 @@ const DetailHoaDon = () => {
             </button>
           </div>
         ) : (
-          <span>{value}</span>
+          <span style={{ fontWeight: 500 }}>{value}</span>
         );
       },
     },
     {
       title: "Thành tiền",
-      dataIndex: "thanhTien",
       key: "thanhTien",
-      render: (value) => formatMoney(value || 0),
+      width: 130,
+      align: "right",
+      render: (_, record) => {
+        // SỬA: Thành tiền = giá sau giảm × số lượng
+        const finalPrice = record.giaSauGiam || record.giaBan;
+        const total = finalPrice * record.soLuong;
+
+        return (
+          <div style={{ fontWeight: 600, color: "#1890ff" }}>
+            {formatMoney(total)}
+          </div>
+        );
+      },
     },
     ...(isEditing && canEditProducts
       ? [
           {
             title: "Thao tác",
             key: "actions",
+            width: 80,
+            align: "center",
             render: (_, record) => {
               const productKey = getProductKey(record);
               return (
