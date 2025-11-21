@@ -37,6 +37,8 @@ export default function SellPay({
   tinhList,
   localQuanList,
   removeCustomerFromDiscount,
+  discountAmount: propDiscountAmount,
+  finalAmount: propFinalAmount,
 }) {
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -52,16 +54,41 @@ export default function SellPay({
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [pendingConfirmData, setPendingConfirmData] = useState(null);
 
-  const discountAmount = appliedDiscount?.discountAmount || 0;
+  const discountAmount =
+    propDiscountAmount !== undefined
+      ? propDiscountAmount
+      : appliedDiscount?.discountAmount || 0;
   const actualDiscountAmount = Math.min(discountAmount, cartTotal);
-  const finalAmount = Math.max(cartTotal - actualDiscountAmount, 0);
-  const shippingFee = 0;
+  const finalAmount =
+    propFinalAmount !== undefined
+      ? propFinalAmount
+      : Math.max(cartTotal - discountAmount, 0);
+
+  const calculateShippingFee = () => {
+    if (!isDelivery) return 0;
+
+    const totalQuantity = cartItems.reduce(
+      (total, item) => total + (item.quantity || 1),
+      0
+    );
+
+    if (cartTotal >= 1000000 || totalQuantity >= 10) {
+      return 0;
+    }
+
+    if (cartTotal >= 500000 || totalQuantity >= 5) {
+      return 15000;
+    }
+
+    return 30000;
+  };
+
+  const shippingFee = calculateShippingFee();
   const totalWithShipping = finalAmount + shippingFee;
 
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
-  // Xóa phiếu giảm giá cá nhân sau thanh toán
   const handleRemovePersonalDiscountAfterPayment = async () => {
     if (appliedDiscount?.isPersonal && appliedDiscount?.customerId) {
       try {
@@ -75,12 +102,10 @@ export default function SellPay({
     }
   };
 
-  // Chuẩn bị dữ liệu hóa đơn
   const prepareHoaDonData = (paymentInfo = {}) => {
     let shippingAddress = null;
     let formCustomerInfo = null;
 
-    // Xử lý địa chỉ giao hàng
     if (isDelivery && addressForm) {
       try {
         const formValues = addressForm.getFieldsValue();
@@ -109,11 +134,10 @@ export default function SellPay({
       }
     }
 
-    // Xử lý chi tiết sản phẩm
     let chiTietList = [];
     if (cartItems && cartItems.length > 0) {
       chiTietList = cartItems.map((item) => ({
-        idChiTietSanPham: item.idChiTietSanPham, // BẮT BUỘC dùng field này
+        idChiTietSanPham: item.idChiTietSanPham,
         soLuong: item.quantity || 1,
         giaBan: item.unitPrice || item.price || item.giaBan || 0,
         ghiChu: item.ghiChu || "",
@@ -127,7 +151,6 @@ export default function SellPay({
 
     const currentUserId = getCurrentUserId();
 
-    // Xử lý địa chỉ khách hàng
     let diaChiKhachHang = "Chưa có địa chỉ";
     let idTinh = null;
     let idQuan = null;
@@ -156,7 +179,6 @@ export default function SellPay({
         customerAddress.dia_chi_cu_the || customerAddress.diaChiCuThe || "";
     }
 
-    // Xác định phương thức thanh toán
     let idPhuongThucThanhToan;
     let paymentNote = "";
 
@@ -184,6 +206,11 @@ export default function SellPay({
         }`
       : "";
 
+    const shippingNote =
+      shippingFee === 0
+        ? " - Miễn phí vận chuyển"
+        : ` - Phí vận chuyển: ${shippingFee.toLocaleString()} VND`;
+
     return {
       loaiHoaDon: true,
       phiVanChuyen: isDelivery ? shippingFee : 0,
@@ -193,7 +220,7 @@ export default function SellPay({
         isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
       }${customerType}${customerNote} - ${paymentNote}${
         appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
-      }`,
+      }${isDelivery ? shippingNote : ""}`,
       diaChiKhachHang,
       ngayThanhToan: new Date().toISOString(),
       trangThai: isDelivery ? 1 : 3,
@@ -213,7 +240,33 @@ export default function SellPay({
     };
   };
 
-  // Hiển thị modal chọn phương thức chuyển khoản
+  const renderShippingInfo = () => {
+    if (!isDelivery) return null;
+
+    const totalQuantity = cartItems.reduce(
+      (total, item) => total + (item.quantity || 1),
+      0
+    );
+
+    if (shippingFee === 0) {
+      return (
+        <div className="flex justify-between font-bold text-green-600">
+          <span>Phí vận chuyển:</span>
+          <span>Miễn phí</span>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <div className="flex justify-between font-bold">
+          <span>Phí vận chuyển:</span>
+          <span>{shippingFee.toLocaleString()} vnd</span>
+        </div>
+      </>
+    );
+  };
+
   const showTransferMethodModal = (hoaDonMoi) => {
     setPendingHoaDonData({
       ...hoaDonMoi,
@@ -222,7 +275,6 @@ export default function SellPay({
     setTransferMethodModalVisible(true);
   };
 
-  // Hiển thị modal thanh toán kết hợp
   const showBothPaymentModal = (hoaDonMoi) => {
     setPendingHoaDonData({
       ...hoaDonMoi,
@@ -233,11 +285,9 @@ export default function SellPay({
     setBothPaymentModalVisible(true);
   };
 
-  // Hiển thị modal QR chuyển khoản
   const showQRModal = (hoaDonMoi) => {
     setPendingHoaDonData(hoaDonMoi);
 
-    // Tạo thông tin QR
     setQrData({
       amount: totalWithShipping,
       billCode: `HD${Date.now()}`,
@@ -252,7 +302,6 @@ export default function SellPay({
     setQrModalVisible(true);
   };
 
-  // Xử lý thanh toán VNPay website
   const handleVNPayRedirect = async () => {
     if (!pendingHoaDonData) return;
 
@@ -289,7 +338,6 @@ export default function SellPay({
     }
   };
 
-  // Xác nhận đã chuyển khoản và tạo hóa đơn
   const handleConfirmTransfer = async () => {
     if (!pendingHoaDonData) {
       messageApi.error("❌ Không tìm thấy thông tin hóa đơn!");
@@ -311,7 +359,6 @@ export default function SellPay({
 
         messageApi.success(successMessage);
 
-        // Cleanup
         if (selectedBillId) {
           const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
           const updatedBills = bills.filter(
@@ -347,7 +394,6 @@ export default function SellPay({
     }
   };
 
-  // Xác nhận thanh toán kết hợp
   const handleConfirmBothPayment = async () => {
     if (!pendingHoaDonData) return;
 
@@ -381,7 +427,6 @@ export default function SellPay({
 
         messageApi.success(successMessage);
 
-        // Cleanup
         if (selectedBillId) {
           const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
           const updatedBills = bills.filter(
@@ -417,7 +462,6 @@ export default function SellPay({
     }
   };
 
-  // Thanh toán tiền mặt
   const handleCashPayment = async (hoaDonMoi) => {
     try {
       setLoading(true);
@@ -430,7 +474,6 @@ export default function SellPay({
 
         messageApi.success(successMessage);
 
-        // Cleanup
         if (selectedBillId) {
           const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
           const updatedBills = bills.filter(
@@ -464,7 +507,6 @@ export default function SellPay({
     }
   };
 
-  // Utility functions
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -483,7 +525,6 @@ export default function SellPay({
     setCashAmount(totalWithShipping - (value || 0));
   };
 
-  // Xử lý thanh toán chính
   const handlePayment = async () => {
     if (cartTotal === 0) {
       messageApi.warning(
@@ -511,7 +552,6 @@ export default function SellPay({
       return;
     }
 
-    // Hiển thị modal xác nhận
     setPendingConfirmData({
       customerName: selectedCustomer?.hoTen || "Khách lẻ",
       customerPhone: selectedCustomer?.sdt || "",
@@ -533,7 +573,6 @@ export default function SellPay({
     <>
       {contextHolder}
 
-      {/* Thông tin thanh toán */}
       <div className="bg-gray-50 p-5 rounded-lg border-l-4 border border-amber-700">
         <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-4">
@@ -547,12 +586,7 @@ export default function SellPay({
                 -{actualDiscountAmount.toLocaleString()} vnd
               </span>
             </div>
-            {isDelivery && (
-              <div className="flex justify-between font-bold">
-                <span>Phí vận chuyển:</span>
-                <span>{shippingFee.toLocaleString()} vnd</span>
-              </div>
-            )}
+            {isDelivery && renderShippingInfo()}
           </div>
           <div className="flex justify-between font-bold text-lg">
             <span>Tổng thanh toán:</span>
@@ -563,7 +597,6 @@ export default function SellPay({
         </div>
       </div>
 
-      {/* Phương thức thanh toán */}
       <div className="flex flex-col gap-3">
         <div className="font-bold">Phương thức thanh toán:</div>
         <div className="flex gap-2">
@@ -583,7 +616,6 @@ export default function SellPay({
         </div>
       </div>
 
-      {/* Nút thanh toán */}
       <div
         onClick={handlePayment}
         className={`cursor-pointer select-none text-center py-3 rounded-xl font-bold text-white shadow ${
@@ -595,7 +627,6 @@ export default function SellPay({
         {loading ? "Đang xử lý..." : isDelivery ? "Đặt hàng" : "Thanh toán"}
       </div>
 
-      {/* Modal chọn phương thức chuyển khoản */}
       <Modal
         title={
           <Space>
@@ -661,7 +692,6 @@ export default function SellPay({
         </div>
       </Modal>
 
-      {/* Modal thanh toán kết hợp */}
       <Modal
         title={
           <Space>
@@ -754,7 +784,6 @@ export default function SellPay({
         </div>
       </Modal>
 
-      {/* Modal QR chuyển khoản */}
       <Modal
         title={
           <Space>
@@ -862,7 +891,6 @@ export default function SellPay({
         )}
       </Modal>
 
-      {/* Modal xác nhận thanh toán */}
       <Modal
         title="Xác nhận thanh toán"
         open={confirmModalVisible}

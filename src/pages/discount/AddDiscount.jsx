@@ -227,9 +227,13 @@ export default function AddDiscount() {
     form.__submitValues = values;
   };
 
-  // Validation cho giá trị giảm
+  // --- SỬA: Validation cho giá trị giảm ---
   const validateGiaTriGiamGia = (_, value) => {
-    if (!value || isNaN(value)) {
+    if (!value || value === "") {
+      return Promise.reject(new Error("Vui lòng nhập giá trị giảm"));
+    }
+
+    if (isNaN(value)) {
       return Promise.reject(new Error("Giá trị phải là số"));
     }
 
@@ -239,8 +243,6 @@ export default function AddDiscount() {
     }
 
     const loaiGiamGiaCurrent = form.getFieldValue("loaiGiamGia");
-    const giaTriDonHangToiThieu =
-      form.getFieldValue("giaTriDonHangToiThieu") || 0;
 
     if (loaiGiamGiaCurrent === "Phần trăm") {
       if (numValue > 100) {
@@ -248,12 +250,16 @@ export default function AddDiscount() {
           new Error("Giảm phần trăm không được vượt quá 100%")
         );
       }
-    } else if (loaiGiamGiaCurrent === "Tiền mặt") {
-      if (giaTriDonHangToiThieu > 0 && numValue > giaTriDonHangToiThieu) {
+      const mucGiaGiamToiDa = form.getFieldValue("mucGiaGiamToiDa");
+      if (mucGiaGiamToiDa && Number(mucGiaGiamToiDa) < 1000) {
         return Promise.reject(
-          new Error(
-            "Giá trị giảm không được lớn hơn giá trị đơn hàng tối thiểu"
-          )
+          new Error("Mức giảm tối đa phải lớn hơn hoặc bằng 1,000đ")
+        );
+      }
+    } else if (loaiGiamGiaCurrent === "Tiền mặt") {
+      if (numValue < 1000) {
+        return Promise.reject(
+          new Error("Giá trị giảm bằng tiền mặt phải lớn hơn hoặc bằng 1,000đ")
         );
       }
     }
@@ -261,9 +267,8 @@ export default function AddDiscount() {
     return Promise.resolve();
   };
 
-  // Validation cho mức giảm tối đa
   const validateMucGiaGiamToiDa = (_, value) => {
-    if (!value) {
+    if (!value || value === "") {
       if (form.getFieldValue("loaiGiamGia") === "Phần trăm") {
         return Promise.reject(new Error("Vui lòng nhập mức giảm tối đa"));
       }
@@ -275,19 +280,44 @@ export default function AddDiscount() {
     }
 
     const loaiGiamGiaCurrent = form.getFieldValue("loaiGiamGia");
-    const giaTriDonHangToiThieu =
-      form.getFieldValue("giaTriDonHangToiThieu") || 0;
 
-    if (
-      loaiGiamGiaCurrent === "Phần trăm" &&
-      giaTriDonHangToiThieu > 0 &&
-      Number(value) > giaTriDonHangToiThieu
-    ) {
+    if (loaiGiamGiaCurrent === "Phần trăm" && Number(value) < 1000) {
       return Promise.reject(
-        new Error(
-          "Mức giảm tối đa không được lớn hơn giá trị đơn hàng tối thiểu"
-        )
+        new Error("Mức giảm tối đa phải lớn hơn hoặc bằng 1,000đ")
       );
+    }
+
+    return Promise.resolve();
+  };
+
+  const validateGiaTriDonHangToiThieu = (_, value) => {
+    if (!value || value === "") {
+      return Promise.reject(new Error("Vui lòng nhập mức giảm tối đa"));
+    }
+
+    if (isNaN(value) || Number(value) < 0) {
+      return Promise.reject(
+        new Error("Giá trị đơn hàng tối thiểu không hợp lệ")
+      );
+    }
+
+    return Promise.resolve();
+  };
+
+  const validateSoLuongDung = (_, value) => {
+    if (!value || value === "") {
+      if (kieu === 0) {
+        return Promise.reject(new Error("Vui lòng nhập số lượng phiếu"));
+      }
+      return Promise.resolve();
+    }
+
+    if (isNaN(value) || Number(value) < 0) {
+      return Promise.reject(new Error("Số lượng phải là số không âm"));
+    }
+
+    if (kieu === 0 && Number(value) === 0) {
+      return Promise.reject(new Error("Số lượng phiếu phải lớn hơn 0"));
     }
 
     return Promise.resolve();
@@ -464,22 +494,12 @@ export default function AddDiscount() {
                     label="Giá trị đơn hàng tối thiểu"
                     rules={[
                       {
-                        validator: (_, value) => {
-                          if (!value) return Promise.resolve();
-                          if (isNaN(value) || Number(value) < 0) {
-                            return Promise.reject(
-                              new Error(
-                                "Giá trị đơn hàng tối thiểu không hợp lệ"
-                              )
-                            );
-                          }
-                          return Promise.resolve();
-                        },
+                        validator: validateGiaTriDonHangToiThieu,
                       },
                     ]}
                   >
                     <Input
-                      placeholder="Nhập giá trị đơn hàng tối thiểu"
+                      placeholder="Nhập giá trị đơn hàng tối thiểu (có thể để 0)"
                       type="number"
                     />
                   </Form.Item>
@@ -491,15 +511,7 @@ export default function AddDiscount() {
                     label="Số lượng phiếu"
                     rules={[
                       {
-                        validator: (_, value) => {
-                          if (!value) return Promise.resolve();
-                          if (isNaN(value) || Number(value) < 0) {
-                            return Promise.reject(
-                              new Error("Số lượng phải là số không âm")
-                            );
-                          }
-                          return Promise.resolve();
-                        },
+                        validator: validateSoLuongDung,
                       },
                     ]}
                   >
@@ -535,16 +547,7 @@ export default function AddDiscount() {
 
               <Row gutter={16} wrap className="gap-10">
                 <Col flex="1">
-                  <Form.Item
-                    name="moTa"
-                    label="Mô tả"
-                    rules={[
-                      {
-                        max: 200,
-                        message: "Mô tả không được vượt quá 200 ký tự",
-                      },
-                    ]}
-                  >
+                  <Form.Item name="moTa" label="Mô tả">
                     <TextArea
                       rows={3}
                       placeholder="Nhập mô tả (tối đa 200 ký tự)"
