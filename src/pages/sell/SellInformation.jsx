@@ -67,6 +67,95 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   // --- SỬA: Thêm state để lưu quận theo tỉnh ---
   const [quanMap, setQuanMap] = useState({});
 
+  // --- SỬA: Tính toán lại discountAmount mỗi khi cartTotal thay đổi ---
+  const calculatedDiscount = useMemo(() => {
+    if (!appliedDiscount || cartTotal === 0) {
+      return {
+        discountAmount: 0,
+        finalAmount: cartTotal,
+      };
+    }
+
+    let discountAmount = 0;
+
+    if (appliedDiscount.type === "fixed") {
+      // Giảm giá cố định
+      discountAmount = Math.min(appliedDiscount.value, cartTotal);
+    } else {
+      // Giảm giá phần trăm
+      discountAmount = (cartTotal * appliedDiscount.value) / 100;
+
+      // Kiểm tra giới hạn tối đa nếu có
+      if (
+        appliedDiscount.maxDiscountAmount &&
+        discountAmount > appliedDiscount.maxDiscountAmount
+      ) {
+        discountAmount = appliedDiscount.maxDiscountAmount;
+      }
+
+      // Đảm bảo không giảm quá tổng tiền
+      discountAmount = Math.min(discountAmount, cartTotal);
+    }
+
+    const finalAmount = Math.max(0, cartTotal - discountAmount);
+
+    return {
+      discountAmount,
+      finalAmount,
+    };
+  }, [appliedDiscount, cartTotal]);
+
+  // --- SỬA: Cập nhật localStorage khi calculatedDiscount thay đổi ---
+  useEffect(() => {
+    if (appliedDiscount && selectedBillId) {
+      const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+      const currentBill = bills.find((bill) => bill.id === selectedBillId);
+
+      if (!currentBill) return;
+
+      // Chỉ cập nhật nếu có sự thay đổi thực sự
+      const currentDiscountAmount =
+        currentBill.appliedDiscount?.discountAmount || 0;
+      const currentFinalAmount =
+        currentBill.appliedDiscount?.finalAmount || cartTotal;
+
+      if (
+        currentDiscountAmount !== calculatedDiscount.discountAmount ||
+        currentFinalAmount !== calculatedDiscount.finalAmount
+      ) {
+        const updated = bills.map((b) => {
+          if (b.id === selectedBillId && b.appliedDiscount) {
+            return {
+              ...b,
+              appliedDiscount: {
+                ...b.appliedDiscount,
+                discountAmount: calculatedDiscount.discountAmount,
+                finalAmount: calculatedDiscount.finalAmount,
+              },
+            };
+          }
+          return b;
+        });
+
+        localStorage.setItem("pendingBills", JSON.stringify(updated));
+
+        if (onDiscountApplied) {
+          onDiscountApplied({
+            discountAmount: calculatedDiscount.discountAmount,
+            finalAmount: calculatedDiscount.finalAmount,
+            discountCode: appliedDiscount.code,
+          });
+        }
+
+        window.dispatchEvent(new Event("billsUpdated"));
+      }
+    }
+  }, [
+    calculatedDiscount.discountAmount,
+    calculatedDiscount.finalAmount,
+    selectedBillId,
+  ]); // Chỉ theo dõi giá trị cụ thể
+
   const getPersonalDiscountsForCustomer = () => {
     if (!selectedCustomer || !Array.isArray(giamGiaKhachHangData)) return [];
 
@@ -159,7 +248,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     try {
       let quanList = [];
       if (idTinh) {
-        quanList = await handleTinhChange(idTinh); // ← await để có dữ liệu
+        quanList = await handleTinhChange(idTinh);
       }
 
       const formValues = {
@@ -170,7 +259,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         diaChiCuThe,
       };
 
-      // Đặt form SAU KHI đã có quanList
       addressForm.setFieldsValue(formValues);
       messageApi.success("Đã chọn địa chỉ thành công!");
     } catch (err) {
@@ -327,94 +415,95 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     return getBestDiscount(availableDiscounts);
   }, [availableDiscounts, cartTotal]);
 
+  // --- SỬA QUAN TRỌNG: Đơn giản hóa logic tự động áp dụng mã giảm giá ---
   useEffect(() => {
-    const handleAutoDiscount = async () => {
+    const autoApplyBestDiscount = async () => {
+      // Điều kiện để không chạy auto apply
       if (
         !selectedBillId ||
         cartTotal === 0 ||
         loading ||
         checkingSingleDiscount ||
-        isApplyingRef.current
+        isApplyingRef.current ||
+        availableDiscounts.length === 0
       ) {
         return;
       }
 
       const bestDiscount = getBestDiscount(availableDiscounts);
 
-      if (bestDiscount && !appliedDiscount) {
+      if (!bestDiscount) return;
+
+      // Kiểm tra điều kiện áp dụng
+      const condition = checkBasicDiscountConditions(bestDiscount, cartTotal);
+      if (!condition.isValid) return;
+
+      // Chỉ áp dụng nếu:
+      // 1. Chưa có mã nào được áp dụng HOẶC
+      // 2. Mã hiện tại không phải là mã tốt nhất HOẶC
+      // 3. Có sự thay đổi về cartTotal mà mã hiện tại không còn khả dụng
+      const shouldApply =
+        !appliedDiscount ||
+        appliedDiscount.id !== bestDiscount.id ||
+        (appliedDiscount &&
+          !checkBasicDiscountConditions(appliedDiscount, cartTotal).isValid);
+
+      if (shouldApply) {
         console.log(
-          "Tự động áp dụng mã giảm giá tốt nhất:",
+          "🔄 Tự động áp dụng mã giảm giá tốt nhất:",
           bestDiscount.maGiamGia
         );
 
         try {
           isApplyingRef.current = true;
-          const condition = checkBasicDiscountConditions(
-            bestDiscount,
-            cartTotal
-          );
-
-          if (condition.isValid) {
-            await applyDiscount(bestDiscount);
-            setAutoAppliedDiscount(true);
-            console.log(
-              "Đã tự động áp dụng mã giảm giá:",
-              bestDiscount.maGiamGia
-            );
-          }
+          await applyDiscount(bestDiscount);
+          setAutoAppliedDiscount(true);
         } catch (error) {
-          console.error("Lỗi khi tự động áp dụng mã giảm giá:", error);
-        } finally {
-          isApplyingRef.current = false;
-        }
-      } else if (!bestDiscount && appliedDiscount) {
-        console.log("Tự động xóa mã giảm giá do không đủ điều kiện");
-        removeDiscount();
-      } else if (
-        appliedDiscount &&
-        bestDiscount &&
-        appliedDiscount.id !== bestDiscount.id
-      ) {
-        console.log("Tự động chuyển sang mã giảm giá tốt hơn");
-        try {
-          isApplyingRef.current = true;
-          const condition = checkBasicDiscountConditions(
-            bestDiscount,
-            cartTotal
-          );
-
-          if (condition.isValid) {
-            await applyDiscount(bestDiscount);
-            setAutoAppliedDiscount(true);
-            console.log(
-              "Đã chuyển sang mã giảm giá tốt hơn:",
-              bestDiscount.maGiamGia
-            );
-          }
-        } catch (error) {
-          console.error("Lỗi khi chuyển mã giảm giá:", error);
+          console.error("❌ Lỗi khi tự động áp dụng mã giảm giá:", error);
         } finally {
           isApplyingRef.current = false;
         }
       }
     };
 
-    handleAutoDiscount();
+    // Thêm timeout nhỏ để tránh chạy quá nhiều lần
+    const timeoutId = setTimeout(autoApplyBestDiscount, 100);
+    return () => clearTimeout(timeoutId);
   }, [
-    selectedBillId,
     cartTotal,
-    appliedDiscount,
     availableDiscounts,
+    appliedDiscount,
+    selectedBillId,
     loading,
     checkingSingleDiscount,
-    selectedCustomer,
   ]);
 
+  // --- SỬA: Thêm useEffect để xóa mã giảm giá khi không đủ điều kiện ---
   useEffect(() => {
-    setAutoAppliedDiscount(false);
-    lastAppliedDiscountRef.current = null;
-    isApplyingRef.current = false;
-  }, [selectedBillId]);
+    const checkAndRemoveInvalidDiscount = () => {
+      if (!appliedDiscount || !selectedBillId || cartTotal === 0) return;
+
+      // Kiểm tra xem mã đang áp dụng có còn hợp lệ không
+      const currentDiscount = discountData?.find(
+        (d) => d.id === appliedDiscount.id
+      );
+      if (!currentDiscount) {
+        removeDiscount();
+        return;
+      }
+
+      const condition = checkBasicDiscountConditions(
+        currentDiscount,
+        cartTotal
+      );
+      if (!condition.isValid) {
+        console.log("🔄 Xóa mã giảm giá do không đủ điều kiện");
+        removeDiscount();
+      }
+    };
+
+    checkAndRemoveInvalidDiscount();
+  }, [cartTotal, appliedDiscount, discountData, selectedBillId]);
 
   useEffect(() => {
     if (selectedCustomer && appliedDiscount?.isPersonal) {
@@ -517,7 +606,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
           if (idTinh) {
             try {
               await handleTinhChange(idTinh);
-              // Sau khi load quận xong, mới set lại quan (nếu cần)
               addressForm.setFieldsValue({ quan: idQuan });
             } catch (err) {
               console.error("Lỗi load quận mặc định:", err);
@@ -558,12 +646,15 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     };
     loadDiscounts();
   }, [dispatch, messageApi]);
+
   useEffect(() => {
     const currentTinh = addressForm.getFieldValue("thanhPho");
     if (currentTinh && quanMap[currentTinh]) {
       setLocalQuanList(quanMap[currentTinh]);
     }
   }, [quanMap, addressForm]);
+
+  // --- SỬA: Đơn giản hóa việc theo dõi thay đổi bill ---
   useEffect(() => {
     const updateCartData = () => {
       if (selectedBillId) {
@@ -596,14 +687,20 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
     updateCartData();
 
-    window.addEventListener("billsUpdated", updateCartData);
-    window.addEventListener("cartUpdated", updateCartData);
-    window.addEventListener("customerSelected", updateCartData);
+    const handleBillsUpdated = () => {
+      if (selectedBillId) {
+        updateCartData();
+      }
+    };
+
+    window.addEventListener("billsUpdated", handleBillsUpdated);
+    window.addEventListener("cartUpdated", handleBillsUpdated);
+    window.addEventListener("customerSelected", handleBillsUpdated);
 
     return () => {
-      window.removeEventListener("billsUpdated", updateCartData);
-      window.removeEventListener("cartUpdated", updateCartData);
-      window.removeEventListener("customerSelected", updateCartData);
+      window.removeEventListener("billsUpdated", handleBillsUpdated);
+      window.removeEventListener("cartUpdated", handleBillsUpdated);
+      window.removeEventListener("customerSelected", handleBillsUpdated);
     };
   }, [selectedBillId]);
 
@@ -675,13 +772,11 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       const res = await diaChiApi.getQuanByTinh(idTinh);
       console.log("Load quận từ API:", res);
 
-      // Cập nhật cả 2 state
       setQuanMap((prev) => {
         const newMap = { ...prev, [idTinh]: res };
         return newMap;
       });
 
-      // Quan trọng: setLocalQuanList ở đây, và return res luôn
       setLocalQuanList(res);
       return res;
     } catch (err) {
@@ -716,6 +811,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     }
   };
 
+  // --- SỬA: Hàm applyDiscount - Thêm maxDiscountAmount ---
   const applyDiscount = async (discount) => {
     if (!selectedBillId || cartTotal === 0) return;
 
@@ -739,6 +835,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                 finalAmount: final,
                 type: discount.loaiGiamGia ? "fixed" : "percentage",
                 value: discount.giaTriGiamGia,
+                maxDiscountAmount: discount.mucGiaGiamToiDa || null,
                 loaiPhieu: discount.kieu === 1 ? "CÁ_NHÂN" : "CÔNG_KHAI",
                 isPersonal: discount.kieu === 1,
                 customerId: selectedCustomer?.id,
@@ -761,10 +858,10 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         });
       }
 
-      console.log(`Áp dụng ${discount.maGiamGia} thành công`);
+      console.log(`✅ Áp dụng ${discount.maGiamGia} thành công`);
       window.dispatchEvent(new Event("billsUpdated"));
     } catch (error) {
-      console.error("Lỗi khi áp dụng mã giảm giá:", error);
+      console.error("❌ Lỗi khi áp dụng mã giảm giá:", error);
       messageApi.error("Lỗi khi áp dụng mã giảm giá");
     }
   };
@@ -816,7 +913,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
             </div>
             <span className="text-lg font-semibold text-red-800">
               {appliedDiscount.type === "fixed"
-                ? `-${appliedDiscount.value.toLocaleString()} VND`
+                ? `-${calculatedDiscount.discountAmount.toLocaleString()} VND`
                 : `-${appliedDiscount.value}%`}
             </span>
           </div>
@@ -918,6 +1015,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
             tinhList={tinhList}
             localQuanList={localQuanList}
             removeCustomerFromDiscount={handleRemoveCustomerFromDiscount}
+            discountAmount={calculatedDiscount.discountAmount}
+            finalAmount={calculatedDiscount.finalAmount}
           />
         </div>
       ),
@@ -1077,7 +1176,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
         </div>
       </div>
 
-      {/* Modal chọn địa chỉ */}
       {addressModalVisible && (
         <Modal
           title={

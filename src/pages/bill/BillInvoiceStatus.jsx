@@ -6,10 +6,8 @@ import {
   TruckIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
-import { Select, message } from "antd";
+import { Button, message } from "antd";
 import React, { useState, useEffect } from "react";
-
-const { Option } = Select;
 
 export default function BillInvoiceStatus({
   currentStatus,
@@ -107,37 +105,26 @@ export default function BillInvoiceStatus({
     setStatusStep(originalStatus);
   }, [isEditing]);
 
-  const handleStatusChange = (value) => {
+  const handleNextStatus = () => {
     if (!isEditing) return;
-    const newStatus = parseInt(value, 10);
+
+    if (statusStep >= steps.length - 1) {
+      message.warning("Đã đạt trạng thái cuối cùng");
+      return;
+    }
+
+    const newStatus = statusStep + 1;
     setStatusStep(newStatus);
     onTempStatusChange && onTempStatusChange(newStatus);
   };
-  
 
-  const handleLoaiHoaDonChange = (value) => {
+  const handleCancelOrder = () => {
     if (!isEditing) return;
 
-    const newLoaiHoaDon = value === "true";
-    let newStatus = tempStatus;
-
-    if (newLoaiHoaDon) {
-      newStatus = 3;
-      message.info(
-        "Đã chuyển sang loại Tại quầy - Trạng thái mặc định: Đã hoàn thành"
-      );
-    } else {
-      newStatus = 1;
-      message.info(
-        "Đã chuyển sang loại Online - Trạng thái mặc định: Chờ giao hàng"
-      );
-    }
-
+    const newStatus = 4; // Trạng thái "Đã hủy"
     setStatusStep(newStatus);
-    setCurrentLoaiHoaDon(newLoaiHoaDon);
-
-    onLoaiHoaDonChange && onLoaiHoaDonChange(newLoaiHoaDon);
     onTempStatusChange && onTempStatusChange(newStatus);
+    message.success("Đã hủy đơn hàng");
   };
 
   const getStatusColor = (index) => {
@@ -176,6 +163,8 @@ export default function BillInvoiceStatus({
 
   const isFinalStatus = statusStep === 3;
   const isFalseStatus = statusStep === 4;
+  const canProceed = statusStep < 3; // Chỉ cho phép tiếp tục nếu chưa hoàn thành hoặc hủy
+  const isCompleted = statusStep === 3;
 
   return (
     <>
@@ -188,30 +177,25 @@ export default function BillInvoiceStatus({
             </div>
 
             {isEditing && (
-              <div className="flex gap-4 items-center">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Loại hóa đơn:</span>
-                  <Select
-                    value={currentLoaiHoaDon?.toString() || "false"}
-                    className="min-w-[140px]"
-                    onChange={handleLoaiHoaDonChange}
+              <div className="flex gap-2 items-center">
+                {canProceed && (
+                  <div
+                    onClick={handleNextStatus}
+                    className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
                   >
-                    <Option value="false">Online</Option>
-                    <Option value="true">Tại quầy</Option>
-                  </Select>
-                </div>
+                    Chuyển trạng thái
+                  </div>
+                )}
 
-                <Select
-                  value={statusStep?.toString() || "0"}
-                  className="min-w-[160px]"
-                  onChange={handleStatusChange}
-                >
-                  {steps.map((step, index) => (
-                    <Option key={index} value={step.value.toString()}>
-                      {step.label}
-                    </Option>
-                  ))}
-                </Select>
+                {!isCompleted && !isFalseStatus && (
+                  <div
+                    danger
+                    onClick={handleCancelOrder}
+                    className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+                  >
+                    Hủy đơn hàng
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -285,7 +269,6 @@ export default function BillInvoiceStatus({
           </div>
         </div>
       </div>
-      
     </>
   );
 }
