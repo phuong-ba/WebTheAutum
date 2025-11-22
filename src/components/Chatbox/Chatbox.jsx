@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import SockJS from "sockjs-client";
 import { over } from "stompjs";
 
@@ -6,197 +6,282 @@ let stompClient = null;
 
 export default function Chatbox() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    { sender: "ai", content: "Xin chào! Tôi có thể giúp gì cho bạn." },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [staffOnline, setStaffOnline] = useState(false);
-  const chatBodyRef = useRef(null);
+  const [mode, setMode] = useState("ai"); // ai hoặc staff
+  const [showAssistantChooser, setShowAssistantChooser] = useState(true);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const chatRef = useRef(null);
 
   const [roomId] = useState(() => {
     let id = sessionStorage.getItem("roomId");
     if (!id) {
-      id = "room_" + Math.random().toString(36).substring(2, 10);
+      id = "room_" + Math.random().toString(36).substring(2, 9);
       sessionStorage.setItem("roomId", id);
     }
     return id;
   });
 
+  // Kết nối WebSocket khi mount
   useEffect(() => {
     const socket = new SockJS("http://localhost:8080/ws");
     stompClient = over(socket);
 
     stompClient.connect({}, () => {
-      // Subscribe room khách
+      // Subscribe room của khách hàng
       stompClient.subscribe(`/topic/chat/${roomId}`, (msg) => {
-        const message = JSON.parse(msg.body);
-
-        if (message.sender === "system") {
-          if (message.content.includes("đã vào")) setStaffOnline(true);
-          if (message.content.includes("rời phòng")) setStaffOnline(false);
-        }
-
-        setMessages((prev) => [...prev, message]);
+        const data = JSON.parse(msg.body);
+        setMessages((prev) => [...prev, data]);
       });
 
-      // Thông báo backend tạo room
+      // Khởi tạo phòng mới nếu chưa có
       stompClient.send(
-        `/app/chat.staff.join/${roomId}`,
+        `/app/chat.init/${roomId}`,
         {},
         JSON.stringify({
-          sender: "system",
-          content: "Khách hàng đã vào phòng",
+          sender: "user",
+          content: "Phòng mới",
+          type: "new_room",
           roomId,
         })
       );
     });
 
-    return () => {
-      if (stompClient) stompClient.disconnect();
-    };
+    return () => stompClient?.disconnect();
   }, [roomId]);
 
-  const handleSend = async (text) => {
-    const userText = text || input.trim();
-    if (!userText) return;
+  // Gửi tin nhắn
+  const sendMsg = async () => {
+    if (!input.trim()) return;
+
+    const msgContent = input;
+    const userMsg = {
+      sender: "user",
+      content: msgContent,
+      type: "user",
+      roomId,
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
 
-    // Nếu có staff online, gửi trực tiếp
-    if (staffOnline) {
-      const msg = { roomId, sender: "user", content: userText };
-      stompClient.send(`/app/chat.send/${roomId}`, {}, JSON.stringify(msg));
-      setMessages((prev) => [...prev, msg]);
-      return;
-    }
-
-    // Hiển thị "đang trả lời" trước khi AI trả về
-    setMessages((prev) => [
-      ...prev,
-      { sender: "user", content: userText },
-      { sender: "ai", content: "Đang trả lời..." },
-    ]);
-
-    try {
-      const res = await fetch("http://localhost:8080/api/chatbot/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText, roomId }),
-      });
-      const data = await res.json();
-
-      // Backend trả về JSON array / object, format gọn
-      let replyText = "";
-      if (data.products) {
-        replyText = data.products
-          .map((p) => `- ${p.name}: ${p.price}`)
-          .join("\n");
-      } else if (data.vouchers) {
-        replyText = data.vouchers
-          .map((v) => `- ${v.name} giảm ${v.discountPercent}%`)
-          .join("\n");
-      } else {
-        replyText = data.reply ?? "Xin lỗi, tôi không có câu trả lời.";
+    if (mode === "ai") {
+      // Gọi REST API AI
+      try {
+        const res = await fetch("http://localhost:8080/api/chatbot/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msgContent, roomId }),
+        });
+        const data = await res.json();
+        setMessages((prev) => [
+          ...prev,
+          { sender: "ai", content: data.reply, type: "ai_reply" },
+        ]);
+      } catch (err) {
+        console.error(err);
+        setMessages((prev) => [
+          ...prev,
+          {
+            sender: "ai",
+            content: "AI đang gặp lỗi, thử lại sau.",
+            type: "ai_reply",
+          },
+        ]);
       }
-
-      // Cập nhật message
-      setMessages((prev) => [
-        ...prev.slice(0, -1),
-        { sender: "ai", content: replyText },
-      ]);
-
-      // Gửi AI message lên WS cho staff
-      stompClient.send(
-        `/app/chat.send/${roomId}`,
-        {},
-        JSON.stringify({ sender: "ai", content: replyText, roomId })
-      );
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [
-        ...prev.slice(0, -1),
-        { sender: "ai", content: "Có lỗi xảy ra 😢" },
-      ]);
+    } else {
+      // Mode staff: gửi qua WebSocket
+      stompClient.send(`/app/chat.send/${roomId}`, {}, JSON.stringify(userMsg));
     }
   };
 
+  // Yêu cầu nhân viên hỗ trợ
+  const requestStaff = () => {
+    stompClient.send(
+      `/app/chat.requestStaff/${roomId}`,
+      {},
+      JSON.stringify({
+        roomId,
+        type: "new_room",
+      })
+    );
+    setMode("staff");
+    setShowAssistantChooser(false);
+  };
+
+  // Scroll xuống cuối khi có message mới
   useEffect(() => {
-    if (chatBodyRef.current) {
-      chatBodyRef.current.scrollTo({
-        top: chatBodyRef.current.scrollHeight,
-        behavior: "smooth",
-      });
-    }
+    chatRef.current?.scrollTo({
+      top: chatRef.current.scrollHeight,
+      behavior: "smooth",
+    });
   }, [messages]);
+
+  const chooseAssistant = (type) => {
+    if (type === "staff") requestStaff();
+    else {
+      setMode("ai");
+      setShowAssistantChooser(false);
+      setShowDropdown(false);
+    }
+  };
+
+  const renderMessage = (m, i) => {
+    let bg = "bg-gray-100 text-gray-800";
+    if (m.sender === "user") bg = "bg-blue-600 text-white";
+    else if (m.type === "ai_reply") bg = "bg-green-100 text-green-800";
+    else if (m.type === "staff_status")
+      bg = "bg-yellow-100 text-yellow-800 italic";
+    else if (m.type === "new_room") bg = "bg-gray-200 text-gray-600 italic";
+
+    return (
+      <div
+        key={i}
+        className={`flex ${
+          m.sender === "user" ? "justify-end" : "justify-start"
+        }`}
+      >
+        <div className={`px-3 py-2 rounded-xl max-w-[70%] break-words ${bg}`}>
+          {m.content}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
-      {/* Chat button */}
-      <div
-        className="fixed bottom-5 right-6 cursor-pointer z-[1000] hover:scale-110 transition-transform"
-        onClick={() => setIsOpen(!isOpen)}
+      {/* Button mở chat */}
+      <button
+        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg"
+        onClick={() => setIsOpen(true)}
       >
-        <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-          Chat
-        </div>
-      </div>
+        Chat
+      </button>
 
-      {/* Chat window */}
       {isOpen && (
-        <div className="fixed bottom-20 right-6 w-[400px] h-[600px] bg-white rounded-3xl shadow-xl flex flex-col overflow-hidden z-[1001]">
+        <div className="fixed bottom-20 right-6 w-[420px] h-[600px] bg-white shadow-2xl rounded-2xl flex flex-col">
           {/* Header */}
-          <div className="bg-white shadow-md p-5 flex justify-between items-center rounded-t-3xl">
-            <div className="font-semibold text-gray-700 text-lg">
-              ChatBot {staffOnline && "(Nhân viên online)"}
-            </div>
-            <button onClick={() => setIsOpen(false)}>X</button>
-          </div>
-
-          {/* Chat body */}
           <div
-            ref={chatBodyRef}
-            className="flex-1 p-5 flex flex-col gap-2 overflow-y-auto"
+            className="flex items-center justify-between px-4 py-3 border-b cursor-pointer relative"
+            onClick={() =>
+              !showAssistantChooser && setShowDropdown(!showDropdown)
+            }
           >
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex ${
-                  msg.sender === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
+            <div className="flex items-center gap-2">
+              <img
+                src="/ai_logo.png"
+                alt="AI"
+                className="w-9 h-9 rounded-full"
+              />
+              <div className="flex flex-col leading-tight">
+                <span className="font-semibold flex items-center gap-1">
+                  {mode === "ai" ? "Trợ lý AI" : "Trợ lý Cá Nhân"}
+                  <span
+                    className={`inline-block transform transition-transform duration-300 ${
+                      showDropdown ? "rotate-0" : "rotate-180"
+                    }`}
+                  >
+                    ⌄
+                  </span>
+                </span>
+                <span className="text-xs text-gray-500">Đang hoạt động</span>
+              </div>
+            </div>
+            <button
+              className="text-2xl"
+              onClick={() => {
+                setIsOpen(false);
+                setShowDropdown(false);
+              }}
+            >
+              ×
+            </button>
+
+            {/* Dropdown chọn trợ lý */}
+            {!showAssistantChooser && showDropdown && (
+              <div className="absolute top-[60px] left-0 w-full bg-white border rounded-xl shadow-lg p-4 z-10">
                 <div
-                  className={`px-3 py-2 rounded-xl whitespace-pre-wrap ${
-                    msg.sender === "user"
-                      ? "bg-blue-400 text-white"
-                      : msg.sender === "ai"
-                      ? "bg-yellow-100"
-                      : "bg-gray-200"
-                  }`}
+                  className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
+                  onClick={() => chooseAssistant("ai")}
                 >
-                  {msg.content}
+                  <img src="/ai_logo.png" className="w-10 h-10 rounded-full" />
+                  <span className="text-sm font-medium">Hỏi Trợ Lý AI</span>
+                </div>
+                <div
+                  className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer mt-2"
+                  onClick={() => chooseAssistant("staff")}
+                >
+                  <img
+                    src="/staff_avatar.png"
+                    className="w-10 h-10 rounded-full"
+                  />
+                  <span className="text-sm font-medium">
+                    Hỏi Trợ Lý Cá Nhân
+                  </span>
                 </div>
               </div>
-            ))}
+            )}
+          </div>
+
+          {/* Chọn trợ lý lần đầu */}
+          {showAssistantChooser && (
+            <div className="border-b p-3 text-center text-sm text-gray-600">
+              Chọn trợ lý bạn muốn trò chuyện
+              <div className="flex justify-center gap-8 mt-3">
+                <div
+                  className="flex flex-col items-center cursor-pointer"
+                  onClick={() => chooseAssistant("ai")}
+                >
+                  <img
+                    src="/ai_logo.png"
+                    className="w-14 h-14 rounded-full border-2 border-blue-400"
+                  />
+                  <span className="text-xs mt-1">Hỏi Trợ Lý AI</span>
+                </div>
+                <div
+                  className="flex flex-col items-center cursor-pointer"
+                  onClick={() => chooseAssistant("staff")}
+                >
+                  <img
+                    src="/staff_avatar.png"
+                    className="w-14 h-14 rounded-full border"
+                  />
+                  <span className="text-xs mt-1">Hỏi Trợ Lý Cá Nhân</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Chat messages */}
+          <div
+            ref={chatRef}
+            className="flex-1 p-3 overflow-y-auto space-y-3 bg-gray-50"
+          >
+            {!showAssistantChooser && messages.map(renderMessage)}
           </div>
 
           {/* Input */}
-          <form
-            className="flex p-3 border-t border-gray-200 gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-          >
-            <input
-              type="text"
-              className="flex-1 border px-3 py-2 rounded-xl"
-              placeholder="Nhập tin nhắn..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-            />
-            <button className="bg-blue-500 text-white px-4 py-2 rounded-xl">
-              Gửi
-            </button>
-          </form>
+          {!showAssistantChooser && (
+            <div className="p-3 border-t flex items-center gap-2">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="flex-1 border rounded-xl px-3 py-2"
+                placeholder="Nhập nội dung chat..."
+                onKeyDown={(e) => e.key === "Enter" && sendMsg()}
+              />
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded-xl"
+                onClick={sendMsg}
+              >
+                ➤
+              </button>
+            </div>
+          )}
+
+          <div className="text-center text-xs p-2 text-gray-400">
+            Tích hợp trí tuệ nhân tạo, thông tin mang tính tham khảo
+          </div>
         </div>
       )}
     </>

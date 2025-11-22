@@ -55,16 +55,11 @@ export default function Navbar() {
       icon: <IconDiscount />,
       label: "Quản lý phiếu giảm giá",
     },
-<<<<<<< HEAD
-
     {
       key: "/admin/promo",
       icon: <IconDiscount />,
       label: "Quản lý đợt giảm giá",
     },
-=======
-    { key: "/admin/promo", icon: <IconDiscount />, label: "Quản lý đợt giảm giá" },
->>>>>>> 0e3db960474c7ae79eadfa3f9d3e7131201355a3
     {
       key: "/admin/user",
       icon: <AppstoreOutlined />,

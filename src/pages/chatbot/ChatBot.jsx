@@ -1,178 +1,160 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import SockJS from "sockjs-client";
-import Stomp from "stompjs";
+import { over } from "stompjs";
 
 let stompClient = null;
 
-export default function AdminDashboard() {
+export default function AdminChat() {
   const [rooms, setRooms] = useState([]);
-  const [roomId, setRoomId] = useState("");
+  const [currentRoom, setCurrentRoom] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [isJoined, setIsJoined] = useState(false); // trạng thái admin online/offline
-  const subscriptionRef = useRef(null);
+  const chatRef = useRef(null);
 
   useEffect(() => {
     const socket = new SockJS("http://localhost:8080/ws");
-    stompClient = Stomp.over(socket);
+    stompClient = over(socket);
 
     stompClient.connect({}, () => {
-      // Subscribe danh sách tất cả phòng
+      // Subscribe tất cả phòng mới
       stompClient.subscribe("/topic/chat/all", (msg) => {
-        const message = JSON.parse(msg.body);
-        setRooms((prev) =>
-          prev.includes(message.roomId) ? prev : [...prev, message.roomId]
-        );
+        const data = JSON.parse(msg.body);
+        if (data.type === "new_room") {
+          setRooms((prev) =>
+            !prev.find((r) => r.roomId === data.roomId)
+              ? [...prev, { roomId: data.roomId }]
+              : prev
+          );
+        }
       });
     });
 
-    return () => {
-      if (stompClient) stompClient.disconnect();
-    };
+    return () => stompClient?.disconnect();
   }, []);
 
-  const joinRoom = (id) => {
-    setRoomId(id);
+  // Join room → subscribe room này + thông báo staff join
+  const joinRoom = (roomId) => {
+    setCurrentRoom(roomId);
     setMessages([]);
-    setIsJoined(true);
 
-    if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
+    // Thông báo BE nhân viên đã vào
+    stompClient.send(`/app/chat.staff.join/${roomId}`, {}, {});
 
-    subscriptionRef.current = stompClient.subscribe(
-      `/topic/chat/${id}`,
-      (msg) => {
-        const message = JSON.parse(msg.body);
-        setMessages((prev) => [...prev, message]);
-      }
-    );
-
-    // Gửi trạng thái nhân viên online
-    stompClient.send(
-      `/app/chat.staff.join/${id}`,
-      {},
-      JSON.stringify({
-        sender: "staff",
-        type: "staff_status",
-        online: true,
-        roomId: id,
-      })
-    );
+    stompClient.subscribe(`/topic/chat/${roomId}`, (msg) => {
+      const data = JSON.parse(msg.body);
+      setMessages((prev) => [...prev, data]);
+    });
   };
 
+  // Thoát phòng
   const leaveRoom = () => {
-    if (!roomId) return;
+    if (!currentRoom) return;
 
-    // Gửi trạng thái nhân viên offline
-    stompClient.send(
-      `/app/chat.staff.leave/${roomId}`,
-      {},
-      JSON.stringify({
-        sender: "staff",
-        type: "staff_status",
-        online: false,
-        roomId: roomId,
-      })
-    );
+    // Gửi thông báo cho BE nếu muốn
+    stompClient.send(`/app/chat.staff.leave/${currentRoom}`, {}, {});
 
-    if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
-    setRoomId("");
+    setCurrentRoom(null);
     setMessages([]);
-    setIsJoined(false);
   };
 
   const sendMsg = () => {
-    if (!input.trim() || !roomId) return;
-    const msg = { roomId, sender: "staff", content: input, type: "message" };
-    stompClient.send(`/app/chat.send/${roomId}`, {}, JSON.stringify(msg));
+    if (!input.trim() || !currentRoom) return;
+
+    const msg = {
+      sender: "staff",
+      content: input,
+      type: "staff",
+      roomId: currentRoom,
+    };
+
+    stompClient.send(`/app/chat.send/${currentRoom}`, {}, JSON.stringify(msg));
     setMessages((prev) => [...prev, msg]);
     setInput("");
   };
 
+  useEffect(() => {
+    chatRef.current?.scrollTo({
+      top: chatRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
+
+  const renderMessage = (m, i) => {
+    let bg = "bg-gray-100 text-gray-800";
+    if (m.sender === "staff") bg = "bg-blue-500 text-white";
+    else if (m.sender === "user") bg = "bg-green-100 text-green-800";
+    else if (m.type === "ai_reply") bg = "bg-purple-100 text-purple-800";
+    else if (m.type === "new_room") bg = "bg-gray-200 text-gray-600 italic";
+    else if (m.type === "staff_status")
+      bg = "bg-yellow-100 text-yellow-800 italic";
+
+    return (
+      <div
+        key={i}
+        className={`flex ${
+          m.sender === "staff" ? "justify-end" : "justify-start"
+        }`}
+      >
+        <div className={`px-3 py-2 rounded-xl max-w-[70%] break-words ${bg}`}>
+          {m.content}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="flex h-screen">
-      {/* Danh sách phòng */}
-      <div className="w-64 bg-gray-200 p-4">
-        <h2 className="font-bold text-lg mb-3">Danh sách phòng</h2>
+    <div className="flex h-[90vh] p-4 gap-4">
+      <div className="w-60 border rounded-xl p-2 overflow-y-auto">
+        <h2 className="font-semibold text-lg mb-2">Danh sách phòng</h2>
         {rooms.map((r) => (
           <div
-            key={r}
-            className={`p-2 mb-2 cursor-pointer rounded ${
-              r === roomId ? "bg-blue-100 font-semibold" : "bg-white"
+            key={r.roomId}
+            className={`p-2 rounded-lg cursor-pointer mb-1 ${
+              currentRoom === r.roomId ? "bg-blue-100" : "hover:bg-gray-100"
             }`}
-            onClick={() => setRoomId(r)}
+            onClick={() => joinRoom(r.roomId)}
           >
-            {r}
+            {r.roomId}
           </div>
         ))}
-
-        {roomId && (
-          <div className="flex gap-2 mt-3">
-            {!isJoined ? (
-              <button
-                className="bg-green-500 text-white px-4 py-2 rounded-xl"
-                onClick={() => joinRoom(roomId)}
-              >
-                Tham gia chat
-              </button>
-            ) : (
-              <button
-                className="bg-red-500 text-white px-4 py-2 rounded-xl"
-                onClick={leaveRoom}
-              >
-                Thoát chat
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Chatbox */}
-      <div className="flex-1 flex flex-col">
-        <h2 className="p-4 font-bold bg-gray-100">
-          Đang chat tại: {roomId || "—"}
-        </h2>
-
-        <div className="flex-1 p-4 flex flex-col gap-2 overflow-y-auto">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${
-                msg.sender === "staff" ? "justify-end" : "justify-start"
-              }`}
+      <div className="flex-1 flex flex-col border rounded-xl">
+        <div className="p-3 border-b font-semibold flex justify-between items-center">
+          {currentRoom ? `Phòng: ${currentRoom}` : "Chọn phòng để chat"}
+          {currentRoom && (
+            <button
+              className="px-3 py-1 bg-red-500 text-white rounded-xl text-sm"
+              onClick={leaveRoom}
             >
-              <div
-                className={`px-3 py-2 rounded-xl ${
-                  msg.sender === "staff"
-                    ? "bg-green-200"
-                    : msg.sender === "ai"
-                    ? "bg-yellow-100"
-                    : "bg-gray-300"
-                }`}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
+              Thoát
+            </button>
+          )}
         </div>
 
-        {isJoined && (
-          <form
-            className="p-3 flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendMsg();
-            }}
-          >
+        <div
+          ref={chatRef}
+          className="flex-1 p-3 overflow-y-auto space-y-2 bg-gray-50"
+        >
+          {messages.map(renderMessage)}
+        </div>
+
+        {currentRoom && (
+          <div className="p-3 border-t flex gap-2">
             <input
+              className="flex-1 border rounded-xl px-3 py-2"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="flex-1 border px-3 py-2 rounded-xl"
+              onKeyDown={(e) => e.key === "Enter" && sendMsg()}
               placeholder="Nhập tin nhắn..."
             />
-            <button className="bg-green-400 text-white px-4 py-2 rounded-xl">
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl"
+              onClick={sendMsg}
+            >
               Gửi
             </button>
-          </form>
+          </div>
         )}
       </div>
     </div>
