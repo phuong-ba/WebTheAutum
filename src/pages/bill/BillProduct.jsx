@@ -29,7 +29,7 @@ export default function BillProduct({
   const [sortBy, setSortBy] = useState("default");
   const [returnModalVisible, setReturnModalVisible] = useState(false);
   const [returnProduct, setReturnProduct] = useState(null);
-  const [clickedProductId, setClickedProductId] = useState(null); // Thêm state để theo dõi sản phẩm đang được click
+  const [clickedProductId, setClickedProductId] = useState(null);
 
   useEffect(() => {
     dispatch(fetchChiTietSanPham());
@@ -42,7 +42,6 @@ export default function BillProduct({
 
   const filteredData = data?.filter((product) => product.soLuongTon > 0) || [];
 
-  // Kiểm tra sản phẩm đã được chọn trong hóa đơn chưa
   const isProductSelected = (productId) => {
     return selectedProducts.some((item) => item.id === productId);
   };
@@ -358,7 +357,6 @@ export default function BillProduct({
                 className="bg-amber-500 py-2 px-4 rounded cursor-pointer select-none text-center font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 <ShoppingCartIcon size={20} color="#FFF" />
-                {clickedProductId === record.id && "..."}
               </button>
             </Tooltip>
           )}

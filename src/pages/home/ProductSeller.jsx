@@ -72,15 +72,15 @@ export default function ProductSale() {
   return (
     <div className="flex flex-col items-center gap-8">
       {/* Back Button */}
-     
+
       {/* Header */}
       <div className="flex flex-col items-center gap-8">
         <div className="font-bold text-2xl text-red-600 flex items-center gap-3">
           <Tag size={32} weight="fill" className="text-red-500" />
-          ĐỘC QUYỀN ONLINE – SALE UPTO 50% ALL ITEMS
+          ĐỘC QUYỀN ONLINE – SALE UPTO 50%
         </div>
         <div className="flex gap-10">
-          <div className="cursor-pointer hover:text-orange-500 transition-colors font-medium">
+          {/* <div className="cursor-pointer hover:text-orange-500 transition-colors font-medium">
             Tất cả
           </div>
           <div className="cursor-pointer hover:text-orange-500 transition-colors font-medium">
@@ -88,7 +88,7 @@ export default function ProductSale() {
           </div>
           <div className="cursor-pointer hover:text-orange-500 transition-colors font-medium">
             Giảm  50%
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -133,7 +133,9 @@ export default function ProductSale() {
                 <Link to={`/product/${item.idSanPham}`}>
                   <div className="min-w-[330px] max-h-[500px] min-h-[500px] rounded-xl overflow-hidden">
                     <img
-                      src={item.anhDaiDien || "https://via.placeholder.com/330x500"}
+                      src={
+                        item.anhDaiDien || "https://via.placeholder.com/330x500"
+                      }
                       alt={item.tenSanPham}
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     />

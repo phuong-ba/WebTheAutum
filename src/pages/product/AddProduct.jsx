@@ -3,6 +3,7 @@ import {
   PlusOutlined,
   CheckCircleOutlined,
   ReloadOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import {
   Col,
@@ -14,6 +15,7 @@ import {
   message,
   Tag,
   Button,
+  Alert,
 } from "antd";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -88,6 +90,10 @@ export default function AddProduct() {
   const [loading, setLoading] = useState(false);
   const [bienTheList, setBienTheList] = useState([]);
   const [loadingTaoSanPham, setLoadingTaoSanPham] = useState(false);
+  const [formValidation, setFormValidation] = useState({
+    errors: {},
+    touched: {}
+  });
   const navigate = useNavigate();
 
   const [dropdownData, setDropdownData] = useState({
@@ -214,7 +220,6 @@ export default function AddProduct() {
 
   const handleAddNew = async (values) => {
     try {
-
       if (!values.ten?.trim()) {
         message.error(`Vui lòng nhập tên ${getModalTitle()}`);
         return;
@@ -279,40 +284,76 @@ export default function AddProduct() {
     }
   };
 
+  const validateForm = (formValues) => {
+    const errors = {};
+    
+    if (!formValues.tenSanPham?.trim()) {
+      errors.tenSanPham = 'Vui lòng nhập tên sản phẩm';
+    } else if (formValues.tenSanPham.trim().length < 2) {
+      errors.tenSanPham = 'Tên sản phẩm phải có ít nhất 2 ký tự';
+    }
+    
+    if (!formValues.idNhaSanXuat) {
+      errors.idNhaSanXuat = 'Vui lòng chọn hãng sản xuất';
+    }
+    
+    if (!formValues.idXuatXu) {
+      errors.idXuatXu = 'Vui lòng chọn xuất xứ';
+    }
+    
+    if (!formValues.idChatLieu) {
+      errors.idChatLieu = 'Vui lòng chọn chất liệu';
+    }
+    
+    if (!formValues.idKieuDang) {
+      errors.idKieuDang = 'Vui lòng chọn kiểu dáng';
+    }
+    
+    if (!formValues.idCoAo) {
+      errors.idCoAo = 'Vui lòng chọn cổ áo';
+    }
+    
+    if (!formValues.idTayAo) {
+      errors.idTayAo = 'Vui lòng chọn tay áo';
+    }
+    
+    if (!formValues.trongLuong?.trim()) {
+      errors.trongLuong = 'Vui lòng nhập trọng lượng';
+    }
+    
+    if (!formValues.idMauSacs?.length) {
+      errors.idMauSacs = 'Vui lòng chọn ít nhất một màu sắc';
+    } else if (formValues.idMauSacs.length > 10) {
+      errors.idMauSacs = 'Chỉ có thể chọn tối đa 10 màu sắc';
+    }
+    
+    if (!formValues.idKichThuoc) {
+      errors.idKichThuoc = 'Vui lòng chọn kích thước';
+    }
+    
+    return errors;
+  };
+
   const handleTaoBienThe = async () => {
     try {
       const formValues = await form.validateFields();
-
-      const requiredFields = [
-        "tenSanPham",
-        "idNhaSanXuat",
-        "idXuatXu",
-        "idChatLieu",
-        "idKieuDang",
-        "idCoAo",
-        "idTayAo",
-        "trongLuong",
-        "idKichThuoc",
-      ];
-      const requiredVariantFields = ["idMauSacs"];
-
-      const missingMainFields = requiredFields.filter(
-        (field) => !formValues[field]
-      );
-      const missingVariantFields = requiredVariantFields.filter(
-        (field) => !formValues[field]?.length
-      );
-
-      if (missingMainFields.length) {
-        message.error("Vui lòng điền đầy đủ thông tin sản phẩm");
+      
+      const errors = validateForm(formValues);
+      if (Object.keys(errors).length > 0) {
+        setFormValidation(prev => ({ ...prev, errors }));
+        
+        const firstErrorField = Object.keys(errors)[0];
+        const element = document.querySelector(`[data-field="${firstErrorField}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        message.error('Vui lòng kiểm tra lại thông tin form trước khi tạo biến thể');
         return;
       }
-
-      if (missingVariantFields.length) {
-        message.error("Vui lòng chọn ít nhất một màu sắc");
-        return;
-      }
-
+      
+      setFormValidation(prev => ({ ...prev, errors: {} }));
+      
       setLoadingTaoSanPham(true);
 
       const requestData = {
@@ -342,6 +383,15 @@ export default function AddProduct() {
       }
     } catch (error) {
       console.error("❌ Lỗi preview:", error);
+      
+      if (error.errorFields) {
+        const newErrors = {};
+        error.errorFields.forEach(field => {
+          newErrors[field.name[0]] = field.errors[0];
+        });
+        setFormValidation(prev => ({ ...prev, errors: newErrors }));
+      }
+      
       message.error(error.message || "Lỗi khi preview biến thể");
     } finally {
       setLoadingTaoSanPham(false);
@@ -433,7 +483,6 @@ export default function AddProduct() {
     }
   };
 
-  // Reset Functions
   const resetAllToInitialState = () => {
     form.resetFields();
     setBienTheList([]);
@@ -441,6 +490,7 @@ export default function AddProduct() {
     setOpenModal(false);
     setConfirmModalOpen(false);
     setConfirmModalData(null);
+    setFormValidation({ errors: {}, touched: {} });
     message.success("Đã reset toàn bộ dữ liệu");
   };
 
@@ -449,7 +499,46 @@ export default function AddProduct() {
     setConfirmModalOpen(true);
   };
 
-  // UI Components
+  const FormValidationSummary = () => {
+    if (Object.keys(formValidation.errors).length === 0) return null;
+    
+    return (
+      <Alert
+        message="Vui lòng sửa các lỗi sau trước khi tạo biến thể:"
+        description={
+          <ul style={{ margin: 0, paddingLeft: '20px' }}>
+            {Object.entries(formValidation.errors).map(([field, message]) => (
+              <li key={field} style={{ marginBottom: '4px' }}>
+                {message}
+              </li>
+            ))}
+          </ul>
+        }
+        type="error"
+        showIcon
+        style={{ marginBottom: '16px' }}
+      />
+    );
+  };
+
+  const FieldError = ({ error }) => {
+    if (!error) return null;
+    
+    return (
+      <div style={{ 
+        color: '#ff4d4f', 
+        fontSize: '12px', 
+        marginTop: '4px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px'
+      }}>
+        <WarningOutlined style={{ fontSize: '12px' }} />
+        {error}
+      </div>
+    );
+  };
+
   const tagRender = (props) => {
     const { label, closable, onClose } = props;
     return (
@@ -676,7 +765,6 @@ export default function AddProduct() {
     </div>
   );
 
-  // Reusable UI Components
   const SectionHeader = ({ title, color }) => (
     <div
       style={{
@@ -743,7 +831,6 @@ export default function AddProduct() {
     </div>
   );
 
-  // Form Sections
   const renderProductInfo = () => (
     <>
       <Row gutter={16} wrap>
@@ -756,9 +843,19 @@ export default function AddProduct() {
                 required: true,
                 message: "Vui lòng nhập tên sản phẩm",
               },
+              {
+                min: 2,
+                message: "Tên sản phẩm phải có ít nhất 2 ký tự",
+              },
             ]}
+            validateStatus={formValidation.errors.tenSanPham ? 'error' : ''}
+            help={formValidation.errors.tenSanPham ? <FieldError error={formValidation.errors.tenSanPham} /> : null}
           >
-            <Input placeholder="Nhập tên sản phẩm" size="middle" />
+            <Input 
+              placeholder="Nhập tên sản phẩm" 
+              size="middle" 
+              data-field="tenSanPham"
+            />
           </Form.Item>
         </Col>
       </Row>
@@ -780,6 +877,8 @@ export default function AddProduct() {
                   message: `Vui lòng chọn ${field.label.toLowerCase()}`,
                 },
               ]}
+              validateStatus={formValidation.errors[field.name] ? 'error' : ''}
+              help={formValidation.errors[field.name] ? <FieldError error={formValidation.errors[field.name]} /> : null}
             >
               <Select
                 placeholder={`Chọn ${field.label.toLowerCase()}`}
@@ -788,6 +887,7 @@ export default function AddProduct() {
                 optionFilterProp="children"
                 suffixIcon={renderDropdownSuffix(field.type)}
                 size="middle"
+                data-field={field.name}
               >
                 {dropdownData[`${field.type}s`]?.map((item) => (
                   <Option key={item.id} value={item.id}>
@@ -818,6 +918,8 @@ export default function AddProduct() {
                 message: "Vui lòng chọn cổ áo",
               },
             ]}
+            validateStatus={formValidation.errors.idCoAo ? 'error' : ''}
+            help={formValidation.errors.idCoAo ? <FieldError error={formValidation.errors.idCoAo} /> : null}
           >
             <Select
               placeholder="Chọn cổ áo"
@@ -826,6 +928,7 @@ export default function AddProduct() {
               optionFilterProp="children"
               suffixIcon={renderDropdownSuffix("coAo")}
               size="middle"
+              data-field="idCoAo"
             >
               {dropdownData.coAos?.map((item) => (
                 <Option key={item.id} value={item.id}>
@@ -845,6 +948,8 @@ export default function AddProduct() {
                 message: "Vui lòng chọn tay áo",
               },
             ]}
+            validateStatus={formValidation.errors.idTayAo ? 'error' : ''}
+            help={formValidation.errors.idTayAo ? <FieldError error={formValidation.errors.idTayAo} /> : null}
           >
             <Select
               placeholder="Chọn tay áo"
@@ -853,6 +958,7 @@ export default function AddProduct() {
               optionFilterProp="children"
               suffixIcon={renderDropdownSuffix("tayAo")}
               size="middle"
+              data-field="idTayAo"
             >
               {dropdownData.tayAos?.map((item) => (
                 <Option key={item.id} value={item.id}>
@@ -872,11 +978,14 @@ export default function AddProduct() {
                 message: "Vui lòng nhập trọng lượng",
               },
             ]}
+            validateStatus={formValidation.errors.trongLuong ? 'error' : ''}
+            help={formValidation.errors.trongLuong ? <FieldError error={formValidation.errors.trongLuong} /> : null}
           >
             <Input
               placeholder="Nhập trọng lượng (VD: 200g, 0.5kg)"
               suffix={<span className="text-gray-400 text-xs">g/kg</span>}
               size="middle"
+              data-field="trongLuong"
             />
           </Form.Item>
         </Col>
@@ -896,6 +1005,8 @@ export default function AddProduct() {
               message: "Vui lòng chọn màu sắc",
             },
           ]}
+          validateStatus={formValidation.errors.idMauSacs ? 'error' : ''}
+          help={formValidation.errors.idMauSacs ? <FieldError error={formValidation.errors.idMauSacs} /> : null}
         >
           <Select
             mode="multiple"
@@ -906,6 +1017,7 @@ export default function AddProduct() {
             suffixIcon={renderDropdownSuffix("mauSac")}
             optionFilterProp="children"
             size="middle"
+            data-field="idMauSacs"
           >
             {dropdownData.mauSacs?.map((item) => (
               <Option key={item.id} value={item.id}>
@@ -926,6 +1038,8 @@ export default function AddProduct() {
               message: "Vui lòng chọn kích thước",
             },
           ]}
+          validateStatus={formValidation.errors.idKichThuoc ? 'error' : ''}
+          help={formValidation.errors.idKichThuoc ? <FieldError error={formValidation.errors.idKichThuoc} /> : null}
         >
           <Select
             placeholder="Chọn kích thước"
@@ -934,6 +1048,7 @@ export default function AddProduct() {
             suffixIcon={renderDropdownSuffix("kichThuoc")}
             optionFilterProp="children"
             size="middle"
+            data-field="idKichThuoc"
           >
             {dropdownData.kichThuocs?.map((item) => (
               <Option key={item.id} value={item.id}>
@@ -946,7 +1061,6 @@ export default function AddProduct() {
     </Row>
   );
 
-  // Effects
   useEffect(() => {
     fetchDropdownData();
   }, []);
@@ -983,6 +1097,9 @@ export default function AddProduct() {
 
         <div className="p-6">
           <SectionHeaderUI title="Thông tin sản phẩm" />
+          
+          <FormValidationSummary />
+          
           <Form form={form} layout="vertical" autoComplete="off">
             {renderProductInfo()}
 
@@ -1013,6 +1130,7 @@ export default function AddProduct() {
         onReset={resetAllToInitialState}
         onTaoBienThe={handleTaoBienThe}
         loading={loadingTaoSanPham}
+        hasErrors={Object.keys(formValidation.errors).length > 0}
       />
 
       <ProductDetail
@@ -1025,7 +1143,6 @@ export default function AddProduct() {
   );
 }
 
-// Additional UI Components
 const SectionHeaderUI = ({ title, subtitle }) => (
   <div className="border-b border-amber-400 mb-6 pb-3">
     <p className="font-bold text-[#E67E22] text-[16px]">{title}</p>
@@ -1133,7 +1250,7 @@ const AddAttributeModal = ({
   </Modal>
 );
 
-const ActionButtons = ({ onReset, onTaoBienThe, loading }) => (
+const ActionButtons = ({ onReset, onTaoBienThe, loading, hasErrors }) => (
   <div className="flex justify-end gap-3 mb-6">
     <Button
       type="default"
@@ -1148,8 +1265,11 @@ const ActionButtons = ({ onReset, onTaoBienThe, loading }) => (
       type="default"
       onClick={onTaoBienThe}
       size="middle"
-      className="bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white font-medium"
+      className={`bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white font-medium ${
+        hasErrors ? 'opacity-50 cursor-not-allowed' : ''
+      }`}
       loading={loading}
+      disabled={hasErrors}
     >
       Tạo biến thể
     </Button>

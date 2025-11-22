@@ -95,6 +95,30 @@ const DetailHoaDon = () => {
     return product.idChiTietSanPham;
   };
 
+  const xoaChiTietSanPham = async (idHoaDon, idChiTietSanPham) => {
+    try {
+      console.log(
+        `🔄 Gọi API xóa: /api/hoa-don/${idHoaDon}/chi-tiet/${idChiTietSanPham}`
+      );
+
+      const response = await hoaDonApi.xoaChiTietSanPham(
+        idHoaDon,
+        idChiTietSanPham
+      );
+
+      console.log("✅ API response:", response);
+      return response.data;
+    } catch (error) {
+      console.error("❌ Lỗi khi xóa chi tiết sản phẩm:", error);
+      console.error("❌ Error details:", {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+      });
+      throw error;
+    }
+  };
   const fetchLichSuThanhToan = async () => {
     try {
       const response = await hoaDonApi.getLichSuThanhToan(id);
@@ -125,34 +149,54 @@ const DetailHoaDon = () => {
       };
 
     const tongTienSanPham = calculateTotal(invoiceProducts);
-
     const phiVanChuyen = !invoice.loaiHoaDon ? invoice.phiVanChuyen || 0 : 0;
 
+    const tongTienTruocGiam = tongTienSanPham + phiVanChuyen;
+
     let tienGiamGia = 0;
-    let tongTienCuoiCung = tongTienSanPham + phiVanChuyen;
+    let tongTienCuoiCung = tongTienTruocGiam;
     let phieuGiamGiaInfo = null;
 
-    if (invoice.tongTienSauGiam != null && invoice.tongTien != null) {
-      tienGiamGia = invoice.tongTien - invoice.tongTienSauGiam;
+    if (invoice.tongTienSauGiam != null) {
       tongTienCuoiCung = invoice.tongTienSauGiam;
+      tienGiamGia = tongTienTruocGiam - tongTienCuoiCung;
+
+      if (invoice.phieuGiamGia) {
+        const p = invoice.phieuGiamGia;
+        phieuGiamGiaInfo = {
+          maPhieu: p.maPhieu,
+          tenPhieu: p.tenPhieu,
+          loaiGiamGia: p.loaiGiamGia,
+          giaTriGiamGia: p.giaTriGiamGia,
+          giamToiDa: p.mucGiaGiamToiDa || p.giamToiDa,
+          giaTriDonHangToiThieu: p.giaTriDonHangToiThieu,
+        };
+      }
     } else if (invoice.phieuGiamGia) {
-      const pgg = invoice.phieuGiamGia;
+      const p = invoice.phieuGiamGia;
+
       phieuGiamGiaInfo = {
-        maPhieu: pgg.maPhieu || "PGG" + pgg.id,
-        tenPhieu: pgg.tenPhieu || "Phiếu giảm giá",
-        loaiGiamGia: pgg.loaiGiamGia,
-        giaTriGiamGia: pgg.giaTriGiamGia,
-        giamToiDa: pgg.mucGiaGiamToiDa || pgg.giamToiDa,
+        maPhieu: p.maPhieu || "PGG" + p.id,
+        tenPhieu: p.tenPhieu || "Phiếu giảm giá",
+        loaiGiamGia: p.loaiGiamGia,
+        giaTriGiamGia: p.giaTriGiamGia,
+        giamToiDa: p.mucGiaGiamToiDa || p.giamToiDa,
+        giaTriDonHangToiThieu: p.giaTriDonHangToiThieu,
       };
 
-      if (invoice.tongTienSauGiam != null) {
-        tongTienCuoiCung = invoice.tongTienSauGiam;
-        tienGiamGia =
-          (invoice.tongTien || tongTienSanPham + phiVanChuyen) -
-          tongTienCuoiCung;
+      let tienGiam = 0;
+
+      if (p.loaiGiamGia === false) {
+        tienGiam = (tongTienTruocGiam * p.giaTriGiamGia) / 100;
+        if (p.mucGiaGiamToiDa) {
+          tienGiam = Math.min(tienGiam, p.mucGiaGiamToiDa);
+        }
+      } else {
+        tienGiam = p.giaTriGiamGia;
       }
-    } else if (invoice.maGiamGia || invoice.tenChuongTrinh) {
-      console.warn("Backend chưa trả tongTienSauGiam dù có mã giảm giá!");
+
+      tienGiamGia = Math.max(0, tienGiam);
+      tongTienCuoiCung = tongTienTruocGiam - tienGiamGia;
     }
 
     tongTienCuoiCung = Math.max(0, tongTienCuoiCung);
@@ -161,7 +205,7 @@ const DetailHoaDon = () => {
     return {
       tongTienSanPham,
       phiVanChuyen,
-      tongTienTruocGiam: tongTienSanPham + phiVanChuyen,
+      tongTienTruocGiam,
       tienGiamGia,
       tongTienCuoiCung,
       phieuGiamGiaInfo,
@@ -198,6 +242,7 @@ const DetailHoaDon = () => {
       dispatch(fetchChiTietSanPham());
     }
   }, [invoice, dispatch]);
+
   useEffect(() => {
     dispatch(fetchChiTietSanPham());
   }, [dispatch]);
@@ -378,6 +423,27 @@ const DetailHoaDon = () => {
         ghiChu: product.ghiChu || "",
       }));
 
+      if (deletedProducts.length > 0) {
+        console.log(
+          "🗑️ Bắt đầu xóa thật sự",
+          deletedProducts.length,
+          "sản phẩm"
+        );
+
+        for (const deletedProduct of deletedProducts) {
+          try {
+            await xoaChiTietSanPham(id, deletedProduct.idChiTietSanPham);
+            console.log("✅ Đã xóa sản phẩm:", deletedProduct.idChiTietSanPham);
+          } catch (error) {
+            console.error(
+              "❌ Lỗi khi xóa sản phẩm:",
+              deletedProduct.idChiTietSanPham,
+              error
+            );
+          }
+        }
+      }
+
       const requestData = {
         ...values,
         idDiaChi: values.idDiaChi ?? null,
@@ -392,19 +458,14 @@ const DetailHoaDon = () => {
         chiTietSanPhams: currentChiTietSanPhams,
       };
 
-      console.log("Gửi cập nhật hóa đơn:", {
-        chiTietSanPhams: requestData.chiTietSanPhams,
-        totalProducts: requestData.chiTietSanPhams.length,
-      });
-
       await hoaDonApi.updateHoaDon(id, requestData);
 
       message.success("Cập nhật hóa đơn thành công!");
       setIsEditing(false);
+
       setDeletedProducts([]);
       setEditingQuantities({});
-      setInvoiceProducts([]);
-
+      fetchLichSuHoaDon();
       await fetchInvoiceDetail();
       await fetchLichSuThanhToan();
     } catch (err) {
@@ -489,14 +550,45 @@ const DetailHoaDon = () => {
     message.success("Đã chọn địa chỉ giao hàng!");
     setAddressModalVisible(false);
   };
+
   const handleCancelEdit = () => {
+    if (deletedProducts.length > 0) {
+      console.log("🔄 Hoàn lại", deletedProducts.length, "sản phẩm đã xóa tạm");
+
+      const restoredProducts = [...invoiceProducts];
+
+      deletedProducts.forEach((deletedProduct) => {
+        const existingIndex = restoredProducts.findIndex(
+          (p) => getProductKey(p) === deletedProduct.productKey
+        );
+
+        if (existingIndex === -1 && deletedProduct.productData) {
+          restoredProducts.push(deletedProduct.productData);
+
+          setEditingQuantities((prev) => ({
+            ...prev,
+            [deletedProduct.productKey]: deletedProduct.soLuong,
+          }));
+
+          console.log(
+            "✅ Đã khôi phục sản phẩm:",
+            deletedProduct.productData.tenSanPham
+          );
+        }
+      });
+
+      setInvoiceProducts(restoredProducts);
+    }
+
     setIsEditing(false);
     setFormErrors({});
     setTempStatus(invoice?.trangThai || 0);
     setTempLoaiHoaDon(invoice?.loaiHoaDon || false);
-    setInvoiceProducts(invoice?.chiTietSanPhams || []);
     setDeletedProducts([]);
+
     editForm.resetFields();
+
+    messageApi.info("Đã hủy thay đổi và khôi phục sản phẩm đã xóa!");
   };
 
   const handleDeleteProductFromInvoice = async (productKey) => {
@@ -511,18 +603,6 @@ const DetailHoaDon = () => {
     if (!product) return;
 
     const chiTietId = getChiTietSanPhamId(product);
-    if (chiTietId && product.soLuong > 0) {
-      try {
-        await dispatch(
-          tangSoLuong({ id: chiTietId, soLuong: product.soLuong })
-        ).unwrap();
-        messageApi.success(`Đã trả ${product.soLuong} sản phẩm về tồn kho!`);
-      } catch (err) {
-        console.error("Lỗi khi trả tồn kho:", err);
-        messageApi.error("Không thể trả lại tồn kho!");
-        return;
-      }
-    }
 
     setDeletedProducts((prev) => [
       ...prev,
@@ -530,6 +610,7 @@ const DetailHoaDon = () => {
         idChiTietSanPham: chiTietId,
         soLuong: product.soLuong,
         productKey: productKey,
+        productData: product,
       },
     ]);
 
@@ -537,14 +618,14 @@ const DetailHoaDon = () => {
       (p) => getProductKey(p) !== productKey
     );
     setInvoiceProducts(updated);
+
     setEditingQuantities((prev) => {
       const newState = { ...prev };
       delete newState[productKey];
       return newState;
     });
 
-    await dispatch(fetchChiTietSanPham()).unwrap();
-    messageApi.success("Đã xóa sản phẩm khỏi hóa đơn!");
+    messageApi.success("Đã đánh dấu xóa sản phẩm! Bấm Lưu để xác nhận.");
   };
 
   const handleIncreaseQuantity = async (productKey) => {
@@ -1127,6 +1208,20 @@ const DetailHoaDon = () => {
 
   const productColumns = [
     {
+      title: "STT",
+      key: "stt",
+      width: 60,
+      align: "center",
+      render: (_, record, index) => index + 1,
+    },
+    {
+      title: "Mã vạch",
+      dataIndex: "maVach",
+      key: "maVach",
+      width: 120,
+      render: (value) => value || "—",
+    },
+    {
       title: "Sản phẩm",
       key: "product",
       render: (_, record) => (
@@ -1175,21 +1270,41 @@ const DetailHoaDon = () => {
       ),
     },
     {
-      title: "Giá bán",
-      dataIndex: "giaBan",
+      title: "Giá gốc",
       key: "giaBan",
-      render: (value) => value.toLocaleString("vi-VN") + " ₫",
+      width: 120,
+      align: "right",
+      render: (_, record) => {
+        return (
+          <div style={{ fontWeight: 500 }}>{formatMoney(record.giaBan)}</div>
+        );
+      },
+    },
+    {
+      title: "Giá bán",
+      key: "giaSauGiam",
+      width: 120,
+      align: "right",
+      render: (_, record) => {
+        return (
+          <div style={{ fontWeight: 500 }}>
+            {formatMoney(record.giaSauGiam)}
+          </div>
+        );
+      },
     },
     {
       title: "Số lượng",
       dataIndex: "soLuong",
       key: "soLuong",
+      width: 150,
+      align: "center",
       render: (value, record) => {
         const productKey = getProductKey(record);
         const currentQuantity = editingQuantities[productKey] ?? value;
 
         return isEditing ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-center">
             <button
               onClick={() => handleDecreaseQuantity(productKey)}
               className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -1221,21 +1336,34 @@ const DetailHoaDon = () => {
             </button>
           </div>
         ) : (
-          <span>{value}</span>
+          <span style={{ fontWeight: 500 }}>{value}</span>
         );
       },
     },
     {
       title: "Thành tiền",
-      dataIndex: "thanhTien",
       key: "thanhTien",
-      render: (value) => formatMoney(value || 0),
+      width: 130,
+      align: "right",
+      render: (_, record) => {
+        // SỬA: Thành tiền = giá sau giảm × số lượng
+        const finalPrice = record.giaSauGiam || record.giaBan;
+        const total = finalPrice * record.soLuong;
+
+        return (
+          <div style={{ fontWeight: 600, color: "#1890ff" }}>
+            {formatMoney(total)}
+          </div>
+        );
+      },
     },
     ...(isEditing && canEditProducts
       ? [
           {
             title: "Thao tác",
             key: "actions",
+            width: 80,
+            align: "center",
             render: (_, record) => {
               const productKey = getProductKey(record);
               return (
@@ -1705,40 +1833,43 @@ const DetailHoaDon = () => {
                       </div>
                     )}
 
-                    {finalTotal.tienGiamGia > 0 && (
-                      <>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text>Giảm giá:</Text>
+                      <Text
+                        strong
+                        style={{
+                          color:
+                            finalTotal.tienGiamGia > 0 ? "#ff4d4f" : "#000000",
+                        }}
+                      >
+                        -{formatMoney(finalTotal.tienGiamGia)}
+                      </Text>
+                    </div>
+
+                    {finalTotal.tienGiamGia > 0 &&
+                      finalTotal.phieuGiamGiaInfo && (
                         <div
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            color: "#ff4d4f",
+                            fontSize: "12px",
+                            color: "#d4380d",
+                            background: "#fff2e8",
+                            padding: "4px 8px",
+                            borderRadius: 4,
                           }}
                         >
-                          <Text type="danger">Giảm giá:</Text>
-                          <Text type="danger" strong>
-                            -{formatMoney(finalTotal.tienGiamGia)}
-                          </Text>
+                          Áp dụng:{" "}
+                          <strong>
+                            {finalTotal.phieuGiamGiaInfo.tenPhieu}
+                          </strong>
+                          {finalTotal.phieuGiamGiaInfo.maPhieu &&
+                            ` (${finalTotal.phieuGiamGiaInfo.maPhieu})`}
                         </div>
-                        {finalTotal.phieuGiamGiaInfo && (
-                          <div
-                            style={{
-                              fontSize: "12px",
-                              color: "#d4380d",
-                              background: "#fff2e8",
-                              padding: "4px 8px",
-                              borderRadius: 4,
-                            }}
-                          >
-                            Áp dụng:{" "}
-                            <strong>
-                              {finalTotal.phieuGiamGiaInfo.tenPhieu}
-                            </strong>
-                            {finalTotal.phieuGiamGiaInfo.maPhieu &&
-                              ` (${finalTotal.phieuGiamGiaInfo.maPhieu})`}
-                          </div>
-                        )}
-                      </>
-                    )}
+                      )}
 
                     <Divider style={{ margin: "12px 0" }} />
 

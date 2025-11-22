@@ -40,6 +40,9 @@ export default function AddDiscount() {
   const [trangThai, setTrangThai] = useState(editingItem?.trangThai ?? 0);
   const [modal, contextHolder] = Modal.useModal();
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [loaiGiamGia, setLoaiGiamGia] = useState(
+    editingItem?.loaiGiamGia ? "Tiền mặt" : "Phần trăm"
+  );
 
   const currentDate = dayjs();
 
@@ -83,6 +86,7 @@ export default function AddDiscount() {
       });
       setKieu(editingItem.kieu);
       setTrangThai(editingItem.trangThai ?? 0);
+      setLoaiGiamGia(editingItem.loaiGiamGia ? "Tiền mặt" : "Phần trăm");
     }
   }, [editingItem, form]);
 
@@ -93,6 +97,52 @@ export default function AddDiscount() {
       });
     }
   }, [selectedCustomers, kieu, form]);
+
+  // Xử lý khi thay đổi loại giảm giá
+  const handleLoaiGiamGiaChange = (value) => {
+    const currentGiaTriGiam = form.getFieldValue("giaTriGiamGia");
+
+    setLoaiGiamGia(value);
+
+    // Reset giá trị giảm về 0 khi chuyển đổi giữa các loại
+    form.setFieldsValue({
+      giaTriGiamGia: 0,
+    });
+
+    // Nếu chuyển từ Phần trăm sang Tiền mặt, copy giá trị giảm từ mức giảm tối đa sang giá trị giảm
+    if (value === "Tiền mặt") {
+      const currentMucGiamToiDa = form.getFieldValue("mucGiaGiamToiDa");
+      if (currentMucGiamToiDa && currentMucGiamToiDa > 0) {
+        form.setFieldsValue({
+          giaTriGiamGia: currentMucGiamToiDa,
+        });
+      }
+    }
+
+    // Nếu chuyển từ Tiền mặt sang Phần trăm, copy giá trị giảm sang mức giảm tối đa
+    if (value === "Phần trăm") {
+      if (currentGiaTriGiam && currentGiaTriGiam > 0) {
+        form.setFieldsValue({
+          mucGiaGiamToiDa: currentGiaTriGiam,
+        });
+      }
+    }
+  };
+
+  // Xử lý khi giá trị giảm thay đổi - tự động fill vào mức giảm tối đa khi là Tiền mặt
+  const handleGiaTriGiamGiaChange = (e) => {
+    const value = e.target.value;
+    if (
+      loaiGiamGia === "Tiền mặt" &&
+      value &&
+      !isNaN(value) &&
+      Number(value) > 0
+    ) {
+      form.setFieldsValue({
+        mucGiaGiamToiDa: value,
+      });
+    }
+  };
 
   const disabledDateBeforeToday = (current) => {
     return current && current < currentDate.startOf("day");
@@ -117,15 +167,15 @@ export default function AddDiscount() {
 
     let autoTrangThai = 0;
     if (start.isAfter(now, "day")) {
-    autoTrangThai = 0;
-  } else if (
-    (start.isBefore(now, "day") || start.isSame(now, "day")) &&
-    (end.isAfter(now, "day") || end.isSame(now, "day"))
-  ) {
-    autoTrangThai = 1; 
-  } else if (end.isBefore(now, "day")) {
-    autoTrangThai = 2;
-  }
+      autoTrangThai = 0;
+    } else if (
+      (start.isBefore(now, "day") || start.isSame(now, "day")) &&
+      (end.isAfter(now, "day") || end.isSame(now, "day"))
+    ) {
+      autoTrangThai = 1;
+    } else if (end.isBefore(now, "day")) {
+      autoTrangThai = 2;
+    }
 
     const payload = {
       maGiamGia: values.maGiamGia,
@@ -175,6 +225,102 @@ export default function AddDiscount() {
     }
     setConfirmModalVisible(true);
     form.__submitValues = values;
+  };
+
+  // --- SỬA: Validation cho giá trị giảm ---
+  const validateGiaTriGiamGia = (_, value) => {
+    if (!value || value === "") {
+      return Promise.reject(new Error("Vui lòng nhập giá trị giảm"));
+    }
+
+    if (isNaN(value)) {
+      return Promise.reject(new Error("Giá trị phải là số"));
+    }
+
+    const numValue = Number(value);
+    if (numValue <= 0) {
+      return Promise.reject(new Error("Giá trị giảm phải lớn hơn 0"));
+    }
+
+    const loaiGiamGiaCurrent = form.getFieldValue("loaiGiamGia");
+
+    if (loaiGiamGiaCurrent === "Phần trăm") {
+      if (numValue > 100) {
+        return Promise.reject(
+          new Error("Giảm phần trăm không được vượt quá 100%")
+        );
+      }
+      const mucGiaGiamToiDa = form.getFieldValue("mucGiaGiamToiDa");
+      if (mucGiaGiamToiDa && Number(mucGiaGiamToiDa) < 1000) {
+        return Promise.reject(
+          new Error("Mức giảm tối đa phải lớn hơn hoặc bằng 1,000đ")
+        );
+      }
+    } else if (loaiGiamGiaCurrent === "Tiền mặt") {
+      if (numValue < 1000) {
+        return Promise.reject(
+          new Error("Giá trị giảm bằng tiền mặt phải lớn hơn hoặc bằng 1,000đ")
+        );
+      }
+    }
+
+    return Promise.resolve();
+  };
+
+  const validateMucGiaGiamToiDa = (_, value) => {
+    if (!value || value === "") {
+      if (form.getFieldValue("loaiGiamGia") === "Phần trăm") {
+        return Promise.reject(new Error("Vui lòng nhập mức giảm tối đa"));
+      }
+      return Promise.resolve();
+    }
+
+    if (isNaN(value) || Number(value) < 0) {
+      return Promise.reject(new Error("Mức giảm tối đa phải là số không âm"));
+    }
+
+    const loaiGiamGiaCurrent = form.getFieldValue("loaiGiamGia");
+
+    if (loaiGiamGiaCurrent === "Phần trăm" && Number(value) < 1000) {
+      return Promise.reject(
+        new Error("Mức giảm tối đa phải lớn hơn hoặc bằng 1,000đ")
+      );
+    }
+
+    return Promise.resolve();
+  };
+
+  const validateGiaTriDonHangToiThieu = (_, value) => {
+    if (!value || value === "") {
+      return Promise.reject(new Error("Vui lòng nhập mức giảm tối đa"));
+    }
+
+    if (isNaN(value) || Number(value) < 0) {
+      return Promise.reject(
+        new Error("Giá trị đơn hàng tối thiểu không hợp lệ")
+      );
+    }
+
+    return Promise.resolve();
+  };
+
+  const validateSoLuongDung = (_, value) => {
+    if (!value || value === "") {
+      if (kieu === 0) {
+        return Promise.reject(new Error("Vui lòng nhập số lượng phiếu"));
+      }
+      return Promise.resolve();
+    }
+
+    if (isNaN(value) || Number(value) < 0) {
+      return Promise.reject(new Error("Số lượng phải là số không âm"));
+    }
+
+    if (kieu === 0 && Number(value) === 0) {
+      return Promise.reject(new Error("Số lượng phiếu phải lớn hơn 0"));
+    }
+
+    return Promise.resolve();
   };
 
   return (
@@ -301,7 +447,10 @@ export default function AddDiscount() {
                       },
                     ]}
                   >
-                    <Select placeholder="Chọn loại giảm">
+                    <Select
+                      placeholder="Chọn loại giảm"
+                      onChange={handleLoaiGiamGiaChange}
+                    >
                       <Option value="Phần trăm">Phần trăm</Option>
                       <Option value="Tiền mặt">Tiền mặt</Option>
                     </Select>
@@ -314,34 +463,14 @@ export default function AddDiscount() {
                     label="Giá trị giảm"
                     rules={[
                       { required: true, message: "Vui lòng nhập giá trị giảm" },
-                      {
-                        validator: (_, value) => {
-                          if (!value || isNaN(value)) {
-                            return Promise.reject(
-                              new Error("Giá trị phải là số")
-                            );
-                          }
-                          if (Number(value) <= 0) {
-                            return Promise.reject(
-                              new Error("Giá trị giảm phải lớn hơn 0")
-                            );
-                          }
-                          if (
-                            form.getFieldValue("loaiGiamGia") === "Phần trăm" &&
-                            Number(value) > 100
-                          ) {
-                            return Promise.reject(
-                              new Error(
-                                "Giảm phần trăm không được vượt quá 100%"
-                              )
-                            );
-                          }
-                          return Promise.resolve();
-                        },
-                      },
+                      { validator: validateGiaTriGiamGia },
                     ]}
                   >
-                    <Input placeholder="Nhập giá trị giảm" />
+                    <Input
+                      placeholder="Nhập giá trị giảm"
+                      type="number"
+                      onChange={handleGiaTriGiamGiaChange}
+                    />
                   </Form.Item>
                 </Col>
 
@@ -349,24 +478,13 @@ export default function AddDiscount() {
                   <Form.Item
                     name="mucGiaGiamToiDa"
                     label="Mức giảm tối đa"
-                    rules={[
-                      {
-                        required: true,
-                        message: "Vui lòng nhập mức giảm tối đa",
-                      },
-                      {
-                        validator: (_, value) => {
-                          if (isNaN(value) || Number(value) < 0) {
-                            return Promise.reject(
-                              new Error("Mức giảm tối đa phải là số không âm")
-                            );
-                          }
-                          return Promise.resolve();
-                        },
-                      },
-                    ]}
+                    rules={[{ validator: validateMucGiaGiamToiDa }]}
                   >
-                    <Input placeholder="Nhập mức giảm tối đa" />
+                    <Input
+                      placeholder="Nhập mức giảm tối đa"
+                      type="number"
+                      disabled={loaiGiamGia === "Tiền mặt"}
+                    />
                   </Form.Item>
                 </Col>
 
@@ -376,21 +494,14 @@ export default function AddDiscount() {
                     label="Giá trị đơn hàng tối thiểu"
                     rules={[
                       {
-                        validator: (_, value) => {
-                          if (!value) return Promise.resolve();
-                          if (isNaN(value) || Number(value) < 0) {
-                            return Promise.reject(
-                              new Error(
-                                "Giá trị đơn hàng tối thiểu không hợp lệ"
-                              )
-                            );
-                          }
-                          return Promise.resolve();
-                        },
+                        validator: validateGiaTriDonHangToiThieu,
                       },
                     ]}
                   >
-                    <Input placeholder="Nhập giá trị đơn hàng tối thiểu" />
+                    <Input
+                      placeholder="Nhập giá trị đơn hàng tối thiểu (có thể để 0)"
+                      type="number"
+                    />
                   </Form.Item>
                 </Col>
 
@@ -400,15 +511,7 @@ export default function AddDiscount() {
                     label="Số lượng phiếu"
                     rules={[
                       {
-                        validator: (_, value) => {
-                          if (!value) return Promise.resolve();
-                          if (isNaN(value) || Number(value) < 0) {
-                            return Promise.reject(
-                              new Error("Số lượng phải là số không âm")
-                            );
-                          }
-                          return Promise.resolve();
-                        },
+                        validator: validateSoLuongDung,
                       },
                     ]}
                   >
@@ -416,6 +519,7 @@ export default function AddDiscount() {
                       placeholder="Nhập số lượng phiếu giảm giá"
                       readOnly={kieu === 1}
                       value={kieu === 1 ? selectedCustomers.length : undefined}
+                      type="number"
                     />
                   </Form.Item>
                 </Col>
@@ -443,16 +547,7 @@ export default function AddDiscount() {
 
               <Row gutter={16} wrap className="gap-10">
                 <Col flex="1">
-                  <Form.Item
-                    name="moTa"
-                    label="Mô tả"
-                    rules={[
-                      {
-                        max: 200,
-                        message: "Mô tả không được vượt quá 200 ký tự",
-                      },
-                    ]}
-                  >
+                  <Form.Item name="moTa" label="Mô tả">
                     <TextArea
                       rows={3}
                       placeholder="Nhập mô tả (tối đa 200 ký tự)"
@@ -486,6 +581,7 @@ export default function AddDiscount() {
                     setSelectedCustomers([]);
                     setTrangThai(true);
                     setKieu(0);
+                    setLoaiGiamGia("Phần trăm");
                   }}
                   className=" text-white bg-gray-400 font-semibold rounded-md px-6 py-2 cursor-pointer flex items-center gap-2 hover:bg-amber-700 hover:text-white active:bg-cyan-800 select-none"
                 >
