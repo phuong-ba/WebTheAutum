@@ -10,6 +10,7 @@ import sanPhamSlice from "../slices/sanPhamSlice";
 import chiTietSanPhamSice from "../slices/chiTietSanPhamSlice";
 import giamGiaKhachHangSlice from "../slices/giamGiaKhachHangSlice";
 import phuongThucThanhToanSlice from "../slices/phuongThucThanhToanSlice";
+import giaoCaSlice from "../slices/giaoCaSlice";
 
 const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ const store = configureStore({
     chiTietSanPham: chiTietSanPhamSice,
     giamGiaKhachHang: giamGiaKhachHangSlice,
     phuongThucThanhToan: phuongThucThanhToanSlice,
+    giaoCa: giaoCaSlice,
   },
 });
 
