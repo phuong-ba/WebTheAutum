@@ -95,6 +95,20 @@ const DetailHoaDon = () => {
     return product.idChiTietSanPham;
   };
 
+  useEffect(() => {
+    return () => {
+      setIsEditing(false);
+      setCanEdit(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (invoice) {
+      checkEditPermissions(invoice.trangThai);
+      setCanEdit(invoice.trangThai === 0);
+    }
+  }, [invoice]);
+
   const xoaChiTietSanPham = async (idHoaDon, idChiTietSanPham) => {
     try {
       console.log(
@@ -219,14 +233,18 @@ const DetailHoaDon = () => {
   }, [invoiceProducts]);
 
   const checkEditPermissions = (status) => {
-    if (status === 0) {
-      setCanEditCustomerInfo(true);
-      setCanEditProducts(true);
-    } else {
-      setCanEditCustomerInfo(false);
-      setCanEditProducts(false);
+    const editable = status === 0;
+
+    setCanEdit(editable);
+    setCanEditCustomerInfo(editable);
+    setCanEditProducts(editable);
+
+    if (!editable && isEditing) {
+      setIsEditing(false);
+      message.info("Đơn hàng đã chuyển trạng thái, không thể chỉnh sửa");
     }
   };
+
   useEffect(() => {
     if (invoice && !isEditing && invoice.chiTietSanPhams) {
       setInvoiceProducts(invoice.chiTietSanPhams);
@@ -237,7 +255,6 @@ const DetailHoaDon = () => {
       });
       setEditingQuantities(initialQuantities);
     }
-
   }, [invoice, dispatch]);
 
   useEffect(() => {
@@ -921,9 +938,7 @@ const DetailHoaDon = () => {
   const fetchInvoiceDetail = async () => {
     try {
       setLoading(true);
-
       const response = await hoaDonApi.getDetail(id);
-
       let invoiceData = response.data?.data || response.data;
 
       if (!invoiceData || !invoiceData.id) {
@@ -933,12 +948,12 @@ const DetailHoaDon = () => {
       setInvoice(invoiceData);
       setTempStatus(invoiceData.trangThai || 0);
       setTempLoaiHoaDon(invoiceData.loaiHoaDon || false);
+
       checkEditPermissions(invoiceData.trangThai || 0);
+
       setError(null);
     } catch (err) {
       console.error("❌ Lỗi tải chi tiết hóa đơn:", err);
-      console.error("❌ Error response:", err.response);
-      console.error("❌ Error message:", err.message);
       setError("Không thể tải thông tin hóa đơn");
     } finally {
       setLoading(false);
@@ -1533,7 +1548,7 @@ const DetailHoaDon = () => {
                       <XCircleIcon size={20} weight="fill" /> Hủy
                     </div>
                   </Space>
-                ) : canEdit ? (
+                ) : canEdit && invoice?.trangThai === 0 ? (
                   <div
                     onClick={handleEditToggle}
                     className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
@@ -1573,6 +1588,7 @@ const DetailHoaDon = () => {
                       prev ? { ...prev, trangThai: newStatus } : null
                     );
                     fetchInvoiceDetail();
+                    fetchLichSuHoaDon();
                   }}
                 />
                 <Row
