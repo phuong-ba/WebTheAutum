@@ -4,8 +4,8 @@ export function IconHome(props) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="19"
-      height="15"
+      width="20"
+      height="20"
       viewBox="0 0 19 15"
       fill="currentColor"
       {...props}
@@ -22,8 +22,8 @@ export function IconBook(props) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
+     width="20"
+      height="20"
       viewBox="0 0 16 16"
       fill="currentColor"
       {...props}
@@ -37,8 +37,8 @@ export function IconStatistical(props) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="17"
-      height="14"
+      width="20"
+      height="20"
       viewBox="0 0 17 14"
       fill="currentColor"
       {...props}
@@ -52,8 +52,8 @@ export function IconAlign(props) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="17"
-      height="15"
+       width="20"
+      height="20"
       viewBox="0 0 17 15"
       fill="currentColor"
       {...props}
@@ -75,8 +75,8 @@ export function IconProduct(props) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="16"
+     width="20"
+      height="20"
       viewBox="0 0 15 16"
       fill="none"
       {...props}
@@ -96,8 +96,8 @@ export function IconDiscount(props) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
+      width="20"
+      height="20"
       viewBox="0 0 16 16"
       fill="currentColor"
       {...props}

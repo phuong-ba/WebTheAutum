@@ -1,40 +1,26 @@
+import { endGiaoCa, fetchCaDangHoatDong, startGiaoCa } from "@/services/giaoCaService";
+import { fetchNhanVien, searchNhanVien } from "@/services/nhanVienService";
 import { createSlice } from "@reduxjs/toolkit";
-import { startGiaoCa, endGiaoCa } from "@/services/giaoCaService";
 
 const giaoCaSlice = createSlice({
-  name: "giaoCa",
+  name: "giaoca",
   initialState: {
-    currentShift: null,  
-    loading: false,
+    status: "idle",
+    currentShift: null,
+    newDetail: null,
     error: null,
   },
+  reducers: {
 
-  reducers: {},
-
+  },
   extraReducers: (builder) => {
-    builder.addCase(startGiaoCa.pending, (state) => {
-      state.loading = true;
-    });
-    builder.addCase(startGiaoCa.fulfilled, (state, action) => {
-      state.loading = false;
-      state.currentShift = action.payload;
-    });
-    builder.addCase(startGiaoCa.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload;
-    });
+    builder
+      .addCase(fetchCaDangHoatDong.pending, (state) => { state.loading = true; })
+      .addCase(fetchCaDangHoatDong.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentShift = action.payload;
+      })
 
-    builder.addCase(endGiaoCa.pending, (state) => {
-      state.loading = true;
-    });
-    builder.addCase(endGiaoCa.fulfilled, (state, action) => {
-      state.loading = false;
-      state.currentShift = null;
-    });
-    builder.addCase(endGiaoCa.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload;
-    });
   },
 });
 
