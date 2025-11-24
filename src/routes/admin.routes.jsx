@@ -28,6 +28,7 @@ import AddVariant from "@/pages/product/AddVariant";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import ProtectedRoute from "./ProtectedRoute";
+import ChangeShifts from "@/pages/changeShifts/ChangeShifts";
 
 const contentStyle = {
   padding: 50,
@@ -54,10 +55,10 @@ const adminRouters = [
     path: "/admin",
     element: (
       <ProtectedRoute>
-      <LazyLoad>
-        <AdminLayout />
-      </LazyLoad>
-    </ProtectedRoute>
+        <LazyLoad>
+          <AdminLayout />
+        </LazyLoad>
+      </ProtectedRoute>
     ),
     children: [
       {
@@ -101,7 +102,7 @@ const adminRouters = [
         ),
       },
       {
-       index : true,
+        index: true,
         element: (
           <LazyLoad>
             <Statistical />
@@ -109,7 +110,7 @@ const adminRouters = [
         ),
       },
       {
-       path : "statistical",
+        path: "statistical",
         element: (
           <LazyLoad>
             <Statistical />
@@ -249,6 +250,14 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <Customer />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "changeShifts",
+        element: (
+          <LazyLoad>
+            <ChangeShifts/>
           </LazyLoad>
         ),
       },

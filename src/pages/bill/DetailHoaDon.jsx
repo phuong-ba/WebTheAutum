@@ -183,29 +183,9 @@ const DetailHoaDon = () => {
       setCanEditProducts(false);
     }
   };
-
   useEffect(() => {
-    if (invoice?.chiTietSanPhams) {
+    if (invoice && !isEditing && invoice.chiTietSanPhams) {
       setInvoiceProducts(invoice.chiTietSanPhams);
-
-      const initialQuantities = {};
-      invoice.chiTietSanPhams.forEach((product) => {
-        const key = getProductKey(product);
-        initialQuantities[key] = product.soLuong;
-      });
-      setEditingQuantities(initialQuantities);
-
-      dispatch(fetchChiTietSanPham());
-    }
-  }, [invoice, dispatch]);
-  useEffect(() => {
-    dispatch(fetchChiTietSanPham());
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (invoice?.chiTietSanPhams) {
-      setInvoiceProducts(invoice.chiTietSanPhams);
-
       const initialQuantities = {};
       invoice.chiTietSanPhams.forEach((product) => {
         const key = getProductKey(product);
@@ -214,6 +194,36 @@ const DetailHoaDon = () => {
       setEditingQuantities(initialQuantities);
     }
   }, [invoice]);
+  // useEffect(() => {
+  //   if (invoice?.chiTietSanPhams) {
+  //     setInvoiceProducts(invoice.chiTietSanPhams);
+
+  //     const initialQuantities = {};
+  //     invoice.chiTietSanPhams.forEach((product) => {
+  //       const key = getProductKey(product);
+  //       initialQuantities[key] = product.soLuong;
+  //     });
+  //     setEditingQuantities(initialQuantities);
+
+  //     dispatch(fetchChiTietSanPham());
+  //   }
+  // }, [invoice, dispatch]);
+  useEffect(() => {
+    dispatch(fetchChiTietSanPham());
+  }, [dispatch]);
+
+  // useEffect(() => {
+  //   if (invoice?.chiTietSanPhams) {
+  //     setInvoiceProducts(invoice.chiTietSanPhams);
+
+  //     const initialQuantities = {};
+  //     invoice.chiTietSanPhams.forEach((product) => {
+  //       const key = getProductKey(product);
+  //       initialQuantities[key] = product.soLuong;
+  //     });
+  //     setEditingQuantities(initialQuantities);
+  //   }
+  // }, [invoice]);
 
   useEffect(() => {
     diaChiApi
@@ -491,11 +501,22 @@ const DetailHoaDon = () => {
   };
   const handleCancelEdit = () => {
     setIsEditing(false);
+    setDeletedProducts([]);
+    setEditingQuantities({});
     setFormErrors({});
     setTempStatus(invoice?.trangThai || 0);
     setTempLoaiHoaDon(invoice?.loaiHoaDon || false);
     setInvoiceProducts(invoice?.chiTietSanPhams || []);
-    setDeletedProducts([]);
+
+    if (invoice?.chiTietSanPhams) {
+      setInvoiceProducts(invoice.chiTietSanPhams);
+      const initialQuantities = {};
+      invoice.chiTietSanPhams.forEach((p) => {
+        initialQuantities[getProductKey(p)] = p.soLuong;
+      });
+      setEditingQuantities(initialQuantities);
+    }
+
     editForm.resetFields();
   };
 
@@ -1236,15 +1257,76 @@ const DetailHoaDon = () => {
           {
             title: "Thao tác",
             key: "actions",
+            width: 80,
+            align: "center",
             render: (_, record) => {
               const productKey = getProductKey(record);
+
+              const handleDelete = async () => {
+                // Confirm trước khi xóa (tùy chọn, khuyến khích)
+                const confirm = await Modal.confirm({
+                  title: "Xóa sản phẩm khỏi hóa đơn?",
+                  content: (
+                    <div>
+                      <p>
+                        <strong>{record.tenSanPham}</strong> (x{record.soLuong})
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Số lượng sẽ được hoàn lại vào tồn kho ngay lập tức.
+                      </p>
+                    </div>
+                  ),
+                  okText: "Xóa và hoàn kho",
+                  okButtonProps: { danger: true },
+                  cancelText: "Hủy",
+                });
+
+                if (!confirm) return;
+
+                const chiTietId = getChiTietSanPhamId(record);
+                const soLuongXoa = record.soLuong || 1;
+
+                if (!chiTietId) {
+                  message.error("Không xác định được sản phẩm!");
+                  return;
+                }
+
+                try {
+                  // BƯỚC 1: Hoàn tồn kho ngay lập tức
+                  await dispatch(
+                    tangSoLuong({ id: chiTietId, soLuong: soLuongXoa })
+                  ).unwrap();
+
+                  // BƯỚC 2: Xóa khỏi danh sách hiển thị
+                  setInvoiceProducts((prev) =>
+                    prev.filter((p) => getProductKey(p) !== productKey)
+                  );
+
+                  // BƯỚC 3: Xóa số lượng đang edit
+                  setEditingQuantities((prev) => {
+                    const newQty = { ...prev };
+                    delete newQty[productKey];
+                    return newQty;
+                  });
+
+                  message.success(
+                    `Đã xóa sản phẩm và hoàn ${soLuongXoa} cái về tồn kho!`
+                  );
+                } catch (err) {
+                  console.error("Lỗi hoàn tồn kho khi xóa:", err);
+                  message.error("Không thể hoàn tồn kho. Vui lòng thử lại!");
+                }
+              };
+
               return (
                 <Button
                   type="text"
                   danger
-                  icon={<TrashIcon size={16} />}
-                  onClick={() => handleDeleteProductFromInvoice(productKey)}
-                  title="Xóa sản phẩm"
+                  size="small"
+                  icon={<TrashIcon size={18} />}
+                  onClick={handleDelete}
+                  title="Xóa sản phẩm khỏi hóa đơn"
+                  className="hover:bg-red-50"
                 />
               );
             },
