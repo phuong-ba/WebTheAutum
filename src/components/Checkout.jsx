@@ -102,7 +102,7 @@ export default function Checkout() {
     if (token && customerId) {
       console.log("✅ User logged in - Loading from localStorage");
       console.log("📞 Customer phone from localStorage:", customerPhone);
-      
+
       const loggedInUser = {
         id: customerId,
         hoTen: customerName || "",
@@ -123,7 +123,7 @@ export default function Checkout() {
       console.log("📝 Auto-filled form data:", {
         hoTen: customerName,
         sdt: customerPhone,
-        email: customerEmail
+        email: customerEmail,
       });
 
       // Gọi API để lấy địa chỉ đã lưu
