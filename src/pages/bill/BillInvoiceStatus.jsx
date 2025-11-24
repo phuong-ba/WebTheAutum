@@ -6,17 +6,17 @@ import {
   TruckIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
-import { Button, message } from "antd";
+import { message, Modal } from "antd";
 import React, { useState, useEffect } from "react";
+import hoaDonApi from "../../api/HoaDonAPI";
 
 export default function BillInvoiceStatus({
   currentStatus,
   invoiceData,
   isEditing,
-  tempStatus,
   tempLoaiHoaDon,
-  onTempStatusChange,
-  onLoaiHoaDonChange,
+  invoiceId,
+  onStatusChange,
 }) {
   const steps = [
     { label: "Chờ xác nhận", value: 0, icon: HourglassMediumIcon },
@@ -91,7 +91,6 @@ export default function BillInvoiceStatus({
     );
   }, [statusStep, isEditing]);
 
-  // Khi tắt chế độ edit, load lại từ localStorage
   useEffect(() => {
     if (isEditing) return;
 
@@ -105,17 +104,34 @@ export default function BillInvoiceStatus({
     setStatusStep(originalStatus);
   }, [isEditing]);
 
-  const handleNextStatus = () => {
-    if (!isEditing) return;
-
+  const handleNextStatus = async () => {
     if (statusStep >= steps.length - 1) {
       message.warning("Đã đạt trạng thái cuối cùng");
       return;
     }
 
     const newStatus = statusStep + 1;
-    setStatusStep(newStatus);
-    onTempStatusChange && onTempStatusChange(newStatus);
+
+    try {
+      await hoaDonApi.updateHoaDon(invoiceId, {
+        trangThai: newStatus,
+      });
+
+      setStatusStep(newStatus);
+
+      message.success(`Đã chuyển trạng thái thành: ${steps[newStatus]?.label}`);
+
+      if (onStatusChange) {
+        onStatusChange(newStatus);
+
+        if (newStatus !== 0) {
+          message.info("Đơn hàng đã chuyển trạng thái, không thể chỉnh sửa");
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi khi chuyển trạng thái:", error);
+      message.error("Chuyển trạng thái thất bại!");
+    }
   };
 
   const handleCancelOrder = () => {
@@ -163,7 +179,7 @@ export default function BillInvoiceStatus({
 
   const isFinalStatus = statusStep === 3;
   const isFalseStatus = statusStep === 4;
-  const canProceed = statusStep < 3; // Chỉ cho phép tiếp tục nếu chưa hoàn thành hoặc hủy
+  const canProceed = statusStep < 3;
   const isCompleted = statusStep === 3;
 
   return (
@@ -176,28 +192,28 @@ export default function BillInvoiceStatus({
               Trạng thái hóa đơn
             </div>
 
-            {isEditing && (
-              <div className="flex gap-2 items-center">
-                {canProceed && (
-                  <div
-                    onClick={handleNextStatus}
-                    className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
-                  >
-                    Chuyển trạng thái
-                  </div>
-                )}
+            <div className="flex gap-2 items-center">
+              {canProceed && !isFalseStatus && (
+                <div
+                  onClick={handleNextStatus}
+                  className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+                >
+                  Chuyển trạng thái
+                </div>
+              )}
 
-                {!isCompleted && !isFalseStatus && (
-                  <div
-                    danger
-                    onClick={handleCancelOrder}
-                    className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
-                  >
-                    Hủy đơn hàng
-                  </div>
-                )}
-              </div>
-            )}
+              {!isCompleted && !isFalseStatus && (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancelOrder();
+                  }}
+                  className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow transition-colors"
+                >
+                  Hủy đơn hàng
+                </div>
+              )}
+            </div>
           </div>
 
           <div
