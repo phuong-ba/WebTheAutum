@@ -105,14 +105,6 @@ create(hoaDon) {
   });
   },
 
-  createAndPayWithVNPAY(hoaDon) {
-  return axios.post(`${API_URL}/create-and-pay-vnpay`, hoaDon, {
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  });
-  },
-
   getLichSuThanhToan: (id) => {
     return axios.get(`${API_URL}/${id}/lich-su-thanh-toan`);
   },
