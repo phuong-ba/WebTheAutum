@@ -9,153 +9,146 @@ export default function AdminChat() {
   const [currentRoom, setCurrentRoom] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const chatRef = useRef(null);
+
+  // Lưu subscription để hủy khi chuyển phòng
+  const subscriptionRef = useRef(null);
 
   useEffect(() => {
+    connectWebSocket();
+
+    fetch("http://localhost:8080/api/chatbot/rooms")
+      .then((res) => res.json())
+      .then((data) => setRooms(data.rooms || []))
+      .catch(console.error);
+  }, []);
+
+  // ----------------------------
+  // KẾT NỐI WEBSOCKET
+  // ----------------------------
+  const connectWebSocket = () => {
     const socket = new SockJS("http://localhost:8080/ws");
     stompClient = over(socket);
 
     stompClient.connect({}, () => {
-      // Subscribe tất cả phòng mới
-      stompClient.subscribe("/topic/chat/all", (msg) => {
-        const data = JSON.parse(msg.body);
-        if (data.type === "new_room") {
-          setRooms((prev) =>
-            !prev.find((r) => r.roomId === data.roomId)
-              ? [...prev, { roomId: data.roomId }]
-              : prev
-          );
-        }
-      });
+      console.log("Đã kết nối WebSocket");
     });
+  };
 
-    return () => stompClient?.disconnect();
-  }, []);
-
-  // Join room → subscribe room này + thông báo staff join
+  // ----------------------------
+  // NHÂN VIÊN JOIN 1 PHÒNG
+  // ----------------------------
   const joinRoom = (roomId) => {
     setCurrentRoom(roomId);
     setMessages([]);
 
-    // Thông báo BE nhân viên đã vào
-    stompClient.send(`/app/chat.staff.join/${roomId}`, {}, {});
+    // HỦY SUBSCRIBE CŨ
+    if (subscriptionRef.current) {
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
 
-    stompClient.subscribe(`/topic/chat/${roomId}`, (msg) => {
-      const data = JSON.parse(msg.body);
-      setMessages((prev) => [...prev, data]);
-    });
+    // SUBSCRIBE PHÒNG MỚI
+    subscriptionRef.current = stompClient.subscribe(
+      `/topic/chat/${roomId}`,
+      (msg) => {
+        const data = JSON.parse(msg.body);
+
+        setMessages((prev) => {
+          // tránh thêm trùng
+          if (prev.some((m) => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
+      }
+    );
+
+    // Gửi sự kiện nhân viên tham gia phòng
+    const joinMsg = {
+      phongId: roomId,
+      nguoiGui: "admin",
+      role: "admin",
+      noiDung: "",
+    };
+
+    stompClient.send("/app/chat/staffJoin", {}, JSON.stringify(joinMsg));
   };
 
-  // Thoát phòng
-  const leaveRoom = () => {
-    if (!currentRoom) return;
-
-    // Gửi thông báo cho BE nếu muốn
-    stompClient.send(`/app/chat.staff.leave/${currentRoom}`, {}, {});
-
-    setCurrentRoom(null);
-    setMessages([]);
-  };
-
-  const sendMsg = () => {
+  // ----------------------------
+  // GỬI TIN NHẮN
+  // ----------------------------
+  const sendMessage = () => {
     if (!input.trim() || !currentRoom) return;
 
     const msg = {
-      sender: "staff",
-      content: input,
-      type: "staff",
-      roomId: currentRoom,
+      phongId: currentRoom,
+      nguoiGui: "admin",
+      role: "admin",
+      noiDung: input,
     };
 
-    stompClient.send(`/app/chat.send/${currentRoom}`, {}, JSON.stringify(msg));
-    setMessages((prev) => [...prev, msg]);
+    stompClient.send("/app/chat/sendMessage", {}, JSON.stringify(msg));
     setInput("");
   };
 
-  useEffect(() => {
-    chatRef.current?.scrollTo({
-      top: chatRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages]);
-
-  const renderMessage = (m, i) => {
-    let bg = "bg-gray-100 text-gray-800";
-    if (m.sender === "staff") bg = "bg-blue-500 text-white";
-    else if (m.sender === "user") bg = "bg-green-100 text-green-800";
-    else if (m.type === "ai_reply") bg = "bg-purple-100 text-purple-800";
-    else if (m.type === "new_room") bg = "bg-gray-200 text-gray-600 italic";
-    else if (m.type === "staff_status")
-      bg = "bg-yellow-100 text-yellow-800 italic";
-
-    return (
-      <div
-        key={i}
-        className={`flex ${
-          m.sender === "staff" ? "justify-end" : "justify-start"
-        }`}
-      >
-        <div className={`px-3 py-2 rounded-xl max-w-[70%] break-words ${bg}`}>
-          {m.content}
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="flex h-[90vh] p-4 gap-4">
-      <div className="w-60 border rounded-xl p-2 overflow-y-auto">
-        <h2 className="font-semibold text-lg mb-2">Danh sách phòng</h2>
+    <div style={{ display: "flex", gap: 20, padding: 20 }}>
+      {/* DANH SÁCH PHÒNG */}
+      <div style={{ width: 200, borderRight: "1px solid #ccc" }}>
+        <h3>Danh sách phòng</h3>
         {rooms.map((r) => (
           <div
             key={r.roomId}
-            className={`p-2 rounded-lg cursor-pointer mb-1 ${
-              currentRoom === r.roomId ? "bg-blue-100" : "hover:bg-gray-100"
-            }`}
             onClick={() => joinRoom(r.roomId)}
+            style={{
+              padding: 10,
+              marginBottom: 10,
+              cursor: "pointer",
+              background: currentRoom === r.roomId ? "#eee" : "#fff",
+              border: "1px solid #ccc",
+            }}
           >
             {r.roomId}
           </div>
         ))}
       </div>
 
-      <div className="flex-1 flex flex-col border rounded-xl">
-        <div className="p-3 border-b font-semibold flex justify-between items-center">
-          {currentRoom ? `Phòng: ${currentRoom}` : "Chọn phòng để chat"}
-          {currentRoom && (
-            <button
-              className="px-3 py-1 bg-red-500 text-white rounded-xl text-sm"
-              onClick={leaveRoom}
-            >
-              Thoát
-            </button>
-          )}
-        </div>
+      {/* KHUNG CHAT */}
+      <div style={{ flex: 1 }}>
+        <h3>Phòng: {currentRoom || "Chưa chọn phòng"}</h3>
 
         <div
-          ref={chatRef}
-          className="flex-1 p-3 overflow-y-auto space-y-2 bg-gray-50"
+          style={{
+            border: "1px solid #ccc",
+            height: 400,
+            overflowY: "auto",
+            padding: 10,
+            marginBottom: 10,
+          }}
         >
-          {messages.map(renderMessage)}
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              style={{
+                marginBottom: 10,
+                textAlign: msg.role === "admin" ? "right" : "left",
+              }}
+            >
+              <b>{msg.role}:</b> {msg.noiDung}
+            </div>
+          ))}
         </div>
 
-        {currentRoom && (
-          <div className="p-3 border-t flex gap-2">
-            <input
-              className="flex-1 border rounded-xl px-3 py-2"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMsg()}
-              placeholder="Nhập tin nhắn..."
-            />
-            <button
-              className="px-4 py-2 bg-blue-600 text-white rounded-xl"
-              onClick={sendMsg}
-            >
-              Gửi
-            </button>
-          </div>
-        )}
+        {/* KHUNG GỬI TIN */}
+        <div style={{ display: "flex", gap: 10 }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Nhập tin..."
+            style={{ flex: 1, padding: 8 }}
+          />
+          <button onClick={sendMessage} style={{ padding: "8px 15px" }}>
+            Gửi
+          </button>
+        </div>
       </div>
     </div>
   );
