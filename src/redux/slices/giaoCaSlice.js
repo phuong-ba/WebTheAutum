@@ -23,4 +23,5 @@ const giaoCaSlice = createSlice({
 
   },
 });
+
 export default giaoCaSlice.reducer;

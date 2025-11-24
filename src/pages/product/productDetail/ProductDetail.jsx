@@ -11,6 +11,7 @@ import {
   InputNumber,
   Popconfirm,
   Input,
+  Tooltip,
 } from "antd";
 import CloudinaryUpload from "../CloudinaryUpload";
 import {
@@ -20,6 +21,7 @@ import {
   CloseOutlined,
   ExclamationCircleOutlined,
   EyeOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import baseUrl from "@/api/instance";
 import "./ProductDetail.css";
@@ -38,11 +40,13 @@ export default function ProductDetail({
   const [form] = Form.useForm();
   const [quickInputModal, setQuickInputModal] = useState(false);
   const [quickInputForm] = Form.useForm();
+  const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
     if (!Array.isArray(bienTheList) || bienTheList.length === 0) {
       setVariants([]);
       setSelectedRowKeys([]);
+      setValidationErrors({});
       return;
     }
 
@@ -65,7 +69,7 @@ export default function ProductDetail({
           bienThe.tenKichThuoc || bienThe.kichThuoc?.tenKichThuoc || "N/A",
         tenMauSac: bienThe.tenMauSac || bienThe.mauSac?.tenMauSac || "N/A",
         donGia: bienThe.giaBan || bienThe.donGia || 0,
-        soLuong: bienThe.soLuongTon || bienThe.soLuong || 1,
+        soLuong: bienThe.soLuongTon || bienThe.soLuong || 0,
         moTa: bienThe.moTa || "",
         idMauSac: bienThe.idMauSac || bienThe.mauSac?.id,
         idKichThuoc: bienThe.idKichThuoc || bienThe.kichThuoc?.id,
@@ -79,6 +83,7 @@ export default function ProductDetail({
 
     setVariants(transformedVariants);
     setSelectedRowKeys(transformedVariants.map((v) => v.key));
+    setValidationErrors({});
 
     transformedVariants.forEach((variant) => {
       if (variant.idChiTietSanPham) {
@@ -206,6 +211,13 @@ export default function ProductDetail({
         setVariants(newData);
         setEditingKey("");
 
+        setValidationErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors[`price_${key}`];
+          delete newErrors[`quantity_${key}`];
+          return newErrors;
+        });
+
         if (updatedItem.idChiTietSanPham) {
           if (row.soLuong !== undefined && row.soLuong !== item.soLuong) {
             const result = await capNhatSoLuong(
@@ -236,10 +248,21 @@ export default function ProductDetail({
       const variant = variants.find((v) => v.key === key);
       if (!variant?.idChiTietSanPham) return;
 
+      if (value === undefined || value === null || value === "") {
+        return;
+      }
+
       const updatedVariants = variants.map((v) =>
         v.key === key ? { ...v, [field]: value } : v
       );
       setVariants(updatedVariants);
+
+      setValidationErrors((prev) => {
+        const newErrors = { ...prev };
+        if (field === "donGia") delete newErrors[`price_${key}`];
+        if (field === "soLuong") delete newErrors[`quantity_${key}`];
+        return newErrors;
+      });
 
       const result = await apiFunction(variant.idChiTietSanPham, value);
       if (!result.success) throw new Error(result.error);
@@ -258,33 +281,53 @@ export default function ProductDetail({
     try {
       const { soLuong, donGia } = values;
 
+      console.log("📦 Quick input raw values:", { soLuong, donGia });
+
       if (selectedRowKeys.length === 0) {
         message.warning("Vui lòng chọn ít nhất một biến thể để áp dụng");
         return;
       }
 
+      const hasSoLuong = soLuong !== undefined && soLuong !== null;
+      const hasDonGia = donGia !== undefined && donGia !== null;
+
+      console.log("🔧 Has values:", { hasSoLuong, hasDonGia });
+
+      if (!hasSoLuong && !hasDonGia) {
+        message.warning("Vui lòng nhập ít nhất một giá trị để áp dụng");
+        return;
+      }
+
       const updatedVariants = variants.map((v) => {
         if (selectedRowKeys.includes(v.key)) {
-          return {
-            ...v,
-            soLuong: soLuong !== undefined ? soLuong : v.soLuong,
-            donGia: donGia !== undefined ? donGia : v.donGia,
-          };
+          const updates = { ...v };
+          if (hasSoLuong) updates.soLuong = soLuong;
+          if (hasDonGia) updates.donGia = donGia;
+          return updates;
         }
         return v;
       });
 
       setVariants(updatedVariants);
 
+      setValidationErrors((prev) => {
+        const newErrors = { ...prev };
+        selectedRowKeys.forEach((key) => {
+          if (hasSoLuong) delete newErrors[`quantity_${key}`];
+          if (hasDonGia) delete newErrors[`price_${key}`];
+        });
+        return newErrors;
+      });
+
       const updatePromises = selectedRowKeys.map(async (key) => {
         const variant = updatedVariants.find((v) => v.key === key);
-        if (!variant?.idChiTietSanPham) return;
+        if (!variant?.idChiTietSanPham) return Promise.resolve();
 
         const promises = [];
-        if (soLuong !== undefined) {
+        if (hasSoLuong) {
           promises.push(capNhatSoLuong(variant.idChiTietSanPham, soLuong));
         }
-        if (donGia !== undefined) {
+        if (hasDonGia) {
           promises.push(
             capNhatGia(variant.idChiTietSanPham, parseFloat(donGia))
           );
@@ -300,6 +343,7 @@ export default function ProductDetail({
       setQuickInputModal(false);
       quickInputForm.resetFields();
     } catch (error) {
+      console.error("❌ Quick input error:", error);
       message.error("Lỗi khi cập nhật hàng loạt");
     }
   };
@@ -316,6 +360,14 @@ export default function ProductDetail({
       );
       setVariants(updatedVariants);
       setSelectedRowKeys((prev) => prev.filter((key) => key !== record.key));
+
+      setValidationErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[`price_${record.key}`];
+        delete newErrors[`quantity_${record.key}`];
+        return newErrors;
+      });
+
       message.success("Xóa biến thể thành công");
     } catch (error) {
       message.error(error.message || "Lỗi khi xóa biến thể");
@@ -350,6 +402,16 @@ export default function ProductDetail({
           );
 
           setVariants(updatedVariants);
+
+          setValidationErrors((prev) => {
+            const newErrors = { ...prev };
+            selectedRowKeys.forEach((key) => {
+              delete newErrors[`price_${key}`];
+              delete newErrors[`quantity_${key}`];
+            });
+            return newErrors;
+          });
+
           setSelectedRowKeys([]);
           message.success(
             `Đã xóa ${selectedRowKeys.length} biến thể thành công`
@@ -361,14 +423,52 @@ export default function ProductDetail({
     });
   };
 
+  const validateVariantsBeforeCreate = () => {
+    const errors = {};
+    let hasError = false;
+
+    variants.forEach((variant, index) => {
+      if (!variant.donGia || variant.donGia <= 0) {
+        errors[`price_${variant.key}`] = `Biến thể ${index + 1} (${
+          variant.tenMauSac
+        }/${variant.tenKichThuoc}) chưa có đơn giá hợp lệ`;
+        hasError = true;
+      }
+
+      if (
+        variant.soLuong === undefined ||
+        variant.soLuong === null ||
+        variant.soLuong < 0
+      ) {
+        errors[`quantity_${variant.key}`] = `Biến thể ${index + 1} (${
+          variant.tenMauSac
+        }/${variant.tenKichThuoc}) chưa có số lượng hợp lệ`;
+        hasError = true;
+      }
+    });
+
+    setValidationErrors(errors);
+    return !hasError;
+  };
+
   const handleTaoSanPham = () => {
-    const variantsWithMissingPrice = variants.filter(
-      (v) => !v.donGia || v.donGia <= 0
-    );
-    if (variantsWithMissingPrice.length > 0) {
+    setValidationErrors({});
+
+    if (!validateVariantsBeforeCreate()) {
       message.error(
-        `Có ${variantsWithMissingPrice.length} biến thể chưa có đơn giá`
+        "Vui lòng kiểm tra lại thông tin các biến thể trước khi tạo sản phẩm"
       );
+
+      const firstErrorKey = Object.keys(validationErrors)[0];
+      if (firstErrorKey) {
+        const variantKey = firstErrorKey.split("_")[1];
+        const element = document.querySelector(
+          `[data-variant-key="${variantKey}"]`
+        );
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
       return;
     }
 
@@ -409,6 +509,7 @@ export default function ProductDetail({
     setVariants([]);
     setSelectedRowKeys([]);
     setEditingKey("");
+    setValidationErrors({});
     onResetCallback?.();
     message.info("Đã làm mới danh sách biến thể");
   };
@@ -427,6 +528,70 @@ export default function ProductDetail({
       </Form.Item>
     ) : (
       component
+    );
+  };
+
+  const ValidationSummary = () => {
+    if (Object.keys(validationErrors).length === 0) return null;
+
+    const priceErrors = Object.values(validationErrors).filter((error) =>
+      error.includes("đơn giá")
+    ).length;
+
+    const quantityErrors = Object.values(validationErrors).filter((error) =>
+      error.includes("số lượng")
+    ).length;
+
+    return (
+      <div className="validation-summary">
+        <div className="validation-stats">
+          {priceErrors > 0 && (
+            <div className="validation-stat-item">
+              <span className="error-count">{priceErrors}</span>
+              <span>biến thể thiếu đơn giá</span>
+            </div>
+          )}
+          {quantityErrors > 0 && (
+            <div className="validation-stat-item">
+              <span className="error-count">{quantityErrors}</span>
+              <span>biến thể thiếu số lượng</span>
+            </div>
+          )}
+        </div>
+        <div className="validation-errors-list">
+          {Object.entries(validationErrors)
+            .slice(0, 3)
+            .map(([key, message]) => (
+              <div key={key} className="validation-error-item">
+                • {message}
+              </div>
+            ))}
+          {Object.keys(validationErrors).length > 3 && (
+            <div className="validation-more">
+              ...và {Object.keys(validationErrors).length - 3} lỗi khác
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const ErrorIndicator = ({ record, field }) => {
+    const errorKey = `${field}_${record.key}`;
+    const hasError = validationErrors[errorKey];
+
+    if (!hasError) return null;
+
+    return (
+      <Tooltip title={validationErrors[errorKey]} placement="top">
+        <WarningOutlined
+          style={{
+            color: "#ff4d4f",
+            marginLeft: "4px",
+            fontSize: "12px",
+          }}
+        />
+      </Tooltip>
     );
   };
 
@@ -536,18 +701,38 @@ export default function ProductDetail({
       key: "soLuong",
       align: "center",
       width: 120,
-      render: (_, record) =>
-        renderEditableCell(
-          record,
-          "soLuong",
-          <InputNumber
-            min={1}
-            value={record.soLuong}
-            onChange={(value) => handleQuickQuantityChange(record.key, value)}
-            style={{ width: 80 }}
-          />,
-          [{ required: true, message: "Vui lòng nhập số lượng" }]
-        ),
+      render: (_, record) => {
+        const errorKey = `quantity_${record.key}`;
+        const hasError = validationErrors[errorKey];
+
+        return (
+          <div
+            className={`cell-container ${hasError ? "error-cell" : ""}`}
+            data-variant-key={record.key}
+          >
+            {renderEditableCell(
+              record,
+              "soLuong",
+              <div className="input-with-validation">
+                <InputNumber
+                  min={0}
+                  value={record.soLuong}
+                  onChange={(value) => {
+                    handleQuickQuantityChange(record.key, value);
+                  }}
+                  style={{
+                    width: 80,
+                    borderColor: hasError ? "#ff4d4f" : undefined,
+                  }}
+                  status={hasError ? "error" : ""}
+                />
+                <ErrorIndicator record={record} field="quantity" />
+              </div>,
+              [{ required: true, message: "Vui lòng nhập số lượng" }]
+            )}
+          </div>
+        );
+      },
     },
     {
       title: "ĐƠN GIÁ",
@@ -555,23 +740,43 @@ export default function ProductDetail({
       key: "donGia",
       align: "center",
       width: 150,
-      render: (_, record) =>
-        renderEditableCell(
-          record,
-          "donGia",
-          <InputNumber
-            min={0}
-            value={record.donGia}
-            onChange={(value) => handleQuickPriceChange(record.key, value)}
-            formatter={(value) =>
-              `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-            }
-            parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
-            addonAfter="₫"
-            style={{ width: 130 }}
-          />,
-          [{ required: true, message: "Vui lòng nhập đơn giá" }]
-        ),
+      render: (_, record) => {
+        const errorKey = `price_${record.key}`;
+        const hasError = validationErrors[errorKey];
+
+        return (
+          <div
+            className={`cell-container ${hasError ? "error-cell" : ""}`}
+            data-variant-key={record.key}
+          >
+            {renderEditableCell(
+              record,
+              "donGia",
+              <div className="input-with-validation">
+                <InputNumber
+                  min={0}
+                  value={record.donGia}
+                  onChange={(value) => {
+                    handleQuickPriceChange(record.key, value);
+                  }}
+                  formatter={(value) =>
+                    `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                  }
+                  parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                  addonAfter="₫"
+                  style={{
+                    width: 130,
+                    borderColor: hasError ? "#ff4d4f" : undefined,
+                  }}
+                  status={hasError ? "error" : ""}
+                />
+                <ErrorIndicator record={record} field="price" />
+              </div>,
+              [{ required: true, message: "Vui lòng nhập đơn giá" }]
+            )}
+          </div>
+        );
+      },
     },
     {
       title: "MÔ TẢ",
@@ -680,6 +885,8 @@ export default function ProductDetail({
       </div>
 
       <div className="p-6">
+        <ValidationSummary />
+
         <Form form={form} component={false}>
           <Table
             components={{
@@ -734,7 +941,9 @@ export default function ProductDetail({
             setQuickInputModal(false);
             quickInputForm.resetFields();
           }}
-          footer={null}
+          onOk={() => quickInputForm.submit()}
+          okText="Áp dụng"
+          cancelText="Hủy"
           width={500}
           centered
         >
@@ -761,8 +970,9 @@ export default function ProductDetail({
             </div>
             <p style={{ margin: 0, color: "#8c8c8c", fontSize: "13px" }}>
               Giá trị sẽ được áp dụng cho{" "}
-              <strong>{selectedRowKeys.length}</strong> biến thể đã chọn. Bỏ
-              trống nếu không muốn thay đổi.
+              <strong>{selectedRowKeys.length}</strong> biến thể đã chọn.
+              <br />
+              <strong>Để trống nếu không muốn thay đổi trường đó.</strong>
             </p>
           </div>
 
@@ -770,6 +980,10 @@ export default function ProductDetail({
             form={quickInputForm}
             onFinish={handleQuickInputAll}
             layout="vertical"
+            initialValues={{
+              soLuong: undefined,
+              donGia: undefined,
+            }}
           >
             <Form.Item
               name="soLuong"
@@ -790,45 +1004,25 @@ export default function ProductDetail({
               <InputNumber
                 min={0}
                 placeholder="Nhập đơn giá cho tất cả"
-                formatter={(value) =>
-                  `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                }
-                parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                formatter={(value) => {
+                  if (value === undefined || value === null || value === "") {
+                    return "";
+                  }
+                  return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                }}
+                parser={(value) => {
+                  if (!value || value === "") {
+                    return undefined;
+                  }
+                  const parsed = value.replace(/\$\s?|(,*)/g, "");
+                  const num = Number(parsed);
+                  return isNaN(num) ? undefined : num;
+                }}
                 addonAfter="₫"
                 style={{ width: "100%" }}
                 size="large"
               />
             </Form.Item>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "12px",
-                marginTop: "24px",
-              }}
-            >
-              <Button
-                onClick={() => {
-                  setQuickInputModal(false);
-                  quickInputForm.resetFields();
-                }}
-                size="large"
-              >
-                Hủy
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                size="large"
-                style={{
-                  background: "#E67E22",
-                  borderColor: "#E67E22",
-                }}
-              >
-                Áp dụng cho {selectedRowKeys.length} biến thể
-              </Button>
-            </div>
           </Form>
         </Modal>
 
@@ -842,7 +1036,11 @@ export default function ProductDetail({
           <div
             onClick={handleTaoSanPham}
             disabled={variants.length === 0 || loading}
-            className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
+            className={`bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none ${
+              Object.keys(validationErrors).length > 0
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+            }`}
           >
             {loading ? "⏳ Đang tạo..." : `Tạo sản phẩm (${variants.length})`}
           </div>
