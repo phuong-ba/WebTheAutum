@@ -29,6 +29,8 @@ import ForgotPassword from "@/pages/auth/ForgotPassword";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import ProtectedRoute from "./ProtectedRoute";
 import ChatBot from "@/pages/chatbot/ChatBot";
+import ChangeShifts from "@/pages/changeShifts/ChangeShifts";
+
 const contentStyle = {
   padding: 50,
   background: "rgba(0, 0, 0, 0.05)",
@@ -54,6 +56,7 @@ const adminRouters = [
     path: "/admin",
     element: (
       <ProtectedRoute requiredRole="Quản lý">
+
         <LazyLoad>
           <AdminLayout />
         </LazyLoad>
@@ -257,6 +260,14 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <Customer />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "changeShifts",
+        element: (
+          <LazyLoad>
+            <ChangeShifts/>
           </LazyLoad>
         ),
       },

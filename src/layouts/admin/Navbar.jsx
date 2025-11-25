@@ -18,6 +18,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Menu } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
+import { ClockUserIcon } from "@phosphor-icons/react";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -67,13 +68,23 @@ export default function Navbar() {
     },
     {
       key: "/admin/customer",
-      icon: <AppstoreOutlined />,
+      icon: <AppstoreOutlined className="w-6 h-6" />,
       label: "Quản lý khách hàng",
     },
     {
       key: "/admin/chatbot",
       icon: <AppstoreOutlined />,
       label: "Quản lý chat",
+    },
+    {
+      key: "/admin/changeShifts",
+      icon: <ClockUserIcon size={24} />,
+      label: "Giao Ca",
+    },
+    {
+      key: "/admin/dateWork",
+      icon: <AppstoreOutlined />,
+      label: "Lịch làm việc",
     },
   ];
 
@@ -96,6 +107,16 @@ export default function Navbar() {
       key: "/admin/customer",
       icon: <AppstoreOutlined />,
       label: "Quản lý khách hàng",
+    },
+    {
+      key: "/admin/changeShifts",
+      icon: <AppstoreOutlined />,
+      label: "Giao Ca",
+    },
+    {
+      key: "/admin/dateWork",
+      icon: <AppstoreOutlined />,
+      label: "Lịch làm việc",
     },
   ];
 

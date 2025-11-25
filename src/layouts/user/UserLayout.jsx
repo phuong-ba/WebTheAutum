@@ -3,7 +3,7 @@ import { Outlet } from "react-router";
 import HeaderUser from "./HeaderUser";
 import FooterUser from "./FooterUser";
 import Banner from "./Banner";
-import Chatbox from "@/components/Chatbox/Chatbox";
+import Chatbox from "@/components/Chatbox/CustomerChat";
 export default function UserLayout() {
   return (
     <div className="min-h-screen flex flex-col">
