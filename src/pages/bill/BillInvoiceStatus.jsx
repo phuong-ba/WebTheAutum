@@ -6,17 +6,18 @@ import {
   TruckIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
-import { Button, message } from "antd";
+import { message, Modal } from "antd";
 import React, { useState, useEffect } from "react";
+import hoaDonApi from "../../api/HoaDonAPI";
 
 export default function BillInvoiceStatus({
   currentStatus,
   invoiceData,
   isEditing,
-  tempStatus,
   tempLoaiHoaDon,
+  invoiceId,
+  onStatusChange,
   onTempStatusChange,
-  onLoaiHoaDonChange,
 }) {
   const steps = [
     { label: "Chờ xác nhận", value: 0, icon: HourglassMediumIcon },
@@ -25,15 +26,20 @@ export default function BillInvoiceStatus({
     { label: "Đã hoàn thành", value: 3, icon: CheckCircleIcon },
     { label: "Đã hủy", value: 4, icon: XCircleIcon },
   ];
-
-  const [statusStep, setStatusStep] = useState(currentStatus || 0);
-  const [originalStatus, setOriginalStatus] = useState(currentStatus || 0);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isNextStatusModalOpen, setIsNextStatusModalOpen] = useState(false);
+  const [nextStatusInfo, setNextStatusInfo] = useState({});
+  const [statusStep, setStatusStep] = useState(currentStatus ?? 0);
+  const [originalStatus, setOriginalStatus] = useState(currentStatus ?? 0);
   const [statusHistory, setStatusHistory] = useState({});
   const [currentLoaiHoaDon, setCurrentLoaiHoaDon] = useState(
-    tempLoaiHoaDon || false
+    tempLoaiHoaDon ?? false
   );
 
-  // Sync currentStatus
+  // Helper: key for localStorage (use invoiceId if có, fallback to invoiceData.id or 'temp')
+  const getStorageKey = () =>
+    `invoice_${invoiceId ?? invoiceData?.id ?? "temp"}_statusHistory`;
+
   useEffect(() => {
     if (currentStatus !== undefined) {
       setStatusStep(currentStatus);
@@ -41,37 +47,45 @@ export default function BillInvoiceStatus({
     }
   }, [currentStatus]);
 
-  // Sync tempLoaiHoaDon
   useEffect(() => {
     if (tempLoaiHoaDon !== undefined) {
       setCurrentLoaiHoaDon(tempLoaiHoaDon);
     }
   }, [tempLoaiHoaDon]);
 
-  // Load invoiceData history
+  // Khi component mount hoặc invoiceData thay đổi, load history từ localStorage hoặc từ invoiceData
   useEffect(() => {
-    if (!invoiceData) return;
+    if (!invoiceData && !invoiceId) return;
 
-    // Kiểm tra localStorage trước
-    const storedHistory = localStorage.getItem(
-      `invoice_${invoiceData.id}_statusHistory`
-    );
-
+    const storedHistory = localStorage.getItem(getStorageKey());
     if (storedHistory) {
-      setStatusHistory(JSON.parse(storedHistory));
+      try {
+        setStatusHistory(JSON.parse(storedHistory));
+      } catch {
+        // nếu parse lỗi thì fallback
+        const history = {
+          0: invoiceData?.ngayTao,
+          1: invoiceData?.ngayXacNhan,
+          2: invoiceData?.ngayGiaoHang,
+          3: invoiceData?.ngayHoanThanh,
+          4: invoiceData?.ngayHuy,
+        };
+        setStatusHistory(history);
+      }
     } else {
       const history = {
-        0: invoiceData.ngayTao,
-        1: invoiceData.ngayXacNhan,
-        2: invoiceData.ngayGiaoHang,
-        3: invoiceData.ngayHoanThanh,
-        4: invoiceData.ngayHuy,
+        0: invoiceData?.ngayTao,
+        1: invoiceData?.ngayXacNhan,
+        2: invoiceData?.ngayGiaoHang,
+        3: invoiceData?.ngayHoanThanh,
+        4: invoiceData?.ngayHuy,
       };
       setStatusHistory(history);
     }
-  }, [invoiceData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoiceData, invoiceId]);
 
-  // Lưu statusHistory khi chỉnh sửa
+  // Khi đang chỉnh sửa (isEditing = true) → đảm bảo history có timestamp cho các bước hiện tại
   useEffect(() => {
     if (!isEditing) return;
 
@@ -85,46 +99,130 @@ export default function BillInvoiceStatus({
     }
 
     setStatusHistory(newHistory);
-    localStorage.setItem(
-      `invoice_${invoiceData?.id || "temp"}_statusHistory`,
-      JSON.stringify(newHistory)
-    );
+    localStorage.setItem(getStorageKey(), JSON.stringify(newHistory));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusStep, isEditing]);
 
-  // Khi tắt chế độ edit, load lại từ localStorage
+  // Khi không trong chế độ chỉnh sửa: nếu có localStorage thì load lại và reset statusStep thành originalStatus
   useEffect(() => {
     if (isEditing) return;
 
-    const storedHistory = localStorage.getItem(
-      `invoice_${invoiceData?.id || "temp"}_statusHistory`
-    );
+    const storedHistory = localStorage.getItem(getStorageKey());
     if (storedHistory) {
-      setStatusHistory(JSON.parse(storedHistory));
+      try {
+        setStatusHistory(JSON.parse(storedHistory));
+      } catch {
+        // ignore
+      }
     }
-
     setStatusStep(originalStatus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing]);
 
-  const handleNextStatus = () => {
-    if (!isEditing) return;
+  // NEW: cập nhật statusHistory logic gọn, lưu localStorage, và thông báo callback
+  const updateStatusHistory = (newStatus) => {
+    const now = new Date().toISOString();
+    const newHistory = { ...statusHistory };
 
+    // Gán timestamp cho bước mới nếu chưa có (hoặc luôn cập nhật để phản ánh thời gian chính xác chuyển trạng thái)
+    newHistory[newStatus] = now;
+
+    // (Tùy chọn) Bạn có thể muốn đảm bảo tất cả bước trước cũng có timestamp:
+    for (let i = 0; i < newStatus; i++) {
+      if (!newHistory[i]) {
+        newHistory[i] = now;
+      }
+    }
+
+    setStatusHistory(newHistory);
+    localStorage.setItem(getStorageKey(), JSON.stringify(newHistory));
+
+    // Nếu parent cần biết thay đổi tạm (chưa lưu lên server) => gọi onTempStatusChange
+    if (onTempStatusChange) {
+      onTempStatusChange(newStatus, newHistory);
+    }
+  };
+
+  const handleNextStatusClick = () => {
     if (statusStep >= steps.length - 1) {
       message.warning("Đã đạt trạng thái cuối cùng");
       return;
     }
 
     const newStatus = statusStep + 1;
-    setStatusStep(newStatus);
-    onTempStatusChange && onTempStatusChange(newStatus);
+    const currentStep = steps[statusStep];
+    const nextStep = steps[newStatus];
+
+    setNextStatusInfo({
+      from: currentStep.label,
+      to: nextStep.label,
+      newStatus: newStatus,
+    });
+    setIsNextStatusModalOpen(true);
+  };
+
+  const confirmNextStatus = async () => {
+    try {
+      // Gọi API để cập nhật trạng thái trên server
+      await hoaDonApi.updateHoaDon(invoiceId, {
+        trangThai: nextStatusInfo.newStatus,
+      });
+
+      // Cập nhật local: statusStep và statusHistory
+      setStatusStep(nextStatusInfo.newStatus);
+      updateStatusHistory(nextStatusInfo.newStatus);
+
+      message.success(
+        `Đã chuyển trạng thái thành: ${
+          steps[nextStatusInfo.newStatus]?.label || "Không xác định"
+        }`
+      );
+
+      // Thông báo parent
+      if (onStatusChange) {
+        onStatusChange(nextStatusInfo.newStatus);
+        if (nextStatusInfo.newStatus !== 0) {
+          message.info("Đơn hàng đã chuyển trạng thái, không thể chỉnh sửa");
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi khi chuyển trạng thái:", error);
+      message.error("Chuyển trạng thái thất bại!");
+    } finally {
+      setIsNextStatusModalOpen(false);
+      setNextStatusInfo({});
+    }
   };
 
   const handleCancelOrder = () => {
-    if (!isEditing) return;
+    setIsCancelModalOpen(true);
+  };
 
-    const newStatus = 4; // Trạng thái "Đã hủy"
-    setStatusStep(newStatus);
-    onTempStatusChange && onTempStatusChange(newStatus);
-    message.success("Đã hủy đơn hàng");
+  const confirmCancelOrder = async () => {
+    try {
+      // Gọi API hủy đơn
+      await hoaDonApi.updateHoaDon(invoiceId, {
+        trangThai: 4,
+      });
+
+      // Cập nhật local
+      setStatusStep(4);
+      updateStatusHistory(4);
+
+      // Thông báo parent
+      onStatusChange?.(4);
+
+      message.success({
+        content: "Đơn hàng đã được hủy thành công!",
+        duration: 3,
+        icon: <XCircleIcon size={20} weight="fill" />,
+      });
+    } catch (error) {
+      console.error("Lỗi hủy đơn:", error);
+      message.error("Hủy đơn hàng thất bại!");
+    } finally {
+      setIsCancelModalOpen(false);
+    }
   };
 
   const getStatusColor = (index) => {
@@ -163,8 +261,17 @@ export default function BillInvoiceStatus({
 
   const isFinalStatus = statusStep === 3;
   const isFalseStatus = statusStep === 4;
-  const canProceed = statusStep < 3; // Chỉ cho phép tiếp tục nếu chưa hoàn thành hoặc hủy
+  const canProceed = statusStep < 3;
   const isCompleted = statusStep === 3;
+
+  const getNextStatusIcon = () => {
+    const nextStatus = nextStatusInfo.newStatus;
+    if (nextStatus !== undefined && steps[nextStatus]) {
+      const IconComponent = steps[nextStatus].icon;
+      return <IconComponent size={24} weight="fill" />;
+    }
+    return <CheckCircleIcon size={24} weight="fill" />;
+  };
 
   return (
     <>
@@ -176,28 +283,28 @@ export default function BillInvoiceStatus({
               Trạng thái hóa đơn
             </div>
 
-            {isEditing && (
-              <div className="flex gap-2 items-center">
-                {canProceed && (
-                  <div
-                    onClick={handleNextStatus}
-                    className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
-                  >
-                    Chuyển trạng thái
-                  </div>
-                )}
+            <div className="flex gap-2 items-center">
+              {canProceed && !isFalseStatus && (
+                <div
+                  onClick={handleNextStatusClick}
+                  className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+                >
+                  Chuyển trạng thái
+                </div>
+              )}
 
-                {!isCompleted && !isFalseStatus && (
-                  <div
-                    danger
-                    onClick={handleCancelOrder}
-                    className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
-                  >
-                    Hủy đơn hàng
-                  </div>
-                )}
-              </div>
-            )}
+              {!isCompleted && !isFalseStatus && (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancelOrder();
+                  }}
+                  className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow transition-colors"
+                >
+                  Hủy đơn hàng
+                </div>
+              )}
+            </div>
           </div>
 
           <div
@@ -269,6 +376,101 @@ export default function BillInvoiceStatus({
           </div>
         </div>
       </div>
+
+      {/* Modal xác nhận chuyển trạng thái */}
+      <Modal
+        open={isNextStatusModalOpen}
+        onCancel={() => setIsNextStatusModalOpen(false)}
+        footer={null}
+        centered
+        width={500}
+      >
+        <div className="p-2">
+          <div className="text-xl font-bold text-[#E67E22] flex items-center gap-2 mb-2">
+            {getNextStatusIcon()}
+            Xác nhận chuyển trạng thái?
+          </div>
+
+          <p className="text-base">
+            Bạn có chắc chắn muốn chuyển trạng thái đơn hàng từ{" "}
+            <strong className="text-gray-700">"{nextStatusInfo.from}"</strong>{" "}
+            sang{" "}
+            <strong className="text-emerald-600">"{nextStatusInfo.to}"</strong>?
+          </p>
+
+          <ul className="mt-3 text-sm text-gray-600 list-disc pl-5 space-y-1">
+            <li>
+              Trạng thái sẽ thay đổi từ <strong>{nextStatusInfo.from}</strong> →{" "}
+              <strong className="text-emerald-600">{nextStatusInfo.to}</strong>
+            </li>
+            <li>Thời gian cập nhật sẽ được ghi nhận ngay lập tức</li>
+            <li>Sau khi chuyển trạng thái, đơn hàng không thể chỉnh sửa</li>
+          </ul>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              onClick={() => setIsNextStatusModalOpen(false)}
+              className="px-5 py-2 rounded-md border border-gray-300 hover:bg-gray-100 font-semibold"
+            >
+              Quay lại
+            </button>
+
+            <button
+              onClick={confirmNextStatus}
+              className="px-5 py-2 rounded-md bg-[#E67E22] text-white font-bold hover:bg-amber-600 shadow"
+            >
+              Xác nhận chuyển
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal xác nhận hủy đơn hàng */}
+      <Modal
+        open={isCancelModalOpen}
+        onCancel={() => setIsCancelModalOpen(false)}
+        footer={null}
+        centered
+        width={500}
+      >
+        <div className="p-2">
+          <div className="text-xl font-bold text-red-600 flex items-center gap-2 mb-2">
+            <XCircleIcon size={28} weight="fill" />
+            Xác nhận hủy đơn hàng?
+          </div>
+
+          <p className="text-base">
+            Bạn có chắc chắn muốn <strong>hủy đơn hàng</strong> này không?
+          </p>
+
+          <ul className="mt-3 text-sm text-gray-600 list-disc pl-5 space-y-1">
+            <li>
+              Đơn hàng sẽ chuyển sang trạng thái{" "}
+              <strong className="text-red-600">ĐÃ HỦY</strong>
+            </li>
+            <li>Tất cả sản phẩm sẽ được hoàn lại tồn kho ngay lập tức</li>
+            <li>
+              Hành động này <strong>không thể hoàn tác</strong>
+            </li>
+          </ul>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              onClick={() => setIsCancelModalOpen(false)}
+              className="px-5 py-2 rounded-md border border-gray-300 hover:bg-gray-100 font-semibold"
+            >
+              Quay lại
+            </button>
+
+            <button
+              onClick={confirmCancelOrder}
+              className="px-5 py-2 rounded-md bg-red-600 text-white font-bold hover:bg-red-700 shadow"
+            >
+              Hủy đơn hàng
+            </button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

@@ -14,7 +14,11 @@ export default function SellListProduct({ selectedBillId }) {
   const dispatch = useDispatch();
   const { data } = useSelector((state) => state.chiTietSanPham);
   const [messageApi, contextHolder] = message.useMessage();
+
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [colorFilter, setColorFilter] = useState([]);
+  const [priceFilter, setPriceFilter] = useState(null);
+
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 5,
@@ -24,11 +28,50 @@ export default function SellListProduct({ selectedBillId }) {
     dispatch(fetchChiTietSanPham());
   }, [dispatch]);
 
-  const filteredData =
-    data?.filter(
-      (product) => product.soLuongTon > 0 && product.trangThai === true
-    ) || [];
+  const filteredData = (data || [])
+    .filter((product) => product.soLuongTon > 0 && product.trangThai === true)
+    .filter((product) => {
+      if (!searchKeyword.trim()) return true;
 
+      const kw = searchKeyword.toLowerCase();
+
+      return [
+        product.tenSanPham,
+        product.tenMauSac,
+        product.tenKichThuoc,
+        product.tenTrongLuong,
+        product.maVach,
+        product.giaBan?.toString(),
+        product.giaSauGiam?.toString(),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(kw);
+    })
+    .filter((product) => {
+      if (!colorFilter || colorFilter.length === 0) return true;
+      return colorFilter.includes(product.tenMauSac);
+    })
+    .filter((product) => {
+      if (!priceFilter) return true;
+
+      const price = product.giaSauGiam || product.giaBan;
+
+      switch (priceFilter) {
+        case "duoi-200":
+          return price < 200000;
+        case "200-500":
+          return price >= 200000 && price <= 500000;
+        case "500-1000":
+          return price > 500000 && price <= 1000000;
+        case "tren-1000":
+          return price > 1000000;
+        default:
+          return true;
+      }
+    });
+
+  // ====================== ADD TO BILL ==========================
   const handleAddToCart = async (product) => {
     console.log("Đã thêm sản phẩm ID thực tế (ChiTietSanPham):", product.id);
 
@@ -57,8 +100,6 @@ export default function SellListProduct({ selectedBillId }) {
       }
 
       const cart = currentBill.cart || [];
-
-      // Tìm theo idChiTietSanPham để tránh nhầm lẫn
       const index = cart.findIndex((p) => p.idChiTietSanPham === product.id);
 
       const unitPrice = product.giaSauGiam ?? product.giaBan ?? 0;
@@ -69,7 +110,6 @@ export default function SellListProduct({ selectedBillId }) {
       let updatedCart;
 
       if (index !== -1) {
-        // Đã có trong giỏ → tăng số lượng
         updatedCart = cart.map((item, i) =>
           i === index
             ? {
@@ -80,11 +120,10 @@ export default function SellListProduct({ selectedBillId }) {
             : item
         );
       } else {
-        // Chưa có → thêm mới
         updatedCart = [
           ...cart,
           {
-            idChiTietSanPham: product.id, // ĐÚNG – ID thực tế của chi tiết sản phẩm
+            idChiTietSanPham: product.id,
             name: product.tenSanPham,
             color: product.tenMauSac,
             size: product.tenKichThuoc,
@@ -99,7 +138,6 @@ export default function SellListProduct({ selectedBillId }) {
         ];
       }
 
-      // Cập nhật lại bill trong localStorage
       const updatedBills = bills.map((bill) => {
         if (bill.id === selectedBillId) {
           const totalAmount = updatedCart.reduce(
@@ -126,7 +164,6 @@ export default function SellListProduct({ selectedBillId }) {
           : "Đã thêm sản phẩm vào hóa đơn!"
       );
 
-      // Refresh danh sách để cập nhật tồn kho
       dispatch(fetchChiTietSanPham());
     } catch (error) {
       console.error(error);
@@ -134,6 +171,7 @@ export default function SellListProduct({ selectedBillId }) {
     }
   };
 
+  // ====================== TABLE COLUMNS ==========================
   const columns = [
     {
       title: "STT",
@@ -142,6 +180,13 @@ export default function SellListProduct({ selectedBillId }) {
         (pagination.current - 1) * pagination.pageSize + index + 1,
       width: 60,
       align: "center",
+    },
+    {
+      title: "Mã vạch",
+      dataIndex: "maVach",
+      key: "maVach",
+      width: 120,
+      render: (value) => value || "—",
     },
     {
       title: "Ảnh",
@@ -216,25 +261,54 @@ export default function SellListProduct({ selectedBillId }) {
     },
   ];
 
+  // ====================== RENDER ==========================
   return (
     <>
       {contextHolder}
+
       <div className="bg-white shadow rounded-lg">
-        <div className="p-4 text-2xl font-bold bg-amber-600 text-white rounded-t-lg flex gap-2 items-center opacity-90">
+        <div className="p-4 text-2xl font-bold bg-amber-600 text-white rounded-t-lg flex gap-2 opacity-90 items-center">
           <ClipboardTextIcon size={32} />
           Danh sách sản phẩm
         </div>
 
         <div className="p-4">
-          <div className="flex justify-end mb-4">
+          <div className="flex gap-3 mb-4">
             <Search
               placeholder="Tìm tên, màu, size, giá..."
               allowClear
-              onSearch={(v) => setSearchKeyword(v)}
-              onChange={(e) => setSearchKeyword(e.target.value)}
               value={searchKeyword}
-              style={{ width: 300 }}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              style={{ width: 250 }}
             />
+
+            <Select
+              mode="multiple"
+              placeholder="Lọc theo màu"
+              value={colorFilter}
+              onChange={setColorFilter}
+              style={{ width: 200 }}
+              allowClear
+            >
+              {[...new Set((data || []).map((p) => p.tenMauSac))].map((m) => (
+                <Option key={m} value={m}>
+                  {m}
+                </Option>
+              ))}
+            </Select>
+
+            <Select
+              placeholder="Lọc theo giá"
+              value={priceFilter}
+              onChange={setPriceFilter}
+              style={{ width: 160 }}
+              allowClear
+            >
+              <Option value="duoi-200">Dưới 200k</Option>
+              <Option value="200-500">200k - 500k</Option>
+              <Option value="500-1000">500k - 1tr</Option>
+              <Option value="tren-1000">Trên 1tr</Option>
+            </Select>
           </div>
 
           <Table

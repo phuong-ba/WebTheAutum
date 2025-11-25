@@ -53,9 +53,6 @@ export default function AllProducts() {
                   className="w-full h-72 object-cover"
                 />
                 {/* Badge NEW */}
-                <div className="absolute top-3 left-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-3 py-1 text-xs font-semibold rounded-full shadow-lg">
-                  NEW
-                </div>
               </div>
               <div className="p-5 flex flex-col gap-3">
                 <h2 className="text-gray-800 font-semibold text-lg line-clamp-2">
