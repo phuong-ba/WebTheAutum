@@ -2,7 +2,7 @@ import { configureStore } from "@reduxjs/toolkit";
 
 import nhanVienSlice from "../slices/nhanVienSlice";
 import chucvuSlice from "../slices/chucVuSlice";
-
+import vanChuyenReducer from '../slices/vanChuyenSlice';
 import phieuGiamGiaSlice from "../slices/phieuGiamGiaSlice";
 import khachHangSlice from "../slices/khachHangSlice";
 import dotGiamGiaSilce from "../slices/DotGiamGiaSlice";
@@ -24,6 +24,7 @@ const store = configureStore({
     giamGiaKhachHang: giamGiaKhachHangSlice,
     phuongThucThanhToan: phuongThucThanhToanSlice,
     giaoCa: giaoCaSlice,
+    vanChuyen: vanChuyenReducer,
   },
 });
 

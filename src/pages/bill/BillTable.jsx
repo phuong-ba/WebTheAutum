@@ -87,7 +87,7 @@ export default function BillTable({
       title: "TÊN KHÁCH HÀNG",
       key: "tenKhachHang",
       align: "left",
-      render: (_, record) => record.khachHang?.hoTen || "Khách lẻ", // SỬA Ở ĐÂY
+      render: (_, record) => record.khachHang?.hoTen || "Khách lẻ",
     },
     {
       title: "NHÂN VIÊN",
