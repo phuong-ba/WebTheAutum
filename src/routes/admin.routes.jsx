@@ -28,6 +28,7 @@ import AddVariant from "@/pages/product/AddVariant";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import ProtectedRoute from "./ProtectedRoute";
+import ChatBot from "@/pages/chatbot/ChatBot";
 import ChangeShifts from "@/pages/changeShifts/ChangeShifts";
 
 const contentStyle = {
@@ -54,7 +55,8 @@ const adminRouters = [
   {
     path: "/admin",
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute requiredRole="Quản lý">
+
         <LazyLoad>
           <AdminLayout />
         </LazyLoad>
@@ -146,6 +148,14 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <Discount />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "chatbot",
+        element: (
+          <LazyLoad>
+            <ChatBot />
           </LazyLoad>
         ),
       },
