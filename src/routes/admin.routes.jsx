@@ -215,7 +215,11 @@ const adminRouters = [
       },
       {
         path: "edit-product/:id",
-        element: <EditProduct />,
+        element: (
+          <LazyLoad>
+            <EditProduct />
+          </LazyLoad>
+        ),
       },
       {
         path: "add-variant/:idSanPham",
@@ -257,7 +261,7 @@ const adminRouters = [
         path: "changeShifts",
         element: (
           <LazyLoad>
-            <ChangeShifts/>
+            <ChangeShifts />
           </LazyLoad>
         ),
       },
