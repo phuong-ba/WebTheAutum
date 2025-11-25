@@ -25,7 +25,6 @@ export default function SellCartProduct({ selectedBillId }) {
   const [priceFilter, setPriceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("default");
 
-  // DÙNG idChiTietSanPham LÀM KEY DUY NHẤT
   const [editingQuantities, setEditingQuantities] = useState({});
 
   useEffect(() => {
@@ -297,17 +296,40 @@ export default function SellCartProduct({ selectedBillId }) {
     }
   };
 
-  // THAY ĐỔI SỐ LƯỢNG BẰNG INPUT
+  // THAY ĐỔI SỐ LƯỢNG BẰNG INPUT - ĐÃ SỬA
   const handleQuantityChange = (idChiTietSanPham, value) => {
-    if (!value || value < 1) return;
+    // Nếu value là null, undefined hoặc nhỏ hơn 1, set về 1 và cập nhật ngay lập tức
+    if (!value || value < 1) {
+      const finalValue = 1;
+      setEditingQuantities((prev) => ({
+        ...prev,
+        [idChiTietSanPham]: finalValue,
+      }));
+
+      // Tự động áp dụng thay đổi ngay lập tức
+      setTimeout(() => {
+        handleApplyQuantity(idChiTietSanPham, finalValue);
+      }, 0);
+      return;
+    }
+
+    // Nếu value hợp lệ, chỉ cập nhật state tạm thời
     setEditingQuantities((prev) => ({ ...prev, [idChiTietSanPham]: value }));
   };
 
-  const handleApplyQuantity = async (idChiTietSanPham) => {
-    const newQty = editingQuantities[idChiTietSanPham];
+  // HÀM ÁP DỤNG SỐ LƯỢNG - ĐÃ SỬA
+  const handleApplyQuantity = async (
+    idChiTietSanPham,
+    immediateValue = null
+  ) => {
+    const newQty =
+      immediateValue !== null
+        ? immediateValue
+        : editingQuantities[idChiTietSanPham];
     const item = cartProducts.find(
       (p) => p.idChiTietSanPham === idChiTietSanPham
     );
+
     if (!item || newQty === item.quantity) return;
 
     const stockItem = productList.find((p) => p.id === idChiTietSanPham);
@@ -338,6 +360,7 @@ export default function SellCartProduct({ selectedBillId }) {
           : p
       );
 
+      setCartProducts(updated);
       saveCartToBill(updated);
       dispatch(fetchChiTietSanPham());
       messageApi.success(`Cập nhật số lượng: ${newQty}`);
@@ -348,6 +371,16 @@ export default function SellCartProduct({ selectedBillId }) {
         ...prev,
         [idChiTietSanPham]: item.quantity,
       }));
+    }
+  };
+
+  // XỬ LÝ KHI NHẬP SỐ ÂM HOẶC GIÁ TRỊ KHÔNG HỢP LỆ
+  const handleInputNumberBlur = (idChiTietSanPham) => {
+    const currentValue = editingQuantities[idChiTietSanPham];
+    if (!currentValue || currentValue < 1) {
+      handleQuantityChange(idChiTietSanPham, 1);
+    } else {
+      handleApplyQuantity(idChiTietSanPham);
     }
   };
 
@@ -434,7 +467,7 @@ export default function SellCartProduct({ selectedBillId }) {
           <div className="p-4 space-y-4">
             {filteredCartProducts.map((product, idx) => (
               <div
-                key={product.idChiTietSanPham} // KEY DUY NHẤT
+                key={product.idChiTietSanPham}
                 className="flex justify-between items-center bg-gray-50 rounded-2xl p-4 hover:bg-gray-100 transition"
               >
                 <div className="flex items-center gap-6 flex-1">
@@ -488,10 +521,18 @@ export default function SellCartProduct({ selectedBillId }) {
                             handleApplyQuantity(product.idChiTietSanPham)
                           }
                           onBlur={() =>
-                            handleApplyQuantity(product.idChiTietSanPham)
+                            handleInputNumberBlur(product.idChiTietSanPham)
                           }
                           style={{ width: 60 }}
                           className="text-center"
+                          parser={(value) => {
+                            return value
+                              ? parseInt(value.replace(/[^\d]/g, "")) || 1
+                              : 1;
+                          }}
+                          formatter={(value) => {
+                            return value ? `${value}` : "1";
+                          }}
                         />
 
                         <button

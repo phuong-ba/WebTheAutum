@@ -47,6 +47,7 @@ import { FloppyDiskIcon, XCircleIcon, XIcon } from "@phosphor-icons/react";
 import BillProduct from "./BillProduct";
 import { diaChiApi } from "/src/api/diaChiApi";
 import { useDispatch, useSelector } from "react-redux";
+import BillBreadcrumb from "./BillBreadcrumb";
 const { Title, Text } = Typography;
 
 const DetailHoaDon = () => {
@@ -1527,9 +1528,10 @@ const DetailHoaDon = () => {
               }}
             >
               <div>
-                <Title level={3} style={{ margin: 0 }}>
-                  CHI TIẾT ĐƠN HÀNG
-                </Title>
+                <div className="font-bold text-4xl text-[#E67E22]">
+                  Chi tiết đơn hàng
+                </div>
+                <BillBreadcrumb />
                 <Text type="secondary">Mã đơn hàng: {invoice?.maHoaDon}</Text>
               </div>
               <Space>

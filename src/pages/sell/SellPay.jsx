@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import hoaDonApi from "@/api/HoaDonAPI";
 import { message, Modal, QRCode, Button, Space, Divider } from "antd";
 import { useNavigate } from "react-router";
@@ -10,6 +11,15 @@ import {
   BankOutlined,
   DollarOutlined,
 } from "@ant-design/icons";
+import {
+  tinhPhiVanChuyen,
+  fetchDonViVanChuyen,
+} from "@/services/vanChuyenService";
+
+import {
+  setSelectedShipping,
+  resetShippingFee,
+} from "@/redux/slices/vanChuyenSlice";
 
 export default function SellPay({
   cartTotal,
@@ -27,6 +37,15 @@ export default function SellPay({
   discountAmount: propDiscountAmount,
   finalAmount: propFinalAmount,
 }) {
+  const dispatch = useDispatch();
+  const {
+    phiVanChuyen,
+    donViVanChuyen,
+    loading: shippingLoading,
+    selectedShipping,
+    error: shippingError,
+  } = useSelector((state) => state.vanChuyen);
+
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [loading, setLoading] = useState(false);
   const [qrModalVisible, setQrModalVisible] = useState(false);
@@ -46,30 +65,68 @@ export default function SellPay({
       ? propFinalAmount
       : Math.max(cartTotal - discountAmount, 0);
 
-  const calculateShippingFee = () => {
-    if (!isDelivery) return 0;
-
-    const totalQuantity = cartItems.reduce(
-      (total, item) => total + (item.quantity || 1),
-      0
-    );
-
-    if (cartTotal >= 1000000 || totalQuantity >= 10) {
-      return 0;
-    }
-
-    if (cartTotal >= 500000 || totalQuantity >= 5) {
-      return 15000;
-    }
-
-    return 30000;
-  };
-
-  const shippingFee = calculateShippingFee();
-  const totalWithShipping = finalAmount + shippingFee;
+  const totalWithShipping = finalAmount + phiVanChuyen;
 
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
+
+  // Lấy danh sách đơn vị vận chuyển khi component mount
+  useEffect(() => {
+    dispatch(fetchDonViVanChuyen());
+  }, [dispatch]);
+
+  // Tính phí vận chuyển khi có thay đổi
+  useEffect(() => {
+    if (isDelivery && cartItems.length > 0) {
+      calculateShippingFee();
+    } else {
+      dispatch(resetShippingFee());
+    }
+  }, [isDelivery, cartItems, selectedShipping, addressForm]);
+
+  const calculateShippingFee = async () => {
+    if (!isDelivery || !addressForm) {
+      return;
+    }
+
+    try {
+      const formValues = addressForm.getFieldsValue();
+      if (!formValues.thanhPho || !formValues.quan || !formValues.diaChiCuThe) {
+        return;
+      }
+
+      const shippingItems = cartItems.map((item) => ({
+        idChiTietSanPham: item.idChiTietSanPham,
+        soLuong: item.quantity || 1,
+        giaBan: item.unitPrice || item.price || item.giaBan || 0,
+        khoiLuong: item.weight || 200,
+        chieuDai: item.length || 20,
+        chieuRong: item.width || 15,
+        chieuCao: item.height || 10,
+      }));
+
+      const requestData = {
+        donViVanChuyen: selectedShipping,
+        idTinhGui: 1,
+        idQuanGui: 1442,
+        idPhuongGui: 21008,
+        idTinhNhan: formValues.thanhPho,
+        idQuanNhan: formValues.quan,
+        idPhuongNhan: formValues.phuong || 1,
+        diaChiCuThe: formValues.diaChiCuThe,
+        items: shippingItems,
+      };
+
+      dispatch(tinhPhiVanChuyen(requestData));
+    } catch (error) {
+      console.error("Lỗi tính phí vận chuyển:", error);
+      messageApi.error("Lỗi tính phí vận chuyển!");
+    }
+  };
+
+  const handleSelectShipping = (provider) => {
+    dispatch(setSelectedShipping(provider));
+  };
 
   const handleRemovePersonalDiscountAfterPayment = async () => {
     if (appliedDiscount?.isPersonal && appliedDiscount?.customerId) {
@@ -189,13 +246,13 @@ export default function SellPay({
       : "";
 
     const shippingNote =
-      shippingFee === 0
-        ? " - Miễn phí vận chuyển"
-        : ` - Phí vận chuyển: ${shippingFee.toLocaleString()} VND`;
+      phiVanChuyen === 0
+        ? ` - Miễn phí vận chuyển (${selectedShipping})`
+        : ` - Phí vận chuyển ${selectedShipping}: ${phiVanChuyen.toLocaleString()} VND`;
 
     return {
       loaiHoaDon: true,
-      phiVanChuyen: isDelivery ? shippingFee : 0,
+      phiVanChuyen: isDelivery ? phiVanChuyen : 0,
       tongTien: cartTotal,
       tongTienSauGiam: finalAmount,
       ghiChu: `${
@@ -218,34 +275,67 @@ export default function SellPay({
       diaChiCuThe,
       hoTen: formCustomerInfo?.hoTen || null,
       sdt: formCustomerInfo?.sdt || null,
+      donViVanChuyen: isDelivery ? selectedShipping : null,
       ...paymentInfo,
     };
+  };
+
+  const renderShippingOptions = () => {
+    if (!isDelivery) return null;
+
+    return (
+      <div className="mb-4">
+        <div className="font-bold mb-2">Chọn đơn vị vận chuyển:</div>
+        <div className="flex gap-4">
+          {donViVanChuyen.map((provider) => (
+            <div
+              key={provider}
+              className={`cursor-pointer p-3 border rounded-lg flex-1 text-center ${
+                selectedShipping === provider
+                  ? "border-amber-600 bg-amber-50 text-amber-700"
+                  : "border-gray-300 hover:border-amber-400"
+              }`}
+              onClick={() => handleSelectShipping(provider)}
+            >
+              <div className="font-semibold">{provider}</div>
+              <div className="text-sm text-gray-600">
+                {provider === "GHN"
+                  ? "Nhanh chóng, tin cậy"
+                  : "Tiết kiệm chi phí"}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {shippingError && (
+          <div className="mt-2 text-red-600 text-sm">{shippingError}</div>
+        )}
+
+        {shippingLoading && (
+          <div className="mt-2 text-amber-600 text-sm">
+            Đang tính phí vận chuyển {selectedShipping}...
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderShippingInfo = () => {
     if (!isDelivery) return null;
 
-    const totalQuantity = cartItems.reduce(
-      (total, item) => total + (item.quantity || 1),
-      0
-    );
-
-    if (shippingFee === 0) {
-      return (
-        <div className="flex justify-between font-bold text-green-600">
-          <span>Phí vận chuyển:</span>
-          <span>Miễn phí</span>
-        </div>
-      );
-    }
-
     return (
-      <>
-        <div className="flex justify-between font-bold">
-          <span>Phí vận chuyển:</span>
-          <span>{shippingFee.toLocaleString()} vnd</span>
-        </div>
-      </>
+      <div className="flex justify-between font-bold">
+        <span>Phí vận chuyển ({selectedShipping}):</span>
+        <span>
+          {shippingLoading ? (
+            <span className="text-gray-500">Đang tính...</span>
+          ) : phiVanChuyen === 0 ? (
+            <span className="text-green-600">Miễn phí</span>
+          ) : (
+            <span>{phiVanChuyen.toLocaleString()} vnd</span>
+          )}
+        </span>
+      </div>
     );
   };
 
@@ -445,6 +535,12 @@ export default function SellPay({
       }
     }
 
+    // Đảm bảo phí vận chuyển đã được tính xong
+    if (isDelivery && shippingLoading) {
+      messageApi.warning("Vui lòng chờ tính phí vận chuyển hoàn tất!");
+      return;
+    }
+
     const hoaDonMoi = prepareHoaDonData();
     if (!hoaDonMoi || !hoaDonMoi.chiTietList?.length) {
       messageApi.error("❌ Không có sản phẩm trong giỏ hàng!");
@@ -457,10 +553,11 @@ export default function SellPay({
       isDelivery,
       cartTotal,
       discountAmount: actualDiscountAmount,
-      shippingFee,
+      shippingFee: phiVanChuyen,
       totalWithShipping,
       appliedDiscountCode: appliedDiscount?.code,
       paymentMethod,
+      shippingProvider: selectedShipping,
       hoaDonMoi,
     });
     setConfirmModalVisible(true);
@@ -471,6 +568,8 @@ export default function SellPay({
   return (
     <>
       {contextHolder}
+
+      {renderShippingOptions()}
 
       <div className="bg-gray-50 p-5 rounded-lg border-l-4 border border-amber-700">
         <div className="flex flex-col gap-8">
@@ -518,12 +617,16 @@ export default function SellPay({
       <div
         onClick={handlePayment}
         className={`cursor-pointer select-none text-center py-3 rounded-xl font-bold text-white shadow ${
-          loading
+          loading || shippingLoading
             ? "bg-gray-400 cursor-not-allowed"
             : "bg-[#E67E22] hover:bg-amber-600 active:bg-cyan-800"
         }`}
       >
-        {loading ? "Đang xử lý..." : isDelivery ? "Đặt hàng" : "Thanh toán"}
+        {loading || shippingLoading
+          ? "Đang xử lý..."
+          : isDelivery
+          ? "Đặt hàng"
+          : "Thanh toán"}
       </div>
 
       <Modal
@@ -660,6 +763,14 @@ export default function SellPay({
                   {pendingConfirmData.isDelivery ? "Giao hàng" : "Mua tại quầy"}
                 </span>
               </div>
+              {pendingConfirmData.isDelivery && (
+                <div className="flex justify-between">
+                  <span className="font-medium">Đơn vị vận chuyển:</span>
+                  <span className="font-semibold">
+                    {pendingConfirmData.shippingProvider}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="font-medium">Tổng tiền hàng:</span>
                 <span className="font-bold">
