@@ -415,10 +415,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     return getBestDiscount(availableDiscounts);
   }, [availableDiscounts, cartTotal]);
 
-  // --- SỬA QUAN TRỌNG: Đơn giản hóa logic tự động áp dụng mã giảm giá ---
   useEffect(() => {
     const autoApplyBestDiscount = async () => {
-      // Điều kiện để không chạy auto apply
       if (
         !selectedBillId ||
         cartTotal === 0 ||
@@ -434,14 +432,17 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
       if (!bestDiscount) return;
 
-      // Kiểm tra điều kiện áp dụng
       const condition = checkBasicDiscountConditions(bestDiscount, cartTotal);
       if (!condition.isValid) return;
 
-      // Chỉ áp dụng nếu:
-      // 1. Chưa có mã nào được áp dụng HOẶC
-      // 2. Mã hiện tại không phải là mã tốt nhất HOẶC
-      // 3. Có sự thay đổi về cartTotal mà mã hiện tại không còn khả dụng
+      if (
+        appliedDiscount &&
+        appliedDiscount.id === bestDiscount.id &&
+        lastAppliedDiscountRef.current === bestDiscount.id
+      ) {
+        return;
+      }
+
       const shouldApply =
         !appliedDiscount ||
         appliedDiscount.id !== bestDiscount.id ||
@@ -456,17 +457,18 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
         try {
           isApplyingRef.current = true;
+          lastAppliedDiscountRef.current = bestDiscount.id;
           await applyDiscount(bestDiscount);
           setAutoAppliedDiscount(true);
         } catch (error) {
           console.error("❌ Lỗi khi tự động áp dụng mã giảm giá:", error);
+          lastAppliedDiscountRef.current = null;
         } finally {
           isApplyingRef.current = false;
         }
       }
     };
 
-    // Thêm timeout nhỏ để tránh chạy quá nhiều lần
     const timeoutId = setTimeout(autoApplyBestDiscount, 100);
     return () => clearTimeout(timeoutId);
   }, [
@@ -478,12 +480,10 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     checkingSingleDiscount,
   ]);
 
-  // --- SỬA: Thêm useEffect để xóa mã giảm giá khi không đủ điều kiện ---
   useEffect(() => {
     const checkAndRemoveInvalidDiscount = () => {
       if (!appliedDiscount || !selectedBillId || cartTotal === 0) return;
 
-      // Kiểm tra xem mã đang áp dụng có còn hợp lệ không
       const currentDiscount = discountData?.find(
         (d) => d.id === appliedDiscount.id
       );

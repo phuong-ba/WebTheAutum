@@ -9,13 +9,11 @@ import {
   CopyOutlined,
   CheckOutlined,
   BankOutlined,
-  DollarOutlined,
 } from "@ant-design/icons";
 import {
   tinhPhiVanChuyen,
   fetchDonViVanChuyen,
 } from "@/services/vanChuyenService";
-
 import {
   setSelectedShipping,
   resetShippingFee,
@@ -63,69 +61,139 @@ export default function SellPay({
   const finalAmount =
     propFinalAmount !== undefined
       ? propFinalAmount
-      : Math.max(cartTotal - discountAmount, 0);
+      : Math.max(cartTotal - actualDiscountAmount, 0);
 
-  const totalWithShipping = finalAmount + phiVanChuyen;
+  const shippingFee = Number(phiVanChuyen) || 0;
+  const totalWithShipping = finalAmount + shippingFee;
 
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
-  // Lấy danh sách đơn vị vận chuyển khi component mount
+  // 1. Lấy danh sách đơn vị vận chuyển và chọn mặc định
   useEffect(() => {
     dispatch(fetchDonViVanChuyen());
   }, [dispatch]);
 
-  // Tính phí vận chuyển khi có thay đổi
+  // 2. Chọn GHN làm mặc định khi có danh sách đơn vị
   useEffect(() => {
-    if (isDelivery && cartItems.length > 0) {
-      calculateShippingFee();
+    if (donViVanChuyen.length > 0 && !selectedShipping) {
+      console.log("🔄 Tự động chọn GHN làm đơn vị vận chuyển mặc định");
+      dispatch(setSelectedShipping("GHN"));
+    }
+  }, [donViVanChuyen, selectedShipping, dispatch]);
+
+  // 3. Tự động tính phí khi có đủ điều kiện
+  useEffect(() => {
+    const shouldCalculateShipping =
+      isDelivery && cartItems.length > 0 && selectedShipping && addressForm;
+
+    console.log("🔄 Kiểm tra tính phí tự động:", {
+      isDelivery,
+      cartItemsCount: cartItems.length,
+      selectedShipping,
+      shouldCalculateShipping,
+    });
+
+    if (shouldCalculateShipping) {
+      // Thêm debounce để tránh tính quá nhiều lần
+      const timer = setTimeout(() => {
+        calculateShippingFee();
+      }, 1000);
+
+      return () => clearTimeout(timer);
     } else {
       dispatch(resetShippingFee());
     }
   }, [isDelivery, cartItems, selectedShipping, addressForm]);
 
+  // 4. Tính phí khi địa chỉ thay đổi
+  useEffect(() => {
+    if (isDelivery && selectedShipping && cartItems.length > 0) {
+      const formValues = addressForm?.getFieldsValue();
+      if (formValues?.thanhPho && formValues?.quan && formValues?.diaChiCuThe) {
+        console.log("📍 Địa chỉ đã đầy đủ, tính phí tự động");
+        const timer = setTimeout(() => {
+          calculateShippingFee();
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [addressForm]);
+
+  const parseProductValue = (value, defaultValue = 200) => {
+    if (value === null || value === undefined) {
+      return defaultValue;
+    }
+
+    if (typeof value === "number") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const numericString = value.replace(/[^\d]/g, "");
+      const parsed = parseInt(numericString, 10);
+      return isNaN(parsed) ? defaultValue : parsed;
+    }
+
+    return defaultValue;
+  };
+
   const calculateShippingFee = async () => {
-    if (!isDelivery || !addressForm) {
+    console.log("🚀 Bắt đầu tính phí vận chuyển tự động...");
+
+    if (!isDelivery || !addressForm || !selectedShipping) {
+      console.log("❌ Thiếu điều kiện tính phí");
       return;
     }
 
     try {
       const formValues = addressForm.getFieldsValue();
+
       if (!formValues.thanhPho || !formValues.quan || !formValues.diaChiCuThe) {
+        console.log("❌ Thiếu thông tin địa chỉ");
         return;
       }
 
-      const shippingItems = cartItems.map((item) => ({
-        idChiTietSanPham: item.idChiTietSanPham,
-        soLuong: item.quantity || 1,
-        giaBan: item.unitPrice || item.price || item.giaBan || 0,
-        khoiLuong: item.weight || 200,
-        chieuDai: item.length || 20,
-        chieuRong: item.width || 15,
-        chieuCao: item.height || 10,
-      }));
+      const shippingItems = cartItems.map((item) => {
+        const weight = parseProductValue(item.weight, 250);
+        const length = parseProductValue(item.length, 30);
+        const width = parseProductValue(item.width, 20);
+        const height = parseProductValue(item.height, 2);
+
+        return {
+          idChiTietSanPham: item.idChiTietSanPham,
+          soLuong: item.quantity || 1,
+          giaBan: item.unitPrice || item.price || item.giaBan || 0,
+          khoiLuong: weight,
+          chieuDai: length,
+          chieuRong: width,
+          chieuCao: height,
+        };
+      });
 
       const requestData = {
         donViVanChuyen: selectedShipping,
         idTinhGui: 1,
         idQuanGui: 1442,
-        idPhuongGui: 21008,
         idTinhNhan: formValues.thanhPho,
         idQuanNhan: formValues.quan,
-        idPhuongNhan: formValues.phuong || 1,
+        idPhuongNhan: null,
         diaChiCuThe: formValues.diaChiCuThe,
         items: shippingItems,
       };
 
-      dispatch(tinhPhiVanChuyen(requestData));
+      console.log("🚚 Gửi yêu cầu tính phí tự động:", requestData);
+      await dispatch(tinhPhiVanChuyen(requestData)).unwrap();
+      console.log("✅ Tính phí tự động thành công");
     } catch (error) {
-      console.error("Lỗi tính phí vận chuyển:", error);
-      messageApi.error("Lỗi tính phí vận chuyển!");
+      console.error("❌ Lỗi tính phí vận chuyển tự động:", error);
     }
   };
 
   const handleSelectShipping = (provider) => {
+    console.log(`🔄 Chọn đơn vị vận chuyển: ${provider}`);
     dispatch(setSelectedShipping(provider));
+    // Không cần gọi calculateShippingFee() ở đây vì useEffect sẽ tự động tính
   };
 
   const handleRemovePersonalDiscountAfterPayment = async () => {
@@ -245,21 +313,24 @@ export default function SellPay({
         }`
       : "";
 
-    const shippingNote =
-      phiVanChuyen === 0
-        ? ` - Miễn phí vận chuyển (${selectedShipping})`
-        : ` - Phí vận chuyển ${selectedShipping}: ${phiVanChuyen.toLocaleString()} VND`;
+    const shippingNote = isDelivery
+      ? ` - Phí vận chuyển ${selectedShipping}: ${shippingFee.toLocaleString()} VND`
+      : "";
 
     return {
       loaiHoaDon: true,
-      phiVanChuyen: isDelivery ? phiVanChuyen : 0,
+      phiVanChuyen: isDelivery ? shippingFee : 0,
       tongTien: cartTotal,
       tongTienSauGiam: finalAmount,
       ghiChu: `${
         isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
       }${customerType}${customerNote} - ${paymentNote}${
         appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
-      }${isDelivery ? shippingNote : ""}`,
+      }${
+        isDelivery
+          ? ` - Phí vận chuyển ${selectedShipping}: ${shippingFee.toLocaleString()} VND`
+          : ""
+      }`,
       diaChiKhachHang,
       ngayThanhToan: new Date().toISOString(),
       trangThai: isDelivery ? 1 : 3,
@@ -276,6 +347,9 @@ export default function SellPay({
       hoTen: formCustomerInfo?.hoTen || null,
       sdt: formCustomerInfo?.sdt || null,
       donViVanChuyen: isDelivery ? selectedShipping : null,
+      tongTienHang: cartTotal,
+      tienGiamGia: actualDiscountAmount,
+      phiVanChuyen: isDelivery ? shippingFee : 0,
       ...paymentInfo,
     };
   };
@@ -325,14 +399,16 @@ export default function SellPay({
 
     return (
       <div className="flex justify-between font-bold">
-        <span>Phí vận chuyển ({selectedShipping}):</span>
+        <span>Phí vận chuyển ({selectedShipping || "Chưa chọn"}):</span>
         <span>
           {shippingLoading ? (
             <span className="text-gray-500">Đang tính...</span>
-          ) : phiVanChuyen === 0 ? (
+          ) : shippingError ? (
+            <span className="text-red-600">Lỗi: {shippingError}</span>
+          ) : shippingFee === 0 ? (
             <span className="text-green-600">Miễn phí</span>
           ) : (
-            <span>{phiVanChuyen.toLocaleString()} vnd</span>
+            <span>{shippingFee.toLocaleString()} vnd</span>
           )}
         </span>
       </div>
@@ -553,7 +629,7 @@ export default function SellPay({
       isDelivery,
       cartTotal,
       discountAmount: actualDiscountAmount,
-      shippingFee: phiVanChuyen,
+      shippingFee: shippingFee,
       totalWithShipping,
       appliedDiscountCode: appliedDiscount?.code,
       paymentMethod,
