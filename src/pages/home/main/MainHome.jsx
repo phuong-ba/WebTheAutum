@@ -1,22 +1,22 @@
-import Banner from "@/layouts/user/Banner";
 import React from "react";
-import ProductNew from "../ProductNew";
-import ProductSeller from "../ProductSeller";
-import ProductCollection from "../ProductCollection";
-import ProductBigSale from "../ProductBigSale";
-import Advise from "@/layouts/user/Advise";
+
+import ListCategory from "../category/ListCategory";
+import FillterProduct from "../productUser/FillterProduct";
+import BannerMid from "./BannerMid";
+import ProductSale from "../productUser/ProductSale";
+import ProductBestSeller from "../productUser/ProductBestSeller";
 
 export default function MainHome() {
   return (
     <>
       <div className="flex flex-col ">
-        <Banner />
-        <div className="py-10 flex flex-col gap-10">
-          <ProductNew />
-          <ProductSeller />
-          <ProductCollection />
-          <ProductBigSale />
-          <Advise/>
+        <div className=" flex flex-col gap-20">
+          <ListCategory />
+          <FillterProduct />
+          <ProductSale />
+          <BannerMid />
+          <ProductBestSeller />
+         
         </div>
       </div>
     </>

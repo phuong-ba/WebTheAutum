@@ -82,3 +82,35 @@
 .animate-slide-in-right {
   animation: slideInRight 0.4s ease-out;
 }
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.25s ease-out;
+}
+
+.truncate-multiline {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.custom-radio {
+  @apply appearance-none w-4 h-4 border border-gray-400 rounded-full cursor-pointer relative transition;
+}
+
+.custom-radio:checked {
+  @apply border-pink-700;
+}
+
+.custom-radio:checked::before {
+  content: "";
+  @apply absolute inset-1 rounded-full bg-pink-700;
+}
