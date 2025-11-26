@@ -20,7 +20,6 @@ export default function BillBreadcrumb() {
       { title: "Chi tiết đơn hàng" },
     ];
   } else if (path.startsWith("/admin/bill/edit/")) {
-    // Tách ID từ đường dẫn, ví dụ "/admin/bill/edit/1" → "1"
     const id = path.split("/").pop();
 
     items = [

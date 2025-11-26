@@ -68,12 +68,17 @@ export default function Navbar() {
     },
     {
       key: "/admin/customer",
-      icon: <AppstoreOutlined className="w-6 h-6"/>,
+      icon: <AppstoreOutlined className="w-6 h-6" />,
       label: "Quản lý khách hàng",
     },
     {
+      key: "/admin/chatbot",
+      icon: <AppstoreOutlined />,
+      label: "Quản lý chat",
+    },
+    {
       key: "/admin/changeShifts",
-      icon: <ClockUserIcon size={24}/>,
+      icon: <ClockUserIcon size={24} />,
       label: "Giao Ca",
     },
     {

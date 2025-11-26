@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { 
@@ -28,6 +28,13 @@ const formatCurrency = (amount) => {
     currency: "VND",
   }).format(numericAmount);
 };
+
+// ✅ Chuẩn hoá: bỏ dấu + lowercase
+const normalizeText = (s = "") =>
+  s.toString()
+   .toLowerCase()
+   .normalize("NFD")
+   .replace(/[\u0300-\u036f]/g, "");
 
 const getOrderStatusConfig = (status) => {
   const statusConfig = {
@@ -83,22 +90,55 @@ const safeDate = (dateString) => {
   });
 };
 
-const getPaymentStatusBadge = (status) => {
-  if (status === true || status === 1) {
+// ✅ Map trạng thái thanh toán 3 kiểu
+const getPaymentState = (payment, orderLoaiHoaDon) => {
+  const status = payment?.trangThai;
+  const ok = status === true || status === 1;
+
+  const methodName = payment?.phuongThucThanhToan?.tenPhuongThucThanhToan || "";
+  const m = normalizeText(methodName);
+
+  const isCOD =
+    orderLoaiHoaDon === false ||
+    orderLoaiHoaDon === 0 ||
+    orderLoaiHoaDon === "false" ||
+    m.includes("cod") ||
+    m.includes("tien mat") ||
+    m.includes("khi nhan hang") ||
+    m.includes("nhan hang");
+
+  if (ok) return "success";
+  if (isCOD) return "pending";
+  return "failed";
+};
+
+const getPaymentStatusBadge = (payment, orderLoaiHoaDon) => {
+  const state = getPaymentState(payment, orderLoaiHoaDon);
+
+  if (state === "success") {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
         <CheckCircle size={14} weight="fill" />
-        Thành công
-      </span>
-    );
-  } else {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-        <XCircle size={14} weight="fill" />
-        Thất bại
+        Đã thanh toán
       </span>
     );
   }
+
+  if (state === "pending") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+        <Clock size={14} weight="fill" />
+        Chờ thanh toán
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+      <XCircle size={14} weight="fill" />
+      Thất bại
+    </span>
+  );
 };
 
 const getPaymentMethodIcon = (method) => {
@@ -118,6 +158,11 @@ export default function OrderDetail() {
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('products');
+
+  // ✅ Filter theo trạng thái thanh toán
+  const [paymentFilter, setPaymentFilter] = useState("all"); 
+  // all | success | pending | failed
+
   const { maHoaDon } = useParams();
   const navigate = useNavigate();
 
@@ -131,46 +176,33 @@ export default function OrderDetail() {
     const fetchAllData = async () => {
       setLoading(true);
       try {
-        console.log('🔍 Đang tải dữ liệu cho:', maHoaDon);
-        
-        // 1. Lấy chi tiết đơn hàng
         const orderResponse = await fetch(`http://localhost:8080/api/orders/${maHoaDon}`);
         if (!orderResponse.ok) throw new Error("Không thể tải chi tiết đơn hàng.");
         const orderResult = await orderResponse.json();
         const orderData = orderResult.data || orderResult;
         setOrder(orderData);
-        console.log('✅ Đơn hàng:', orderData);
 
-        // 2. Lấy lịch sử đơn hàng - API mới: /api/lich-su-hoa-don/{maHoaDon}
         try {
           const historyResponse = await fetch(`http://localhost:8080/api/lich-su-hoa-don/${maHoaDon}`);
           if (historyResponse.ok) {
             const historyData = await historyResponse.json();
-            const historyArray = Array.isArray(historyData) ? historyData : [];
-            setOrderHistory(historyArray);
-            console.log('✅ Lịch sử đơn hàng:', historyArray.length, 'bản ghi');
+            setOrderHistory(Array.isArray(historyData) ? historyData : []);
           }
         } catch (error) {
-          console.warn('⚠️ Không tải được lịch sử đơn hàng:', error);
           setOrderHistory([]);
         }
 
-        // 3. Lấy lịch sử thanh toán - API mới: /api/lich-su-thanh-toan/{maHoaDon}
         try {
           const paymentResponse = await fetch(`http://localhost:8080/api/lich-su-thanh-toan/${maHoaDon}`);
           if (paymentResponse.ok) {
             const paymentData = await paymentResponse.json();
-            const paymentArray = Array.isArray(paymentData) ? paymentData : [];
-            setPaymentHistory(paymentArray);
-            console.log('✅ Lịch sử thanh toán:', paymentArray.length, 'bản ghi');
+            setPaymentHistory(Array.isArray(paymentData) ? paymentData : []);
           }
         } catch (error) {
-          console.warn('⚠️ Không tải được lịch sử thanh toán:', error);
           setPaymentHistory([]);
         }
 
       } catch (error) {
-        console.error('❌ Lỗi:', error);
         toast.error(error.message);
       } finally {
         setLoading(false);
@@ -179,6 +211,22 @@ export default function OrderDetail() {
 
     fetchAllData();
   }, [maHoaDon]);
+
+  // ✅ List đã lọc theo paymentFilter
+  const filteredPaymentHistory = useMemo(() => {
+    if (!order) return paymentHistory;
+
+    if (paymentFilter === "success") {
+      return paymentHistory.filter(p => getPaymentState(p, order.loaiHoaDon) === "success");
+    }
+    if (paymentFilter === "pending") {
+      return paymentHistory.filter(p => getPaymentState(p, order.loaiHoaDon) === "pending");
+    }
+    if (paymentFilter === "failed") {
+      return paymentHistory.filter(p => getPaymentState(p, order.loaiHoaDon) === "failed");
+    }
+    return paymentHistory;
+  }, [paymentHistory, paymentFilter, order]);
 
   if (loading) {
     return (
@@ -213,11 +261,16 @@ export default function OrderDetail() {
 
   const statusConfig = getOrderStatusConfig(order.trangThai);
   const StatusIcon = statusConfig.icon;
-  
+
   const hasVoucher = order.idPhieuGiamGia || order.phieuGiamGiaId;
-  const tienDaGiam = hasVoucher && order.tongTien && order.tongTienSauGiam
-    ? order.tongTien - order.tongTienSauGiam
-    : 0;
+  const tienDaGiam =
+    hasVoucher && order.tongTien && order.tongTienSauGiam
+      ? order.tongTien - order.tongTienSauGiam
+      : 0;
+
+  // ✅ Count cho chips
+  const countByState = (state) =>
+    paymentHistory.filter(p => getPaymentState(p, order.loaiHoaDon) === state).length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-orange-50/30 py-8">
@@ -422,13 +475,11 @@ export default function OrderDetail() {
                 
                 {orderHistory.length > 0 ? (
                   <div className="relative">
-                    {/* Timeline line */}
                     <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-orange-500 via-orange-300 to-gray-200"></div>
                     
                     <div className="space-y-6">
                       {orderHistory.map((history, index) => (
                         <div key={history.id} className="relative pl-12">
-                          {/* Timeline dot */}
                           <div className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center ${
                             index === 0 
                               ? 'bg-orange-500 ring-4 ring-orange-100' 
@@ -441,7 +492,6 @@ export default function OrderDetail() {
                             )}
                           </div>
                           
-                          {/* Content */}
                           <div className={`${
                             index === 0 ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'
                           } border rounded-lg p-4`}>
@@ -481,65 +531,99 @@ export default function OrderDetail() {
             {/* TAB: LỊCH SỬ THANH TOÁN */}
             {activeTab === 'payment' && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 text-gray-800">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
                   <Receipt size={20} weight="duotone" className="text-orange-500" />
                   Lịch sử thanh toán
                 </h3>
+
+                {/* ✅ Filter chips theo trạng thái */}
+                <div className="flex flex-wrap gap-2 mb-5">
+                  {[
+                    { key: "all", label: `Tất cả (${paymentHistory.length})` },
+                    { key: "success", label: `Đã thanh toán (${countByState("success")})` },
+                    { key: "pending", label: `Chờ thanh toán (${countByState("pending")})` },
+                    { key: "failed", label: `Chờ thanh toán (${countByState("failed")})` },
+                  ].map(btn => (
+                    <button
+                      key={btn.key}
+                      onClick={() => setPaymentFilter(btn.key)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all
+                        ${paymentFilter === btn.key 
+                          ? "bg-orange-500 text-white border-orange-500 shadow-sm" 
+                          : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}
+                      `}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
                 
-                {paymentHistory.length > 0 ? (
+                {filteredPaymentHistory.length > 0 ? (
                   <div className="space-y-4">
-                    {paymentHistory.map((payment) => (
-                      <div 
-                        key={payment.id}
-                        className={`border rounded-xl p-5 transition-all hover:shadow-md ${
-                          payment.trangThai 
-                            ? 'bg-green-50 border-green-200' 
-                            : 'bg-red-50 border-red-200'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            {getPaymentMethodIcon(payment.phuongThucThanhToan?.tenPhuongThucThanhToan)}
+                    {filteredPaymentHistory.map((payment) => {
+                      const state = getPaymentState(payment, order.loaiHoaDon);
+
+                      return (
+                        <div 
+                          key={payment.id}
+                          className={`border rounded-xl p-5 transition-all hover:shadow-md ${
+                            state === "success"
+                              ? "bg-green-50 border-green-200"
+                              : state === "pending"
+                              ? "bg-amber-50 border-amber-200"
+                              : "bg-red-50 border-red-200"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              {getPaymentMethodIcon(payment.phuongThucThanhToan?.tenPhuongThucThanhToan)}
+                              <div>
+                                <p className="font-semibold text-gray-800">
+                                  {payment.phuongThucThanhToan?.tenPhuongThucThanhToan || 'Không xác định'}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Mã GD: {payment.maGiaoDich || 'N/A'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* ✅ Badge theo trạng thái mới */}
+                            {getPaymentStatusBadge(payment, order.loaiHoaDon)}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4 mb-3">
                             <div>
-                              <p className="font-semibold text-gray-800">
-                                {payment.phuongThucThanhToan?.tenPhuongThucThanhToan || 'Không xác định'}
+                              <p className="text-xs text-gray-500">Số tiền</p>
+                              <p className="font-bold text-lg text-gray-800">
+                                {formatCurrency(payment.soTien)}
                               </p>
-                              <p className="text-xs text-gray-500 mt-0.5">
-                                Mã GD: {payment.maGiaoDich || 'N/A'}
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Thời gian</p>
+                              <p className="font-medium text-gray-800">
+                                {safeDate(payment.ngayThanhToan)}
                               </p>
                             </div>
                           </div>
-                          {getPaymentStatusBadge(payment.trangThai)}
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-4 mb-3">
-                          <div>
-                            <p className="text-xs text-gray-500">Số tiền</p>
-                            <p className="font-bold text-lg text-gray-800">
-                              {formatCurrency(payment.soTien)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Thời gian</p>
-                            <p className="font-medium text-gray-800">
-                              {safeDate(payment.ngayThanhToan)}
-                            </p>
-                          </div>
+                          {payment.ghiChu && (
+                            <div className="pt-3 border-t border-current border-opacity-20">
+                              <p className="text-xs text-gray-500 mb-1">Ghi chú:</p>
+                              <p className="text-sm text-gray-700">{payment.ghiChu}</p>
+                            </div>
+                          )}
                         </div>
-
-                        {payment.ghiChu && (
-                          <div className="pt-3 border-t border-current border-opacity-20">
-                            <p className="text-xs text-gray-500 mb-1">Ghi chú:</p>
-                            <p className="text-sm text-gray-700">{payment.ghiChu}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-12">
                     <Receipt size={48} className="mx-auto text-gray-300 mb-3" />
-                    <p className="text-gray-500 mb-2">Chưa có lịch sử thanh toán</p>
+                    <p className="text-gray-500 mb-2">
+                      {paymentFilter === "all"
+                        ? "Chưa có lịch sử thanh toán"
+                        : "Không có giao dịch phù hợp bộ lọc"}
+                    </p>
                     <p className="text-xs text-gray-400">
                       Lịch sử thanh toán sẽ hiển thị khi bạn thực hiện giao dịch
                     </p>
@@ -588,7 +672,9 @@ export default function OrderDetail() {
                     <p className="text-sm font-medium text-gray-700">Phương thức thanh toán</p>
                   </div>
                   <p className="text-sm text-gray-600 pl-6">
-                    {order.loaiHoaDon === false ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản'}
+                    {order.loaiHoaDon === false || order.loaiHoaDon === 0 || order.loaiHoaDon === "false"
+                      ? 'Thanh toán khi nhận hàng (COD)'
+                      : 'Chuyển khoản'}
                   </p>
                 </div>
               </div>
@@ -618,6 +704,7 @@ export default function OrderDetail() {
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
         </div>

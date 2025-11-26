@@ -47,6 +47,7 @@ import { FloppyDiskIcon, XCircleIcon, XIcon } from "@phosphor-icons/react";
 import BillProduct from "./BillProduct";
 import { diaChiApi } from "/src/api/diaChiApi";
 import { useDispatch, useSelector } from "react-redux";
+import BillBreadcrumb from "./BillBreadcrumb";
 const { Title, Text } = Typography;
 
 const DetailHoaDon = () => {
@@ -95,6 +96,20 @@ const DetailHoaDon = () => {
     return product.idChiTietSanPham;
   };
 
+  useEffect(() => {
+    return () => {
+      setIsEditing(false);
+      setCanEdit(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (invoice) {
+      checkEditPermissions(invoice.trangThai);
+      setCanEdit(invoice.trangThai === 0);
+    }
+  }, [invoice]);
+
   const xoaChiTietSanPham = async (idHoaDon, idChiTietSanPham) => {
     try {
       console.log(
@@ -138,7 +153,7 @@ const DetailHoaDon = () => {
   };
 
   const calculateFinalTotal = () => {
-    if (!invoice)
+    if (!invoice) {
       return {
         tongTienSanPham: 0,
         phiVanChuyen: 0,
@@ -147,67 +162,60 @@ const DetailHoaDon = () => {
         tongTienCuoiCung: 0,
         phieuGiamGiaInfo: null,
       };
+    }
 
-    const tongTienSanPham = calculateTotal(invoiceProducts);
-    const phiVanChuyen = !invoice.loaiHoaDon ? invoice.phiVanChuyen || 0 : 0;
+    // 1. Tiền hàng
+    const tongTienSanPham =
+      invoice.tongTien || calculateTotal(invoiceProducts) || 0;
 
+    // 2. Phí vận chuyển (luôn lấy giá trị mới nhất)
+    const phiVanChuyen = invoice.phiVanChuyen || 0;
+
+    // 3. Tổng trước khi giảm giá = tiền hàng + ship
     const tongTienTruocGiam = tongTienSanPham + phiVanChuyen;
 
+    // 4. Tiền giảm giá (voucher, khuyến mãi)
+    // Ưu tiên lấy từ backend nếu có, nếu không thì tính lại từ tổng tiền cũ
     let tienGiamGia = 0;
-    let tongTienCuoiCung = tongTienTruocGiam;
+    if (invoice.tienGiamGia != null) {
+      tienGiamGia = invoice.tienGiamGia;
+    } else if (invoice.tongTien && invoice.tongTienSauGiam != null) {
+      tienGiamGia = invoice.tongTien - invoice.tongTienSauGiam;
+    }
+
+    // 5. Tính lại tổng cuối cùng ĐÚNG (có ship, có giảm giá)
+    const tongTienCuoiCungTinhLai = Math.max(
+      0,
+      tongTienTruocGiam - tienGiamGia
+    );
+
+    // 6. Chỉ dùng soTienThanhToan nếu nó thực sự là số cuối cùng (backend mới)
+    // Nếu backend cũ vẫn gửi tongTienSauGiam chưa có ship → bỏ qua, dùng số mình tính lại
+    const finalAmount =
+      invoice.soTienThanhToan > 0
+        ? invoice.soTienThanhToan
+        : tongTienCuoiCungTinhLai;
+
+    // 7. Thông tin phiếu giảm giá
     let phieuGiamGiaInfo = null;
-
-    if (invoice.tongTienSauGiam != null) {
-      tongTienCuoiCung = invoice.tongTienSauGiam;
-      tienGiamGia = tongTienTruocGiam - tongTienCuoiCung;
-
-      if (invoice.phieuGiamGia) {
-        const p = invoice.phieuGiamGia;
-        phieuGiamGiaInfo = {
-          maPhieu: p.maPhieu,
-          tenPhieu: p.tenPhieu,
-          loaiGiamGia: p.loaiGiamGia,
-          giaTriGiamGia: p.giaTriGiamGia,
-          giamToiDa: p.mucGiaGiamToiDa || p.giamToiDa,
-          giaTriDonHangToiThieu: p.giaTriDonHangToiThieu,
-        };
-      }
-    } else if (invoice.phieuGiamGia) {
+    if (invoice.phieuGiamGia) {
       const p = invoice.phieuGiamGia;
-
       phieuGiamGiaInfo = {
-        maPhieu: p.maPhieu || "PGG" + p.id,
-        tenPhieu: p.tenPhieu || "Phiếu giảm giá",
+        maPhieu: p.maPhieu,
+        tenPhieu: p.tenPhieu,
         loaiGiamGia: p.loaiGiamGia,
         giaTriGiamGia: p.giaTriGiamGia,
         giamToiDa: p.mucGiaGiamToiDa || p.giamToiDa,
         giaTriDonHangToiThieu: p.giaTriDonHangToiThieu,
       };
-
-      let tienGiam = 0;
-
-      if (p.loaiGiamGia === false) {
-        tienGiam = (tongTienTruocGiam * p.giaTriGiamGia) / 100;
-        if (p.mucGiaGiamToiDa) {
-          tienGiam = Math.min(tienGiam, p.mucGiaGiamToiDa);
-        }
-      } else {
-        tienGiam = p.giaTriGiamGia;
-      }
-
-      tienGiamGia = Math.max(0, tienGiam);
-      tongTienCuoiCung = tongTienTruocGiam - tienGiamGia;
     }
-
-    tongTienCuoiCung = Math.max(0, tongTienCuoiCung);
-    tienGiamGia = Math.max(0, tienGiamGia);
 
     return {
       tongTienSanPham,
       phiVanChuyen,
       tongTienTruocGiam,
-      tienGiamGia,
-      tongTienCuoiCung,
+      tienGiamGia: Math.max(0, tienGiamGia),
+      tongTienCuoiCung: finalAmount, // ← ĐẢM BẢO ĐÚNG 100%
       phieuGiamGiaInfo,
     };
   };
@@ -219,14 +227,18 @@ const DetailHoaDon = () => {
   }, [invoiceProducts]);
 
   const checkEditPermissions = (status) => {
-    if (status === 0) {
-      setCanEditCustomerInfo(true);
-      setCanEditProducts(true);
-    } else {
-      setCanEditCustomerInfo(false);
-      setCanEditProducts(false);
+    const editable = status === 0;
+
+    setCanEdit(editable);
+    setCanEditCustomerInfo(editable);
+    setCanEditProducts(editable);
+
+    if (!editable && isEditing) {
+      setIsEditing(false);
+      message.info("Đơn hàng đã chuyển trạng thái, không thể chỉnh sửa");
     }
   };
+
   useEffect(() => {
     if (invoice && !isEditing && invoice.chiTietSanPhams) {
       setInvoiceProducts(invoice.chiTietSanPhams);
@@ -237,7 +249,6 @@ const DetailHoaDon = () => {
       });
       setEditingQuantities(initialQuantities);
     }
-
   }, [invoice, dispatch]);
 
   useEffect(() => {
@@ -921,9 +932,7 @@ const DetailHoaDon = () => {
   const fetchInvoiceDetail = async () => {
     try {
       setLoading(true);
-
       const response = await hoaDonApi.getDetail(id);
-
       let invoiceData = response.data?.data || response.data;
 
       if (!invoiceData || !invoiceData.id) {
@@ -933,12 +942,12 @@ const DetailHoaDon = () => {
       setInvoice(invoiceData);
       setTempStatus(invoiceData.trangThai || 0);
       setTempLoaiHoaDon(invoiceData.loaiHoaDon || false);
+
       checkEditPermissions(invoiceData.trangThai || 0);
+
       setError(null);
     } catch (err) {
       console.error("❌ Lỗi tải chi tiết hóa đơn:", err);
-      console.error("❌ Error response:", err.response);
-      console.error("❌ Error message:", err.message);
       setError("Không thể tải thông tin hóa đơn");
     } finally {
       setLoading(false);
@@ -1512,9 +1521,10 @@ const DetailHoaDon = () => {
               }}
             >
               <div>
-                <Title level={3} style={{ margin: 0 }}>
-                  CHI TIẾT ĐƠN HÀNG
-                </Title>
+                <div className="font-bold text-4xl text-[#E67E22]">
+                  Chi tiết đơn hàng
+                </div>
+                <BillBreadcrumb />
                 <Text type="secondary">Mã đơn hàng: {invoice?.maHoaDon}</Text>
               </div>
               <Space>
@@ -1533,7 +1543,7 @@ const DetailHoaDon = () => {
                       <XCircleIcon size={20} weight="fill" /> Hủy
                     </div>
                   </Space>
-                ) : canEdit ? (
+                ) : canEdit && invoice?.trangThai === 0 ? (
                   <div
                     onClick={handleEditToggle}
                     className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
@@ -1573,6 +1583,7 @@ const DetailHoaDon = () => {
                       prev ? { ...prev, trangThai: newStatus } : null
                     );
                     fetchInvoiceDetail();
+                    fetchLichSuHoaDon();
                   }}
                 />
                 <Row
@@ -1872,13 +1883,13 @@ const DetailHoaDon = () => {
                         justifyContent: "space-between",
                       }}
                     >
-                      <Text>Tạm tính sản phẩm:</Text>
+                      <Text>Tổng tiền hàng:</Text>
                       <Text strong>
                         {formatMoney(finalTotal.tongTienSanPham)}
                       </Text>
                     </div>
 
-                    {!invoice.loaiHoaDon && finalTotal.phiVanChuyen > 0 && (
+                    {finalTotal.phiVanChuyen > 0 && (
                       <div
                         style={{
                           display: "flex",
@@ -1892,23 +1903,19 @@ const DetailHoaDon = () => {
                       </div>
                     )}
 
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Text>Giảm giá:</Text>
-                      <Text
-                        strong
+                    {finalTotal.tienGiamGia > 0 && (
+                      <div
                         style={{
-                          color:
-                            finalTotal.tienGiamGia > 0 ? "#ff4d4f" : "#000000",
+                          display: "flex",
+                          justifyContent: "space-between",
                         }}
                       >
-                        -{formatMoney(finalTotal.tienGiamGia)}
-                      </Text>
-                    </div>
+                        <Text>Giảm giá:</Text>
+                        <Text strong style={{ color: "#ff4d4f" }}>
+                          -{formatMoney(finalTotal.tienGiamGia)}
+                        </Text>
+                      </div>
+                    )}
 
                     {finalTotal.tienGiamGia > 0 &&
                       finalTotal.phieuGiamGiaInfo && (
@@ -1939,7 +1946,7 @@ const DetailHoaDon = () => {
                       }}
                     >
                       <Text strong style={{ fontSize: 18 }}>
-                        Tổng cộng:
+                        Tổng thanh toán:
                       </Text>
                       <Text strong style={{ fontSize: 20, color: "#ff4d4f" }}>
                         {formatMoney(finalTotal.tongTienCuoiCung)}
