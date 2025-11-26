@@ -4,15 +4,19 @@ import React, { Suspense } from "react";
 
 const UserLayout = React.lazy(() => import("@/layouts/user/UserLayout"));
 const MainHome = React.lazy(() => import("@/pages/home/main/MainHome"));
-const Cart = React.lazy(() => import("@/components/Cart"));
-const Checkout = React.lazy(() => import("@/components/Checkout"));
-const OrderSuccess = React.lazy(() => import("@/components/OrderSuccess"));
-const OrderHistory = React.lazy(() => import("@/components/OrderHistory"));
-const OrderDetail = React.lazy(() => import("@/components/OrderDetail"));
-const ProductDetail = React.lazy(() => import("@/pages/home/ProductDetail"));
-const PaymentSuccess = React.lazy(() => import("@/components/PaymentSuccess"));
-const PaymentFailed = React.lazy(() => import("@/components/PaymentFailed"))
-const AllProducts = React.lazy(() => import("@/pages/home/AllProducts"));
+
+const ProductAll = React.lazy(() =>
+  import("@/pages/home/productDetail/ProductAll")
+);
+const CategoryAll = React.lazy(() =>
+  import("@/pages/home/productDetail/CategoryAll")
+);
+const ProductDetail = React.lazy(() =>
+  import("@/pages/home/productDetail/ProductDetail")
+);
+const CheckOut = React.lazy(() => import("@/pages/home/cart/CheckOut"));
+const ViewCart = React.lazy(() => import("@/pages/home/cart/ViewCart"));
+const Coupons = React.lazy(() => import("@/pages/home/coupons/Coupons"));
 const contentStyle = {
   padding: 50,
   background: "rgba(0, 0, 0, 0.05)",
@@ -46,21 +50,73 @@ const userRouters = [
         ),
       },
       {
-        path: "cart", // Sẽ khớp với đường dẫn "/cart"
+        path: "product",
         element: (
           <LazyLoad>
-            <Cart />
+            <ProductAll />
           </LazyLoad>
         ),
       },
       {
-        path: "checkout", // Sẽ khớp với đường dẫn "/checkout"
-        element: <LazyLoad><Checkout /></LazyLoad>,
+        path: "category",
+        element: (
+          <LazyLoad>
+            <CategoryAll />
+          </LazyLoad>
+        ),
       },
       {
-        path: "order-success/:maHoaDon", 
-        element: ( <LazyLoad> <OrderSuccess /> </LazyLoad> ),
+        path: "coupons",
+        element: (
+          <LazyLoad>
+            <Coupons />
+          </LazyLoad>
+        ),
       },
+      {
+        path: "cart",
+        element: (
+          <LazyLoad>
+            <ViewCart />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "checkout",
+        element: (
+          <LazyLoad>
+            <CheckOut />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "productdetail",
+        element: (
+          <LazyLoad>
+            <ProductDetail />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "/customer/login",
+        element: <CustomerLogin />,
+      },
+      // {
+      //   path: "cart", // Sẽ khớp với đường dẫn "/cart"
+      //   element: (
+      //     <LazyLoad>
+      //       <Cart />
+      //     </LazyLoad>
+      //   ),
+      // },
+      // {
+      //   path: "checkout", // Sẽ khớp với đường dẫn "/checkout"
+      //   element: <LazyLoad><Checkout /></LazyLoad>,
+      // },
+      // {
+      //   path: "order-success/:maHoaDon",
+      //   element: ( <LazyLoad> <OrderSuccess /> </LazyLoad> ),
+      // },
 
       {
         path: "/orders", // Sẽ khớp với "/profile/orders"
@@ -87,12 +143,9 @@ const userRouters = [
         element: ( <LazyLoad> <AllProducts  /> </LazyLoad> ),
       },
       
+
     ],
   },
-  {
-    path: "/customer/login",
-    element: <CustomerLogin />,
-  }
 ];
 
 export default userRouters;
