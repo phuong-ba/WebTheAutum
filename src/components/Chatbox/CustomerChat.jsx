@@ -10,7 +10,7 @@ export default function CustomerChat() {
   const [roomId, setRoomId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
-
+  const [typingStatus, setTypingStatus] = useState("");
   const stompClient = useRef(null);
   const subscriptionRef = useRef(null);
   const bottomRef = useRef();
@@ -46,11 +46,23 @@ export default function CustomerChat() {
     const data = await res.json();
     setMessages(data);
   };
+  const sendMessage = () => {
+    if (!message.trim() || !roomId) return;
+    const msg = message;
+    setMessage("");
+
+    if (!hasStaffJoined) setTypingStatus("AI: đang trả lời");
+    else setTypingStatus("Nhân viên: đang trả lời");
+
+    stompClient.current.send(
+      "/app/chat.send",
+      {},
+      JSON.stringify({ roomId, guiTu: 0, noiDung: msg })
+    );
+  };
 
   const connectWS = (rid) => {
-    const sock = new SockJS(
-      "[http://localhost:8080/ws](http://localhost:8080/ws)"
-    );
+    const sock = new SockJS("http://localhost:8080/ws");
     stompClient.current = over(sock);
 
     if (!stompClient.current) return;
@@ -60,29 +72,25 @@ export default function CustomerChat() {
         `/topic/chat/${rid}`,
         (msg) => {
           const body = JSON.parse(msg.body);
+
           setMessages((prev) => [...prev, body]);
+
+          if (body.guiTu === 1 || body.guiTu === 2) {
+            setTypingStatus("");
+            setTimeout(() => setTypingStatus(""), 1500);
+          }
+
           if (
             body.noiDung.includes(
               "Nhân viên đã tham gia chat, AI sẽ tạm dừng trả lời"
             )
           ) {
             setHasStaffJoined(true);
+            setTimeout(() => setTypingStatus(""), 1500);
           }
         }
       );
     });
-  };
-
-  const sendMessage = () => {
-    if (!message.trim() || !roomId) return;
-    const msg = message;
-    setMessage("");
-
-    stompClient.current.send(
-      "/app/chat.send",
-      {},
-      JSON.stringify({ roomId, guiTu: 0, noiDung: msg })
-    );
   };
 
   useEffect(() => {
@@ -93,30 +101,33 @@ export default function CustomerChat() {
     <>
       {!open && (
         <button
-          className="fixed bottom-15 right-15 w-14 h-14 rounded-full bg-yellow-500 text-white shadow-lg flex items-center justify-center text-2xl hover:bg-yellow-600 transition"
+          className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-yellow-500 text-white shadow-xl flex items-center justify-center text-3xl hover:bg-yellow-600 transition"
           onClick={() => setOpen(true)}
         >
-          💬{" "}
+          💬
         </button>
       )}
 
       {open && (
-        <div className="fixed bottom-25 right-15 w-96 max-w-[90%] flex flex-col rounded-xl shadow-lg overflow-hidden bg-white">
+        <div
+          className="fixed bottom-6 right-6 w-96 max-w-[90%] flex flex-col rounded-2xl shadow-2xl overflow-hidden bg-white border border-gray-200"
+          style={{ height: "550px" }}
+        >
           {/* Header */}
-          <div className="bg-yellow-500 text-white font-bold px-4 py-2 flex justify-between items-center">
+          <div className="bg-yellow-500 text-white font-bold px-4 py-3 flex justify-between items-center text-[17px]">
             Chat hỗ trợ - {hoTen}
             <button
               onClick={() => setOpen(false)}
-              className="ml-2 text-white font-bold text-lg"
+              className="ml-2 text-white font-bold text-xl"
             >
               ✕
             </button>
           </div>
 
-          {/* Messages */}
+          {/* Messages area */}
           <div
-            className="flex-1 p-4 bg-gray-100 overflow-y-auto flex flex-col gap-2"
-            style={{ maxHeight: "400px" }}
+            className="flex-1 p-4 bg-gray-100 overflow-y-auto flex flex-col gap-3"
+            style={{ maxHeight: "100%" }}
           >
             {messages.map((m, i) => (
               <div
@@ -126,12 +137,13 @@ export default function CustomerChat() {
                 } items-end`}
               >
                 {m.guiTu !== 0 && (
-                  <div className="w-6 h-6 rounded-full bg-gray-300 text-xs flex items-center justify-center mr-2">
+                  <div className="w-7 h-7 rounded-full bg-gray-300 text-xs flex items-center justify-center mr-2">
                     {m.guiTu === 1 ? "NV" : "AI"}
                   </div>
                 )}
+
                 <div
-                  className={`max-w-[70%] px-3 py-1 rounded-2xl break-words ${
+                  className={`max-w-[75%] px-3 py-2 rounded-2xl shadow-sm break-words ${
                     m.guiTu === 0
                       ? "bg-yellow-500 text-white text-right"
                       : m.guiTu === 1
@@ -142,13 +154,12 @@ export default function CustomerChat() {
                   {m.guiTu === 0 ? (
                     <>
                       <span className="text-[14px] font-semibold">
-                        {m.noiDung}:
-                      </span>{" "}
-                      <span className="text-sm font-normal">Bạn</span>
+                        {m.noiDung}
+                      </span>
                     </>
                   ) : (
                     <>
-                      <span className="text-[14px] font-semibold">
+                      <span className="text-[13px] font-semibold">
                         {m.guiTu === 1 ? "Nhân viên" : "AI"}:
                       </span>{" "}
                       <span className="text-sm font-normal">{m.noiDung}</span>
@@ -157,22 +168,30 @@ export default function CustomerChat() {
                 </div>
               </div>
             ))}
+            {typingStatus && (
+              <div className="text-gray-500 italic text-sm mt-1 ml-2 flex items-center gap-1">
+                <span>{typingStatus}</span>
+                <span className="animate-pulse">...</span>
+              </div>
+            )}
+
             <div ref={bottomRef}></div>
           </div>
 
-          {/* Input */}
-          <div className="flex p-2 border-t border-gray-300 gap-2 bg-white">
+          {/* Input area */}
+          <div className="flex p-3 border-t border-gray-300 bg-white gap-2">
             <input
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
               placeholder="Nhập tin nhắn..."
-              className="flex-1 border border-gray-300 rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
             />
+
             <button
               onClick={sendMessage}
-              className="bg-yellow-500 text-white px-4 py-1 rounded-full hover:bg-yellow-600 transition-colors"
+              className="bg-yellow-500 text-white px-5 py-2 rounded-full font-semibold hover:bg-yellow-600 transition"
             >
               Gửi
             </button>
