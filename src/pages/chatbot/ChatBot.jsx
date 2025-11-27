@@ -147,6 +147,7 @@ export default function AdminChat() {
                   {m.guiTu === 0 ? "KH" : "AI"}
                 </div>
               )}
+
               <div
                 className={`max-w-[70%] px-3 py-2 rounded-2xl break-words ${
                   m.guiTu === 1
@@ -158,25 +159,21 @@ export default function AdminChat() {
               >
                 {m.guiTu === 1 ? (
                   <>
-                    <span className="text-[10px] font-semibold">Bạn:</span>{" "}
-                    <span className="text-sm">{m.noiDung}</span>
-                  </>
-                ) : m.guiTu === 0 ? (
-                  <>
-                    <span className="text-[10px] font-semibold">
-                      {m.noiDung}:
-                    </span>{" "}
-                    <span className="text-sm">Khách</span>
+                    <span className="text-sm">{m.noiDung}</span>{" "}
+                    <span className="text-[10px] font-semibold">: Bạn</span>
                   </>
                 ) : (
                   <>
-                    <span className="text-[10px] font-semibold">AI:</span>{" "}
+                    <span className="text-[10px] font-semibold">
+                      {m.guiTu === 0 ? "Khách" : "AI"}:
+                    </span>{" "}
                     <span className="text-sm">{m.noiDung}</span>
                   </>
                 )}
               </div>
             </div>
           ))}
+
           <div ref={bottomRef}></div>
         </div>
 
