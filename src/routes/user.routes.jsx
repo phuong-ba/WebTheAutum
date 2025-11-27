@@ -1,4 +1,9 @@
+import OrderDetail from "@/components/OrderDetail";
+import OrderHistory from "@/components/OrderHistory";
+import PaymentFailed from "@/components/PaymentFailed";
+import PaymentSuccess from "@/components/PaymentSuccess";
 import CustomerLogin from "@/pages/auth/CustomerLogin";
+import AllProducts from "@/pages/home/AllProducts";
 import { Spin } from "antd";
 import React, { Suspense } from "react";
 
@@ -120,30 +125,58 @@ const userRouters = [
 
       {
         path: "/orders", // Sẽ khớp với "/profile/orders"
-        element: ( <LazyLoad> <OrderHistory /> </LazyLoad> ),
+        element: (
+          <LazyLoad>
+            {" "}
+            <OrderHistory />{" "}
+          </LazyLoad>
+        ),
       },
       {
-        path: "/orders/:maHoaDon", 
-        element: ( <LazyLoad> <OrderDetail /> </LazyLoad> ),
+        path: "/orders/:maHoaDon",
+        element: (
+          <LazyLoad>
+            {" "}
+            <OrderDetail />{" "}
+          </LazyLoad>
+        ),
       },
       {
-        path: "/product/:idSanPham", 
-        element: ( <LazyLoad> <ProductDetail /> </LazyLoad> ),
+        path: "/product/:idSanPham",
+        element: (
+          <LazyLoad>
+            {" "}
+            <ProductDetail />{" "}
+          </LazyLoad>
+        ),
       },
       {
-        path: "/payment/success", 
-        element: ( <LazyLoad> <PaymentSuccess  /> </LazyLoad> ),
+        path: "/payment/success",
+        element: (
+          <LazyLoad>
+            {" "}
+            <PaymentSuccess />{" "}
+          </LazyLoad>
+        ),
       },
       {
-        path: "/payment/failed", 
-        element: ( <LazyLoad> <PaymentFailed  /> </LazyLoad> ),
+        path: "/payment/failed",
+        element: (
+          <LazyLoad>
+            {" "}
+            <PaymentFailed />{" "}
+          </LazyLoad>
+        ),
       },
       {
-        path: "/products", 
-        element: ( <LazyLoad> <AllProducts  /> </LazyLoad> ),
+        path: "/products",
+        element: (
+          <LazyLoad>
+            {" "}
+            <AllProducts />{" "}
+          </LazyLoad>
+        ),
       },
-      
-
     ],
   },
 ];

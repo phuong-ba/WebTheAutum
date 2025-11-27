@@ -67,6 +67,14 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   // --- SỬA: Thêm state để lưu quận theo tỉnh ---
   const [quanMap, setQuanMap] = useState({});
 
+  // --- SỬA: Thêm ref để theo dõi lần tính phí cuối ---
+  const lastShippingCalculationRef = useRef({
+    tinh: null,
+    quan: null,
+    diaChiCuThe: null,
+    cartItemsHash: null,
+  });
+
   // --- SỬA: Tính toán lại discountAmount mỗi khi cartTotal thay đổi ---
   const calculatedDiscount = useMemo(() => {
     if (!appliedDiscount || cartTotal === 0) {
@@ -261,6 +269,11 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
       addressForm.setFieldsValue(formValues);
       messageApi.success("Đã chọn địa chỉ thành công!");
+
+      // --- SỬA: Gọi tính phí ngay sau khi chọn địa chỉ ---
+      setTimeout(() => {
+        triggerShippingCalculation();
+      }, 500);
     } catch (err) {
       console.error("Lỗi khi chọn địa chỉ:", err);
       messageApi.error("Không thể cập nhật quận/huyện");
@@ -607,6 +620,11 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
             try {
               await handleTinhChange(idTinh);
               addressForm.setFieldsValue({ quan: idQuan });
+
+              // --- SỬA: Gọi tính phí sau khi setup địa chỉ mặc định ---
+              setTimeout(() => {
+                triggerShippingCalculation();
+              }, 1000);
             } catch (err) {
               console.error("Lỗi load quận mặc định:", err);
             }
@@ -653,6 +671,16 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       setLocalQuanList(quanMap[currentTinh]);
     }
   }, [quanMap, addressForm]);
+
+  // --- SỬA: Thêm hàm triggerShippingCalculation ---
+  const triggerShippingCalculation = () => {
+    if (
+      window.SellPayComponent &&
+      typeof window.SellPayComponent.calculateShippingFee === "function"
+    ) {
+      window.SellPayComponent.calculateShippingFee();
+    }
+  };
 
   // --- SỬA: Đơn giản hóa việc theo dõi thay đổi bill ---
   useEffect(() => {
@@ -765,6 +793,12 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     if (quanMap[idTinh]) {
       console.log("Dùng cache quận:", quanMap[idTinh]);
       setLocalQuanList(quanMap[idTinh]);
+
+      // --- SỬA: Gọi tính phí sau khi chọn tỉnh ---
+      setTimeout(() => {
+        triggerShippingCalculation();
+      }, 300);
+
       return quanMap[idTinh];
     }
 
@@ -778,12 +812,32 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       });
 
       setLocalQuanList(res);
+
+      // --- SỬA: Gọi tính phí sau khi load quận xong ---
+      setTimeout(() => {
+        triggerShippingCalculation();
+      }, 300);
+
       return res;
     } catch (err) {
       console.error("Lỗi load quận:", err);
       messageApi.error("Không thể tải danh sách quận/huyện");
       throw err;
     }
+  };
+
+  const handleQuanChange = (idQuan) => {
+    // --- SỬA: Gọi tính phí sau khi chọn quận ---
+    setTimeout(() => {
+      triggerShippingCalculation();
+    }, 300);
+  };
+
+  const handleDiaChiCuTheChange = () => {
+    // --- SỬA: Gọi tính phí sau khi nhập địa chỉ cụ thể ---
+    setTimeout(() => {
+      triggerShippingCalculation();
+    }, 800);
   };
 
   const handleRemoveCustomerFromDiscount = async (discountId, customerId) => {
@@ -1017,6 +1071,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
             removeCustomerFromDiscount={handleRemoveCustomerFromDiscount}
             discountAmount={calculatedDiscount.discountAmount}
             finalAmount={calculatedDiscount.finalAmount}
+            triggerShippingCalculation={triggerShippingCalculation}
           />
         </div>
       ),
@@ -1131,6 +1186,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                       <Select
                         placeholder="Chọn quận/huyện"
                         disabled={!localQuanList.length}
+                        onChange={handleQuanChange}
                         showSearch
                         optionFilterProp="children"
                         filterOption={(input, option) =>
@@ -1153,7 +1209,10 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
                   label="Số nhà, đường"
                   rules={[{ required: true, message: "Nhập địa chỉ" }]}
                 >
-                  <Input placeholder="Nhập địa chỉ cụ thể" />
+                  <Input
+                    placeholder="Nhập địa chỉ cụ thể"
+                    onChange={handleDiaChiCuTheChange}
+                  />
                 </Form.Item>
                 <div
                   className="cursor-pointer select-none text-center py-2 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"

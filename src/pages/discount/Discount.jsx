@@ -36,66 +36,62 @@ export default function Discount() {
     setIsModalVisible(true);
   };
 
-  // Hàm kiểm tra và cập nhật trạng thái
+  // Hàm tính toán trạng thái mới dựa trên thời gian và số lượng
+  const calculateNewStatus = (item) => {
+    const now = dayjs();
+    const start = dayjs(item.ngayBatDau);
+    const end = dayjs(item.ngayKetThuc);
+
+    // Ưu tiên kiểm tra số lượng trước
+    if (item.soLuongDung === 0) {
+      return 2; // Đã kết thúc (hết số lượng)
+    }
+
+    // Kiểm tra thời gian
+    if (now.isAfter(end)) {
+      return 2; // Đã kết thúc (quá hạn)
+    } else if (now.isBefore(start)) {
+      return 0; // Sắp diễn ra
+    } else {
+      return 1; // Đang diễn ra
+    }
+  };
+
+  // Hàm kiểm tra và cập nhật trạng thái - ĐƠN GIẢN HÓA
   const checkAndUpdateStatus = async () => {
     if (!data || data.length === 0) return;
 
-    const now = dayjs();
-
     try {
       const needUpdate = data.filter((item) => {
-        // Nếu đã là trạng thái kết thúc (2) thì giữ nguyên
-        if (item.trangThai === 2) return false;
-
-        const start = dayjs(item.ngayBatDau);
-        const end = dayjs(item.ngayKetThuc);
-
-        let calculatedStatus = -1;
-
-        // Nếu đã kết thúc theo ngày hoặc số lượng = 0
-        if (end.isBefore(now, "day") || item.soLuongDung === 0) {
-          calculatedStatus = 2; // Đã kết thúc
-        } else if (start.isAfter(now, "day")) {
-          calculatedStatus = 0; // Sắp diễn ra
-        } else if (
-          (start.isBefore(now, "day") || start.isSame(now, "day")) &&
-          (end.isAfter(now, "day") || end.isSame(now, "day"))
-        ) {
-          calculatedStatus = 1; // Đang diễn ra
-        }
-
-        return item.trangThai !== calculatedStatus;
+        const newStatus = calculateNewStatus(item);
+        return item.trangThai !== newStatus;
       });
 
       if (needUpdate.length === 0) return;
 
-      await Promise.all(
-        needUpdate.map((item) => {
-          const start = dayjs(item.ngayBatDau);
-          const end = dayjs(item.ngayKetThuc);
-          let newStatus = item.trangThai;
+      console.log(`Cần cập nhật ${needUpdate.length} phiếu:`, needUpdate);
 
-          // Ưu tiên trạng thái đã kết thúc nếu hết hạn hoặc hết số lượng
-          if (end.isBefore(now, "day") || item.soLuongDung === 0) {
-            newStatus = 2;
-          } else if (start.isAfter(now, "day")) {
-            newStatus = 0;
-          } else if (
-            (start.isBefore(now, "day") || start.isSame(now, "day")) &&
-            (end.isAfter(now, "day") || end.isSame(now, "day"))
-          ) {
-            newStatus = 1;
-          }
+      // Cập nhật từng cái một để tránh lỗi
+      for (const item of needUpdate) {
+        const newStatus = calculateNewStatus(item);
+        console.log(
+          `Cập nhật phiếu ${item.maGiamGia} từ ${item.trangThai} -> ${newStatus}`
+        );
 
-          return dispatch(
-            changeStatusPhieuGiamGia({ id: item.id, trangThai: newStatus })
-          );
-        })
-      );
+        await dispatch(
+          changeStatusPhieuGiamGia({
+            id: item.id,
+            trangThai: newStatus,
+          })
+        );
 
-      // Cập nhật lại data và trigger re-render
+        // Delay nhẹ giữa các request
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      // Cập nhật lại data sau khi đã cập nhật tất cả
       await dispatch(fetchPhieuGiamGia());
-      setLastUpdate(Date.now()); // Trigger re-render
+      setLastUpdate(Date.now());
 
       if (needUpdate.length > 0) {
         messageApi.info(
@@ -111,7 +107,7 @@ export default function Discount() {
   // Chạy kiểm tra trạng thái khi data thay đổi
   useEffect(() => {
     checkAndUpdateStatus();
-  }, [data]); // Chạy mỗi khi data thay đổi
+  }, [data]);
 
   // Thêm interval để kiểm tra định kỳ (mỗi 30 giây)
   useEffect(() => {
@@ -129,10 +125,18 @@ export default function Discount() {
     const start = dayjs(selectedRecord.ngayBatDau);
     const end = dayjs(selectedRecord.ngayKetThuc);
 
-    if (!selectedRecord.trangThai && end.isBefore(now, "day")) {
-      messageApi.warning("Không thể kích hoạt phiếu đã hết hạn");
+    // Kiểm tra điều kiện trước khi thay đổi trạng thái thủ công
+    if (selectedRecord.soLuongDung === 0) {
+      messageApi.warning("Không thể thay đổi trạng thái phiếu đã hết số lượng");
       return;
-    } else if (start.isAfter(now, "day")) {
+    }
+
+    if (now.isAfter(end)) {
+      messageApi.warning("Không thể thay đổi trạng thái phiếu đã hết hạn");
+      return;
+    }
+
+    if (now.isBefore(start)) {
       messageApi.warning(
         "Không thể thay đổi trạng thái phiếu chưa đến ngày bắt đầu"
       );
@@ -155,7 +159,7 @@ export default function Discount() {
 
       // Cập nhật lại data ngay lập tức
       await dispatch(fetchPhieuGiamGia());
-      setLastUpdate(Date.now()); // Trigger re-render
+      setLastUpdate(Date.now());
     } catch (error) {
       console.error("Lỗi khi cập nhật trạng thái:", error);
       messageApi.error("Thao tác thất bại!");
@@ -222,6 +226,51 @@ export default function Discount() {
     current: 1,
     pageSize: 5,
   });
+
+  // Hàm hiển thị trạng thái cho table - ĐƠN GIẢN HÓA
+  const renderTrangThai = (_, record) => {
+    const now = dayjs();
+    const start = dayjs(record.ngayBatDau);
+    const end = dayjs(record.ngayKetThuc);
+
+    let status = "";
+    let color = "";
+    let displayStatus = "";
+
+    // Logic đơn giản, đồng nhất với hàm calculateNewStatus
+    if (
+      record.trangThai === 2 ||
+      record.soLuongDung === 0 ||
+      now.isAfter(end)
+    ) {
+      status = "Đã kết thúc";
+      color = "#E74C3C";
+      displayStatus = "Đã kết thúc";
+    } else if (now.isBefore(start)) {
+      status = "Sắp diễn ra";
+      color = "#FFA500";
+      displayStatus = "Sắp diễn ra";
+    } else {
+      status = "Đang diễn ra";
+      color = "#00A96C";
+      displayStatus = "Đang diễn ra";
+    }
+
+    return (
+      <Tag
+        color={
+          status === "Sắp diễn ra"
+            ? "#FFF4E0"
+            : status === "Đang diễn ra"
+            ? "#E9FBF4"
+            : "#FFEAE3"
+        }
+        style={{ border: `1px solid ${color}` }}
+      >
+        <div style={{ color }}>{displayStatus}</div>
+      </Tag>
+    );
+  };
 
   const columns = [
     {
@@ -320,92 +369,60 @@ export default function Discount() {
       dataIndex: "trangThai",
       key: "trangThai",
       align: "center",
-      render: (_, record) => {
-        const now = dayjs();
-        const start = dayjs(record.ngayBatDau);
-        const end = dayjs(record.ngayKetThuc);
-
-        let status = "";
-        let color = "";
-        let displayStatus = "";
-
-        // Ưu tiên trạng thái = 2 (đã kết thúc) trước
-        if (record.trangThai === 2) {
-          status = "Đã kết thúc";
-          color = "#E74C3C";
-          displayStatus = "Đã kết thúc";
-        }
-        // Sau đó kiểm tra theo ngày
-        else if (end.isBefore(now, "day")) {
-          status = "Đã kết thúc";
-          color = "#E74C3C";
-          displayStatus = "Đã kết thúc";
-        } else if (start.isAfter(now, "day")) {
-          status = "Sắp diễn ra";
-          color = "#FFA500";
-          displayStatus = "Sắp diễn ra";
-        } else {
-          // Trong khoảng thời gian diễn ra
-          if (record.trangThai === 1) {
-            status = "Đang diễn ra";
-            color = "#00A96C";
-            displayStatus = "Đang diễn ra";
-          } else {
-            status = "Đã kết thúc";
-            color = "#E74C3C";
-            displayStatus = "Đã kết thúc";
-          }
-        }
-
-        return (
-          <Tag
-            color={
-              status === "Sắp diễn ra"
-                ? "#FFF4E0"
-                : status === "Đang diễn ra"
-                ? "#E9FBF4"
-                : "#FFEAE3"
-            }
-            style={{ border: `1px solid ${color}` }}
-          >
-            <div style={{ color }}>{displayStatus}</div>
-          </Tag>
-        );
-      },
+      render: renderTrangThai,
     },
     {
       title: "HÀNH ĐỘNG",
       key: "action",
       align: "center",
-      render: (_, record) => (
-        <Space size="middle">
-          {record.trangThai === 1 && (
-            <a onClick={() => showCustomModal(record)}>
-              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
-            </a>
-          )}
-          <a
-            onClick={() => {
-              if (record.trangThai !== 1) {
-                messageApi.warning("Chỉ có thể chỉnh sửa phiếu đang diễn ra!");
-                return;
-              }
-              navigate("/admin/update-discount", {
-                state: { phieuGiamGia: record },
-              });
-            }}
-          >
-            <PencilLineIcon
-              size={24}
-              weight="fill"
-              color={record.trangThai === 1 ? "#E67E22" : "#ccc"}
-              style={{
-                cursor: record.trangThai === 1 ? "pointer" : "not-allowed",
+      render: (_, record) => {
+        const now = dayjs();
+        const start = dayjs(record.ngayBatDau);
+        const end = dayjs(record.ngayKetThuc);
+
+        // Chỉ cho phép thay đổi trạng thái khi phiếu đang trong thời gian hiệu lực
+        const canChangeStatus =
+          record.trangThai !== 2 &&
+          record.soLuongDung > 0 &&
+          now.isAfter(start) &&
+          now.isBefore(end);
+
+        return (
+          <Space size="middle">
+            {canChangeStatus && (
+              <a onClick={() => showCustomModal(record)}>
+                <ToggleRightIcon
+                  weight="fill"
+                  size={30}
+                  color={record.trangThai === 1 ? "#00A96C" : "#E67E22"}
+                />
+              </a>
+            )}
+            <a
+              onClick={() => {
+                if (record.trangThai !== 1) {
+                  messageApi.warning(
+                    "Chỉ có thể chỉnh sửa phiếu đang diễn ra!"
+                  );
+                  return;
+                }
+                navigate("/admin/update-discount", {
+                  state: { phieuGiamGia: record },
+                });
               }}
-            />
-          </a>
-        </Space>
-      ),
+            >
+              <PencilLineIcon
+                size={24}
+                weight="fill"
+                color={record.trangThai === 1 ? "#E67E22" : "#ccc"}
+                style={{
+                  cursor: record.trangThai === 1 ? "pointer" : "not-allowed",
+                }}
+              />
+            </a>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -455,16 +472,17 @@ export default function Discount() {
         <div className="flex flex-col items-center gap-4 p-4">
           <ExclamationCircleFilled style={{ fontSize: 64, color: "#faad14" }} />
           <h2 className="text-xl font-bold text-center">
-            {selectedRecord?.trangThai
+            {selectedRecord?.trangThai === 1
               ? "Xác nhận kết thúc phiếu"
-              : "Xác nhận mở phiếu"}
+              : "Xác nhận kích hoạt phiếu"}
           </h2>
           <p className="text-gray-600 text-center">
             Bạn có chắc muốn{" "}
             <span className="font-semibold">
-              {selectedRecord?.trangThai ? "Kết thúc phiếu" : "Mở phiếu"}
+              {selectedRecord?.trangThai === 1 ? "kết thúc" : "kích hoạt"}
             </span>{" "}
-            "<strong>{selectedRecord?.tenChuongTrinh}</strong>" không?
+            phiếu giảm giá "<strong>{selectedRecord?.tenChuongTrinh}</strong>"
+            không?
           </p>
 
           <div className="flex justify-center gap-6 mt-6 w-full">
@@ -476,13 +494,13 @@ export default function Discount() {
               Hủy
             </Button>
             <Button
-              type={selectedRecord?.trangThai ? "primary" : "default"}
-              danger={selectedRecord?.trangThai}
+              type={selectedRecord?.trangThai === 1 ? "primary" : "default"}
+              danger={selectedRecord?.trangThai === 1}
               size="large"
               className="w-40"
               onClick={handleConfirmChangeStatus}
             >
-              {selectedRecord?.trangThai ? "Khóa" : "Mở khóa"}
+              {selectedRecord?.trangThai === 1 ? "Kết thúc" : "Kích hoạt"}
             </Button>
           </div>
         </div>
