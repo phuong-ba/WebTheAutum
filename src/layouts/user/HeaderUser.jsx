@@ -58,6 +58,7 @@ export default function HeaderUser() {
     setCustomerName(null);
     navigate("/");
   };
+
   const navigate = useNavigate();
   const items = [
     {
@@ -151,6 +152,7 @@ export default function HeaderUser() {
                   </div>
                 </div>
               )}
+
             </div>
 
             <div className="flex gap-6 items-center relative">
@@ -174,6 +176,7 @@ export default function HeaderUser() {
                     {cartCount}
                   </span>
                 )}
+
               </div>
             </div>
           </div>

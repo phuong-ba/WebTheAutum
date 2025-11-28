@@ -1,7 +1,9 @@
 import OrderDetailOld from "@/components/OrderDetailOld";
 import OrderHistory from "@/components/OrderHistory";
 import OrderSuccess from "@/components/OrderSuccess";
+
 import CustomerLogin from "@/pages/auth/CustomerLogin";
+import AllProducts from "@/pages/home/AllProducts";
 import { Spin } from "antd";
 import React, { Suspense } from "react";
 
@@ -107,6 +109,7 @@ const userRouters = [
         element: (
           <LazyLoad>
             <YourBill />
+
           </LazyLoad>
         ),
       },
@@ -115,6 +118,7 @@ const userRouters = [
         element: (
           <LazyLoad>
             <OrderDetail />
+
           </LazyLoad>
         ),
       },
@@ -127,6 +131,7 @@ const userRouters = [
         element: (
           <LazyLoad>
             <OrderSuccess />
+
           </LazyLoad>
         ),
       },

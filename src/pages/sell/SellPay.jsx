@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import hoaDonApi from "@/api/HoaDonAPI";
 import { message, Modal, QRCode, Button, Space, Divider } from "antd";
@@ -9,6 +9,7 @@ import {
   CopyOutlined,
   CheckOutlined,
   BankOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import {
   tinhPhiVanChuyen,
@@ -34,6 +35,8 @@ export default function SellPay({
   removeCustomerFromDiscount,
   discountAmount: propDiscountAmount,
   finalAmount: propFinalAmount,
+  triggerShippingCalculation,
+  onClearTemporaryData,
 }) {
   const dispatch = useDispatch();
   const {
@@ -69,7 +72,16 @@ export default function SellPay({
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
-  // 1. Lấy danh sách đơn vị vận chuyển và chọn mặc định
+  // Ref để theo dõi lần tính phí cuối
+  const lastShippingCalculationRef = useRef({
+    tinh: null,
+    quan: null,
+    diaChiCuThe: null,
+    cartItemsHash: null,
+    selectedShipping: null,
+  });
+
+  // 1. Lấy danh sách đơn vị vận chuyển
   useEffect(() => {
     dispatch(fetchDonViVanChuyen());
   }, [dispatch]);
@@ -95,11 +107,9 @@ export default function SellPay({
     });
 
     if (shouldCalculateShipping) {
-      // Thêm debounce để tránh tính quá nhiều lần
       const timer = setTimeout(() => {
         calculateShippingFee();
       }, 1000);
-
       return () => clearTimeout(timer);
     } else {
       dispatch(resetShippingFee());
@@ -111,14 +121,52 @@ export default function SellPay({
     if (isDelivery && selectedShipping && cartItems.length > 0) {
       const formValues = addressForm?.getFieldsValue();
       if (formValues?.thanhPho && formValues?.quan && formValues?.diaChiCuThe) {
-        console.log("📍 Địa chỉ đã đầy đủ, tính phí tự động");
-        const timer = setTimeout(() => {
-          calculateShippingFee();
-        }, 800);
-        return () => clearTimeout(timer);
+        console.log("📍 Địa chỉ đã đầy đủ, kiểm tra tính phí tự động");
+
+        const currentHash = JSON.stringify({
+          tinh: formValues.thanhPho,
+          quan: formValues.quan,
+          diaChiCuThe: formValues.diaChiCuThe,
+          selectedShipping: selectedShipping,
+          cartItems: cartItems.map((item) => ({
+            id: item.idChiTietSanPham,
+            quantity: item.quantity,
+          })),
+        });
+
+        if (lastShippingCalculationRef.current.cartItemsHash !== currentHash) {
+          console.log("🔄 Có thay đổi, tính phí mới");
+          lastShippingCalculationRef.current.cartItemsHash = currentHash;
+
+          const timer = setTimeout(() => {
+            calculateShippingFee();
+          }, 800);
+          return () => clearTimeout(timer);
+        }
       }
     }
-  }, [addressForm]);
+  }, [addressForm, cartItems, isDelivery, selectedShipping]);
+
+  // 5. Tính phí khi component mount
+  useEffect(() => {
+    // Đặt hàm calculateShippingFee vào global để component cha có thể gọi
+    window.SellPayComponent = {
+      calculateShippingFee: calculateShippingFee,
+    };
+
+    // Tính phí ngay khi component mount nếu có đủ điều kiện
+    if (isDelivery && selectedShipping && cartItems.length > 0) {
+      const timer = setTimeout(() => {
+        calculateShippingFee();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+
+    return () => {
+      // Cleanup
+      window.SellPayComponent = null;
+    };
+  }, []);
 
   const parseProductValue = (value, defaultValue = 200) => {
     if (value === null || value === undefined) {
@@ -138,8 +186,9 @@ export default function SellPay({
     return defaultValue;
   };
 
+  // Hàm tính phí vận chuyển
   const calculateShippingFee = async () => {
-    console.log("🚀 Bắt đầu tính phí vận chuyển tự động...");
+    console.log("🚀 Bắt đầu tính phí vận chuyển...");
 
     if (!isDelivery || !addressForm || !selectedShipping) {
       console.log("❌ Thiếu điều kiện tính phí");
@@ -151,8 +200,25 @@ export default function SellPay({
 
       if (!formValues.thanhPho || !formValues.quan || !formValues.diaChiCuThe) {
         console.log("❌ Thiếu thông tin địa chỉ");
+        messageApi.warning(
+          "Vui lòng nhập đầy đủ thông tin địa chỉ để tính phí vận chuyển"
+        );
         return;
       }
+
+      // Cập nhật thông tin tính phí cuối cùng
+      lastShippingCalculationRef.current = {
+        tinh: formValues.thanhPho,
+        quan: formValues.quan,
+        diaChiCuThe: formValues.diaChiCuThe,
+        selectedShipping: selectedShipping,
+        cartItemsHash: JSON.stringify(
+          cartItems.map((item) => ({
+            id: item.idChiTietSanPham,
+            quantity: item.quantity,
+          }))
+        ),
+      };
 
       const shippingItems = cartItems.map((item) => {
         const weight = parseProductValue(item.weight, 250);
@@ -182,18 +248,22 @@ export default function SellPay({
         items: shippingItems,
       };
 
-      console.log("🚚 Gửi yêu cầu tính phí tự động:", requestData);
+      console.log("🚚 Gửi yêu cầu tính phí:", requestData);
       await dispatch(tinhPhiVanChuyen(requestData)).unwrap();
-      console.log("✅ Tính phí tự động thành công");
     } catch (error) {
-      console.error("❌ Lỗi tính phí vận chuyển tự động:", error);
+      console.error("❌ Lỗi tính phí vận chuyển:", error);
+      messageApi.error("Không thể tính phí vận chuyển. Vui lòng thử lại!");
     }
   };
 
   const handleSelectShipping = (provider) => {
     console.log(`🔄 Chọn đơn vị vận chuyển: ${provider}`);
     dispatch(setSelectedShipping(provider));
-    // Không cần gọi calculateShippingFee() ở đây vì useEffect sẽ tự động tính
+
+    // Tính phí ngay sau khi chọn đơn vị vận chuyển
+    setTimeout(() => {
+      calculateShippingFee();
+    }, 500);
   };
 
   const handleRemovePersonalDiscountAfterPayment = async () => {
@@ -209,22 +279,33 @@ export default function SellPay({
     }
   };
 
+  // QUAN TRỌNG: Sửa hàm prepareHoaDonData để lưu đúng thông tin từ form
   const prepareHoaDonData = (paymentInfo = {}) => {
     let shippingAddress = null;
     let formCustomerInfo = null;
 
+    // Lấy giá trị từ form - SỬA LỖI QUAN TRỌNG: sử dụng đúng tên field
+    const formValues = addressForm?.getFieldsValue() || {};
+
+    console.log("🔍 DEBUG - Form values:", formValues);
+    console.log("🔍 DEBUG - Selected customer:", selectedCustomer);
+
+    // Xác định xem có phải khách hàng tạm không
+    const isTemporaryCustomer = selectedCustomer?.isTemporary;
+
     if (isDelivery && addressForm) {
       try {
-        const formValues = addressForm.getFieldsValue();
         if (formValues.thanhPho && formValues.quan && formValues.diaChiCuThe) {
           const tinhName =
             tinhList?.find((t) => t.id === formValues.thanhPho)?.tenTinh || "";
           const quanName =
             localQuanList?.find((q) => q.id === formValues.quan)?.tenQuan || "";
 
+          // QUAN TRỌNG: Sửa lỗi - sử dụng đúng tên field từ form (HoTen, SoDienThoai)
           formCustomerInfo = {
-            hoTen: formValues.hoTen || "Khách lẻ",
-            sdt: formValues.sdt || "",
+            hoTen: formValues.HoTen || "Khách lẻ", // Sửa từ formValues.hoTen -> formValues.HoTen
+            sdt: formValues.SoDienThoai || "", // Sửa từ formValues.sdt -> formValues.SoDienThoai
+            isTemporary: isTemporaryCustomer,
           };
 
           shippingAddress = {
@@ -268,7 +349,7 @@ export default function SellPay({
       idTinh = shippingAddress.idTinh;
       idQuan = shippingAddress.idQuan;
       diaChiCuThe = shippingAddress.diaChiCuThe;
-    } else if (selectedCustomer?.diaChi) {
+    } else if (selectedCustomer?.diaChi && !isTemporaryCustomer) {
       const customerAddress = selectedCustomer.diaChi;
       diaChiKhachHang =
         customerAddress.dia_chi_cu_the ||
@@ -306,18 +387,27 @@ export default function SellPay({
         idPhuongThucThanhToan = 3;
     }
 
-    const customerType = selectedCustomer ? "Khách hàng" : "Khách lẻ";
-    const customerNote = formCustomerInfo
-      ? ` - ${formCustomerInfo.hoTen}${
-          formCustomerInfo.sdt ? ` - ${formCustomerInfo.sdt}` : ""
-        }`
-      : "";
+    const customerName =
+      formValues.HoTen || selectedCustomer?.hoTen || "Khách lẻ";
+    const customerPhone = formValues.SoDienThoai || selectedCustomer?.sdt || "";
+
+    const customerType = isTemporaryCustomer
+      ? "Khách hàng tạm"
+      : selectedCustomer
+      ? "Khách hàng"
+      : "Khách lẻ";
+
+    const customerNote =
+      customerName !== "Khách lẻ"
+        ? ` - ${customerName}${customerPhone ? ` - ${customerPhone}` : ""}`
+        : "";
 
     const shippingNote = isDelivery
       ? ` - Phí vận chuyển ${selectedShipping}: ${shippingFee.toLocaleString()} VND`
       : "";
 
-    return {
+    // Tạo đối tượng request data
+    const requestData = {
       loaiHoaDon: true,
       phiVanChuyen: isDelivery ? shippingFee : 0,
       tongTien: cartTotal,
@@ -326,15 +416,10 @@ export default function SellPay({
         isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
       }${customerType}${customerNote} - ${paymentNote}${
         appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
-      }${
-        isDelivery
-          ? ` - Phí vận chuyển ${selectedShipping}: ${shippingFee.toLocaleString()} VND`
-          : ""
-      }`,
+      }${shippingNote}`,
       diaChiKhachHang,
       ngayThanhToan: new Date().toISOString(),
       trangThai: isDelivery ? 1 : 3,
-      idKhachHang: selectedCustomer?.id || null,
       idNhanVien: currentUserId,
       idPhieuGiamGia: appliedDiscount?.id || null,
       nguoiTao: currentUserId,
@@ -344,14 +429,57 @@ export default function SellPay({
       idTinh,
       idQuan,
       diaChiCuThe,
-      hoTen: formCustomerInfo?.hoTen || null,
-      sdt: formCustomerInfo?.sdt || null,
+      hoTen: customerName, // QUAN TRỌNG: Gửi tên khách hàng từ form
+      sdt: customerPhone, // QUAN TRỌNG: Gửi số điện thoại từ form
       donViVanChuyen: isDelivery ? selectedShipping : null,
       tongTienHang: cartTotal,
       tienGiamGia: actualDiscountAmount,
       phiVanChuyen: isDelivery ? shippingFee : 0,
       ...paymentInfo,
     };
+
+    // QUAN TRỌNG: Xử lý trường hợp khách hàng tạm - KHÔNG gửi idKhachHang
+    if (
+      isTemporaryCustomer ||
+      !selectedCustomer ||
+      selectedCustomer?.isTemporary
+    ) {
+      // Khách hàng tạm hoặc khách lẻ - KHÔNG gửi idKhachHang để backend không gán vào khách lẻ mặc định
+      console.log("🆕 Tạo hóa đơn cho khách hàng tạm/khách lẻ:", {
+        hoTen: customerName,
+        sdt: customerPhone,
+        idKhachHang: "KHÔNG GỬI",
+      });
+    } else {
+      // Khách hàng đã có trong hệ thống
+      requestData.idKhachHang = selectedCustomer.id;
+      console.log("👤 Tạo hóa đơn cho khách hàng có sẵn:", selectedCustomer.id);
+    }
+
+    console.log("📦 Dữ liệu gửi lên server:", requestData);
+    return requestData;
+  };
+
+  // Hàm xử lý thanh toán thành công - bao gồm xóa dữ liệu tạm
+  const handlePaymentSuccess = () => {
+    // Xóa dữ liệu tạm
+    if (onClearTemporaryData) {
+      onClearTemporaryData();
+    }
+
+    if (selectedBillId) {
+      const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+      const updatedBills = bills.filter((bill) => bill.id !== selectedBillId);
+      localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
+      window.dispatchEvent(new Event("billsUpdated"));
+    }
+
+    if (onRemoveDiscount) onRemoveDiscount();
+    if (onClearCart) onClearCart();
+
+    if (appliedDiscount?.isPersonal) {
+      handleRemovePersonalDiscountAfterPayment();
+    }
   };
 
   const renderShippingOptions = () => {
@@ -364,10 +492,10 @@ export default function SellPay({
           {donViVanChuyen.map((provider) => (
             <div
               key={provider}
-              className={`cursor-pointer p-3 border rounded-lg flex-1 text-center ${
+              className={`cursor-pointer p-3 border rounded-lg flex-1 text-center transition-all ${
                 selectedShipping === provider
-                  ? "border-amber-600 bg-amber-50 text-amber-700"
-                  : "border-gray-300 hover:border-amber-400"
+                  ? "border-amber-600 bg-amber-50 text-amber-700 shadow-md"
+                  : "border-gray-300 hover:border-amber-400 hover:shadow-sm"
               }`}
               onClick={() => handleSelectShipping(provider)}
             >
@@ -390,6 +518,19 @@ export default function SellPay({
             Đang tính phí vận chuyển {selectedShipping}...
           </div>
         )}
+
+        {/* Nút tính lại phí thủ công */}
+        <div className="mt-3 flex justify-end">
+          <Button
+            size="small"
+            icon={<ReloadOutlined />}
+            onClick={calculateShippingFee}
+            loading={shippingLoading}
+            className="flex items-center gap-1"
+          >
+            Tính lại phí vận chuyển
+          </Button>
+        </div>
       </div>
     );
   };
@@ -453,21 +594,7 @@ export default function SellPay({
 
         messageApi.success(successMessage);
 
-        if (selectedBillId) {
-          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-          const updatedBills = bills.filter(
-            (bill) => bill.id !== selectedBillId
-          );
-          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-          window.dispatchEvent(new Event("billsUpdated"));
-        }
-
-        if (onRemoveDiscount) onRemoveDiscount();
-        if (onClearCart) onClearCart();
-
-        if (appliedDiscount?.isPersonal) {
-          await handleRemovePersonalDiscountAfterPayment();
-        }
+        handlePaymentSuccess();
 
         setQrModalVisible(false);
 
@@ -504,21 +631,7 @@ export default function SellPay({
 
         messageApi.success(successMessage);
 
-        if (selectedBillId) {
-          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-          const updatedBills = bills.filter(
-            (bill) => bill.id !== selectedBillId
-          );
-          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-          window.dispatchEvent(new Event("billsUpdated"));
-        }
-
-        if (onRemoveDiscount) onRemoveDiscount();
-        if (onClearCart) onClearCart();
-
-        if (appliedDiscount?.isPersonal) {
-          await handleRemovePersonalDiscountAfterPayment();
-        }
+        handlePaymentSuccess();
 
         const newBillId = res.data.data?.id || res.data.data;
         if (newBillId) {
@@ -549,21 +662,7 @@ export default function SellPay({
 
         messageApi.success(successMessage);
 
-        if (selectedBillId) {
-          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-          const updatedBills = bills.filter(
-            (bill) => bill.id !== selectedBillId
-          );
-          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-          window.dispatchEvent(new Event("billsUpdated"));
-        }
-
-        if (onRemoveDiscount) onRemoveDiscount();
-        if (onClearCart) onClearCart();
-
-        if (appliedDiscount?.isPersonal) {
-          await handleRemovePersonalDiscountAfterPayment();
-        }
+        handlePaymentSuccess();
 
         const newBillId = res.data.data?.id || res.data.data;
         if (newBillId) {
@@ -611,7 +710,6 @@ export default function SellPay({
       }
     }
 
-    // Đảm bảo phí vận chuyển đã được tính xong
     if (isDelivery && shippingLoading) {
       messageApi.warning("Vui lòng chờ tính phí vận chuyển hoàn tất!");
       return;
@@ -623,9 +721,14 @@ export default function SellPay({
       return;
     }
 
+    const formValues = addressForm?.getFieldsValue() || {};
+    const customerName =
+      formValues.HoTen || selectedCustomer?.hoTen || "Khách lẻ";
+    const customerPhone = formValues.SoDienThoai || selectedCustomer?.sdt || "";
+
     setPendingConfirmData({
-      customerName: selectedCustomer?.hoTen || "Khách lẻ",
-      customerPhone: selectedCustomer?.sdt || "",
+      customerName: customerName, // Sửa: Ưu tiên lấy từ form
+      customerPhone: customerPhone, // Sửa: Ưu tiên lấy từ form
       isDelivery,
       cartTotal,
       discountAmount: actualDiscountAmount,
@@ -647,41 +750,43 @@ export default function SellPay({
 
       {renderShippingOptions()}
 
-      <div className="bg-gray-50 p-5 rounded-lg border-l-4 border border-amber-700">
-        <div className="flex flex-col gap-8">
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-between font-bold">
+      <div className="bg-gray-50 p-5 rounded-lg border-l-4 border border-amber-700 shadow-sm">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between font-bold text-gray-700">
               <span>Tổng tiền hàng:</span>
               <span>{cartTotal.toLocaleString()} vnd</span>
             </div>
-            <div className="flex justify-between font-bold">
+            <div className="flex justify-between font-bold text-gray-700">
               <span>Giảm giá:</span>
-              <span className="text-red-800">
+              <span className="text-red-600">
                 -{actualDiscountAmount.toLocaleString()} vnd
               </span>
             </div>
             {isDelivery && renderShippingInfo()}
           </div>
-          <div className="flex justify-between font-bold text-lg">
-            <span>Tổng thanh toán:</span>
-            <span className="text-amber-600">
-              {totalWithShipping.toLocaleString()} vnd
-            </span>
+          <div className="border-t border-gray-300 pt-3">
+            <div className="flex justify-between font-bold text-lg text-amber-700">
+              <span>Tổng thanh toán:</span>
+              <span className="text-amber-600">
+                {totalWithShipping.toLocaleString()} vnd
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="font-bold">Phương thức thanh toán:</div>
+      <div className="flex flex-col gap-3 mt-4">
+        <div className="font-bold text-gray-700">Phương thức thanh toán:</div>
         <div className="flex gap-2">
           {paymentOptions.map((option) => (
             <div
               key={option}
               onClick={() => setPaymentMethod(option)}
-              className={`cursor-pointer select-none text-center py-2 px-6 rounded-xl bg-[#FFF] font-bold border shadow ${
+              className={`cursor-pointer select-none text-center py-2 px-6 rounded-xl font-bold border shadow transition-all ${
                 paymentMethod === option
-                  ? "bg-amber-600 text-white border-amber-600"
-                  : "text-amber-600 hover:text-white hover:bg-amber-600 border-gray-300"
+                  ? "bg-amber-600 text-white border-amber-600 shadow-md"
+                  : "text-amber-600 hover:text-white hover:bg-amber-500 border-gray-300 hover:shadow-sm"
               }`}
             >
               {option}
@@ -692,10 +797,10 @@ export default function SellPay({
 
       <div
         onClick={handlePayment}
-        className={`cursor-pointer select-none text-center py-3 rounded-xl font-bold text-white shadow ${
+        className={`cursor-pointer select-none text-center py-3 rounded-xl font-bold text-white shadow mt-4 transition-all ${
           loading || shippingLoading
             ? "bg-gray-400 cursor-not-allowed"
-            : "bg-[#E67E22] hover:bg-amber-600 active:bg-cyan-800"
+            : "bg-[#E67E22] hover:bg-amber-600 active:bg-amber-700 hover:shadow-md"
         }`}
       >
         {loading || shippingLoading
@@ -705,11 +810,12 @@ export default function SellPay({
           : "Thanh toán"}
       </div>
 
+      {/* Modal QR Code */}
       <Modal
         title={
           <Space>
             <QrcodeOutlined />
-            <span>Thanh toán bằng QR Code</span>
+            <span className="font-bold">Thanh toán bằng QR Code</span>
           </Space>
         }
         open={qrModalVisible}
@@ -717,11 +823,12 @@ export default function SellPay({
         footer={null}
         width={500}
         centered
+        className="qr-modal"
       >
         {qrData && (
           <div className="text-center">
             <div className="mb-4">
-              <span className="font-bold text-lg">
+              <span className="font-bold text-lg text-gray-800">
                 Số tiền: {qrData.amount.toLocaleString()} VND
               </span>
             </div>
@@ -730,17 +837,18 @@ export default function SellPay({
               <QRCode
                 value={`${qrData.bankInfo.accountNumber}|${qrData.amount}|${qrData.bankInfo.content}`}
                 size={200}
+                className="border rounded-lg p-2 bg-white"
               />
             </div>
 
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-500">
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <span className="text-blue-700 text-sm">
                 Quét mã QR để lấy thông tin chuyển khoản hoặc chuyển khoản thủ
                 công theo thông tin bên dưới
               </span>
             </div>
 
-            <Divider>Thông tin chuyển khoản</Divider>
+            <Divider className="my-4">Thông tin chuyển khoản</Divider>
 
             <div className="text-left mb-4">
               <Space
@@ -748,62 +856,73 @@ export default function SellPay({
                 size="small"
                 style={{ width: "100%" }}
               >
-                <div className="flex justify-between">
-                  <span className="font-bold">Ngân hàng:</span>
+                <div className="flex justify-between items-center py-1">
+                  <span className="font-bold text-gray-700">Ngân hàng:</span>
                   <span>{qrData.bankInfo.bankName}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-bold">Số tài khoản:</span>
+                <div className="flex justify-between items-center py-1">
+                  <span className="font-bold text-gray-700">Số tài khoản:</span>
                   <Space>
-                    <span>{qrData.bankInfo.accountNumber}</span>
+                    <span className="font-mono">
+                      {qrData.bankInfo.accountNumber}
+                    </span>
                     <Button
                       size="small"
                       icon={copied ? <CheckOutlined /> : <CopyOutlined />}
                       onClick={() =>
                         copyToClipboard(qrData.bankInfo.accountNumber)
                       }
+                      className="flex items-center"
                     >
                       {copied ? "Đã copy" : "Copy"}
                     </Button>
                   </Space>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-bold">Chủ tài khoản:</span>
-                  <span>{qrData.bankInfo.accountHolder}</span>
+                <div className="flex justify-between items-center py-1">
+                  <span className="font-bold text-gray-700">
+                    Chủ tài khoản:
+                  </span>
+                  <span className="font-semibold">
+                    {qrData.bankInfo.accountHolder}
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-bold">Chi nhánh:</span>
+                <div className="flex justify-between items-center py-1">
+                  <span className="font-bold text-gray-700">Chi nhánh:</span>
                   <span>{qrData.bankInfo.branch}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-bold">Nội dung:</span>
+                <div className="flex justify-between items-center py-1">
+                  <span className="font-bold text-gray-700">Nội dung:</span>
                   <Space>
-                    <span>{qrData.bankInfo.content}</span>
+                    <span className="text-sm">{qrData.bankInfo.content}</span>
                     <Button
                       size="small"
                       icon={copied ? <CheckOutlined /> : <CopyOutlined />}
                       onClick={() => copyToClipboard(qrData.bankInfo.content)}
+                      className="flex items-center"
                     >
                       {copied ? "Đã copy" : "Copy"}
                     </Button>
                   </Space>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-bold">Số tiền:</span>
-                  <span className="font-bold text-red-600">
+                <div className="flex justify-between items-center py-1 border-t border-gray-200 mt-2 pt-2">
+                  <span className="font-bold text-gray-700">Số tiền:</span>
+                  <span className="font-bold text-red-600 text-lg">
                     {qrData.amount.toLocaleString()} VND
                   </span>
                 </div>
               </Space>
             </div>
 
-            <div className="flex gap-2 justify-center">
-              <Button onClick={() => setQrModalVisible(false)}>Hủy</Button>
+            <div className="flex gap-2 justify-center pt-2">
+              <Button onClick={() => setQrModalVisible(false)} className="px-6">
+                Hủy
+              </Button>
               <Button
                 type="primary"
                 icon={<BankOutlined />}
                 loading={loading}
                 onClick={handleConfirmTransfer}
+                className="px-6 bg-green-600 hover:bg-green-700"
               >
                 Đã chuyển khoản
               </Button>
@@ -812,44 +931,62 @@ export default function SellPay({
         )}
       </Modal>
 
+      {/* Modal xác nhận thanh toán */}
       <Modal
-        title="Xác nhận thanh toán"
+        title={
+          <div className="text-xl font-bold text-gray-800">
+            Xác nhận thanh toán
+          </div>
+        }
         open={confirmModalVisible}
         onCancel={() => setConfirmModalVisible(false)}
         footer={null}
+        width={600}
+        centered
       >
         {pendingConfirmData && (
           <div className="space-y-4">
-            <div className="border rounded-lg p-4 bg-gray-50 space-y-2">
+            <div className="border rounded-lg p-4 bg-gray-50 space-y-3 shadow-sm">
               <div className="flex justify-between">
-                <span className="font-medium">Khách hàng:</span>
-                <span className="font-bold">
+                <span className="font-medium text-gray-700">Khách hàng:</span>
+                <span className="font-bold text-gray-900">
                   {pendingConfirmData.customerName}
+                  {selectedCustomer?.isTemporary}
                 </span>
               </div>
               {pendingConfirmData.customerPhone && (
                 <div className="flex justify-between">
-                  <span className="font-medium">Số điện thoại:</span>
-                  <span>{pendingConfirmData.customerPhone}</span>
+                  <span className="font-medium text-gray-700">
+                    Số điện thoại:
+                  </span>
+                  <span className="text-gray-900">
+                    {pendingConfirmData.customerPhone}
+                  </span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="font-medium">Hình thức mua:</span>
-                <span className="font-bold">
+                <span className="font-medium text-gray-700">
+                  Hình thức mua:
+                </span>
+                <span className="font-bold text-amber-600">
                   {pendingConfirmData.isDelivery ? "Giao hàng" : "Mua tại quầy"}
                 </span>
               </div>
               {pendingConfirmData.isDelivery && (
                 <div className="flex justify-between">
-                  <span className="font-medium">Đơn vị vận chuyển:</span>
-                  <span className="font-semibold">
+                  <span className="font-medium text-gray-700">
+                    Đơn vị vận chuyển:
+                  </span>
+                  <span className="font-semibold text-blue-600">
                     {pendingConfirmData.shippingProvider}
                   </span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="font-medium">Tổng tiền hàng:</span>
-                <span className="font-bold">
+                <span className="font-medium text-gray-700">
+                  Tổng tiền hàng:
+                </span>
+                <span className="font-bold text-gray-900">
                   {pendingConfirmData.cartTotal.toLocaleString()} VND
                 </span>
               </div>
@@ -861,41 +998,53 @@ export default function SellPay({
               </div>
               {pendingConfirmData.isDelivery && (
                 <div className="flex justify-between">
-                  <span className="font-medium">Phí vận chuyển:</span>
-                  <span className="font-semibold">
+                  <span className="font-medium text-gray-700">
+                    Phí vận chuyển:
+                  </span>
+                  <span className="font-semibold text-green-600">
                     {pendingConfirmData.shippingFee.toLocaleString()} VND
                   </span>
                 </div>
               )}
-              <div className="flex justify-between font-bold text-amber-600">
+              <div className="flex justify-between font-bold text-amber-600 text-lg border-t border-gray-300 pt-2">
                 <span>Thành tiền:</span>
                 <span>
                   {pendingConfirmData.totalWithShipping.toLocaleString()} VND
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="font-medium">Mã giảm giá:</span>
-                <span>
+                <span className="font-medium text-gray-700">Mã giảm giá:</span>
+                <span
+                  className={
+                    pendingConfirmData.appliedDiscountCode
+                      ? "text-green-600 font-semibold"
+                      : "text-gray-500"
+                  }
+                >
                   {pendingConfirmData.appliedDiscountCode || "Không áp dụng"}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="font-medium">Phương thức thanh toán:</span>
-                <span>{pendingConfirmData.paymentMethod}</span>
+                <span className="font-medium text-gray-700">
+                  Phương thức thanh toán:
+                </span>
+                <span className="font-semibold text-purple-600">
+                  {pendingConfirmData.paymentMethod}
+                </span>
               </div>
             </div>
-            <div className="text-center text-red-600 font-semibold">
+            <div className="text-center text-red-600 font-semibold text-lg">
               Bạn có chắc chắn muốn thanh toán?
             </div>
-            <div className="flex justify-center gap-6 w-full">
+            <div className="flex justify-center gap-6 w-full pt-2">
               <div
-                className="w-40 cursor-pointer select-none text-center py-2 rounded-xl bg-[#b8b8b8] font-bold text-white hover:bg-red-600 active:bg-rose-900 border active:border-[#808080] shadow"
+                className="w-40 cursor-pointer select-none text-center py-3 rounded-xl bg-gray-400 font-bold text-white hover:bg-red-500 active:bg-red-700 border shadow transition-all"
                 onClick={() => setConfirmModalVisible(false)}
               >
                 Hủy
               </div>
               <div
-                className="w-40 cursor-pointer select-none text-center py-2 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-cyan-800 active:bg-cyan-800 border active:border-[#808080] shadow"
+                className="w-40 cursor-pointer select-none text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-amber-700 border shadow transition-all"
                 onClick={async () => {
                   setConfirmModalVisible(false);
                   const { hoaDonMoi } = pendingConfirmData;

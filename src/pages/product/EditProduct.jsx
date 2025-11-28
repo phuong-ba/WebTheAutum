@@ -19,13 +19,12 @@ import {
   ArrowLeftOutlined,
   SaveOutlined,
   DeleteOutlined,
-  EditOutlined,
-  PlusOutlined,
   UploadOutlined,
   EyeOutlined,
 } from "@ant-design/icons";
 import { useParams, useNavigate } from "react-router-dom";
 import baseUrl from "@/api/instance";
+import { ExclamationCircleOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
 const { Panel } = Collapse;
@@ -47,6 +46,12 @@ export default function EditProduct() {
     images: [],
   });
 
+  const [confirmModal, setConfirmModal] = useState({
+    visible: false,
+    hasChanges: false,
+    modifiedCount: 0,
+  });
+
   const [dropdownData, setDropdownData] = useState({
     nhaSanXuats: [],
     chatLieus: [],
@@ -58,7 +63,6 @@ export default function EditProduct() {
     mauSacs: [],
   });
 
-  // Cloudinary config - Sử dụng config từ component của bạn
   const CLOUD_NAME = "dyg1zkr10";
   const UPLOAD_PRESET = "yaemiko-upload";
 
@@ -97,6 +101,26 @@ export default function EditProduct() {
     } catch (error) {
       console.error("💥 Lỗi tải dropdown data:", error);
       message.error("Lỗi khi tải dữ liệu dropdown");
+    }
+  };
+
+  const handleSaveWithConfirm = () => {
+    const formHasChanged = form.isFieldsTouched();
+    const hasModifiedVariants = Object.keys(modifiedVariants).length > 0;
+    const modifiedCount = Object.keys(modifiedVariants).length;
+
+    if (!formHasChanged && !hasModifiedVariants) {
+      setConfirmModal({
+        visible: true,
+        hasChanges: false,
+        modifiedCount: 0,
+      });
+    } else {
+      setConfirmModal({
+        visible: true,
+        hasChanges: true,
+        modifiedCount,
+      });
     }
   };
 
@@ -229,7 +253,6 @@ export default function EditProduct() {
       formData.append("file", file);
       formData.append("upload_preset", UPLOAD_PRESET);
 
-      // Upload lên Cloudinary
       const cloudinaryResponse = await fetch(
         `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
         {
@@ -247,14 +270,12 @@ export default function EditProduct() {
       const cloudinaryData = await cloudinaryResponse.json();
 
       if (cloudinaryData.secure_url) {
-        // Lưu URL vào database
         const response = await baseUrl.post(`/anh/${variantId}/single`, {
           imageUrl: cloudinaryData.secure_url,
         });
 
         if (response.data) {
           message.success("Thêm ảnh thành công");
-          // Refresh danh sách ảnh
           const updatedImages = await fetchVariantImages(variantId);
           setVariants((prev) =>
             prev.map((v) =>
@@ -262,7 +283,6 @@ export default function EditProduct() {
             )
           );
 
-          // Cập nhật modal nếu đang mở
           if (imageModal.variantId === variantId) {
             setImageModal((prev) => ({
               ...prev,
@@ -291,7 +311,6 @@ export default function EditProduct() {
           await baseUrl.delete(`/anh/${imageId}`);
           message.success("Xóa ảnh thành công");
 
-          // Refresh danh sách ảnh
           const updatedImages = await fetchVariantImages(variantId);
           setVariants((prev) =>
             prev.map((v) =>
@@ -299,7 +318,6 @@ export default function EditProduct() {
             )
           );
 
-          // Cập nhật modal nếu đang mở
           if (imageModal.variantId === variantId) {
             setImageModal((prev) => ({
               ...prev,
@@ -1045,17 +1063,76 @@ export default function EditProduct() {
           </div>
         </Modal>
 
-        <div className="flex justify-end gap-4 mt-4">
+        <Modal
+          open={confirmModal.visible}
+          title={
+            <div className="flex items-center gap-3">
+              <ExclamationCircleOutlined
+                style={{ color: "#E67E22", fontSize: 24 }}
+              />
+              <span className="text-lg font-semibold">
+                {confirmModal.hasChanges
+                  ? "Xác nhận lưu thay đổi"
+                  : "Không có thay đổi"}
+              </span>
+            </div>
+          }
+          onCancel={() => setConfirmModal({ ...confirmModal, visible: false })}
+          footer={
+            <div className="flex justify-end gap-3">
+              <Button
+                size="large"
+                onClick={() =>
+                  setConfirmModal({ ...confirmModal, visible: false })
+                }
+              >
+                Hủy
+              </Button>
+              <Button
+                type="primary"
+                size="large"
+                loading={submitLoading}
+                icon={<SaveOutlined />}
+                style={{ backgroundColor: "#E67E22", borderColor: "#E67E22" }}
+                onClick={() => {
+                  setConfirmModal({ ...confirmModal, visible: false });
+                  form.submit();
+                }}
+              >
+                {confirmModal.hasChanges ? "Lưu tất cả thay đổi" : "Vẫn lưu"}
+              </Button>
+            </div>
+          }
+          width={500}
+        >
+          {confirmModal.hasChanges ? (
+            <div className="space-y-3">
+              <p>Bạn có chắc chắn muốn lưu các thay đổi sau không?</p>
+              {confirmModal.modifiedCount > 0 && (
+                <Tag color="orange" className="text-sm">
+                  {confirmModal.modifiedCount} biến thể đã chỉnh sửa
+                </Tag>
+              )}
+            </div>
+          ) : (
+            <div className="text-gray-600">
+              <p>Bạn chưa chỉnh sửa bất kỳ thông tin nào.</p>
+              <p className="mt-2">Bạn có chắc chắn vẫn muốn thực hiện lưu?</p>
+            </div>
+          )}
+        </Modal>
+
+        <div className="flex justify-end gap-4 mt-8">
           <Button size="large" onClick={() => navigate(-1)}>
             Hủy
           </Button>
           <Button
             type="primary"
-            htmlType="submit"
             size="large"
             loading={submitLoading}
             icon={<SaveOutlined />}
             style={{ backgroundColor: "#E67E22", borderColor: "#E67E22" }}
+            onClick={handleSaveWithConfirm}
           >
             Lưu tất cả thay đổi
           </Button>
