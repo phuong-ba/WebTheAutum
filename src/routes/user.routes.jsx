@@ -1,3 +1,6 @@
+import OrderDetailOld from "@/components/OrderDetailOld";
+import OrderHistory from "@/components/OrderHistory";
+import OrderSuccess from "@/components/OrderSuccess";
 import CustomerLogin from "@/pages/auth/CustomerLogin";
 import { Spin } from "antd";
 import React, { Suspense } from "react";
@@ -14,7 +17,9 @@ const CategoryAll = React.lazy(() =>
 const ProductDetail = React.lazy(() =>
   import("@/pages/home/productDetail/ProductDetail")
 );
+const YourBill = React.lazy(() => import("@/pages/home/order/YourBill"));
 const CheckOut = React.lazy(() => import("@/pages/home/cart/CheckOut"));
+const OrderDetail = React.lazy(() => import("@/pages/home/order/OrderDetail"));
 const ViewCart = React.lazy(() => import("@/pages/home/cart/ViewCart"));
 const Coupons = React.lazy(() => import("@/pages/home/coupons/Coupons"));
 const contentStyle = {
@@ -90,7 +95,7 @@ const userRouters = [
         ),
       },
       {
-        path: "productdetail",
+        path: "productDetail/:id",
         element: (
           <LazyLoad>
             <ProductDetail />
@@ -98,52 +103,50 @@ const userRouters = [
         ),
       },
       {
+        path: "your-bill",
+        element: (
+          <LazyLoad>
+            <YourBill />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "orders/:id",
+        element: (
+          <LazyLoad>
+            <OrderDetail />
+          </LazyLoad>
+        ),
+      },
+      {
         path: "/customer/login",
         element: <CustomerLogin />,
       },
-      // {
-      //   path: "cart", // Sẽ khớp với đường dẫn "/cart"
-      //   element: (
-      //     <LazyLoad>
-      //       <Cart />
-      //     </LazyLoad>
-      //   ),
-      // },
-      // {
-      //   path: "checkout", // Sẽ khớp với đường dẫn "/checkout"
-      //   element: <LazyLoad><Checkout /></LazyLoad>,
-      // },
-      // {
-      //   path: "order-success/:maHoaDon",
-      //   element: ( <LazyLoad> <OrderSuccess /> </LazyLoad> ),
-      // },
+      {
+        path: "order-success/:maHoaDon",
+        element: (
+          <LazyLoad>
+            <OrderSuccess />
+          </LazyLoad>
+        ),
+      },
 
       {
         path: "/orders", // Sẽ khớp với "/profile/orders"
-        element: ( <LazyLoad> <OrderHistory /> </LazyLoad> ),
+        element: (
+          <LazyLoad>
+            <OrderHistory />
+          </LazyLoad>
+        ),
       },
       {
-        path: "/orders/:maHoaDon", 
-        element: ( <LazyLoad> <OrderDetail /> </LazyLoad> ),
+        path: "/ordersss/:maHoaDon",
+        element: (
+          <LazyLoad>
+            <OrderDetailOld />
+          </LazyLoad>
+        ),
       },
-      {
-        path: "/product/:idSanPham", 
-        element: ( <LazyLoad> <ProductDetail /> </LazyLoad> ),
-      },
-      {
-        path: "/payment/success", 
-        element: ( <LazyLoad> <PaymentSuccess  /> </LazyLoad> ),
-      },
-      {
-        path: "/payment/failed", 
-        element: ( <LazyLoad> <PaymentFailed  /> </LazyLoad> ),
-      },
-      {
-        path: "/products", 
-        element: ( <LazyLoad> <AllProducts  /> </LazyLoad> ),
-      },
-      
-
     ],
   },
 ];

@@ -6,7 +6,6 @@ import Banner from "./Banner";
 
 import Advise from "./Advise";
 
-
 import Chatbox from "@/components/Chatbox/CustomerChat";
 export default function UserLayout() {
   const [isFixed, setIsFixed] = useState(false);
@@ -43,7 +42,7 @@ export default function UserLayout() {
 
       <div className="flex-1 py-[60px] px-40 overflow-auto ">
         <Outlet />
-        <Chatbox />
+        {/* <Chatbox /> */}
       </div>
 
       <Advise />
