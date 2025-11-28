@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import SockJS from "sockjs-client";
 import { over } from "stompjs";
-
+import { useNavigate } from "react-router-dom";
 export default function CustomerChat() {
-  const [customerId] = useState(localStorage.getItem("customer_id"));
-  const [hoTen] = useState(
+  const [customerId, setCustomerId] = useState(
+    localStorage.getItem("customer_id")
+  );
+  const [hoTen, setHoTen] = useState(
     localStorage.getItem("customer_name") || "Khách hàng"
   );
   const [roomId, setRoomId] = useState(null);
@@ -16,13 +18,10 @@ export default function CustomerChat() {
   const bottomRef = useRef();
   const [hasStaffJoined, setHasStaffJoined] = useState(false);
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (!customerId) {
-      alert("Vui lòng đăng nhập trước khi chat!");
-      window.location.href = "/login";
-      return;
-    }
+    if (!customerId) return; // Nếu chưa login thì không load chat
 
     const loadRoom = async () => {
       const res = await fetch(
@@ -44,7 +43,8 @@ export default function CustomerChat() {
   const loadHistory = async (rid) => {
     const res = await fetch(`http://localhost:8080/api/chatbot/history/${rid}`);
     const data = await res.json();
-    setMessages(data);
+    setMessages(Array.isArray(data) ? data : data?.messages || []);
+    console.log(data);
   };
   const sendMessage = () => {
     if (!message.trim() || !roomId) return;
@@ -102,7 +102,19 @@ export default function CustomerChat() {
       {!open && (
         <button
           className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-yellow-500 text-white shadow-xl flex items-center justify-center text-3xl hover:bg-yellow-600 transition"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            const id = localStorage.getItem("customer_id");
+            const name = localStorage.getItem("customer_name");
+
+            if (!id) {
+              navigate("/customer/login");
+              return;
+            }
+
+            setCustomerId(id);
+            setHoTen(name || "Khách hàng");
+            setOpen(true);
+          }}
         >
           💬
         </button>
