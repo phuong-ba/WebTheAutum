@@ -72,6 +72,43 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
     }
   };
 
+  const validationRules = {
+    hoTenKhachHang: [
+      { required: true, message: "Vui lòng nhập tên khách hàng!" },
+      { min: 2, message: "Tên phải có ít nhất 2 ký tự!" },
+      { max: 100, message: "Tên không được quá 100 ký tự!" },
+      {
+        pattern: /^[a-zA-ZÀ-ỹ\s]+$/,
+        message: "Tên chỉ được chứa chữ cái và khoảng trắng!",
+      },
+    ],
+    sdtKhachHang: [
+      { required: true, message: "Vui lòng nhập số điện thoại!" },
+      {
+        pattern: /(84|0[3|5|7|8|9])+([0-9]{8})\b/,
+        message: "Số điện thoại không hợp lệ (VD: 0912345678)!",
+      },
+    ],
+    emailKhachHang: [{ type: "email", message: "Email không hợp lệ!" }],
+    diaChiKhachHang: [
+      { required: true, message: "Vui lòng nhập địa chỉ!" },
+      { min: 10, message: "Địa chỉ phải có ít nhất 10 ký tự!" },
+      { max: 200, message: "Địa chỉ không được quá 200 ký tự!" },
+    ],
+    tenNhanVien: [
+      { max: 100, message: "Tên nhân viên không được quá 100 ký tự!" },
+    ],
+    ghiChu: [{ max: 500, message: "Ghi chú không được quá 500 ký tự!" }],
+    trangThai: [{ required: true, message: "Vui lòng chọn trạng thái!" }],
+    hinhThucThanhToan: [
+      { required: true, message: "Vui lòng chọn hình thức thanh toán!" },
+    ],
+    idNhanVien: [{ required: true, message: "Vui lòng chọn nhân viên!" }],
+    idPhuongThucThanhToan: [
+      { required: true, message: "Vui lòng chọn phương thức thanh toán!" },
+    ],
+  };
+
   const saveCustomerToBill = (customer) => {
     if (!selectedBillId) {
       messageApi.warning("Vui lòng chọn hóa đơn trước khi chọn khách hàng!");
@@ -283,13 +320,7 @@ export default function SellCustomer({ selectedBillId, onCustomerChange }) {
           <Form.Item
             name="sdt"
             label="Số điện thoại"
-            rules={[
-              { required: true, message: "Vui lòng nhập số điện thoại" },
-              {
-                pattern: /^0\d{9}$/,
-                message: "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0",
-              },
-            ]}
+            rules={validationRules.sdtKhachHang}
           >
             <Input placeholder="Nhập số điện thoại" />
           </Form.Item>

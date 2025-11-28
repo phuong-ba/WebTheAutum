@@ -36,6 +36,7 @@ export default function SellPay({
   discountAmount: propDiscountAmount,
   finalAmount: propFinalAmount,
   triggerShippingCalculation,
+  onClearTemporaryData,
 }) {
   const dispatch = useDispatch();
   const {
@@ -278,22 +279,33 @@ export default function SellPay({
     }
   };
 
+  // QUAN TRỌNG: Sửa hàm prepareHoaDonData để lưu đúng thông tin từ form
   const prepareHoaDonData = (paymentInfo = {}) => {
     let shippingAddress = null;
     let formCustomerInfo = null;
 
+    // Lấy giá trị từ form - SỬA LỖI QUAN TRỌNG: sử dụng đúng tên field
+    const formValues = addressForm?.getFieldsValue() || {};
+
+    console.log("🔍 DEBUG - Form values:", formValues);
+    console.log("🔍 DEBUG - Selected customer:", selectedCustomer);
+
+    // Xác định xem có phải khách hàng tạm không
+    const isTemporaryCustomer = selectedCustomer?.isTemporary;
+
     if (isDelivery && addressForm) {
       try {
-        const formValues = addressForm.getFieldsValue();
         if (formValues.thanhPho && formValues.quan && formValues.diaChiCuThe) {
           const tinhName =
             tinhList?.find((t) => t.id === formValues.thanhPho)?.tenTinh || "";
           const quanName =
             localQuanList?.find((q) => q.id === formValues.quan)?.tenQuan || "";
 
+          // QUAN TRỌNG: Sửa lỗi - sử dụng đúng tên field từ form (HoTen, SoDienThoai)
           formCustomerInfo = {
-            hoTen: formValues.hoTen || "Khách lẻ",
-            sdt: formValues.sdt || "",
+            hoTen: formValues.HoTen || "Khách lẻ", // Sửa từ formValues.hoTen -> formValues.HoTen
+            sdt: formValues.SoDienThoai || "", // Sửa từ formValues.sdt -> formValues.SoDienThoai
+            isTemporary: isTemporaryCustomer,
           };
 
           shippingAddress = {
@@ -337,7 +349,7 @@ export default function SellPay({
       idTinh = shippingAddress.idTinh;
       idQuan = shippingAddress.idQuan;
       diaChiCuThe = shippingAddress.diaChiCuThe;
-    } else if (selectedCustomer?.diaChi) {
+    } else if (selectedCustomer?.diaChi && !isTemporaryCustomer) {
       const customerAddress = selectedCustomer.diaChi;
       diaChiKhachHang =
         customerAddress.dia_chi_cu_the ||
@@ -375,18 +387,27 @@ export default function SellPay({
         idPhuongThucThanhToan = 3;
     }
 
-    const customerType = selectedCustomer ? "Khách hàng" : "Khách lẻ";
-    const customerNote = formCustomerInfo
-      ? ` - ${formCustomerInfo.hoTen}${
-          formCustomerInfo.sdt ? ` - ${formCustomerInfo.sdt}` : ""
-        }`
-      : "";
+    const customerName =
+      formValues.HoTen || selectedCustomer?.hoTen || "Khách lẻ";
+    const customerPhone = formValues.SoDienThoai || selectedCustomer?.sdt || "";
+
+    const customerType = isTemporaryCustomer
+      ? "Khách hàng tạm"
+      : selectedCustomer
+      ? "Khách hàng"
+      : "Khách lẻ";
+
+    const customerNote =
+      customerName !== "Khách lẻ"
+        ? ` - ${customerName}${customerPhone ? ` - ${customerPhone}` : ""}`
+        : "";
 
     const shippingNote = isDelivery
       ? ` - Phí vận chuyển ${selectedShipping}: ${shippingFee.toLocaleString()} VND`
       : "";
 
-    return {
+    // Tạo đối tượng request data
+    const requestData = {
       loaiHoaDon: true,
       phiVanChuyen: isDelivery ? shippingFee : 0,
       tongTien: cartTotal,
@@ -395,15 +416,10 @@ export default function SellPay({
         isDelivery ? "Bán giao hàng - " : "Bán tại quầy - "
       }${customerType}${customerNote} - ${paymentNote}${
         appliedDiscount?.code ? `, mã giảm ${appliedDiscount.code}` : ""
-      }${
-        isDelivery
-          ? ` - Phí vận chuyển ${selectedShipping}: ${shippingFee.toLocaleString()} VND`
-          : ""
-      }`,
+      }${shippingNote}`,
       diaChiKhachHang,
       ngayThanhToan: new Date().toISOString(),
       trangThai: isDelivery ? 1 : 3,
-      idKhachHang: selectedCustomer?.id || null,
       idNhanVien: currentUserId,
       idPhieuGiamGia: appliedDiscount?.id || null,
       nguoiTao: currentUserId,
@@ -413,14 +429,57 @@ export default function SellPay({
       idTinh,
       idQuan,
       diaChiCuThe,
-      hoTen: formCustomerInfo?.hoTen || null,
-      sdt: formCustomerInfo?.sdt || null,
+      hoTen: customerName, // QUAN TRỌNG: Gửi tên khách hàng từ form
+      sdt: customerPhone, // QUAN TRỌNG: Gửi số điện thoại từ form
       donViVanChuyen: isDelivery ? selectedShipping : null,
       tongTienHang: cartTotal,
       tienGiamGia: actualDiscountAmount,
       phiVanChuyen: isDelivery ? shippingFee : 0,
       ...paymentInfo,
     };
+
+    // QUAN TRỌNG: Xử lý trường hợp khách hàng tạm - KHÔNG gửi idKhachHang
+    if (
+      isTemporaryCustomer ||
+      !selectedCustomer ||
+      selectedCustomer?.isTemporary
+    ) {
+      // Khách hàng tạm hoặc khách lẻ - KHÔNG gửi idKhachHang để backend không gán vào khách lẻ mặc định
+      console.log("🆕 Tạo hóa đơn cho khách hàng tạm/khách lẻ:", {
+        hoTen: customerName,
+        sdt: customerPhone,
+        idKhachHang: "KHÔNG GỬI",
+      });
+    } else {
+      // Khách hàng đã có trong hệ thống
+      requestData.idKhachHang = selectedCustomer.id;
+      console.log("👤 Tạo hóa đơn cho khách hàng có sẵn:", selectedCustomer.id);
+    }
+
+    console.log("📦 Dữ liệu gửi lên server:", requestData);
+    return requestData;
+  };
+
+  // Hàm xử lý thanh toán thành công - bao gồm xóa dữ liệu tạm
+  const handlePaymentSuccess = () => {
+    // Xóa dữ liệu tạm
+    if (onClearTemporaryData) {
+      onClearTemporaryData();
+    }
+
+    if (selectedBillId) {
+      const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+      const updatedBills = bills.filter((bill) => bill.id !== selectedBillId);
+      localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
+      window.dispatchEvent(new Event("billsUpdated"));
+    }
+
+    if (onRemoveDiscount) onRemoveDiscount();
+    if (onClearCart) onClearCart();
+
+    if (appliedDiscount?.isPersonal) {
+      handleRemovePersonalDiscountAfterPayment();
+    }
   };
 
   const renderShippingOptions = () => {
@@ -535,21 +594,7 @@ export default function SellPay({
 
         messageApi.success(successMessage);
 
-        if (selectedBillId) {
-          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-          const updatedBills = bills.filter(
-            (bill) => bill.id !== selectedBillId
-          );
-          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-          window.dispatchEvent(new Event("billsUpdated"));
-        }
-
-        if (onRemoveDiscount) onRemoveDiscount();
-        if (onClearCart) onClearCart();
-
-        if (appliedDiscount?.isPersonal) {
-          await handleRemovePersonalDiscountAfterPayment();
-        }
+        handlePaymentSuccess();
 
         setQrModalVisible(false);
 
@@ -586,21 +631,7 @@ export default function SellPay({
 
         messageApi.success(successMessage);
 
-        if (selectedBillId) {
-          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-          const updatedBills = bills.filter(
-            (bill) => bill.id !== selectedBillId
-          );
-          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-          window.dispatchEvent(new Event("billsUpdated"));
-        }
-
-        if (onRemoveDiscount) onRemoveDiscount();
-        if (onClearCart) onClearCart();
-
-        if (appliedDiscount?.isPersonal) {
-          await handleRemovePersonalDiscountAfterPayment();
-        }
+        handlePaymentSuccess();
 
         const newBillId = res.data.data?.id || res.data.data;
         if (newBillId) {
@@ -631,21 +662,7 @@ export default function SellPay({
 
         messageApi.success(successMessage);
 
-        if (selectedBillId) {
-          const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-          const updatedBills = bills.filter(
-            (bill) => bill.id !== selectedBillId
-          );
-          localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-          window.dispatchEvent(new Event("billsUpdated"));
-        }
-
-        if (onRemoveDiscount) onRemoveDiscount();
-        if (onClearCart) onClearCart();
-
-        if (appliedDiscount?.isPersonal) {
-          await handleRemovePersonalDiscountAfterPayment();
-        }
+        handlePaymentSuccess();
 
         const newBillId = res.data.data?.id || res.data.data;
         if (newBillId) {
@@ -693,7 +710,6 @@ export default function SellPay({
       }
     }
 
-    // Đảm bảo phí vận chuyển đã được tính xong
     if (isDelivery && shippingLoading) {
       messageApi.warning("Vui lòng chờ tính phí vận chuyển hoàn tất!");
       return;
@@ -705,9 +721,14 @@ export default function SellPay({
       return;
     }
 
+    const formValues = addressForm?.getFieldsValue() || {};
+    const customerName =
+      formValues.HoTen || selectedCustomer?.hoTen || "Khách lẻ";
+    const customerPhone = formValues.SoDienThoai || selectedCustomer?.sdt || "";
+
     setPendingConfirmData({
-      customerName: selectedCustomer?.hoTen || "Khách lẻ",
-      customerPhone: selectedCustomer?.sdt || "",
+      customerName: customerName, // Sửa: Ưu tiên lấy từ form
+      customerPhone: customerPhone, // Sửa: Ưu tiên lấy từ form
       isDelivery,
       cartTotal,
       discountAmount: actualDiscountAmount,
@@ -762,7 +783,7 @@ export default function SellPay({
             <div
               key={option}
               onClick={() => setPaymentMethod(option)}
-              className={`cursor-pointer select-none text-center py-2 px-6 rounded-xl bg-white font-bold border shadow transition-all ${
+              className={`cursor-pointer select-none text-center py-2 px-6 rounded-xl font-bold border shadow transition-all ${
                 paymentMethod === option
                   ? "bg-amber-600 text-white border-amber-600 shadow-md"
                   : "text-amber-600 hover:text-white hover:bg-amber-500 border-gray-300 hover:shadow-sm"
@@ -930,6 +951,7 @@ export default function SellPay({
                 <span className="font-medium text-gray-700">Khách hàng:</span>
                 <span className="font-bold text-gray-900">
                   {pendingConfirmData.customerName}
+                  {selectedCustomer?.isTemporary}
                 </span>
               </div>
               {pendingConfirmData.customerPhone && (

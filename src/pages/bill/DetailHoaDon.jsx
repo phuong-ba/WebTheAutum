@@ -32,11 +32,12 @@ import {
   ClockCircleOutlined,
 } from "@ant-design/icons";
 import { TrashIcon } from "lucide-react";
-import {
-  tangSoLuong,
-  fetchChiTietSanPham,
-  giamSoLuong,
-} from "@/services/chiTietSanPhamService";
+// COMMENT: Đã comment các import liên quan đến thêm sửa xoá sản phẩm
+// import {
+//   tangSoLuong,
+//   fetchChiTietSanPham,
+//   giamSoLuong,
+// } from "@/services/chiTietSanPhamService";
 import hoaDonApi from "../../api/HoaDonAPI";
 import { fetchNhanVien } from "@/services/nhanVienService";
 import { fetchPhuongThuc } from "@/services/phuongThucThanhToanService";
@@ -44,7 +45,8 @@ import BillOrderInformation from "./BillOrderInformation";
 import BillInvoiceStatus from "./BillInvoiceStatus";
 import BillInvoiceHistory from "./BillInvoiceHistory";
 import { FloppyDiskIcon, XCircleIcon, XIcon } from "@phosphor-icons/react";
-import BillProduct from "./BillProduct";
+// COMMENT: Đã comment component thêm sản phẩm
+// import BillProduct from "./BillProduct";
 import { diaChiApi } from "/src/api/diaChiApi";
 import { useDispatch, useSelector } from "react-redux";
 import BillBreadcrumb from "./BillBreadcrumb";
@@ -68,7 +70,8 @@ const DetailHoaDon = () => {
   const [tempLoaiHoaDon, setTempLoaiHoaDon] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [customerAddresses, setCustomerAddresses] = useState([]);
-  const [showBillProduct, setShowBillProduct] = useState(false);
+  // COMMENT: Đã comment state hiển thị thêm sản phẩm
+  // const [showBillProduct, setShowBillProduct] = useState(false);
   const [editingQuantities, setEditingQuantities] = useState({});
   const [tinhList, setTinhList] = useState([]);
   const [quanMap, setQuanMap] = useState({});
@@ -77,11 +80,13 @@ const DetailHoaDon = () => {
   const [messageApi, contextHolder] = message.useMessage();
   const dispatch = useDispatch();
 
-  const [deletedProducts, setDeletedProducts] = useState([]);
+  // COMMENT: Đã comment state quản lý sản phẩm đã xóa
+  // const [deletedProducts, setDeletedProducts] = useState([]);
 
   const [invoiceProducts, setInvoiceProducts] = useState([]);
 
-  const { data: productList } = useSelector((state) => state.chiTietSanPham);
+  // COMMENT: Đã comment selector sản phẩm
+  // const { data: productList } = useSelector((state) => state.chiTietSanPham);
 
   const [nhanVienList, setNhanVienList] = useState([]);
   const [phuongThucList, setPhuongThucList] = useState([]);
@@ -110,30 +115,32 @@ const DetailHoaDon = () => {
     }
   }, [invoice]);
 
-  const xoaChiTietSanPham = async (idHoaDon, idChiTietSanPham) => {
-    try {
-      console.log(
-        `🔄 Gọi API xóa: /api/hoa-don/${idHoaDon}/chi-tiet/${idChiTietSanPham}`
-      );
+  // COMMENT: Đã comment hàm xóa chi tiết sản phẩm
+  // const xoaChiTietSanPham = async (idHoaDon, idChiTietSanPham) => {
+  //   try {
+  //     console.log(
+  //       `🔄 Gọi API xóa: /api/hoa-don/${idHoaDon}/chi-tiet/${idChiTietSanPham}`
+  //     );
 
-      const response = await hoaDonApi.xoaChiTietSanPham(
-        idHoaDon,
-        idChiTietSanPham
-      );
+  //     const response = await hoaDonApi.xoaChiTietSanPham(
+  //       idHoaDon,
+  //       idChiTietSanPham
+  //     );
 
-      console.log("✅ API response:", response);
-      return response.data;
-    } catch (error) {
-      console.error("❌ Lỗi khi xóa chi tiết sản phẩm:", error);
-      console.error("❌ Error details:", {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        url: error.config?.url,
-      });
-      throw error;
-    }
-  };
+  //     console.log("✅ API response:", response);
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error("❌ Lỗi khi xóa chi tiết sản phẩm:", error);
+  //     console.error("❌ Error details:", {
+  //       status: error.response?.status,
+  //       statusText: error.response?.statusText,
+  //       data: error.response?.data,
+  //       url: error.config?.url,
+  //     });
+  //     throw error;
+  //   }
+  // };
+
   const fetchLichSuThanhToan = async () => {
     try {
       const response = await hoaDonApi.getLichSuThanhToan(id);
@@ -144,87 +151,89 @@ const DetailHoaDon = () => {
     }
   };
 
-  const calculateTotal = (products) => {
-    return products.reduce((total, product) => {
-      return (
-        total + (product.thanhTien || product.giaBan * product.soLuong || 0)
-      );
-    }, 0);
-  };
+  // COMMENT: Đã comment các hàm tính toán tổng tiền cũ
+  // const calculateTotal = (products) => {
+  //   return products.reduce((total, product) => {
+  //     return (
+  //       total + (product.thanhTien || product.giaBan * product.soLuong || 0)
+  //     );
+  //   }, 0);
+  // };
 
-  const calculateFinalTotal = () => {
-    if (!invoice) {
-      return {
-        tongTienSanPham: 0,
-        phiVanChuyen: 0,
-        tongTienTruocGiam: 0,
-        tienGiamGia: 0,
-        tongTienCuoiCung: 0,
-        phieuGiamGiaInfo: null,
-      };
-    }
+  // const calculateFinalTotal = () => {
+  //   if (!invoice) {
+  //     return {
+  //       tongTienSanPham: 0,
+  //       phiVanChuyen: 0,
+  //       tongTienTruocGiam: 0,
+  //       tienGiamGia: 0,
+  //       tongTienCuoiCung: 0,
+  //       phieuGiamGiaInfo: null,
+  //     };
+  //   }
 
-    // 1. Tiền hàng
-    const tongTienSanPham =
-      invoice.tongTien || calculateTotal(invoiceProducts) || 0;
+  //   // 1. Tiền hàng
+  //   const tongTienSanPham =
+  //     invoice.tongTien || calculateTotal(invoiceProducts) || 0;
 
-    // 2. Phí vận chuyển (luôn lấy giá trị mới nhất)
-    const phiVanChuyen = invoice.phiVanChuyen || 0;
+  //   // 2. Phí vận chuyển (luôn lấy giá trị mới nhất)
+  //   const phiVanChuyen = invoice.phiVanChuyen || 0;
 
-    // 3. Tổng trước khi giảm giá = tiền hàng + ship
-    const tongTienTruocGiam = tongTienSanPham + phiVanChuyen;
+  //   // 3. Tổng trước khi giảm giá = tiền hàng + ship
+  //   const tongTienTruocGiam = tongTienSanPham + phiVanChuyen;
 
-    // 4. Tiền giảm giá (voucher, khuyến mãi)
-    // Ưu tiên lấy từ backend nếu có, nếu không thì tính lại từ tổng tiền cũ
-    let tienGiamGia = 0;
-    if (invoice.tienGiamGia != null) {
-      tienGiamGia = invoice.tienGiamGia;
-    } else if (invoice.tongTien && invoice.tongTienSauGiam != null) {
-      tienGiamGia = invoice.tongTien - invoice.tongTienSauGiam;
-    }
+  //   // 4. Tiền giảm giá (voucher, khuyến mãi)
+  //   // Ưu tiên lấy từ backend nếu có, nếu không thì tính lại từ tổng tiền cũ
+  //   let tienGiamGia = 0;
+  //   if (invoice.tienGiamGia != null) {
+  //     tienGiamGia = invoice.tienGiamGia;
+  //   } else if (invoice.tongTien && invoice.tongTienSauGiam != null) {
+  //     tienGiamGia = invoice.tongTien - invoice.tongTienSauGiam;
+  //   }
 
-    // 5. Tính lại tổng cuối cùng ĐÚNG (có ship, có giảm giá)
-    const tongTienCuoiCungTinhLai = Math.max(
-      0,
-      tongTienTruocGiam - tienGiamGia
-    );
+  //   // 5. Tính lại tổng cuối cùng ĐÚNG (có ship, có giảm giá)
+  //   const tongTienCuoiCungTinhLai = Math.max(
+  //     0,
+  //     tongTienTruocGiam - tienGiamGia
+  //   );
 
-    // 6. Chỉ dùng soTienThanhToan nếu nó thực sự là số cuối cùng (backend mới)
-    // Nếu backend cũ vẫn gửi tongTienSauGiam chưa có ship → bỏ qua, dùng số mình tính lại
-    const finalAmount =
-      invoice.soTienThanhToan > 0
-        ? invoice.soTienThanhToan
-        : tongTienCuoiCungTinhLai;
+  //   // 6. Chỉ dùng soTienThanhToan nếu nó thực sự là số cuối cùng (backend mới)
+  //   // Nếu backend cũ vẫn gửi tongTienSauGiam chưa có ship → bỏ qua, dùng số mình tính lại
+  //   const finalAmount =
+  //     invoice.soTienThanhToan > 0
+  //       ? invoice.soTienThanhToan
+  //       : tongTienCuoiCungTinhLai;
 
-    // 7. Thông tin phiếu giảm giá
-    let phieuGiamGiaInfo = null;
-    if (invoice.phieuGiamGia) {
-      const p = invoice.phieuGiamGia;
-      phieuGiamGiaInfo = {
-        maPhieu: p.maPhieu,
-        tenPhieu: p.tenPhieu,
-        loaiGiamGia: p.loaiGiamGia,
-        giaTriGiamGia: p.giaTriGiamGia,
-        giamToiDa: p.mucGiaGiamToiDa || p.giamToiDa,
-        giaTriDonHangToiThieu: p.giaTriDonHangToiThieu,
-      };
-    }
+  //   // 7. Thông tin phiếu giảm giá
+  //   let phieuGiamGiaInfo = null;
+  //   if (invoice.phieuGiamGia) {
+  //     const p = invoice.phieuGiamGia;
+  //     phieuGiamGiaInfo = {
+  //       maPhieu: p.maPhieu,
+  //       tenPhieu: p.tenPhieu,
+  //       loaiGiamGia: p.loaiGiamGia,
+  //       giaTriGiamGia: p.giaTriGiamGia,
+  //       giamToiDa: p.mucGiaGiamToiDa || p.giamToiDa,
+  //       giaTriDonHangToiThieu: p.giaTriDonHangToiThieu,
+  //     };
+  //   }
 
-    return {
-      tongTienSanPham,
-      phiVanChuyen,
-      tongTienTruocGiam,
-      tienGiamGia: Math.max(0, tienGiamGia),
-      tongTienCuoiCung: finalAmount, // ← ĐẢM BẢO ĐÚNG 100%
-      phieuGiamGiaInfo,
-    };
-  };
+  //   return {
+  //     tongTienSanPham,
+  //     phiVanChuyen,
+  //     tongTienTruocGiam,
+  //     tienGiamGia: Math.max(0, tienGiamGia),
+  //     tongTienCuoiCung: finalAmount, // ← ĐẢM BẢO ĐÚNG 100%
+  //     phieuGiamGiaInfo,
+  //   };
+  // };
 
-  useEffect(() => {
-    const total = calculateTotal(invoiceProducts);
-    setTongTien(total);
-    console.log(`💰 Tổng tiền cập nhật: ${formatMoney(total)}`);
-  }, [invoiceProducts]);
+  // COMMENT: Đã comment useEffect tính tổng tiền cũ
+  // useEffect(() => {
+  //   const total = calculateTotal(invoiceProducts);
+  //   setTongTien(total);
+  //   console.log(`💰 Tổng tiền cập nhật: ${formatMoney(total)}`);
+  // }, [invoiceProducts]);
 
   const checkEditPermissions = (status) => {
     const editable = status === 0;
@@ -251,22 +260,10 @@ const DetailHoaDon = () => {
     }
   }, [invoice, dispatch]);
 
-  useEffect(() => {
-    dispatch(fetchChiTietSanPham());
-  }, [dispatch]);
-
+  // COMMENT: Đã comment dispatch fetch sản phẩm
   // useEffect(() => {
-  //   if (invoice?.chiTietSanPhams) {
-  //     setInvoiceProducts(invoice.chiTietSanPhams);
-
-  //     const initialQuantities = {};
-  //     invoice.chiTietSanPhams.forEach((product) => {
-  //       const key = getProductKey(product);
-  //       initialQuantities[key] = product.soLuong;
-  //     });
-  //     setEditingQuantities(initialQuantities);
-  //   }
-  // }, [invoice]);
+  //   dispatch(fetchChiTietSanPham());
+  // }, [dispatch]);
 
   useEffect(() => {
     diaChiApi
@@ -277,6 +274,7 @@ const DetailHoaDon = () => {
         messageApi.error("Không thể tải danh sách tỉnh/thành");
       });
   }, [messageApi]);
+
   const handleTempStatusChange = (newStatus) => {
     setTempStatus(newStatus);
   };
@@ -284,6 +282,7 @@ const DetailHoaDon = () => {
   const handleLoaiHoaDonChange = (newLoaiHoaDon) => {
     setTempLoaiHoaDon(newLoaiHoaDon);
   };
+
   const handleTinhChange = async (idTinh) => {
     if (!idTinh) {
       setLocalQuanList([]);
@@ -307,6 +306,7 @@ const DetailHoaDon = () => {
       messageApi.error("Không thể tải danh sách quận/huyện");
     }
   };
+
   const handleEditToggle = () => {
     setIsEditing(true);
     setTempStatus(invoice?.trangThai || 0);
@@ -315,7 +315,6 @@ const DetailHoaDon = () => {
     const kh = invoice.khachHang || {};
 
     const defaultAddress = kh.diaChi?.find((addr) => addr.trangThai === true);
-
     const fallbackAddress = defaultAddress || (kh.diaChi?.[0] ?? null);
 
     let currentAddress = invoice.diaChiKhachHang || "";
@@ -424,33 +423,35 @@ const DetailHoaDon = () => {
         .join(", ")
         .trim();
 
-      const currentChiTietSanPhams = invoiceProducts.map((product) => ({
-        idChiTietSanPham: getChiTietSanPhamId(product),
-        soLuong: product.soLuong,
-        giaBan: product.giaBan || product.giaSauGiam || 0,
-        ghiChu: product.ghiChu || "",
-      }));
+      // COMMENT: Đã comment phần xử lý chi tiết sản phẩm
+      // const currentChiTietSanPhams = invoiceProducts.map((product) => ({
+      //   idChiTietSanPham: getChiTietSanPhamId(product),
+      //   soLuong: product.soLuong,
+      //   giaBan: product.giaBan || product.giaSauGiam || 0,
+      //   ghiChu: product.ghiChu || "",
+      // }));
 
-      if (deletedProducts.length > 0) {
-        console.log(
-          "🗑️ Bắt đầu xóa thật sự",
-          deletedProducts.length,
-          "sản phẩm"
-        );
+      // COMMENT: Đã comment phần xóa sản phẩm
+      // if (deletedProducts.length > 0) {
+      //   console.log(
+      //     "🗑️ Bắt đầu xóa thật sự",
+      //     deletedProducts.length,
+      //     "sản phẩm"
+      //   );
 
-        for (const deletedProduct of deletedProducts) {
-          try {
-            await xoaChiTietSanPham(id, deletedProduct.idChiTietSanPham);
-            console.log("✅ Đã xóa sản phẩm:", deletedProduct.idChiTietSanPham);
-          } catch (error) {
-            console.error(
-              "❌ Lỗi khi xóa sản phẩm:",
-              deletedProduct.idChiTietSanPham,
-              error
-            );
-          }
-        }
-      }
+      //   for (const deletedProduct of deletedProducts) {
+      //     try {
+      //       await xoaChiTietSanPham(id, deletedProduct.idChiTietSanPham);
+      //       console.log("✅ Đã xóa sản phẩm:", deletedProduct.idChiTietSanPham);
+      //     } catch (error) {
+      //       console.error(
+      //         "❌ Lỗi khi xóa sản phẩm:",
+      //         deletedProduct.idChiTietSanPham,
+      //         error
+      //       );
+      //     }
+      //   }
+      // }
 
       const requestData = {
         ...values,
@@ -463,7 +464,8 @@ const DetailHoaDon = () => {
         trangThai: tempStatus,
         loaiHoaDon: tempLoaiHoaDon,
 
-        chiTietSanPhams: currentChiTietSanPhams,
+        // COMMENT: Đã comment chi tiết sản phẩm trong request
+        // chiTietSanPhams: currentChiTietSanPhams,
       };
 
       await hoaDonApi.updateHoaDon(id, requestData);
@@ -471,7 +473,8 @@ const DetailHoaDon = () => {
       message.success("Cập nhật hóa đơn thành công!");
       setIsEditing(false);
 
-      setDeletedProducts([]);
+      // COMMENT: Đã comment reset state sản phẩm đã xóa
+      // setDeletedProducts([]);
       setEditingQuantities({});
       fetchLichSuHoaDon();
       await fetchInvoiceDetail();
@@ -512,6 +515,7 @@ const DetailHoaDon = () => {
     setCustomerAddresses(addresses);
     setAddressModalVisible(true);
   };
+
   const handleSelectAddress = async (record) => {
     if (!record) return;
 
@@ -560,177 +564,179 @@ const DetailHoaDon = () => {
   };
 
   const handleCancelEdit = () => {
-    if (deletedProducts.length > 0) {
-      console.log("🔄 Hoàn lại", deletedProducts.length, "sản phẩm đã xóa tạm");
+    // COMMENT: Đã comment phần khôi phục sản phẩm đã xóa
+    // if (deletedProducts.length > 0) {
+    //   console.log("🔄 Hoàn lại", deletedProducts.length, "sản phẩm đã xóa tạm");
 
-      const restoredProducts = [...invoiceProducts];
+    //   const restoredProducts = [...invoiceProducts];
 
-      deletedProducts.forEach((deletedProduct) => {
-        const existingIndex = restoredProducts.findIndex(
-          (p) => getProductKey(p) === deletedProduct.productKey
-        );
+    //   deletedProducts.forEach((deletedProduct) => {
+    //     const existingIndex = restoredProducts.findIndex(
+    //       (p) => getProductKey(p) === deletedProduct.productKey
+    //     );
 
-        if (existingIndex === -1 && deletedProduct.productData) {
-          restoredProducts.push(deletedProduct.productData);
+    //     if (existingIndex === -1 && deletedProduct.productData) {
+    //       restoredProducts.push(deletedProduct.productData);
 
-          setEditingQuantities((prev) => ({
-            ...prev,
-            [deletedProduct.productKey]: deletedProduct.soLuong,
-          }));
+    //       setEditingQuantities((prev) => ({
+    //         ...prev,
+    //         [deletedProduct.productKey]: deletedProduct.soLuong,
+    //       }));
 
-          console.log(
-            "✅ Đã khôi phục sản phẩm:",
-            deletedProduct.productData.tenSanPham
-          );
-        }
-      });
+    //       console.log(
+    //         "✅ Đã khôi phục sản phẩm:",
+    //         deletedProduct.productData.tenSanPham
+    //       );
+    //     }
+    //   });
 
-      setInvoiceProducts(restoredProducts);
-    }
+    //   setInvoiceProducts(restoredProducts);
+    // }
 
     setIsEditing(false);
-    setDeletedProducts([]);
+    // COMMENT: Đã comment reset state sản phẩm đã xóa
+    // setDeletedProducts([]);
     setEditingQuantities({});
     setFormErrors({});
     setTempStatus(invoice?.trangThai || 0);
     setTempLoaiHoaDon(invoice?.loaiHoaDon || false);
 
-    setDeletedProducts([]);
-
     editForm.resetFields();
 
-    messageApi.info("Đã hủy thay đổi và khôi phục sản phẩm đã xóa!");
+    messageApi.info("Đã hủy thay đổi!");
   };
 
-  const handleDeleteProductFromInvoice = async (productKey) => {
-    if (!canEditProducts) {
-      message.warning("Không thể xóa sản phẩm ở trạng thái hiện tại!");
-      return;
-    }
+  // COMMENT: Đã comment hàm xóa sản phẩm khỏi hóa đơn
+  // const handleDeleteProductFromInvoice = async (productKey) => {
+  //   if (!canEditProducts) {
+  //     message.warning("Không thể xóa sản phẩm ở trạng thái hiện tại!");
+  //     return;
+  //   }
 
-    const product = invoiceProducts.find(
-      (p) => getProductKey(p) === productKey
-    );
-    if (!product) return;
+  //   const product = invoiceProducts.find(
+  //     (p) => getProductKey(p) === productKey
+  //   );
+  //   if (!product) return;
 
-    const chiTietId = getChiTietSanPhamId(product);
+  //   const chiTietId = getChiTietSanPhamId(product);
 
-    setDeletedProducts((prev) => [
-      ...prev,
-      {
-        idChiTietSanPham: chiTietId,
-        soLuong: product.soLuong,
-        productKey: productKey,
-        productData: product,
-      },
-    ]);
+  //   setDeletedProducts((prev) => [
+  //     ...prev,
+  //     {
+  //       idChiTietSanPham: chiTietId,
+  //       soLuong: product.soLuong,
+  //       productKey: productKey,
+  //       productData: product,
+  //     },
+  //   ]);
 
-    const updated = invoiceProducts.filter(
-      (p) => getProductKey(p) !== productKey
-    );
-    setInvoiceProducts(updated);
+  //   const updated = invoiceProducts.filter(
+  //     (p) => getProductKey(p) !== productKey
+  //   );
+  //   setInvoiceProducts(updated);
 
-    setEditingQuantities((prev) => {
-      const newState = { ...prev };
-      delete newState[productKey];
-      return newState;
-    });
+  //   setEditingQuantities((prev) => {
+  //     const newState = { ...prev };
+  //     delete newState[productKey];
+  //     return newState;
+  //   });
 
-    messageApi.success("Đã đánh dấu xóa sản phẩm! Bấm Lưu để xác nhận.");
-  };
+  //   messageApi.success("Đã đánh dấu xóa sản phẩm! Bấm Lưu để xác nhận.");
+  // };
 
-  const handleIncreaseQuantity = async (productKey) => {
-    if (!canEditProducts) {
-      message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
-      return;
-    }
+  // COMMENT: Đã comment các hàm tăng giảm số lượng
+  // const handleIncreaseQuantity = async (productKey) => {
+  //   if (!canEditProducts) {
+  //     message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
+  //     return;
+  //   }
 
-    const product = invoiceProducts.find(
-      (p) => getProductKey(p) === productKey
-    );
-    if (!product) return;
+  //   const product = invoiceProducts.find(
+  //     (p) => getProductKey(p) === productKey
+  //   );
+  //   if (!product) return;
 
-    const chiTietId = getChiTietSanPhamId(product);
-    if (!chiTietId) return;
+  //   const chiTietId = getChiTietSanPhamId(product);
+  //   if (!chiTietId) return;
 
-    try {
-      const currentProduct = productList.find((p) => p.id === chiTietId);
-      if (!currentProduct || currentProduct.soLuongTon <= 0) {
-        messageApi.warning("Sản phẩm đã hết hàng!");
-        return;
-      }
+  //   try {
+  //     const currentProduct = productList.find((p) => p.id === chiTietId);
+  //     if (!currentProduct || currentProduct.soLuongTon <= 0) {
+  //       messageApi.warning("Sản phẩm đã hết hàng!");
+  //       return;
+  //     }
 
-      await dispatch(giamSoLuong({ id: chiTietId, soLuong: 1 })).unwrap();
+  //     await dispatch(giamSoLuong({ id: chiTietId, soLuong: 1 })).unwrap();
 
-      const updatedProducts = invoiceProducts.map((p) => {
-        if (getProductKey(p) === productKey) {
-          const newQuantity = p.soLuong + 1;
-          const newThanhTien = newQuantity * p.giaBan;
-          return {
-            ...p,
-            soLuong: newQuantity,
-            thanhTien: newThanhTien,
-          };
-        }
-        return p;
-      });
+  //     const updatedProducts = invoiceProducts.map((p) => {
+  //       if (getProductKey(p) === productKey) {
+  //         const newQuantity = p.soLuong + 1;
+  //         const newThanhTien = newQuantity * p.giaBan;
+  //         return {
+  //           ...p,
+  //           soLuong: newQuantity,
+  //           thanhTien: newThanhTien,
+  //         };
+  //       }
+  //       return p;
+  //     });
 
-      setInvoiceProducts(updatedProducts);
-      setEditingQuantities((prev) => ({
-        ...prev,
-        [productKey]: product.soLuong + 1,
-      }));
+  //     setInvoiceProducts(updatedProducts);
+  //     setEditingQuantities((prev) => ({
+  //       ...prev,
+  //       [productKey]: product.soLuong + 1,
+  //     }));
 
-      await dispatch(fetchChiTietSanPham()).unwrap();
-      messageApi.success("Đã tăng số lượng!");
-    } catch (error) {
-      console.error("Lỗi khi tăng số lượng:", error);
-      messageApi.error("Không thể tăng số lượng (hết hàng hoặc lỗi hệ thống)");
-    }
-  };
+  //     await dispatch(fetchChiTietSanPham()).unwrap();
+  //     messageApi.success("Đã tăng số lượng!");
+  //   } catch (error) {
+  //     console.error("Lỗi khi tăng số lượng:", error);
+  //     messageApi.error("Không thể tăng số lượng (hết hàng hoặc lỗi hệ thống)");
+  //   }
+  // };
 
-  const handleDecreaseQuantity = async (productKey) => {
-    if (!canEditProducts) {
-      message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
-      return;
-    }
+  // const handleDecreaseQuantity = async (productKey) => {
+  //   if (!canEditProducts) {
+  //     message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
+  //     return;
+  //   }
 
-    const product = invoiceProducts.find(
-      (p) => getProductKey(p) === productKey
-    );
-    if (!product || product.soLuong <= 1) return;
+  //   const product = invoiceProducts.find(
+  //     (p) => getProductKey(p) === productKey
+  //   );
+  //   if (!product || product.soLuong <= 1) return;
 
-    try {
-      const chiTietId = getChiTietSanPhamId(product);
+  //   try {
+  //     const chiTietId = getChiTietSanPhamId(product);
 
-      await dispatch(tangSoLuong({ id: chiTietId, soLuong: 1 })).unwrap();
+  //     await dispatch(tangSoLuong({ id: chiTietId, soLuong: 1 })).unwrap();
 
-      const updatedProducts = invoiceProducts.map((p) => {
-        if (getProductKey(p) === productKey) {
-          const newQuantity = p.soLuong - 1;
-          const newThanhTien = newQuantity * p.giaBan;
-          return {
-            ...p,
-            soLuong: newQuantity,
-            thanhTien: newThanhTien,
-          };
-        }
-        return p;
-      });
+  //     const updatedProducts = invoiceProducts.map((p) => {
+  //       if (getProductKey(p) === productKey) {
+  //         const newQuantity = p.soLuong - 1;
+  //         const newThanhTien = newQuantity * p.giaBan;
+  //         return {
+  //           ...p,
+  //           soLuong: newQuantity,
+  //           thanhTien: newThanhTien,
+  //         };
+  //       }
+  //       return p;
+  //     });
 
-      setInvoiceProducts(updatedProducts);
-      setEditingQuantities((prev) => ({
-        ...prev,
-        [productKey]: product.soLuong - 1,
-      }));
+  //     setInvoiceProducts(updatedProducts);
+  //     setEditingQuantities((prev) => ({
+  //       ...prev,
+  //       [productKey]: product.soLuong - 1,
+  //     }));
 
-      await dispatch(fetchChiTietSanPham()).unwrap();
-      messageApi.success("Đã giảm số lượng!");
-    } catch (error) {
-      console.error("Lỗi khi giảm số lượng:", error);
-      messageApi.error("Lỗi khi giảm số lượng!");
-    }
-  };
+  //     await dispatch(fetchChiTietSanPham()).unwrap();
+  //     messageApi.success("Đã giảm số lượng!");
+  //   } catch (error) {
+  //     console.error("Lỗi khi giảm số lượng:", error);
+  //     messageApi.error("Lỗi khi giảm số lượng!");
+  //   }
+  // };
 
   const getChiTietSanPhamId = (product) => {
     return (
@@ -741,177 +747,181 @@ const DetailHoaDon = () => {
     );
   };
 
-  const handleQuantityChange = (productId, newQuantity) => {
-    if (!canEditProducts) {
-      message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
-      return;
-    }
+  // COMMENT: Đã comment hàm thay đổi số lượng
+  // const handleQuantityChange = (productId, newQuantity) => {
+  //   if (!canEditProducts) {
+  //     message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
+  //     return;
+  //   }
 
-    if (!newQuantity || newQuantity < 1) return;
+  //   if (!newQuantity || newQuantity < 1) return;
 
-    setEditingQuantities((prev) => ({
-      ...prev,
-      [productId]: newQuantity,
-    }));
-  };
+  //   setEditingQuantities((prev) => ({
+  //     ...prev,
+  //     [productId]: newQuantity,
+  //   }));
+  // };
 
-  const handleApplyQuantity = async (productId) => {
-    if (!canEditProducts) {
-      message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
-      return;
-    }
+  // COMMENT: Đã comment hàm áp dụng số lượng
+  // const handleApplyQuantity = async (productId) => {
+  //   if (!canEditProducts) {
+  //     message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
+  //     return;
+  //   }
 
-    const newQuantity = editingQuantities[productId];
-    const product = invoiceProducts.find((p) => getProductKey(p) === productId);
-    if (!product || !newQuantity || newQuantity === product.soLuong) return;
+  //   const newQuantity = editingQuantities[productId];
+  //   const product = invoiceProducts.find((p) => getProductKey(p) === productId);
+  //   if (!product || !newQuantity || newQuantity === product.soLuong) return;
 
-    const chiTietId = getChiTietSanPhamId(product);
-    if (!chiTietId) {
-      messageApi.error("Không xác định được sản phẩm!");
-      return;
-    }
+  //   const chiTietId = getChiTietSanPhamId(product);
+  //   if (!chiTietId) {
+  //     messageApi.error("Không xác định được sản phẩm!");
+  //     return;
+  //   }
 
-    const quantityDiff = newQuantity - product.soLuong;
+  //   const quantityDiff = newQuantity - product.soLuong;
 
-    try {
-      if (quantityDiff > 0) {
-        const currentProduct = productList.find((p) => p.id === chiTietId);
-        if (!currentProduct || currentProduct.soLuongTon < quantityDiff) {
-          messageApi.warning(
-            `Chỉ còn ${currentProduct?.soLuongTon || 0} sản phẩm trong kho!`
-          );
-          setEditingQuantities((prev) => ({
-            ...prev,
-            [productId]: product.soLuong,
-          }));
-          return;
-        }
+  //   try {
+  //     if (quantityDiff > 0) {
+  //       const currentProduct = productList.find((p) => p.id === chiTietId);
+  //       if (!currentProduct || currentProduct.soLuongTon < quantityDiff) {
+  //         messageApi.warning(
+  //           `Chỉ còn ${currentProduct?.soLuongTon || 0} sản phẩm trong kho!`
+  //         );
+  //         setEditingQuantities((prev) => ({
+  //           ...prev,
+  //           [productId]: product.soLuong,
+  //         }));
+  //         return;
+  //       }
 
-        await dispatch(
-          giamSoLuong({ id: chiTietId, soLuong: quantityDiff })
-        ).unwrap();
-      } else if (quantityDiff < 0) {
-        await dispatch(
-          tangSoLuong({ id: chiTietId, soLuong: Math.abs(quantityDiff) })
-        ).unwrap();
-      }
+  //       await dispatch(
+  //         giamSoLuong({ id: chiTietId, soLuong: quantityDiff })
+  //       ).unwrap();
+  //     } else if (quantityDiff < 0) {
+  //       await dispatch(
+  //         tangSoLuong({ id: chiTietId, soLuong: Math.abs(quantityDiff) })
+  //       ).unwrap();
+  //     }
 
-      const updatedProducts = invoiceProducts.map((p) => {
-        if (getProductKey(p) === productId) {
-          const newThanhTien = newQuantity * p.giaBan;
-          return {
-            ...p,
-            soLuong: newQuantity,
-            thanhTien: newThanhTien,
-          };
-        }
-        return p;
-      });
+  //     const updatedProducts = invoiceProducts.map((p) => {
+  //       if (getProductKey(p) === productId) {
+  //         const newThanhTien = newQuantity * p.giaBan;
+  //         return {
+  //           ...p,
+  //           soLuong: newQuantity,
+  //           thanhTien: newThanhTien,
+  //         };
+  //       }
+  //       return p;
+  //     });
 
-      setInvoiceProducts(updatedProducts);
+  //     setInvoiceProducts(updatedProducts);
 
-      await dispatch(fetchChiTietSanPham()).unwrap();
-      messageApi.success(`Cập nhật số lượng thành ${newQuantity}`);
-    } catch (error) {
-      console.error("Cập nhật số lượng thất bại:", error);
-      messageApi.error("Cập nhật số lượng thất bại!");
-      setEditingQuantities((prev) => ({
-        ...prev,
-        [productId]: product.soLuong,
-      }));
-    }
-  };
+  //     await dispatch(fetchChiTietSanPham()).unwrap();
+  //     messageApi.success(`Cập nhật số lượng thành ${newQuantity}`);
+  //   } catch (error) {
+  //     console.error("Cập nhật số lượng thất bại:", error);
+  //     messageApi.error("Cập nhật số lượng thất bại!");
+  //     setEditingQuantities((prev) => ({
+  //       ...prev,
+  //       [productId]: product.soLuong,
+  //     }));
+  //   }
+  // };
 
-  const handleQuantityKeyPress = (e, productId) => {
-    if (e.key === "Enter") {
-      handleApplyQuantity(productId);
-    }
-  };
+  // COMMENT: Đã comment hàm xử lý nhấn Enter
+  // const handleQuantityKeyPress = (e, productId) => {
+  //   if (e.key === "Enter") {
+  //     handleApplyQuantity(productId);
+  //   }
+  // };
 
-  const handleAddProductToInvoice = async (product) => {
-    if (!canEditProducts) {
-      message.warning("Không thể thêm sản phẩm ở trạng thái hiện tại!");
-      return;
-    }
+  // COMMENT: Đã comment hàm thêm sản phẩm vào hóa đơn
+  // const handleAddProductToInvoice = async (product) => {
+  //   if (!canEditProducts) {
+  //     message.warning("Không thể thêm sản phẩm ở trạng thái hiện tại!");
+  //     return;
+  //   }
 
-    try {
-      if (product.soLuongTon <= 0) {
-        messageApi.warning("Sản phẩm đã hết hàng!");
-        return;
-      }
+  //   try {
+  //     if (product.soLuongTon <= 0) {
+  //       messageApi.warning("Sản phẩm đã hết hàng!");
+  //       return;
+  //     }
 
-      const productIdToCheck = product.id;
+  //     const productIdToCheck = product.id;
 
-      await dispatch(
-        giamSoLuong({ id: productIdToCheck, soLuong: 1 })
-      ).unwrap();
+  //     await dispatch(
+  //       giamSoLuong({ id: productIdToCheck, soLuong: 1 })
+  //     ).unwrap();
 
-      const existingProduct = invoiceProducts.find(
-        (p) => p.idChiTietSanPham === productIdToCheck
-      );
+  //     const existingProduct = invoiceProducts.find(
+  //       (p) => p.idChiTietSanPham === productIdToCheck
+  //     );
 
-      let updatedProducts;
-      if (existingProduct) {
-        updatedProducts = invoiceProducts.map((p) => {
-          if (p.idChiTietSanPham === productIdToCheck) {
-            return {
-              ...p,
-              soLuong: p.soLuong + 1,
-              thanhTien: (p.soLuong + 1) * p.giaBan,
-            };
-          }
-          return p;
-        });
-      } else {
-        const newProduct = {
-          id: null,
-          idChiTietSanPham: product.id,
-          tenSanPham: product.tenSanPham,
-          mauSac: product.tenMauSac,
-          kichThuoc: product.tenKichThuoc,
-          giaBan: product.giaSauGiam ?? product.giaBan ?? 0,
-          soLuong: 1,
-          thanhTien: product.giaSauGiam ?? product.giaBan ?? 0,
-          anhUrls: product.anhs?.map((a) => a.duongDanAnh) || [],
-        };
-        updatedProducts = [...invoiceProducts, newProduct];
-      }
+  //     let updatedProducts;
+  //     if (existingProduct) {
+  //       updatedProducts = invoiceProducts.map((p) => {
+  //         if (p.idChiTietSanPham === productIdToCheck) {
+  //           return {
+  //             ...p,
+  //             soLuong: p.soLuong + 1,
+  //             thanhTien: (p.soLuong + 1) * p.giaBan,
+  //           };
+  //         }
+  //         return p;
+  //       });
+  //     } else {
+  //       const newProduct = {
+  //         id: null,
+  //         idChiTietSanPham: product.id,
+  //         tenSanPham: product.tenSanPham,
+  //         mauSac: product.tenMauSac,
+  //         kichThuoc: product.tenKichThuoc,
+  //         giaBan: product.giaSauGiam ?? product.giaBan ?? 0,
+  //         soLuong: 1,
+  //         thanhTien: product.giaSauGiam ?? product.giaBan ?? 0,
+  //         anhUrls: product.anhs?.map((a) => a.duongDanAnh) || [],
+  //       };
+  //       updatedProducts = [...invoiceProducts, newProduct];
+  //     }
 
-      const finalProducts = [];
-      const productMap = new Map();
+  //     const finalProducts = [];
+  //     const productMap = new Map();
 
-      updatedProducts.forEach((p) => {
-        const key = p.idChiTietSanPham;
-        if (productMap.has(key)) {
-          const existing = productMap.get(key);
-          existing.soLuong += p.soLuong;
-          existing.thanhTien = existing.soLuong * existing.giaBan;
-        } else {
-          productMap.set(key, { ...p });
-        }
-      });
+  //     updatedProducts.forEach((p) => {
+  //       const key = p.idChiTietSanPham;
+  //       if (productMap.has(key)) {
+  //         const existing = productMap.get(key);
+  //         existing.soLuong += p.soLuong;
+  //         existing.thanhTien = existing.soLuong * existing.giaBan;
+  //       } else {
+  //         productMap.set(key, { ...p });
+  //       }
+  //     });
 
-      finalProducts.push(...productMap.values());
+  //     finalProducts.push(...productMap.values());
 
-      console.log(`📊 Kết quả cuối cùng: ${finalProducts.length} sản phẩm`);
-      finalProducts.forEach((p) => {
-        console.log(`   - ${p.tenSanPham}: ${p.soLuong} cái`);
-      });
+  //     console.log(`📊 Kết quả cuối cùng: ${finalProducts.length} sản phẩm`);
+  //     finalProducts.forEach((p) => {
+  //       console.log(`   - ${p.tenSanPham}: ${p.soLuong} cái`);
+  //     });
 
-      setInvoiceProducts(finalProducts);
+  //     setInvoiceProducts(finalProducts);
 
-      setEditingQuantities((prev) => ({
-        ...prev,
-        [productIdToCheck]: (prev[productIdToCheck] || 0) + 1,
-      }));
+  //     setEditingQuantities((prev) => ({
+  //       ...prev,
+  //       [productIdToCheck]: (prev[productIdToCheck] || 0) + 1,
+  //     }));
 
-      await dispatch(fetchChiTietSanPham()).unwrap();
-      messageApi.success("Đã thêm sản phẩm vào hóa đơn!");
-    } catch (error) {
-      console.error("Thêm sản phẩm thất bại:", error);
-      messageApi.error("Thêm sản phẩm thất bại! Có thể đã hết hàng.");
-    }
-  };
+  //     await dispatch(fetchChiTietSanPham()).unwrap();
+  //     messageApi.success("Đã thêm sản phẩm vào hóa đơn!");
+  //   } catch (error) {
+  //     console.error("Thêm sản phẩm thất bại:", error);
+  //     messageApi.error("Thêm sản phẩm thất bại! Có thể đã hết hàng.");
+  //   }
+  // };
 
   useEffect(() => {
     fetchInvoiceDetail();
@@ -1308,46 +1318,48 @@ const DetailHoaDon = () => {
       key: "soLuong",
       width: 150,
       align: "center",
-      render: (value, record) => {
-        const productKey = getProductKey(record);
-        const currentQuantity = editingQuantities[productKey] ?? value;
+      render: (value) => value || "—",
+      // render: (value, record) => {
+      //   // COMMENT: Đã comment phần chỉnh sửa số lượng khi editing
+      //   // const productKey = getProductKey(record);
+      //   // const currentQuantity = editingQuantities[productKey] ?? value;
 
-        return isEditing ? (
-          <div className="flex items-center gap-2 justify-center">
-            <button
-              onClick={() => handleDecreaseQuantity(productKey)}
-              className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              disabled={currentQuantity <= 1}
-            >
-              -
-            </button>
+      //   // return isEditing ? (
+      //   //   <div className="flex items-center gap-2 justify-center">
+      //   //     <button
+      //   //       onClick={() => handleDecreaseQuantity(productKey)}
+      //   //       className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      //   //       disabled={currentQuantity <= 1}
+      //   //     >
+      //   //       -
+      //   //     </button>
 
-            <InputNumber
-              min={1}
-              max={1000}
-              value={currentQuantity}
-              onChange={(val) => handleQuantityChange(productKey, val)}
-              onBlur={() => handleApplyQuantity(productKey)}
-              onPressEnter={(e) => handleQuantityKeyPress(e, productKey)}
-              style={{
-                width: 40,
-                textAlign: "center",
-              }}
-              className="no-spinner"
-              size="small"
-            />
+      //   //     <InputNumber
+      //   //       min={1}
+      //   //       max={1000}
+      //   //       value={currentQuantity}
+      //   //       onChange={(val) => handleQuantityChange(productKey, val)}
+      //   //       onBlur={() => handleApplyQuantity(productKey)}
+      //   //       onPressEnter={(e) => handleQuantityKeyPress(e, productKey)}
+      //   //       style={{
+      //   //         width: 40,
+      //   //         textAlign: "center",
+      //   //       }}
+      //   //       className="no-spinner"
+      //   //       size="small"
+      //   //     />
 
-            <button
-              onClick={() => handleIncreaseQuantity(productKey)}
-              className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
-            >
-              +
-            </button>
-          </div>
-        ) : (
-          <span style={{ fontWeight: 500 }}>{value}</span>
-        );
-      },
+      //   //     <button
+      //   //       onClick={() => handleIncreaseQuantity(productKey)}
+      //   //       className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
+      //   //     >
+      //   //       +
+      //   //     </button>
+      //   //   </div>
+      //   // ) : (
+      //   // <span style={{ fontWeight: 500 }}>{value}</span>;
+      //   // );
+      // },
     },
     {
       title: "Thành tiền",
@@ -1355,7 +1367,7 @@ const DetailHoaDon = () => {
       width: 130,
       align: "right",
       render: (_, record) => {
-        // SỬA: Thành tiền = giá sau giảm × số lượng
+        // Thành tiền = giá sau giảm × số lượng
         const finalPrice = record.giaSauGiam || record.giaBan;
         const total = finalPrice * record.soLuong;
 
@@ -1366,87 +1378,88 @@ const DetailHoaDon = () => {
         );
       },
     },
-    ...(isEditing && canEditProducts
-      ? [
-          {
-            title: "Thao tác",
-            key: "actions",
-            width: 80,
-            align: "center",
-            render: (_, record) => {
-              const productKey = getProductKey(record);
+    // COMMENT: Đã comment cột thao tác khi editing
+    // ...(isEditing && canEditProducts
+    //   ? [
+    //       {
+    //         title: "Thao tác",
+    //         key: "actions",
+    //         width: 80,
+    //         align: "center",
+    //         render: (_, record) => {
+    //           const productKey = getProductKey(record);
 
-              const handleDelete = async () => {
-                // Confirm trước khi xóa (tùy chọn, khuyến khích)
-                const confirm = await Modal.confirm({
-                  title: "Xóa sản phẩm khỏi hóa đơn?",
-                  content: (
-                    <div>
-                      <p>
-                        <strong>{record.tenSanPham}</strong> (x{record.soLuong})
-                      </p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Số lượng sẽ được hoàn lại vào tồn kho ngay lập tức.
-                      </p>
-                    </div>
-                  ),
-                  okText: "Xóa và hoàn kho",
-                  okButtonProps: { danger: true },
-                  cancelText: "Hủy",
-                });
+    //           const handleDelete = async () => {
+    //             // Confirm trước khi xóa (tùy chọn, khuyến khích)
+    //             const confirm = await Modal.confirm({
+    //               title: "Xóa sản phẩm khỏi hóa đơn?",
+    //               content: (
+    //                 <div>
+    //                   <p>
+    //                     <strong>{record.tenSanPham}</strong> (x{record.soLuong})
+    //                   </p>
+    //                   <p className="text-xs text-gray-500 mt-2">
+    //                     Số lượng sẽ được hoàn lại vào tồn kho ngay lập tức.
+    //                   </p>
+    //                 </div>
+    //               ),
+    //               okText: "Xóa và hoàn kho",
+    //               okButtonProps: { danger: true },
+    //               cancelText: "Hủy",
+    //             });
 
-                if (!confirm) return;
+    //             if (!confirm) return;
 
-                const chiTietId = getChiTietSanPhamId(record);
-                const soLuongXoa = record.soLuong || 1;
+    //             const chiTietId = getChiTietSanPhamId(record);
+    //             const soLuongXoa = record.soLuong || 1;
 
-                if (!chiTietId) {
-                  message.error("Không xác định được sản phẩm!");
-                  return;
-                }
+    //             if (!chiTietId) {
+    //               message.error("Không xác định được sản phẩm!");
+    //               return;
+    //             }
 
-                try {
-                  // BƯỚC 1: Hoàn tồn kho ngay lập tức
-                  await dispatch(
-                    tangSoLuong({ id: chiTietId, soLuong: soLuongXoa })
-                  ).unwrap();
+    //             try {
+    //               // BƯỚC 1: Hoàn tồn kho ngay lập tức
+    //               await dispatch(
+    //                 tangSoLuong({ id: chiTietId, soLuong: soLuongXoa })
+    //               ).unwrap();
 
-                  // BƯỚC 2: Xóa khỏi danh sách hiển thị
-                  setInvoiceProducts((prev) =>
-                    prev.filter((p) => getProductKey(p) !== productKey)
-                  );
+    //               // BƯỚC 2: Xóa khỏi danh sách hiển thị
+    //               setInvoiceProducts((prev) =>
+    //                 prev.filter((p) => getProductKey(p) !== productKey)
+    //               );
 
-                  // BƯỚC 3: Xóa số lượng đang edit
-                  setEditingQuantities((prev) => {
-                    const newQty = { ...prev };
-                    delete newQty[productKey];
-                    return newQty;
-                  });
+    //               // BƯỚC 3: Xóa số lượng đang edit
+    //               setEditingQuantities((prev) => {
+    //                 const newQty = { ...prev };
+    //                 delete newQty[productKey];
+    //                 return newQty;
+    //               });
 
-                  message.success(
-                    `Đã xóa sản phẩm và hoàn ${soLuongXoa} cái về tồn kho!`
-                  );
-                } catch (err) {
-                  console.error("Lỗi hoàn tồn kho khi xóa:", err);
-                  message.error("Không thể hoàn tồn kho. Vui lòng thử lại!");
-                }
-              };
+    //               message.success(
+    //                 `Đã xóa sản phẩm và hoàn ${soLuongXoa} cái về tồn kho!`
+    //               );
+    //             } catch (err) {
+    //               console.error("Lỗi hoàn tồn kho khi xóa:", err);
+    //               message.error("Không thể hoàn tồn kho. Vui lòng thử lại!");
+    //             }
+    //           };
 
-              return (
-                <Button
-                  type="text"
-                  danger
-                  size="small"
-                  icon={<TrashIcon size={18} />}
-                  onClick={handleDelete}
-                  title="Xóa sản phẩm khỏi hóa đơn"
-                  className="hover:bg-red-50"
-                />
-              );
-            },
-          },
-        ]
-      : []),
+    //           return (
+    //             <Button
+    //               type="text"
+    //               danger
+    //               size="small"
+    //               icon={<TrashIcon size={18} />}
+    //               onClick={handleDelete}
+    //               title="Xóa sản phẩm khỏi hóa đơn"
+    //               className="hover:bg-red-50"
+    //             />
+    //           );
+    //         },
+    //       },
+    //     ]
+    //   : []),
   ];
 
   if (loading) {
@@ -1502,7 +1515,75 @@ const DetailHoaDon = () => {
 
   if (!invoice) return null;
 
-  const finalTotal = calculateFinalTotal();
+  const finalTotal = {
+    tongTienSanPham: invoice.tongTien || 0,
+    phiVanChuyen: invoice.phiVanChuyen || 0,
+    tienGiamGia: (() => {
+      const hasDiscountInfo =
+        invoice.giaTriGiamGia !== undefined && invoice.giaTriGiamGia !== null;
+
+      if (!hasDiscountInfo) {
+        console.log("💰 Không có thông tin giảm giá");
+        return 0;
+      }
+
+      const tongTien = invoice.tongTien || 0;
+      const phiVanChuyen = invoice.phiVanChuyen || 0;
+      const tongTienTruocGiam = tongTien + phiVanChuyen;
+
+      console.log("💰 Thông tin giảm giá:", {
+        loaiGiamGia: invoice.loaiGiamGia,
+        giaTriGiamGia: invoice.giaTriGiamGia,
+        mucGiaGiamToiDa: invoice.mucGiaGiamToiDa,
+        giaTriDonHangToiThieu: invoice.giaTriDonHangToiThieu,
+        tongTienTruocGiam: tongTienTruocGiam,
+      });
+
+      if (
+        invoice.giaTriDonHangToiThieu &&
+        tongTienTruocGiam < invoice.giaTriDonHangToiThieu
+      ) {
+        console.log("❌ Đơn hàng không đạt giá trị tối thiểu");
+        return 0;
+      }
+
+      let discount = 0;
+
+      if (invoice.loaiGiamGia === true) {
+        discount = invoice.giaTriGiamGia || 0;
+        console.log("💰 Giảm giá cố định:", discount);
+      } else {
+        discount = (tongTienTruocGiam * invoice.giaTriGiamGia) / 100;
+        console.log(
+          "💰 Giảm giá phần trăm:",
+          discount,
+          `(${invoice.giaTriGiamGia}% của ${tongTienTruocGiam})`
+        );
+      }
+
+      if (invoice.mucGiaGiamToiDa) {
+        discount = Math.min(discount, invoice.mucGiaGiamToiDa);
+        console.log("💰 Sau giảm tối đa:", discount);
+      }
+
+      discount = Math.min(discount, tongTienTruocGiam);
+      console.log("💰 Tiền giảm giá cuối cùng:", discount);
+
+      return discount;
+    })(),
+    tongTienCuoiCung: invoice.soTien || invoice.tongTienSauGiam || 0,
+    phieuGiamGiaInfo:
+      invoice.giaTriGiamGia !== undefined && invoice.giaTriGiamGia !== null
+        ? {
+            maPhieu: invoice.maGiamGia,
+            tenPhieu: invoice.tenChuongTrinh,
+            loaiGiamGia: invoice.loaiGiamGia,
+            giaTriGiamGia: invoice.giaTriGiamGia,
+            giamToiDa: invoice.mucGiaGiamToiDa,
+            giaTriDonHangToiThieu: invoice.giaTriDonHangToiThieu,
+          }
+        : null,
+  };
 
   return (
     <>
@@ -1817,14 +1898,6 @@ const DetailHoaDon = () => {
                         <div>
                           <ShoppingOutlined /> Danh sách sản phẩm chọn
                         </div>
-                        {isEditing && canEditProducts && (
-                          <div
-                            onClick={() => setShowBillProduct((prev) => !prev)}
-                            className="cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-xs text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
-                          >
-                            {showBillProduct ? "Ẩn sản phẩm" : "Thêm sản phẩm"}
-                          </div>
-                        )}
                       </div>
                     </>
                   }
@@ -1842,11 +1915,13 @@ const DetailHoaDon = () => {
                   )}
                 </Card>
 
-                {showBillProduct && isEditing && canEditProducts && (
+                {/* COMMENT: Đã comment component thêm sản phẩm */}
+                {/* {showBillProduct && isEditing && canEditProducts && (
                   <div style={{ marginBottom: 16 }}>
                     <BillProduct onAddProduct={handleAddProductToInvoice} />
                   </div>
-                )}
+                )} */}
+
                 <Card title="Ghi chú của khách" style={{ marginBottom: 16 }}>
                   <div>
                     <Text type="secondary">Ghi chú:</Text>
@@ -1917,7 +1992,7 @@ const DetailHoaDon = () => {
                       </div>
                     )}
 
-                    {finalTotal.tienGiamGia > 0 &&
+                    {/* {finalTotal.tienGiamGia > 0 &&
                       finalTotal.phieuGiamGiaInfo && (
                         <div
                           style={{
@@ -1935,7 +2010,7 @@ const DetailHoaDon = () => {
                           {finalTotal.phieuGiamGiaInfo.maPhieu &&
                             ` (${finalTotal.phieuGiamGiaInfo.maPhieu})`}
                         </div>
-                      )}
+                      )} */}
 
                     <Divider style={{ margin: "12px 0" }} />
 
