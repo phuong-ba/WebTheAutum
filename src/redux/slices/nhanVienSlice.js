@@ -14,7 +14,6 @@ const nhanVienSlice = createSlice({
   },
   reducers: {
     changePage: (state, action) => {
-      console.log(action.payload);
       state.number = action.payload;
     },
   },

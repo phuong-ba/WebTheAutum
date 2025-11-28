@@ -42,7 +42,7 @@ export default function UserLayout() {
 
       <div className="flex-1 py-[60px] px-40 overflow-auto ">
         <Outlet />
-        <Chatbox />
+        {/* <Chatbox /> */}
       </div>
 
       <Advise />

@@ -19,7 +19,7 @@ export default function ClientBreadcrumb() {
 
       { title: "Danh mục sản phẩm" },
     ];
-  } else if (path === "/productdetail") {
+  } else if (path.startsWith("/productDetail")) {
     items = [
       { title: <Link to="/">Trang chủ</Link> },
       { title: <Link to="/product">Danh sách sản phẩm</Link> },
@@ -31,6 +31,8 @@ export default function ClientBreadcrumb() {
     items = [{ title: <Link to="/">Trang chủ</Link> }, { title: "Giỏ hàng" }];
   } else if (path === "/checkout") {
     items = [{ title: <Link to="/">Trang chủ</Link> }, { title: "Thanh toán" }];
+  } else if (path === "/your-bill") {
+    items = [{ title: <Link to="/">Trang chủ</Link> }, { title: "Lịch sử đơn hàng" }];
   }
 
   return <Breadcrumb items={items} />;

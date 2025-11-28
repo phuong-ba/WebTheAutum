@@ -54,7 +54,7 @@ export default function CustomerLogin() {
             timestamp: Date.now(),
           })
         );
-
+        window.dispatchEvent(new Event("customerLogin"));
         messageApi.success({
           content: `Chào mừng ${data.hoTen}! Đăng nhập thành công 🎉`,
           duration: 2,
