@@ -30,6 +30,8 @@ import ResetPassword from "@/pages/auth/ResetPassword";
 import ProtectedRoute from "./ProtectedRoute";
 import ChatBot from "@/pages/chatbot/ChatBot";
 import ChangeShifts from "@/pages/changeShifts/ChangeShifts";
+import ShiftManagement from "@/pages/shift/ShiftManagement";
+import GiaoCaManagement from "@/pages/shift/GiaoCaManagement";
 
 const contentStyle = {
   padding: 50,
@@ -271,7 +273,23 @@ const adminRouters = [
         path: "changeShifts",
         element: (
           <LazyLoad>
-            <ChangeShifts />
+            <GiaoCaManagement/>
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "shift-management",
+        element: (
+          <LazyLoad>
+            <ShiftManagement />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "giao-ca",
+        element: (
+          <LazyLoad>
+            <GiaoCaManagement />
           </LazyLoad>
         ),
       },
