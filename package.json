@@ -14,6 +14,7 @@
     "@fortawesome/react-fontawesome": "^3.1.0",
     "@phosphor-icons/react": "^2.1.10",
     "@reduxjs/toolkit": "^2.5.0",
+    "@stomp/stompjs": "^7.2.1",
     "@tailwindcss/vite": "^4.1.13",
     "@xenova/transformers": "^2.17.2",
     "antd": "^5.27.6",
@@ -44,7 +45,6 @@
     "stompjs": "^2.3.3",
     "tailwindcss": "^4.1.13",
     "uuid": "^13.0.0",
-    "vn-provinces": "^1.0.4",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
