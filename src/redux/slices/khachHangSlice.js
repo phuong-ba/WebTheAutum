@@ -1,4 +1,4 @@
-import { fetchAllKhachHang } from "@/services/khachHangService";
+import { fetchAllKhachHang, getByIdKhachHang } from "@/services/khachHangService";
 import { createSlice } from "@reduxjs/toolkit";
 
 const khachHangSlice = createSlice({
@@ -7,7 +7,7 @@ const khachHangSlice = createSlice({
     status: "idle",
     data: [],
     newDetail: null,
-    error: null,
+    error: null, dataById: null,
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -20,6 +20,17 @@ const khachHangSlice = createSlice({
         state.data = action.payload.data || [];
       })
       .addCase(fetchAllKhachHang.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.error.message;
+      }).addCase(getByIdKhachHang.pending, (state, action) => {
+        state.status = "pending";
+      })
+      .addCase(getByIdKhachHang.fulfilled, (state, action) => {
+        state.status = "successfully";
+        state.dataById = action.payload || [];
+        console.log("🚀 ~ action.payload:", action.payload)
+      })
+      .addCase(getByIdKhachHang.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.error.message;
       });

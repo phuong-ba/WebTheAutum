@@ -24,7 +24,6 @@ export default function YourBill() {
     dispatch(searchOrder("")); // gọi tất cả hóa đơn
   }, [dispatch]);
 
-  // Nếu có nhập mã thì hiển thị kết quả tìm kiếm
   const displayedOrders = searchText
     ? data?.filter((order) =>
         order.maHoaDon.toLowerCase().includes(searchText.toLowerCase())
