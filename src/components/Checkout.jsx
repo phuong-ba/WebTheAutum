@@ -65,13 +65,7 @@ export default function Checkout() {
     const email = localStorage.getItem("customer_email");
     const phone = localStorage.getItem("customer_phone");
 
-    console.log("🔍 DEBUG - Login Info:", {
-      customerId,
-      hasToken: !!token,
-      name,
-      email,
-      phone,
-    });
+  
   }, []);
 
   // Load giỏ hàng và thông tin khách hàng
@@ -100,8 +94,6 @@ export default function Checkout() {
     const customerPhone = localStorage.getItem("customer_phone");
 
     if (token && customerId) {
-      console.log("✅ User logged in - Loading from localStorage");
-      console.log("📞 Customer phone from localStorage:", customerPhone);
 
       const loggedInUser = {
         id: customerId,
@@ -120,16 +112,12 @@ export default function Checkout() {
         email: customerEmail || "",
       }));
 
-      console.log("📝 Auto-filled form data:", {
-        hoTen: customerName,
-        sdt: customerPhone,
-        email: customerEmail,
-      });
+     
 
       // Gọi API để lấy địa chỉ đã lưu
       fetchCustomerInfo(customerId, token);
     } else {
-      console.log("👤 No user logged in");
+    
       setCurrentUser(null);
     }
   }, [navigate]);
@@ -146,7 +134,6 @@ export default function Checkout() {
         }
         const data = await response.json();
         setProvinces(data);
-        console.log("✅ Loaded provinces:", data.length);
       } catch (error) {
         console.error("❌ Error loading provinces:", error);
         toast.error("Không thể tải danh sách tỉnh/thành phố");
@@ -166,14 +153,14 @@ export default function Checkout() {
         const token = localStorage.getItem("customer_token");
 
         if (!customerId || !token) {
-          console.log("👤 User not logged in - no discount codes available");
+        
           setDiscountCodes([]);
           setAppliedDiscount(null);
           setDiscountAmount(0);
           return;
         }
 
-        console.log("🔍 Loading discount codes for customer ID:", customerId);
+     
         setLoadingDiscountCodes(true);
 
         const response = await fetch(

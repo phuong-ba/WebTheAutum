@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
 const formatCurrency = (amount) => {
@@ -13,7 +14,11 @@ export default function AllProducts() {
   const [products, setProducts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
-
+  const dispatch = useDispatch();
+  const { data } = useSelector((state) => state.sanPham);
+  useEffect(() => {
+    dispatch(fetchSanPham());
+  }, [dispatch]);
   useEffect(() => {
     fetch("http://localhost:8080/api/san-pham/customer/trang-chu")
       .then((res) => res.json())

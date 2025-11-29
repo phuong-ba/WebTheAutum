@@ -285,14 +285,7 @@ const adminRouters = [
           </LazyLoad>
         ),
       },
-      {
-        path: "giao-ca",
-        element: (
-          <LazyLoad>
-            <GiaoCaManagement />
-          </LazyLoad>
-        ),
-      },
+     
     ],
   },
   {

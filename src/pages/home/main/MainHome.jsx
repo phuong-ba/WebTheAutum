@@ -13,10 +13,9 @@ export default function MainHome() {
         <div className=" flex flex-col gap-20">
           <ListCategory />
           <FillterProduct />
-          <ProductSale />
-          <BannerMid />
           <ProductBestSeller />
-         
+          <BannerMid />
+          <ProductSale />
         </div>
       </div>
     </>

@@ -1,4 +1,4 @@
-import { fetchDotGiamGia,searchDotGiamGia } from "@/services/dotGiamGiaService";
+import { fetchDotGiamGia, getSanPhamTheoDot, searchDotGiamGia } from "@/services/dotGiamGiaService";
 import { createSlice } from "@reduxjs/toolkit";
 
 const dotGiamGiaSlice = createSlice({
@@ -7,7 +7,8 @@ const dotGiamGiaSlice = createSlice({
     status: "idle",
     data: [],
     newDetail: null,
-    error: null,
+    error: null, 
+    dataSale: [],
   },
   reducers: {
     prependItem: (state, action) => {
@@ -39,6 +40,20 @@ const dotGiamGiaSlice = createSlice({
         state.data = action.payload.data || action.payload || [];
       })
       .addCase(searchDotGiamGia.rejected, (state, action) => {
+        state.status = "failed";
+        state.loading = false;
+        state.error = action.error.message;
+      }).addCase(getSanPhamTheoDot.pending, (state) => {
+        state.status = "pending";
+        state.loading = true;
+      })
+      .addCase(getSanPhamTheoDot.fulfilled, (state, action) => {
+        state.status = "successfully";
+        state.loading = false;
+        state.dataSale = action.payload.data || action.payload || [];
+        console.log("🚀 ~ action.payload:", action.payload)
+      })
+      .addCase(getSanPhamTheoDot.rejected, (state, action) => {
         state.status = "failed";
         state.loading = false;
         state.error = action.error.message;

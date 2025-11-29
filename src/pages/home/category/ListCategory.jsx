@@ -1,8 +1,21 @@
-import React from "react";
+import React, { useEffect } from "react";
 import logo from "/src/assets/login/logo.png";
 import { Tooltip, Carousel } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchDanhMuc, fetchSanPham } from "@/services/sanPhamService";
+import { useNavigate } from "react-router";
 
 export default function ListCategory() {
+  const dispatch = useDispatch();
+  const { data } = useSelector((state) => state.sanPham);
+  console.log("🚀 ~ ProductAll ~ data:", data);
+  const navigate = useNavigate();
+  useEffect(() => {
+    dispatch(fetchSanPham());
+  }, [dispatch]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const categories = [
     { id: 1, title: "TitleSSSSSSSSSSSSSSSSSssssss", count: 11, image: logo },
     {
@@ -27,7 +40,7 @@ export default function ListCategory() {
     <div className="flex flex-col gap-10 items-center">
       <div className="flex flex-col items-center gap-3">
         <div className="text-amber-500 text-sm font-semibold">
-          Mua sắm theo danh mục
+          Mua sắm theo sản phẩm
         </div>
         <div className="text-3xl font-semibold">
           Phổ biến trên cửa hàng Autumn.
@@ -44,7 +57,7 @@ export default function ListCategory() {
           slidesToShow={7}
           centerMode
         >
-          {categories.map((item, index) => {
+          {data.map((item, index) => {
             const color = colors[index % colors.length];
             return (
               <div key={item.id} className="flex justify-center px-1">
@@ -55,18 +68,18 @@ export default function ListCategory() {
                   <div className="flex flex-col items-center gap-2">
                     <Tooltip title={item.title}>
                       <div className="font-semibold text-sm max-w-[160px] truncate text-center hover:text-orange-800">
-                        {item.title}
+                        {item.tenSanPham}
                       </div>
                     </Tooltip>
 
                     <div className={`${color.text} text-xs font-semibold`}>
-                      {item.count} sản phẩm
+                      {item.chiTietSanPhams.length} sản phẩm
                     </div>
                   </div>
                   <img
-                    src={item.image}
+                    src={item.hinhAnhSanPham[0]}
                     alt=""
-                    className="w-[120px] object-center transform transition-transform duration-500 ease-in-out group-hover:scale-110"
+                    className="w-[60px] rounded-2xl object-center transform transition-transform duration-500 ease-in-out group-hover:scale-110"
                   />
                 </div>
               </div>
