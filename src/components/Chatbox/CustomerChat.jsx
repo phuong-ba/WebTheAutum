@@ -88,6 +88,12 @@ export default function CustomerChat() {
             setHasStaffJoined(true);
             setTimeout(() => setTypingStatus(""), 1500);
           }
+          if (
+            body.noiDung.includes("Nhân viên đã rời, AI sẽ tiếp tục hỗ trợ bạn")
+          ) {
+            setHasStaffJoined(false);
+            setTimeout(() => setTypingStatus(""), 1500);
+          }
         }
       );
     });
