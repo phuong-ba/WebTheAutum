@@ -57,7 +57,7 @@ const adminRouters = [
   {
     path: "/admin",
     element: (
-      <ProtectedRoute requiredRole="Quản lý">
+      <ProtectedRoute>
         <LazyLoad>
           <AdminLayout />
         </LazyLoad>
