@@ -58,7 +58,6 @@ const adminRouters = [
     path: "/admin",
     element: (
       <ProtectedRoute requiredRole="Quản lý">
-
         <LazyLoad>
           <AdminLayout />
         </LazyLoad>
@@ -273,19 +272,18 @@ const adminRouters = [
         path: "changeShifts",
         element: (
           <LazyLoad>
-            <GiaoCaManagement/>
+            <GiaoCaManagement />
           </LazyLoad>
         ),
       },
       {
-        path: "shift-management",
+        path: "dateWork",
         element: (
           <LazyLoad>
             <ShiftManagement />
           </LazyLoad>
         ),
       },
-     
     ],
   },
   {
