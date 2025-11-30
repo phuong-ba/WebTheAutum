@@ -1,844 +1,658 @@
 import React, { useState, useEffect } from "react";
 import {
-  Play,
-  Square,
-  Trash2,
-  Clock,
-  DollarSign,
-  TrendingUp,
-  User,
-  X,
-  Save,
-} from "lucide-react";
+  Table,
+  Button,
+  Card,
+  Tag,
+  Modal,
+  Input,
+  InputNumber,
+  Tooltip,
+  Row,
+  Col,
+  Typography,
+  Dropdown,
+  Menu,
+  Segmented,
+  Space
+} from "antd";
+import {
+  ClockCircleOutlined,
+  PlayCircleOutlined,
+  StopOutlined,
+  DeleteOutlined,
+  DollarOutlined,
+  UserOutlined,
+  RiseOutlined,
+  CheckCircleOutlined,
+  SyncOutlined,
+  ExclamationCircleOutlined,
+  MoreOutlined,
+  WalletOutlined,
+  FormOutlined,
+  AppstoreOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled
+} from "@ant-design/icons";
+
+const { TextArea } = Input;
+const { Title, Text } = Typography;
+const { confirm } = Modal;
+
+// --- CẤU HÌNH API ---
+const API_BASE = "http://localhost:8080/api";
+
+// --- FORMAT HELPER ---
+const formatMoney = (value) => {
+  if (value === null || value === undefined) return "—";
+  if (value === 0) return "0 ₫";
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(Number(value));
+};
+
+const formatDateTime = (dateString) => {
+  if (!dateString) return "—";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return String(dateString);
+  return date.toLocaleDateString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
+// --- CONFIG TRẠNG THÁI (Google Style - Cam Nhẹ) ---
+const getStatusConfig = (isCompleted) => {
+  if (!isCompleted) {
+    return {
+      label: "Đang hoạt động",
+      color: "#fa8c16", // Cam đậm
+      bg: "#fff7e6",    // Cam rất nhạt
+      icon: <SyncOutlined spin />,
+    };
+  }
+  return {
+    label: "Đã hoàn thành",
+    color: "#52c41a", // Xanh lá
+    bg: "#f6ffed",    // Xanh nhạt
+    icon: <CheckCircleOutlined />,
+  };
+};
 
 export default function GiaoCaManagement() {
-  const API_BASE =
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
-
+  // --- STATE DỮ LIỆU ---
   const [giaoCaList, setGiaoCaList] = useState([]);
-  const [nhanVien, setNhanVien] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
 
-  const [showStartForm, setShowStartForm] = useState(false);
-  const [showEndForm, setShowEndForm] = useState(false);
+  // --- STATE MODAL ---
+  const [isStartModalVisible, setIsStartModalVisible] = useState(false);
+  const [isEndModalVisible, setIsEndModalVisible] = useState(false);
   const [selectedGiaoCa, setSelectedGiaoCa] = useState(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
 
-  const [formStart, setFormStart] = useState({
-    idNhanVien: "",
-    soTienBatDau: "",
-    ghiChu: "",
-  });
+  // --- STATE FORM ---
+  const [startForm, setStartForm] = useState({ soTienBatDau: "", ghiChu: "" });
+  const [endForm, setEndForm] = useState({ ghiChu: "" });
 
-  const [formEnd, setFormEnd] = useState({
-    ghiChu: "",
-  });
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // Toast thông báo
+  // --- STATE THÔNG BÁO (NOTIFICATION TÙY CHỈNH) ---
   const [notification, setNotification] = useState({
-    type: "", // "success" | "error"
+    type: "",
     message: "",
-  });
-
-  // Dialog xác nhận
-  const [confirmDialog, setConfirmDialog] = useState({
-    open: false,
-    title: "",
-    message: "",
-    onConfirm: null,
   });
 
   const showNotification = (type, message) => {
     setNotification({ type, message });
+    // Tự động tắt sau 3 giây
     setTimeout(() => {
       setNotification({ type: "", message: "" });
     }, 3000);
   };
 
-  const openConfirm = ({ title, message, onConfirm }) => {
-    setConfirmDialog({
-      open: true,
-      title,
-      message,
-      onConfirm,
-    });
-  };
-
-  const handleConfirmCancel = () => {
-    setConfirmDialog((prev) => ({ ...prev, open: false, onConfirm: null }));
-  };
-
-  const handleConfirmOk = async () => {
-    if (confirmDialog.onConfirm) {
-      await confirmDialog.onConfirm();
-    }
-    setConfirmDialog((prev) => ({ ...prev, open: false, onConfirm: null }));
-  };
-
+  // --- INIT ---
   useEffect(() => {
-    fetchGiaoCa();
-    fetchNhanVien();
+    const user = getCurrentUser();
+    setCurrentUser(user);
   }, []);
 
+  useEffect(() => {
+    if (currentUser) {
+      fetchGiaoCa();
+    }
+  }, [currentUser]);
+
+  const getCurrentUser = () => {
+    try {
+      const userId = localStorage.getItem("user_id");
+      const userName = localStorage.getItem("user_name");
+      const userEmail = localStorage.getItem("user_email");
+      if (userId) {
+        return {
+          id: parseInt(userId, 10),
+          hoTen: userName || "Nhân viên",
+          username: userEmail || "",
+        };
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // --- API FUNCTIONS ---
   const fetchGiaoCa = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/giao-ca`);
+      const response = await fetch(`${API_BASE}/giao-ca`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
-        setGiaoCaList(Array.isArray(data) ? data : []);
+        const fullList = Array.isArray(data) ? data : [];
+        if (currentUser?.id) {
+          const sortedList = fullList
+            .filter((gc) => gc.idNhanVien === currentUser.id)
+            .sort((a, b) => new Date(b.thoiGianBatDau) - new Date(a.thoiGianBatDau));
+          setGiaoCaList(sortedList);
+        } else {
+          setGiaoCaList([]);
+        }
       } else {
-        setGiaoCaList([]);
-        showNotification("error", "Không tải được danh sách giao ca");
+        const errorData = await response.json().catch(() => ({}));
+        showNotification("error", errorData.error || "Không tải được danh sách giao ca");
       }
     } catch (error) {
-      console.error("Lỗi fetch giao ca:", error);
-      setGiaoCaList([]);
-      showNotification("error", "Lỗi khi tải danh sách giao ca");
+      showNotification("error", "Lỗi kết nối server: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchNhanVien = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/nhan-vien/phan-ca-nhan-vien`);
-      if (response.ok) {
-        const data = await response.json();
-        const nhanVienArray = Array.isArray(data)
-          ? data
-          : data?.content
-          ? data.content
-          : [];
-        setNhanVien(nhanVienArray);
-      } else {
-        setNhanVien([]);
-        showNotification("error", "Không tải được danh sách nhân viên");
-      }
-    } catch (error) {
-      console.error("Lỗi fetch nhanVien:", error);
-      setNhanVien([]);
-      showNotification("error", "Lỗi khi tải danh sách nhân viên");
-    }
-  };
-
-  // ================== BẮT ĐẦU GIAO CA ==================
-
   const handleStartShift = async () => {
-    if (!formStart.idNhanVien || !formStart.soTienBatDau) {
-      showNotification(
-        "error",
-        "Vui lòng chọn nhân viên và nhập số tiền bắt đầu."
-      );
+    if (!currentUser || !currentUser.id) {
+      showNotification("error", "Không xác định được thông tin nhân viên.");
       return;
     }
 
+    if (startForm.soTienBatDau === "" || startForm.soTienBatDau === null) {
+      showNotification("error", "Vui lòng nhập số tiền bắt đầu.");
+      return;
+    }
+
+    setSubmitLoading(true);
     try {
+      const payload = {
+        idNhanVien: currentUser.id,
+        soTienBatDau: parseFloat(startForm.soTienBatDau),
+        ghiChu: startForm.ghiChu || "",
+      };
+
       const response = await fetch(`${API_BASE}/giao-ca/start`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idNhanVien: parseInt(formStart.idNhanVien, 10),
-          soTienBatDau: parseFloat(formStart.soTienBatDau),
-          ghiChu: formStart.ghiChu,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         showNotification("success", "Bắt đầu giao ca thành công");
-        setFormStart({ idNhanVien: "", soTienBatDau: "", ghiChu: "" });
-        setShowStartForm(false);
+        setStartForm({ soTienBatDau: "", ghiChu: "" });
+        setIsStartModalVisible(false);
         fetchGiaoCa();
+        setActiveTab("active");
       } else {
-        const errorText = await response.text();
+        const errorData = await response.json().catch(() => ({}));
         showNotification(
           "error",
-          errorText || "Bắt đầu giao ca thất bại, vui lòng kiểm tra lại."
+          errorData.error || errorData.message || "Bắt đầu giao ca thất bại."
         );
       }
     } catch (error) {
-      showNotification("error", "Lỗi: " + error.message);
+      showNotification("error", "Lỗi kết nối: " + error.message);
+    } finally {
+      setSubmitLoading(false);
     }
   };
-
-  const handleClickStartShift = () => {
-    openConfirm({
-      title: "Xác nhận bắt đầu giao ca",
-      message:
-        "Bạn có chắc chắn muốn bắt đầu giao ca với thông tin đã nhập? Hãy đảm bảo bạn chọn đúng nhân viên đăng nhập và số tiền đầu ca hợp lệ.",
-      onConfirm: handleStartShift,
-    });
-  };
-
-  // ================== KẾT THÚC GIAO CA ==================
 
   const handleEndShift = async () => {
-    if (!selectedGiaoCa) {
-      showNotification("error", "Không tìm thấy giao ca để kết thúc");
-      return;
-    }
-
+    if (!selectedGiaoCa) return;
+    
+    setSubmitLoading(true);
     try {
+      const payload = {
+        idNhanVien: currentUser.id, // Bắt buộc gửi kèm idNhanVien
+        ghiChu: endForm.ghiChu || ""
+      };
+
       const response = await fetch(
         `${API_BASE}/giao-ca/${selectedGiaoCa.id}/end`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ghiChu: formEnd.ghiChu,
-          }),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+          },
+          body: JSON.stringify(payload),
         }
       );
 
       if (response.ok) {
         showNotification("success", "Kết thúc giao ca thành công");
-        setFormEnd({ ghiChu: "" });
-        setShowEndForm(false);
+        setEndForm({ ghiChu: "" });
+        setIsEndModalVisible(false);
         setSelectedGiaoCa(null);
         fetchGiaoCa();
       } else {
-        const errorText = await response.text();
+        const errorData = await response.json().catch(() => ({}));
         showNotification(
           "error",
-          errorText ||
-            "Kết thúc giao ca thất bại. Vui lòng đảm bảo ca đã hết giờ làm."
+          errorData.error || errorData.message || "Kết thúc giao ca thất bại."
         );
       }
     } catch (error) {
       showNotification("error", "Lỗi: " + error.message);
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
-  const handleClickEndShift = () => {
-    openConfirm({
-      title: "Xác nhận kết thúc giao ca",
-      message:
-        "Hệ thống sẽ tự động tính doanh thu ca này và số tiền kết thúc. Chỉ nên kết thúc khi ca đã thực sự hết giờ.",
-      onConfirm: handleEndShift,
-    });
-  };
-
-  // ================== XOÁ GIAO CA ==================
-
-  const performDeleteGiaoCa = async (id) => {
-    try {
-      const response = await fetch(`${API_BASE}/giao-ca/${id}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        showNotification("success", "Xóa giao ca thành công");
-        fetchGiaoCa();
-      } else {
-        const errorText = await response.text();
-        showNotification("error", errorText || "Xóa giao ca thất bại");
-      }
-    } catch (error) {
-      showNotification("error", "Lỗi: " + error.message);
-    }
-  };
-
-  const handleDeleteGiaoCa = (id) => {
-    openConfirm({
+  const handleDelete = (id) => {
+    confirm({
       title: "Xác nhận xóa giao ca",
-      message:
-        "Bạn có chắc chắn muốn xóa giao ca này? Hành động này không thể hoàn tác.",
-      onConfirm: () => performDeleteGiaoCa(id),
+      icon: <ExclamationCircleOutlined style={{ color: "#ff4d4f" }} />,
+      content: "Bạn có chắc chắn muốn xóa giao ca này? Hành động này không thể hoàn tác.",
+      okText: "Xóa",
+      okType: "danger",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          const response = await fetch(`${API_BASE}/giao-ca/${id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${localStorage.getItem("auth_token")}` },
+          });
+          if (response.ok) {
+            showNotification("success", "Xóa giao ca thành công");
+            fetchGiaoCa();
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            showNotification("error", errorData.error || "Xóa giao ca thất bại");
+          }
+        } catch (error) {
+          showNotification("error", "Lỗi: " + error.message);
+        }
+      },
     });
   };
 
-  // ================== FORMAT & FILTER ==================
-
-  const formatDateTime = (dateTime) => {
-    if (!dateTime) return "Chưa kết thúc";
-    const date = new Date(dateTime);
-    if (Number.isNaN(date.getTime())) return String(dateTime);
-    return date.toLocaleString("vi-VN");
-  };
-
-  const formatCurrency = (value) => {
-    if (value === null || value === undefined) return "0 ₫";
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(Number(value));
-  };
-
+  // --- LỌC DỮ LIỆU ---
   const getFilteredData = () => {
-    if (activeTab === "active") {
-      return giaoCaList.filter((gc) => !gc.thoiGianKetThuc);
+    if (activeTab === 'active') {
+      return giaoCaList.filter(gc => !gc.thoiGianKetThuc);
     }
-    if (activeTab === "completed") {
-      return giaoCaList.filter((gc) => !!gc.thoiGianKetThuc);
+    if (activeTab === 'completed') {
+      return giaoCaList.filter(gc => !!gc.thoiGianKetThuc);
     }
-    return giaoCaList;
+    return giaoCaList; 
   };
 
   const filteredData = getFilteredData();
   const activeCount = giaoCaList.filter((gc) => !gc.thoiGianKetThuc).length;
   const completedCount = giaoCaList.filter((gc) => !!gc.thoiGianKetThuc).length;
-  const totalShifts = giaoCaList.length;
+  const totalCount = giaoCaList.length;
+  const currentActiveShift = giaoCaList.find((gc) => !gc.thoiGianKetThuc);
 
-  // ================== JSX ==================
-
-  return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Toast Notification */}
-        {notification.message && (
-          <div className="fixed top-4 right-4 z-50">
-            <div
-              className={`px-4 py-3 rounded-xl shadow-xl text-sm font-semibold flex items-center gap-2 ${
-                notification.type === "success"
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-            >
-              {notification.type === "success" ? "✅" : "⚠️"}
-              <span>{notification.message}</span>
-            </div>
+  // --- CẤU HÌNH CỘT BẢNG ---
+  const columns = [
+    {
+      title: <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Mã Ca</span>,
+      dataIndex: "id",
+      key: "id",
+      width: 70,
+      align: "center",
+      render: (text) => (
+        <span className="font-mono font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded text-xs border border-gray-200">
+          #{text}
+        </span>
+      ),
+    },
+    {
+      title: <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Thời Gian</span>,
+      key: "time",
+      width: 250,
+      render: (_, record) => (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 text-sm text-gray-800">
+            <PlayCircleOutlined className="text-orange-500 text-xs" />
+            <span className="font-medium">{formatDateTime(record.thoiGianBatDau)}</span>
           </div>
-        )}
-
-        {/* Confirm Dialog */}
-        {confirmDialog.open && (
-          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-40">
-            <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
-              <h4 className="text-lg font-bold text-gray-900 mb-2">
-                {confirmDialog.title || "Xác nhận"}
-              </h4>
-              <p className="text-gray-600 mb-5">{confirmDialog.message}</p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={handleConfirmCancel}
-                  className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-sm"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleConfirmOk}
-                  className="px-4 py-2 rounded-xl bg-[#ED7014] hover:bg-[#D6621B] text-white font-semibold text-sm shadow-sm"
-                >
-                  Đồng ý
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Wrapper card */}
-        <div className="bg-[#F7F7FB] border border-slate-100 rounded-3xl shadow-sm p-6 md:p-8">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[#ED7014] to-[#FF8C3A] shadow-md">
-                <Clock className="text-white" size={26} />
-              </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
-                  Quản Lý Giao Ca
-                </h1>
-                <p className="text-sm text-slate-500 mt-1">
-                  Theo dõi thời gian làm việc và doanh thu theo từng ca.
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowStartForm((prev) => !prev)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#ED7014] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#D6621B] transition-colors"
-            >
-              <Play size={18} />
-              <span>Bắt Đầu Giao Ca</span>
-            </button>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Tổng Giao Ca
-                </p>
-                <p className="mt-2 text-3xl font-bold text-slate-900">
-                  {totalShifts}
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center">
-                <Clock className="text-[#ED7014]" size={20} />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Đang Hoạt Động
-                </p>
-                <p className="mt-2 text-3xl font-bold text-emerald-600">
-                  {activeCount}
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-                <Play className="text-emerald-600" size={20} />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-slate-100 p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Đã Hoàn Thành
-                </p>
-                <p className="mt-2 text-3xl font-bold text-indigo-600">
-                  {completedCount}
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                <Square className="text-indigo-600" size={20} />
-              </div>
-            </div>
-          </div>
-
-          {/* Start Form */}
-          {showStartForm && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Bắt Đầu Giao Ca
-                </h3>
-                <button
-                  onClick={() => setShowStartForm(false)}
-                  className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* NOTE: Thông báo rule giao ca */}
-              <div className="mb-4 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-xs text-slate-700">
-                <div className="font-semibold text-[#D6621B] mb-1 flex items-center gap-1.5">
-                  <span>⚠️</span>
-                  <span>Quy tắc khi bắt đầu giao ca</span>
-                </div>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>
-                    Ca đầu tiên của nhân viên có thể{" "}
-                    <span className="font-semibold">
-                      nhập số tiền bắt đầu = 0
-                    </span>
-                    .
-                  </li>
-                  <li>
-                    Nếu nhân viên đã có giao ca trước đó,{" "}
-                    <span className="font-semibold">
-                      số tiền bắt đầu phải đúng bằng số tiền kết thúc ca trước
-                    </span>
-                    .
-                  </li>
-                  <li>
-                    Chỉ được bắt đầu giao ca{" "}
-                    <span className="font-semibold">
-                      trong khung giờ ca làm việc được phân trên hệ thống
-                    </span>
-                    .
-                  </li>
-                </ul>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase">
-                    Nhân Viên
-                  </label>
-                  <select
-                    value={formStart.idNhanVien}
-                    onChange={(e) =>
-                      setFormStart({ ...formStart, idNhanVien: e.target.value })
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-[#ED7014]"
-                  >
-                    <option value="">-- Chọn Nhân Viên --</option>
-                    {nhanVien && nhanVien.length > 0 ? (
-                      nhanVien.map((nv) => (
-                        <option key={nv.id} value={nv.id}>
-                          {nv.hoTen}
-                        </option>
-                      ))
-                    ) : (
-                      <option disabled>Không có nhân viên nào</option>
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase">
-                    Số Tiền Bắt Đầu
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Nhập số tiền đầu ca"
-                    value={formStart.soTienBatDau}
-                    onChange={(e) =>
-                      setFormStart({
-                        ...formStart,
-                        soTienBatDau: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-[#ED7014]"
-                  />
-                  <p className="mt-1 text-xs text-slate-500">
-                    * Nếu nhân viên đã có ca trước đó, số tiền này phải bằng{" "}
-                    <span className="font-semibold">
-                      số tiền kết thúc ca trước
-                    </span>
-                    .
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase">
-                  Ghi Chú
-                </label>
-                <textarea
-                  placeholder="Nhập ghi chú (tuỳ chọn)"
-                  value={formStart.ghiChu}
-                  onChange={(e) =>
-                    setFormStart({ ...formStart, ghiChu: e.target.value })
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-[#ED7014] h-24 resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 mt-5">
-                <button
-                  onClick={() => setShowStartForm(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-700"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleClickStartShift}
-                  className="px-4 py-2.5 rounded-xl bg-[#ED7014] hover:bg-[#D6621B] text-sm font-semibold text-white flex items-center gap-2"
-                >
-                  <Save size={16} />
-                  <span>Bắt Đầu</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* End Form */}
-          {showEndForm && selectedGiaoCa && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Kết Thúc Giao Ca
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowEndForm(false);
-                    setSelectedGiaoCa(null);
-                    setFormEnd({ ghiChu: "" });
-                  }}
-                  className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* NOTE: Thông báo rule kết thúc ca */}
-              <div className="mb-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-slate-700">
-                <div className="font-semibold text-[#B45309] mb-1 flex items-center gap-1.5">
-                  <span>⏱️</span>
-                  <span>Lưu ý trước khi kết thúc giao ca</span>
-                </div>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>
-                    Chỉ kết thúc ca khi{" "}
-                    <span className="font-semibold">
-                      đã hết giờ ca làm việc được phân
-                    </span>
-                    .
-                  </li>
-                  <li>
-                    Sau khi kết thúc, hệ thống sẽ tự tính{" "}
-                    <span className="font-semibold">tổng doanh thu</span> và{" "}
-                    <span className="font-semibold">số tiền kết thúc</span> cho
-                    ca.
-                  </li>
-                  <li>
-                    Nếu kết thúc{" "}
-                    <span className="font-semibold">trước giờ</span>, hệ thống
-                    có thể báo lỗi và không cho kết thúc ca.
-                  </li>
-                </ul>
-              </div>
-
-              <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 mb-4">
-                <p className="text-sm text-slate-800">
-                  <span className="font-semibold">Nhân viên:</span>{" "}
-                  {selectedGiaoCa.hoTenNhanVien}
-                </p>
-                <p className="text-sm text-slate-800 mt-1">
-                  <span className="font-semibold">Bắt đầu:</span>{" "}
-                  {formatDateTime(selectedGiaoCa.thoiGianBatDau)}
-                </p>
-                <p className="text-sm text-slate-800 mt-1">
-                  <span className="font-semibold">Tiền bắt đầu:</span>{" "}
-                  {formatCurrency(selectedGiaoCa.soTienBatDau)}
-                </p>
-                <p className="text-xs text-slate-600 mt-2">
-                  * Khi bấm <span className="font-semibold">Kết Thúc</span>, hệ
-                  thống sẽ tính{" "}
-                  <span className="font-semibold">tổng doanh thu</span> từ hoá
-                  đơn bán tại quầy trong ca và{" "}
-                  <span className="font-semibold">số tiền kết thúc</span> = tiền
-                  đầu ca + doanh thu.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase">
-                  Ghi Chú
-                </label>
-                <textarea
-                  placeholder="Nhập ghi chú (tuỳ chọn)"
-                  value={formEnd.ghiChu}
-                  onChange={(e) =>
-                    setFormEnd({ ...formEnd, ghiChu: e.target.value })
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-red-500 h-20 resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 mt-5">
-                <button
-                  onClick={() => {
-                    setShowEndForm(false);
-                    setSelectedGiaoCa(null);
-                    setFormEnd({ ghiChu: "" });
-                  }}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-700"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleClickEndShift}
-                  className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-semibold text-white flex items-center gap-2"
-                >
-                  <Square size={16} />
-                  <span>Kết Thúc</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6 flex-wrap">
-            {[
-              { key: "active", label: `Đang Hoạt Động (${activeCount})` },
-              { key: "completed", label: `Đã Hoàn Thành (${completedCount})` },
-              { key: "all", label: `Tất Cả (${totalShifts})` },
-            ].map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`px-6 py-2.5 rounded-full text-sm font-semibold border transition-colors ${
-                    isActive
-                      ? "border-[#ED7014] text-[#ED7014] bg-orange-50"
-                      : "border-slate-200 text-slate-700 bg-white hover:border-[#ED7014] hover:text-[#ED7014]"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Giao Ca List */}
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin">
-                <Clock className="text-[#ED7014]" size={40} />
-              </div>
-              <p className="text-slate-500 mt-4 text-sm">Đang tải dữ liệu...</p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {filteredData.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-10 text-center">
-                  <Clock className="text-[#FFD4A3] mx-auto mb-3" size={42} />
-                  <p className="text-slate-600 text-sm">
-                    Không có giao ca nào phù hợp bộ lọc hiện tại.
-                  </p>
-                </div>
-              ) : (
-                filteredData.map((gc) => (
-                  <div
-                    key={gc.id}
-                    className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      {/* Thông tin chính */}
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
-                        {/* Nhân viên */}
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="h-8 w-8 rounded-xl bg-orange-50 flex items-center justify-center">
-                              <User className="text-[#ED7014]" size={16} />
-                            </div>
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                              Nhân Viên
-                            </span>
-                          </div>
-                          <p className="text-base font-semibold text-slate-900">
-                            {gc.hoTenNhanVien}
-                          </p>
-                          <span
-                            className={`inline-flex items-center mt-2 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                              gc.thoiGianKetThuc
-                                ? "bg-indigo-50 text-indigo-700"
-                                : "bg-emerald-50 text-emerald-700"
-                            }`}
-                          >
-                            <span
-                              className={`mr-1 h-1.5 w-1.5 rounded-full ${
-                                gc.thoiGianKetThuc
-                                  ? "bg-indigo-500"
-                                  : "bg-emerald-500"
-                              }`}
-                            />
-                            {gc.thoiGianKetThuc
-                              ? "Đã hoàn thành"
-                              : "Đang hoạt động"}
-                          </span>
-                        </div>
-
-                        {/* Thời gian */}
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="h-8 w-8 rounded-xl bg-orange-50 flex items-center justify-center">
-                              <Clock className="text-[#ED7014]" size={16} />
-                            </div>
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                              Thời Gian
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600">
-                            Bắt đầu:
-                            <span className="font-semibold block">
-                              {formatDateTime(gc.thoiGianBatDau)}
-                            </span>
-                          </p>
-                          {gc.thoiGianKetThuc && (
-                            <p className="text-xs text-slate-600 mt-1">
-                              Kết thúc:
-                              <span className="font-semibold block">
-                                {formatDateTime(gc.thoiGianKetThuc)}
-                              </span>
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Tiền */}
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="h-8 w-8 rounded-xl bg-orange-50 flex items-center justify-center">
-                              <DollarSign
-                                className="text-[#ED7014]"
-                                size={16}
-                              />
-                            </div>
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                              Tiền
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600">
-                            Bắt đầu:
-                            <span className="font-semibold block text-blue-700">
-                              {formatCurrency(gc.soTienBatDau)}
-                            </span>
-                          </p>
-                          {gc.soTienKetThuc !== null &&
-                            gc.soTienKetThuc !== undefined && (
-                              <p className="text-xs text-slate-600 mt-1">
-                                Kết thúc:
-                                <span className="font-semibold block text-blue-700">
-                                  {formatCurrency(gc.soTienKetThuc)}
-                                </span>
-                              </p>
-                            )}
-                        </div>
-
-                        {/* Doanh thu */}
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="h-8 w-8 rounded-xl bg-emerald-50 flex items-center justify-center">
-                              <TrendingUp
-                                className="text-emerald-600"
-                                size={16}
-                              />
-                            </div>
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                              Doanh Thu
-                            </span>
-                          </div>
-                          {gc.tongDoanhThu !== null &&
-                            gc.tongDoanhThu !== undefined && (
-                              <p
-                                className={`text-base font-bold mt-1 ${
-                                  Number(gc.tongDoanhThu) >= 0
-                                    ? "text-emerald-600"
-                                    : "text-red-600"
-                                }`}
-                              >
-                                {formatCurrency(gc.tongDoanhThu)}
-                              </p>
-                            )}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex flex-col gap-2 w-32">
-                        {!gc.thoiGianKetThuc && (
-                          <button
-                            onClick={() => {
-                              setSelectedGiaoCa(gc);
-                              setShowEndForm(true);
-                              setFormEnd({ ghiChu: "" });
-                            }}
-                            className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-500 px-3 py-2 text-xs font-semibold text-white hover:bg-red-600"
-                          >
-                            <Square size={14} />
-                            Kết Thúc
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteGiaoCa(gc.id)}
-                          className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200"
-                        >
-                          <Trash2 size={14} />
-                          Xóa
-                        </button>
-                      </div>
-                    </div>
-
-                    {gc.ghiChu && (
-                      <div className="mt-4 pt-3 border-t border-slate-100">
-                        <p className="text-xs text-slate-600">
-                          <span className="font-semibold">Ghi chú:</span>{" "}
-                          {gc.ghiChu}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
+          {record.thoiGianKetThuc && (
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+               <StopOutlined className="text-gray-400 text-xs" />
+               <span>{formatDateTime(record.thoiGianKetThuc)}</span>
             </div>
           )}
         </div>
+      ),
+    },
+    {
+      title: <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tiền Đầu Ca</span>,
+      dataIndex: "soTienBatDau",
+      key: "soTienBatDau",
+      align: "right",
+      width: 140,
+      render: (val) => <span className="text-gray-600 font-medium">{formatMoney(val)}</span>,
+    },
+    {
+      title: <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tiền Cuối Ca</span>,
+      dataIndex: "soTienKetThuc",
+      key: "soTienKetThuc",
+      align: "right",
+      width: 140,
+      render: (val, record) =>
+        record.thoiGianKetThuc ? (
+          <span className="font-bold text-[#fa8c16] font-mono">{formatMoney(val)}</span>
+        ) : (
+          <span className="text-gray-300 text-xs italic">--</span>
+        ),
+    },
+    {
+      title: <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Doanh Thu</span>,
+      dataIndex: "tongDoanhThu",
+      key: "tongDoanhThu",
+      align: "right",
+      width: 140,
+      render: (val, record) => {
+        if (!record.thoiGianKetThuc) return <span className="text-gray-300 text-xs italic">--</span>;
+        const isPositive = Number(val) >= 0;
+        return (
+          <span className={`font-mono font-bold text-sm ${isPositive ? "text-green-600" : "text-red-500"}`}>
+            {isPositive ? "+" : ""}{formatMoney(val)}
+          </span>
+        );
+      }
+    },
+    {
+      title: <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Trạng Thái</span>,
+      key: "status",
+      align: "center",
+      width: 150,
+      render: (_, record) => {
+        const isCompleted = !!record.thoiGianKetThuc;
+        const config = getStatusConfig(isCompleted);
+        return (
+            <Tag
+              className="border-0 rounded-full px-3 py-1 flex items-center justify-center gap-1.5 w-fit mx-auto transition-all shadow-sm"
+              style={{
+                color: config.color,
+                backgroundColor: config.bg,
+                fontSize: "12px",
+                fontWeight: 600,
+              }}
+            >
+              {config.icon}
+              {config.label}
+            </Tag>
+        );
+      },
+    },
+    {
+      key: "action",
+      align: "center",
+      width: 60,
+      render: (_, record) => {
+        const menuItems = [
+            !record.thoiGianKetThuc && {
+                key: 'end',
+                label: 'Kết thúc ca',
+                icon: <StopOutlined className="text-red-500"/>,
+                onClick: () => {
+                    setSelectedGiaoCa(record);
+                    setIsEndModalVisible(true);
+                    setFormEnd({ ghiChu: "" });
+                }
+            },
+            {
+                key: 'note',
+                label: 'Xem ghi chú',
+                icon: <FormOutlined />,
+                disabled: !record.ghiChu,
+                title: record.ghiChu,
+                onClick: () => {} 
+            },
+            { type: 'divider' },
+            {
+                key: 'delete',
+                label: 'Xóa',
+                icon: <DeleteOutlined />,
+                danger: true,
+                onClick: () => handleDelete(record.id)
+            }
+        ].filter(Boolean);
+
+        return (
+            <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight" arrow>
+                <Button type="text" shape="circle" icon={<MoreOutlined className="text-gray-400 hover:text-orange-500 text-lg" />} />
+            </Dropdown>
+        );
+      },
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#f8f9fa] p-6 font-sans relative">
+      
+      {/* --- CUSTOM NOTIFICATION TOAST (Giống code gốc) --- */}
+      {notification.message && (
+        <div className="fixed top-6 right-6 z-[9999] animate-bounce-in">
+          <div
+            className={`px-5 py-3.5 rounded-xl shadow-2xl text-sm font-semibold flex items-center gap-3 border ${
+              notification.type === "success"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-emerald-100"
+                : "bg-red-50 text-red-700 border-red-200 shadow-red-100"
+            }`}
+          >
+            {notification.type === "success" ? (
+              <CheckCircleFilled className="text-xl text-emerald-500" />
+            ) : (
+              <CloseCircleFilled className="text-xl text-red-500" />
+            )}
+            <span>{notification.message}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* --- HEADER --- */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-4">
+             <div className="w-12 h-12 rounded-2xl bg-[#fff7e6] flex items-center justify-center border border-orange-100 shadow-sm">
+                <ClockCircleOutlined className="text-2xl text-[#fa8c16]" />
+             </div>
+             <div>
+                <Title level={4} style={{ margin: 0, color: '#262626' }}>Quản Lý Giao Ca</Title>
+                <Text type="secondary" className="text-sm">
+                    Nhân viên: <strong className="text-[#fa8c16]">{currentUser?.hoTen}</strong>
+                </Text>
+             </div>
+          </div>
+
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlayCircleOutlined />}
+            onClick={() => setIsStartModalVisible(true)}
+            disabled={!!currentActiveShift}
+            className={`h-11 px-6 rounded-xl border-none shadow-lg font-semibold transition-all transform hover:scale-105 ${
+                currentActiveShift 
+                ? "bg-gray-200 text-gray-400 shadow-none cursor-not-allowed" 
+                : "bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 shadow-orange-200"
+            }`}
+          >
+            {currentActiveShift ? "Đang Trong Ca" : "Bắt Đầu Ca Mới"}
+          </Button>
+        </div>
+
+        {/* --- STATS & FILTER --- */}
+        <Row gutter={[16, 16]} align="middle">
+            <Col xs={24} md={16}>
+                <div className="bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm inline-block">
+                    <Segmented
+                        options={[
+                            { label: `Đang hoạt động (${activeCount})`, value: 'active', icon: <SyncOutlined spin className={activeTab === 'active' ? "text-orange-500" : ""} /> },
+                            { label: `Đã hoàn thành (${completedCount})`, value: 'completed', icon: <CheckCircleOutlined className={activeTab === 'completed' ? "text-green-500" : ""} /> },
+                            { label: `Tất cả (${totalCount})`, value: 'all', icon: <AppstoreOutlined /> },
+                        ]}
+                        value={activeTab}
+                        onChange={setActiveTab}
+                        size="large"
+                        className="font-medium text-gray-600"
+                    />
+                </div>
+            </Col>
+            
+            <Col xs={24} md={8} className="flex justify-end">
+                 {currentActiveShift && (
+                     <Tag color="#fff7e6" className="border border-orange-200 px-3 py-1.5 rounded-xl text-orange-600 font-medium flex items-center gap-2">
+                         <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                         Ca hiện tại: {formatDateTime(currentActiveShift.thoiGianBatDau)}
+                     </Tag>
+                 )}
+            </Col>
+        </Row>
+
+        {/* --- TABLE --- */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <Table
+                columns={columns}
+                dataSource={filteredData}
+                rowKey="id"
+                loading={loading}
+                pagination={{
+                    pageSize: 5,
+                    showSizeChanger: true,
+                    position: ["bottomCenter"],
+                    className: "py-6",
+                    showTotal: (total) => <span className="text-gray-400 text-xs">Tổng {total} bản ghi</span>
+                }}
+                components={{
+                    header: {
+                        cell: (props) => (
+                        <th {...props} className="bg-white border-b border-gray-100 py-4" style={{ backgroundColor: "white", padding: "16px 16px" }} />
+                        ),
+                    },
+                }}
+                rowClassName={(record, index) =>
+                    `hover:bg-orange-50/30 transition-colors cursor-pointer group ${index % 2 === 0 ? "bg-white" : "bg-slate-50/30"}`
+                }
+                locale={{ emptyText: "Không có dữ liệu ca làm việc phù hợp" }}
+            />
+        </div>
       </div>
+
+      {/* --- MODAL BẮT ĐẦU CA --- */}
+      <Modal
+        title={<div className="flex items-center gap-2 text-lg font-bold text-gray-800 pb-3 border-b border-gray-100"><PlayCircleOutlined className="text-[#fa8c16]"/> Bắt Đầu Ca</div>}
+        open={isStartModalVisible}
+        onCancel={() => setIsStartModalVisible(false)}
+        footer={null}
+        centered
+        width={420}
+        className="rounded-2xl"
+      >
+        <div className="pt-5 space-y-5">
+            <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 flex gap-3">
+                <WalletOutlined className="text-[#fa8c16] text-xl" />
+                <div>
+                    <div className="text-xs font-bold text-gray-700 uppercase">Thông tin bàn giao</div>
+                    <div className="text-xs text-gray-600 mt-1">Số tiền đầu ca thường bằng số tiền thực tế trong két lúc nhận bàn giao.</div>
+                </div>
+            </div>
+            
+            <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Tiền đầu ca (VNĐ) <span className="text-red-500">*</span></label>
+                <InputNumber
+                    className="w-full rounded-xl py-2 text-base shadow-sm border-gray-200 focus:border-orange-400 hover:border-orange-300"
+                    size="large"
+                    placeholder="0"
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                    parser={(value) => value?.replace(/\$\s?|(,*)/g, "")}
+                    prefix={<span className="text-gray-400 mr-1">₫</span>}
+                    value={startForm.soTienBatDau}
+                    onChange={(val) => setStartForm({ ...startForm, soTienBatDau: val })}
+                />
+            </div>
+            
+            <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Ghi chú</label>
+                <TextArea className="rounded-xl border-gray-200 focus:border-orange-400 hover:border-orange-300" rows={3} placeholder="Nhập ghi chú..." value={startForm.ghiChu} onChange={(e) => setStartForm({ ...startForm, ghiChu: e.target.value })} />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+                <Button size="large" className="rounded-xl border-none bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium" onClick={() => setIsStartModalVisible(false)}>Hủy</Button>
+                <Button 
+                    type="primary" 
+                    size="large" 
+                    className="rounded-xl bg-[#fa8c16] hover:bg-orange-500 border-none font-bold shadow-md shadow-orange-200" 
+                    onClick={handleStartShift} 
+                    loading={submitLoading}
+                >
+                    Xác Nhận
+                </Button>
+            </div>
+        </div>
+      </Modal>
+
+      {/* --- MODAL KẾT THÚC CA --- */}
+      <Modal
+        title={<div className="flex items-center gap-2 text-lg font-bold text-gray-800 pb-3 border-b border-gray-100"><StopOutlined className="text-red-500"/> Kết Thúc Ca</div>}
+        open={isEndModalVisible}
+        onCancel={() => setIsEndModalVisible(false)}
+        footer={null}
+        centered
+        width={420}
+        className="rounded-2xl"
+      >
+        <div className="pt-5 space-y-5">
+            {selectedGiaoCa && (
+                 <div className="grid grid-cols-2 gap-px bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+                    <div className="bg-white p-3">
+                        <div className="text-[10px] text-gray-400 uppercase font-bold">Bắt đầu</div>
+                        <div className="text-sm font-semibold text-gray-800 mt-1">{formatDateTime(selectedGiaoCa.thoiGianBatDau).split(" - ")[0]}</div>
+                    </div>
+                    <div className="bg-white p-3">
+                        <div className="text-[10px] text-gray-400 uppercase font-bold text-right">Tiền đầu ca</div>
+                        <div className="text-sm font-bold text-[#fa8c16] text-right mt-1">{formatMoney(selectedGiaoCa.soTienBatDau)}</div>
+                    </div>
+                 </div>
+            )}
+
+            <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Ghi chú kết thúc</label>
+                <TextArea className="rounded-xl border-red-200 focus:border-red-400 hover:border-red-300" rows={4} placeholder="Nhập lý do chênh lệch tiền..." value={endForm.ghiChu} onChange={(e) => setEndForm({ ...endForm, ghiChu: e.target.value })} />
+            </div>
+
+            <div className="text-xs text-[#fa8c16] bg-[#fff7e6] p-3 rounded-xl flex gap-2 border border-orange-100">
+                <RiseOutlined className="mt-0.5"/>
+                <span>Hệ thống tự động tính doanh thu & tiền mặt cuối ca.</span>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+                <Button size="large" className="rounded-xl border-none bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium" onClick={() => setIsEndModalVisible(false)}>Hủy</Button>
+                <Button type="primary" danger size="large" className="rounded-xl font-bold shadow-md shadow-red-200 border-none" onClick={handleEndShift} loading={submitLoading}>Kết Thúc Ngay</Button>
+            </div>
+        </div>
+      </Modal>
     </div>
   );
 }
