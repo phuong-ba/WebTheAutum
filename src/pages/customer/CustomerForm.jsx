@@ -338,7 +338,10 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
                 label={<span className="font-semibold">Số điện thoại</span>}
                 rules={[
                   { required: true, message: "Nhập số điện thoại!" },
-                  { pattern: /^[0-9]{9,11}$/, message: "SĐT không hợp lệ!" },
+                  {
+                    pattern: /^0\d{9}$/,
+                    message: "SĐT phải gồm 10 số và bắt đầu bằng 0!",
+                  },
                 ]}
               >
                 <Input
@@ -381,7 +384,35 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
               <Form.Item
                 name="ngaySinh"
                 label={<span className="font-semibold">Ngày sinh</span>}
-                rules={[{ required: true, message: "Chọn ngày sinh!" }]}
+                rules={[
+                  { required: true, message: "Chọn ngày sinh!" },
+                  {
+                    validator: (_, value) => {
+                      if (!value) return Promise.resolve();
+                      const birth = value; 
+                      const now = dayjs();
+
+                      if (birth.isAfter(now)) {
+                        return Promise.reject(
+                          "Ngày sinh không được ở tương lai!"
+                        );
+                      }
+
+                      const age = now.diff(birth, "year");
+                      if (age < 12) {
+                        return Promise.reject(
+                          "Khách hàng phải từ 12 tuổi trở lên!"
+                        );
+                      }
+
+                      if (birth.year() < 1900) {
+                        return Promise.reject("Năm sinh không hợp lệ!");
+                      }
+
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
               >
                 <DatePicker
                   format="DD/MM/YYYY"
