@@ -32,7 +32,7 @@ export default function GiaoCaManagement() {
 
   const [formEnd, setFormEnd] = useState({
     ghiChu: "",
-  });npm 
+  });
 
   // Toast thông báo
   const [notification, setNotification] = useState({
@@ -421,7 +421,10 @@ export default function GiaoCaManagement() {
                 <ul className="list-disc list-inside space-y-1">
                   <li>
                     Ca đầu tiên của nhân viên có thể{" "}
-                    <span className="font-semibold">nhập số tiền bắt đầu = 0</span>.
+                    <span className="font-semibold">
+                      nhập số tiền bắt đầu = 0
+                    </span>
+                    .
                   </li>
                   <li>
                     Nếu nhân viên đã có giao ca trước đó,{" "}
@@ -483,7 +486,10 @@ export default function GiaoCaManagement() {
                   />
                   <p className="mt-1 text-xs text-slate-500">
                     * Nếu nhân viên đã có ca trước đó, số tiền này phải bằng{" "}
-                    <span className="font-semibold">số tiền kết thúc ca trước</span>.
+                    <span className="font-semibold">
+                      số tiền kết thúc ca trước
+                    </span>
+                    .
                   </p>
                 </div>
               </div>
@@ -556,11 +562,13 @@ export default function GiaoCaManagement() {
                   <li>
                     Sau khi kết thúc, hệ thống sẽ tự tính{" "}
                     <span className="font-semibold">tổng doanh thu</span> và{" "}
-                    <span className="font-semibold">số tiền kết thúc</span> cho ca.
+                    <span className="font-semibold">số tiền kết thúc</span> cho
+                    ca.
                   </li>
                   <li>
-                    Nếu kết thúc <span className="font-semibold">trước giờ</span>,{" "}
-                    hệ thống có thể báo lỗi và không cho kết thúc ca.
+                    Nếu kết thúc{" "}
+                    <span className="font-semibold">trước giờ</span>, hệ thống
+                    có thể báo lỗi và không cho kết thúc ca.
                   </li>
                 </ul>
               </div>
@@ -580,10 +588,11 @@ export default function GiaoCaManagement() {
                 </p>
                 <p className="text-xs text-slate-600 mt-2">
                   * Khi bấm <span className="font-semibold">Kết Thúc</span>, hệ
-                  thống sẽ tính <span className="font-semibold">tổng doanh thu</span>{" "}
-                  từ hoá đơn bán tại quầy trong ca và{" "}
-                  <span className="font-semibold">số tiền kết thúc</span> =
-                  tiền đầu ca + doanh thu.
+                  thống sẽ tính{" "}
+                  <span className="font-semibold">tổng doanh thu</span> từ hoá
+                  đơn bán tại quầy trong ca và{" "}
+                  <span className="font-semibold">số tiền kết thúc</span> = tiền
+                  đầu ca + doanh thu.
                 </p>
               </div>
 
