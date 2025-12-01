@@ -114,3 +114,61 @@
   content: "";
   @apply absolute inset-1 rounded-full bg-pink-700;
 }
+
+.shift-table .ant-table-thead > tr > th {
+  background-color: #fff;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.shift-table .ant-table-tbody > tr > td {
+  font-size: 14px;
+  color: #374151;
+  padding: 14px 16px;
+}
+
+.shift-table .ant-table-pagination {
+  padding: 16px 0;
+}
+
+.filter-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-field-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+@media (min-width: 992px) {
+  .filter-fields {
+    flex-direction: row;
+  }
+  .filter-field {
+    flex: 1;
+    border-right: 1px solid #efefef;
+    padding-right: 16px;
+  }
+  .filter-field:last-child {
+    border-right: none;
+    padding-right: 0;
+  }
+  .filter-field-actions {
+    justify-content: flex-end;
+    align-items: flex-end;
+  }
+}
