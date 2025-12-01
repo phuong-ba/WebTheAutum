@@ -20,6 +20,10 @@ import {
   resetShippingFee,
 } from "@/redux/slices/vanChuyenSlice";
 
+// --- [FIX] Imports cho WebSocket ---
+import SockJS from "sockjs-client";
+import { Stomp } from "@stomp/stompjs";
+
 export default function SellPay({
   cartTotal,
   appliedDiscount,
@@ -36,7 +40,6 @@ export default function SellPay({
   discountAmount: propDiscountAmount,
   finalAmount: propFinalAmount,
   triggerShippingCalculation,
-  onClearTemporaryData,
 }) {
   const dispatch = useDispatch();
   const {
@@ -56,6 +59,11 @@ export default function SellPay({
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [pendingConfirmData, setPendingConfirmData] = useState(null);
 
+  // --- Socket States ---
+  const socketRef = useRef(null); // Dùng Ref để lưu trữ client và tránh lặp
+  const [stompClient, setStompClient] = useState(null);
+  const [isPaid, setIsPaid] = useState(false);
+
   const discountAmount =
     propDiscountAmount !== undefined
       ? propDiscountAmount
@@ -72,7 +80,6 @@ export default function SellPay({
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
-  // Ref để theo dõi lần tính phí cuối
   const lastShippingCalculationRef = useRef({
     tinh: null,
     quan: null,
@@ -80,32 +87,157 @@ export default function SellPay({
     cartItemsHash: null,
     selectedShipping: null,
   });
+  const showQRModal = (hoaDonMoi) => {
+    if (!hoaDonMoi) return;
+    const amount =
+      hoaDonMoi.soTienThanhToan ||
+      hoaDonMoi.totalWithShipping ||
+      hoaDonMoi.tongTienSauGiam ||
+      totalWithShipping ||
+      cartTotal ||
+      0;
 
-  // 1. Lấy danh sách đơn vị vận chuyển
+    const bankInfoFromHoaDon = hoaDonMoi.bankInfo || hoaDonMoi.qrBankInfo;
+    const bankInfo = bankInfoFromHoaDon || {
+      bankName: "Ngân hàng ABC",
+      accountNumber: "0123456789",
+      accountHolder: "CỬA HÀNG",
+      branch: "Chi nhánh chính",
+      content:
+        hoaDonMoi.ghiChu ||
+        `Thanh toán ${hoaDonMoi.loaiHoaDon ? "hóa đơn" : "đơn hàng"}`,
+    };
+
+    setPendingHoaDonData(hoaDonMoi);
+    setQrData({ amount, bankInfo });
+    setQrModalVisible(true);
+  };
+  const copyToClipboard = async (text) => {
+      try {
+        if (!text) return;
+        await navigator.clipboard.writeText(String(text));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      } catch (err) {
+        console.error("❌ copyToClipboard error:", err);
+        messageApi.error("Không thể copy nội dung");
+      }
+    };
+  // --- [FIX LỖI LẶP] Kết nối Socket chỉ chạy 1 LẦN DÙ COMPONENT RE-RENDER ---
+  useEffect(() => {
+    // Show QR modal with prepared bank info and amount
+
+    // Clipboard copy helper used by QR modal
+    
+    // Chỉ khởi tạo nếu Ref chưa có client
+    if (socketRef.current) return;
+
+    const socket = new SockJS("http://localhost:8080/ws");
+    const client = Stomp.over(socket);
+    client.debug = () => {};
+
+    client.connect(
+      {},
+      () => {
+        console.log("✅ SellPay: Đã kết nối WebSocket");
+        socketRef.current = client; // Lưu client vào Ref
+        setStompClient(client);
+      },
+      (err) => {
+        console.error("❌ SellPay: Lỗi kết nối Socket", err);
+      }
+    );
+
+    return () => {
+      // Cleanup chỉ chạy khi component unmount
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []); // Dependency rỗng
+
+  // --- Gửi dữ liệu đồng bộ (Chạy khi data thay đổi) ---
+  useEffect(() => {
+    // Chỉ gửi khi có client và đang kết nối VÀ chưa chuyển sang trạng thái đã thanh toán
+    if (stompClient && stompClient.connected && !isPaid) {
+      const qrCodeString =
+        qrModalVisible && qrData
+          ? `${qrData.bankInfo.accountNumber}|${qrData.amount}|${qrData.bankInfo.content}`
+          : null;
+
+      // Mapping dữ liệu sản phẩm
+      const mappedItems = cartItems.map((item) => ({
+        id: item.idChiTietSanPham || item.id,
+        tenSanPham: item.tenSanPham || item.name || item.ten || "Sản phẩm",
+        soLuong: item.quantity || item.soLuong || 1,
+        donGia: item.unitPrice || item.price || item.giaBan || item.gia || 0,
+        thanhTien:
+          (item.unitPrice || item.price || item.giaBan || 0) *
+          (item.quantity || item.soLuong || 1),
+        mauSac: item.mauSac || item.color || "",
+        kichThuoc: item.kichThuoc || item.size || "",
+        anhUrls:
+          item.anhUrls ||
+          (item.imageUrl ? [item.imageUrl] : []) ||
+          (item.image ? [item.image] : []) ||
+          [],
+      }));
+
+      const payload = {
+        maHoaDon: selectedBillId
+          ? `Đơn hàng #${selectedBillId}`
+          : "Đang giao dịch",
+        tenKhachHang: selectedCustomer?.hoTen || "Khách lẻ",
+        sdtKhachHang: selectedCustomer?.sdt || "",
+        diemTichLuy: selectedCustomer?.diemTichLuy || 0,
+        tongTien: cartTotal,
+        tienGiam: actualDiscountAmount,
+        maGiamGia: appliedDiscount?.code || null,
+        phiVanChuyen: shippingFee,
+        tongTienSauGiam: totalWithShipping,
+        hinhThucThanhToan: paymentMethod || "Chưa chọn",
+        qrCodeString: qrCodeString,
+        items: mappedItems,
+        trangThai: 1, // 1: Active
+      };
+
+      stompClient.send("/topic/display", {}, JSON.stringify(payload));
+    }
+  }, [
+    stompClient,
+    cartItems,
+    cartTotal,
+    actualDiscountAmount,
+    shippingFee,
+    totalWithShipping,
+    paymentMethod,
+    qrModalVisible,
+    qrData,
+    selectedCustomer,
+    appliedDiscount,
+    selectedBillId,
+    isPaid,
+    isDelivery,
+    selectedShipping,
+  ]);
+
+  // Các useEffect và hàm khác giữ nguyên...
+  // (Tôi chỉ giữ lại các phần liên quan đến state và hàm chính)
+
   useEffect(() => {
     dispatch(fetchDonViVanChuyen());
   }, [dispatch]);
 
-  // 2. Chọn GHN làm mặc định khi có danh sách đơn vị
   useEffect(() => {
     if (donViVanChuyen.length > 0 && !selectedShipping) {
-      console.log("🔄 Tự động chọn GHN làm đơn vị vận chuyển mặc định");
       dispatch(setSelectedShipping("GHN"));
     }
   }, [donViVanChuyen, selectedShipping, dispatch]);
 
-  // 3. Tự động tính phí khi có đủ điều kiện
   useEffect(() => {
     const shouldCalculateShipping =
       isDelivery && cartItems.length > 0 && selectedShipping && addressForm;
-
-    console.log("🔄 Kiểm tra tính phí tự động:", {
-      isDelivery,
-      cartItemsCount: cartItems.length,
-      selectedShipping,
-      shouldCalculateShipping,
-    });
-
     if (shouldCalculateShipping) {
       const timer = setTimeout(() => {
         calculateShippingFee();
@@ -116,13 +248,10 @@ export default function SellPay({
     }
   }, [isDelivery, cartItems, selectedShipping, addressForm]);
 
-  // 4. Tính phí khi địa chỉ thay đổi
   useEffect(() => {
     if (isDelivery && selectedShipping && cartItems.length > 0) {
       const formValues = addressForm?.getFieldsValue();
       if (formValues?.thanhPho && formValues?.quan && formValues?.diaChiCuThe) {
-        console.log("📍 Địa chỉ đã đầy đủ, kiểm tra tính phí tự động");
-
         const currentHash = JSON.stringify({
           tinh: formValues.thanhPho,
           quan: formValues.quan,
@@ -135,9 +264,7 @@ export default function SellPay({
         });
 
         if (lastShippingCalculationRef.current.cartItemsHash !== currentHash) {
-          console.log("🔄 Có thay đổi, tính phí mới");
           lastShippingCalculationRef.current.cartItemsHash = currentHash;
-
           const timer = setTimeout(() => {
             calculateShippingFee();
           }, 800);
@@ -147,78 +274,44 @@ export default function SellPay({
     }
   }, [addressForm, cartItems, isDelivery, selectedShipping]);
 
-  // 5. Tính phí khi component mount
   useEffect(() => {
-    // Đặt hàm calculateShippingFee vào global để component cha có thể gọi
-    window.SellPayComponent = {
-      calculateShippingFee: calculateShippingFee,
-    };
-
-    // Tính phí ngay khi component mount nếu có đủ điều kiện
+    window.SellPayComponent = { calculateShippingFee: calculateShippingFee };
     if (isDelivery && selectedShipping && cartItems.length > 0) {
       const timer = setTimeout(() => {
         calculateShippingFee();
       }, 1500);
       return () => clearTimeout(timer);
     }
-
     return () => {
-      // Cleanup
       window.SellPayComponent = null;
     };
   }, []);
 
   const parseProductValue = (value, defaultValue = 200) => {
-    if (value === null || value === undefined) {
-      return defaultValue;
-    }
-
-    if (typeof value === "number") {
-      return value;
-    }
-
-    if (typeof value === "string") {
-      const numericString = value.replace(/[^\d]/g, "");
-      const parsed = parseInt(numericString, 10);
-      return isNaN(parsed) ? defaultValue : parsed;
-    }
-
+    if (value === null || value === undefined) return defaultValue;
+    if (typeof value === "number") return value;
+    if (typeof value === "string")
+      return parseInt(value.replace(/[^\d]/g, ""), 10) || defaultValue;
     return defaultValue;
   };
 
-  // Hàm tính phí vận chuyển
   const calculateShippingFee = async () => {
-    console.log("🚀 Bắt đầu tính phí vận chuyển...");
-
-    if (!isDelivery || !addressForm || !selectedShipping) {
-      console.log("❌ Thiếu điều kiện tính phí");
-      return;
-    }
-
+    if (!isDelivery || !addressForm || !selectedShipping) return;
     try {
       const formValues = addressForm.getFieldsValue();
-
       if (!formValues.thanhPho || !formValues.quan || !formValues.diaChiCuThe) {
-        console.log("❌ Thiếu thông tin địa chỉ");
         messageApi.warning(
           "Vui lòng nhập đầy đủ thông tin địa chỉ để tính phí vận chuyển"
         );
         return;
       }
 
-      // Cập nhật thông tin tính phí cuối cùng
-      lastShippingCalculationRef.current = {
-        tinh: formValues.thanhPho,
-        quan: formValues.quan,
-        diaChiCuThe: formValues.diaChiCuThe,
-        selectedShipping: selectedShipping,
-        cartItemsHash: JSON.stringify(
-          cartItems.map((item) => ({
-            id: item.idChiTietSanPham,
-            quantity: item.quantity,
-          }))
-        ),
-      };
+      lastShippingCalculationRef.current.cartItemsHash = JSON.stringify(
+        cartItems.map((item) => ({
+          id: item.idChiTietSanPham,
+          quantity: item.quantity,
+        }))
+      );
 
       const shippingItems = cartItems.map((item) => {
         const weight = parseProductValue(item.weight, 250);
@@ -248,7 +341,6 @@ export default function SellPay({
         items: shippingItems,
       };
 
-      console.log("🚚 Gửi yêu cầu tính phí:", requestData);
       await dispatch(tinhPhiVanChuyen(requestData)).unwrap();
     } catch (error) {
       console.error("❌ Lỗi tính phí vận chuyển:", error);
@@ -257,10 +349,7 @@ export default function SellPay({
   };
 
   const handleSelectShipping = (provider) => {
-    console.log(`🔄 Chọn đơn vị vận chuyển: ${provider}`);
     dispatch(setSelectedShipping(provider));
-
-    // Tính phí ngay sau khi chọn đơn vị vận chuyển
     setTimeout(() => {
       calculateShippingFee();
     }, 500);
@@ -279,33 +368,22 @@ export default function SellPay({
     }
   };
 
-  // QUAN TRỌNG: Sửa hàm prepareHoaDonData để lưu đúng thông tin từ form
   const prepareHoaDonData = (paymentInfo = {}) => {
     let shippingAddress = null;
     let formCustomerInfo = null;
 
-    // Lấy giá trị từ form - SỬA LỖI QUAN TRỌNG: sử dụng đúng tên field
-    const formValues = addressForm?.getFieldsValue() || {};
-
-    console.log("🔍 DEBUG - Form values:", formValues);
-    console.log("🔍 DEBUG - Selected customer:", selectedCustomer);
-
-    // Xác định xem có phải khách hàng tạm không
-    const isTemporaryCustomer = selectedCustomer?.isTemporary;
-
     if (isDelivery && addressForm) {
       try {
+        const formValues = addressForm.getFieldsValue();
         if (formValues.thanhPho && formValues.quan && formValues.diaChiCuThe) {
           const tinhName =
             tinhList?.find((t) => t.id === formValues.thanhPho)?.tenTinh || "";
           const quanName =
             localQuanList?.find((q) => q.id === formValues.quan)?.tenQuan || "";
 
-          // QUAN TRỌNG: Sửa lỗi - sử dụng đúng tên field từ form (HoTen, SoDienThoai)
           formCustomerInfo = {
-            hoTen: formValues.HoTen || "Khách lẻ", // Sửa từ formValues.hoTen -> formValues.HoTen
-            sdt: formValues.SoDienThoai || "", // Sửa từ formValues.sdt -> formValues.SoDienThoai
-            isTemporary: isTemporaryCustomer,
+            hoTen: formValues.HoTen || "Khách lẻ",
+            sdt: formValues.SoDienThoai || "",
           };
 
           shippingAddress = {
@@ -322,23 +400,16 @@ export default function SellPay({
       }
     }
 
-    let chiTietList = [];
-    if (cartItems && cartItems.length > 0) {
-      chiTietList = cartItems.map((item) => ({
-        idChiTietSanPham: item.idChiTietSanPham,
-        soLuong: item.quantity || 1,
-        giaBan: item.unitPrice || item.price || item.giaBan || 0,
-        ghiChu: item.ghiChu || "",
-        trangThai: 0,
-      }));
-    }
-
-    if (chiTietList.length === 0) {
-      return null;
-    }
+    let chiTietList = cartItems.map((item) => ({
+      idChiTietSanPham: item.idChiTietSanPham,
+      soLuong: item.quantity || 1,
+      giaBan: item.unitPrice || item.price || item.giaBan || 0,
+      ghiChu: item.ghiChu || "",
+      trangThai: 0,
+    }));
+    if (chiTietList.length === 0) return null;
 
     const currentUserId = getCurrentUserId();
-
     let diaChiKhachHang = "Chưa có địa chỉ";
     let idTinh = null;
     let idQuan = null;
@@ -349,7 +420,7 @@ export default function SellPay({
       idTinh = shippingAddress.idTinh;
       idQuan = shippingAddress.idQuan;
       diaChiCuThe = shippingAddress.diaChiCuThe;
-    } else if (selectedCustomer?.diaChi && !isTemporaryCustomer) {
+    } else if (selectedCustomer?.diaChi) {
       const customerAddress = selectedCustomer.diaChi;
       diaChiKhachHang =
         customerAddress.dia_chi_cu_the ||
@@ -387,27 +458,18 @@ export default function SellPay({
         idPhuongThucThanhToan = 3;
     }
 
-    const customerName =
-      formValues.HoTen || selectedCustomer?.hoTen || "Khách lẻ";
-    const customerPhone = formValues.SoDienThoai || selectedCustomer?.sdt || "";
-
-    const customerType = isTemporaryCustomer
-      ? "Khách hàng tạm"
-      : selectedCustomer
-      ? "Khách hàng"
-      : "Khách lẻ";
-
-    const customerNote =
-      customerName !== "Khách lẻ"
-        ? ` - ${customerName}${customerPhone ? ` - ${customerPhone}` : ""}`
-        : "";
+    const customerType = selectedCustomer ? "Khách hàng" : "Khách lẻ";
+    const customerNote = formCustomerInfo
+      ? ` - ${formCustomerInfo.hoTen}${
+          formCustomerInfo.sdt ? ` - ${formCustomerInfo.sdt}` : ""
+        }`
+      : "";
 
     const shippingNote = isDelivery
       ? ` - Phí vận chuyển ${selectedShipping}: ${shippingFee.toLocaleString()} VND`
       : "";
 
-    // Tạo đối tượng request data
-    const requestData = {
+    return {
       loaiHoaDon: true,
       phiVanChuyen: isDelivery ? shippingFee : 0,
       tongTien: cartTotal,
@@ -420,53 +482,63 @@ export default function SellPay({
       diaChiKhachHang,
       ngayThanhToan: new Date().toISOString(),
       trangThai: isDelivery ? 1 : 3,
-      idNhanVien: currentUserId,
+      idKhachHang: selectedCustomer?.id || null,
+      idNhanVien: getCurrentUserId(),
       idPhieuGiamGia: appliedDiscount?.id || null,
-      nguoiTao: currentUserId,
+      nguoiTao: getCurrentUserId(),
       chiTietList,
       idPhuongThucThanhToan,
       soTienThanhToan: totalWithShipping,
       idTinh,
       idQuan,
       diaChiCuThe,
-      hoTen: customerName, // QUAN TRỌNG: Gửi tên khách hàng từ form
-      sdt: customerPhone, // QUAN TRỌNG: Gửi số điện thoại từ form
+      hoTen: formCustomerInfo?.hoTen || null,
+      sdt: formCustomerInfo?.sdt || null,
       donViVanChuyen: isDelivery ? selectedShipping : null,
       tongTienHang: cartTotal,
       tienGiamGia: actualDiscountAmount,
       phiVanChuyen: isDelivery ? shippingFee : 0,
       ...paymentInfo,
     };
-
-    // QUAN TRỌNG: Xử lý trường hợp khách hàng tạm - KHÔNG gửi idKhachHang
-    if (
-      isTemporaryCustomer ||
-      !selectedCustomer ||
-      selectedCustomer?.isTemporary
-    ) {
-      // Khách hàng tạm hoặc khách lẻ - KHÔNG gửi idKhachHang để backend không gán vào khách lẻ mặc định
-      console.log("🆕 Tạo hóa đơn cho khách hàng tạm/khách lẻ:", {
-        hoTen: customerName,
-        sdt: customerPhone,
-        idKhachHang: "KHÔNG GỬI",
-      });
-    } else {
-      // Khách hàng đã có trong hệ thống
-      requestData.idKhachHang = selectedCustomer.id;
-      console.log("👤 Tạo hóa đơn cho khách hàng có sẵn:", selectedCustomer.id);
-    }
-
-    console.log("📦 Dữ liệu gửi lên server:", requestData);
-    return requestData;
   };
 
-  // Hàm xử lý thanh toán thành công - bao gồm xóa dữ liệu tạm
-  const handlePaymentSuccess = () => {
-    // Xóa dữ liệu tạm
-    if (onClearTemporaryData) {
-      onClearTemporaryData();
-    }
+  const sendSuccessPayload = () => {
+    if (stompClient && stompClient.connected) {
+      const finalPayload = {
+        maHoaDon: selectedBillId
+          ? `Đơn hàng #${selectedBillId}`
+          : "Đã thanh toán",
+        tenKhachHang: pendingConfirmData?.customerName || "Khách lẻ",
+        sdtKhachHang: pendingConfirmData?.sdtKhachHang || "",
+        maGiamGia: appliedDiscount?.code || null,
+        tongTien: cartTotal,
+        tienGiam: actualDiscountAmount,
+        phiVanChuyen: shippingFee,
+        tongTienSauGiam: totalWithShipping,
+        hinhThucThanhToan: paymentMethod || "Chưa chọn",
+        qrCodeString: null,
+        items: cartItems.map((item) => ({
+          id: item.idChiTietSanPham || item.id,
+          tenSanPham: item.tenSanPham || item.name || item.ten || "Sản phẩm",
+          soLuong: item.quantity || item.soLuong || 1,
+          donGia: item.unitPrice || item.price || item.giaBan || 0,
+          thanhTien:
+            (item.unitPrice || item.price || item.giaBan || 0) *
+            (item.quantity || 1),
+          mauSac: item.mauSac || item.color || "",
+          kichThuoc: item.kichThuoc || item.size || "",
+          anhUrls: item.anhUrls || (item.imageUrl ? [item.imageUrl] : []) || [],
+        })),
+        ghiChu: isDelivery ? `Giao hàng - ${selectedShipping}` : "Mua tại quầy",
+        trangThai: 3, // 3 = Hoàn thành
+      };
 
+      stompClient.send("/topic/display", {}, JSON.stringify(finalPayload));
+      console.log("✅ Đã gửi trạng thái SUCCESS sang màn hình khách");
+    }
+  };
+
+  const handlePostPaymentSuccess = async (newBillId) => {
     if (selectedBillId) {
       const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
       const updatedBills = bills.filter((bill) => bill.id !== selectedBillId);
@@ -478,101 +550,14 @@ export default function SellPay({
     if (onClearCart) onClearCart();
 
     if (appliedDiscount?.isPersonal) {
-      handleRemovePersonalDiscountAfterPayment();
+      await handleRemovePersonalDiscountAfterPayment();
+    }
+
+    const newBillIdFinal = newBillId || selectedBillId;
+    if (newBillIdFinal) {
+      navigate(`/admin/detail-bill/${newBillIdFinal}`);
     }
   };
-
-  const renderShippingOptions = () => {
-    if (!isDelivery) return null;
-
-    return (
-      <div className="mb-4">
-        <div className="font-bold mb-2">Chọn đơn vị vận chuyển:</div>
-        <div className="flex gap-4">
-          {donViVanChuyen.map((provider) => (
-            <div
-              key={provider}
-              className={`cursor-pointer p-3 border rounded-lg flex-1 text-center transition-all ${
-                selectedShipping === provider
-                  ? "border-amber-600 bg-amber-50 text-amber-700 shadow-md"
-                  : "border-gray-300 hover:border-amber-400 hover:shadow-sm"
-              }`}
-              onClick={() => handleSelectShipping(provider)}
-            >
-              <div className="font-semibold">{provider}</div>
-              <div className="text-sm text-gray-600">
-                {provider === "GHN"
-                  ? "Nhanh chóng, tin cậy"
-                  : "Tiết kiệm chi phí"}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {shippingError && (
-          <div className="mt-2 text-red-600 text-sm">{shippingError}</div>
-        )}
-
-        {shippingLoading && (
-          <div className="mt-2 text-amber-600 text-sm">
-            Đang tính phí vận chuyển {selectedShipping}...
-          </div>
-        )}
-
-        {/* Nút tính lại phí thủ công */}
-        <div className="mt-3 flex justify-end">
-          <Button
-            size="small"
-            icon={<ReloadOutlined />}
-            onClick={calculateShippingFee}
-            loading={shippingLoading}
-            className="flex items-center gap-1"
-          >
-            Tính lại phí vận chuyển
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  const renderShippingInfo = () => {
-    if (!isDelivery) return null;
-
-    return (
-      <div className="flex justify-between font-bold">
-        <span>Phí vận chuyển ({selectedShipping || "Chưa chọn"}):</span>
-        <span>
-          {shippingLoading ? (
-            <span className="text-gray-500">Đang tính...</span>
-          ) : shippingError ? (
-            <span className="text-red-600">Lỗi: {shippingError}</span>
-          ) : shippingFee === 0 ? (
-            <span className="text-green-600">Miễn phí</span>
-          ) : (
-            <span>{shippingFee.toLocaleString()} vnd</span>
-          )}
-        </span>
-      </div>
-    );
-  };
-
-  const showQRModal = (hoaDonMoi) => {
-    setPendingHoaDonData(hoaDonMoi);
-
-    setQrData({
-      amount: totalWithShipping,
-      billCode: `HD${Date.now()}`,
-      bankInfo: {
-        bankName: "Ngân hàng ABC",
-        accountNumber: "19037689713019",
-        accountHolder: "THE AUTUMN STORE",
-        branch: "HÀ NỘI",
-        content: `Thanh toan don hang ${Date.now()}`,
-      },
-    });
-    setQrModalVisible(true);
-  };
-
   const handleConfirmTransfer = async () => {
     if (!pendingHoaDonData) {
       messageApi.error("❌ Không tìm thấy thông tin hóa đơn!");
@@ -586,22 +571,16 @@ export default function SellPay({
         trangThai: isDelivery ? 1 : 3,
         daThanhToan: true,
       });
-
       if (res.data?.isSuccess) {
-        const successMessage = isDelivery
-          ? "✅ Thanh toán thành công! Đơn hàng đang chờ giao hàng."
-          : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất.";
-
-        messageApi.success(successMessage);
-
-        handlePaymentSuccess();
-
+        sendSuccessPayload(); // Gửi payload SUCCESS
+        setIsPaid(true); // Ngăn useEffect gửi payload ACTIVE sau này
+        messageApi.success(
+          isDelivery
+            ? "✅ Thanh toán thành công! Đơn hàng đang chờ giao hàng."
+            : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất."
+        );
+        handlePostPaymentSuccess(res.data.data?.id || res.data.data);
         setQrModalVisible(false);
-
-        const newBillId = res.data.data?.id || res.data.data;
-        if (newBillId) {
-          navigate(`/admin/detail-bill/${newBillId}`);
-        }
       } else {
         messageApi.error(
           "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
@@ -623,20 +602,15 @@ export default function SellPay({
         trangThai: isDelivery ? 1 : 3,
         daThanhToan: true,
       });
-
       if (res.data?.isSuccess) {
-        const successMessage = isDelivery
-          ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
-          : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất.";
-
-        messageApi.success(successMessage);
-
-        handlePaymentSuccess();
-
-        const newBillId = res.data.data?.id || res.data.data;
-        if (newBillId) {
-          navigate(`/admin/detail-bill/${newBillId}`);
-        }
+        sendSuccessPayload(); // Gửi payload SUCCESS
+        setIsPaid(true);
+        messageApi.success(
+          isDelivery
+            ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
+            : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất."
+        );
+        handlePostPaymentSuccess(res.data.data?.id || res.data.data);
       } else {
         messageApi.error(
           "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
@@ -654,20 +628,15 @@ export default function SellPay({
     try {
       setLoading(true);
       const res = await hoaDonApi.create(hoaDonMoi);
-
       if (res.data?.isSuccess) {
-        const successMessage = isDelivery
-          ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
-          : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất.";
-
-        messageApi.success(successMessage);
-
-        handlePaymentSuccess();
-
-        const newBillId = res.data.data?.id || res.data.data;
-        if (newBillId) {
-          navigate(`/admin/detail-bill/${newBillId}`);
-        }
+        sendSuccessPayload(); // Gửi payload SUCCESS
+        setIsPaid(true);
+        messageApi.success(
+          isDelivery
+            ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
+            : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất."
+        );
+        handlePostPaymentSuccess(res.data.data?.id || res.data.data);
       } else {
         messageApi.error(
           "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
@@ -681,14 +650,6 @@ export default function SellPay({
     }
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      messageApi.success("✅ Đã sao chép vào clipboard!");
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
   const handlePayment = async () => {
     if (cartTotal === 0) {
       messageApi.warning(
@@ -696,12 +657,10 @@ export default function SellPay({
       );
       return;
     }
-
     if (!paymentMethod) {
       messageApi.warning("Vui lòng chọn phương thức thanh toán!");
       return;
     }
-
     if (isDelivery && addressForm) {
       const formValues = addressForm.getFieldsValue();
       if (!formValues.thanhPho || !formValues.quan || !formValues.diaChiCuThe) {
@@ -709,7 +668,6 @@ export default function SellPay({
         return;
       }
     }
-
     if (isDelivery && shippingLoading) {
       messageApi.warning("Vui lòng chờ tính phí vận chuyển hoàn tất!");
       return;
@@ -721,14 +679,9 @@ export default function SellPay({
       return;
     }
 
-    const formValues = addressForm?.getFieldsValue() || {};
-    const customerName =
-      formValues.HoTen || selectedCustomer?.hoTen || "Khách lẻ";
-    const customerPhone = formValues.SoDienThoai || selectedCustomer?.sdt || "";
-
     setPendingConfirmData({
-      customerName: customerName, // Sửa: Ưu tiên lấy từ form
-      customerPhone: customerPhone, // Sửa: Ưu tiên lấy từ form
+      customerName: selectedCustomer?.hoTen || "Khách lẻ",
+      sdtKhachHang: selectedCustomer?.sdt || "",
       isDelivery,
       cartTotal,
       discountAmount: actualDiscountAmount,
@@ -742,11 +695,83 @@ export default function SellPay({
     setConfirmModalVisible(true);
   };
 
+  // Render selectable shipping provider options and status
+  const renderShippingOptions = () => {
+    if (!isDelivery) return null;
+
+    return (
+      <div className="mb-4">
+        <div className="font-bold text-gray-700 mb-2">Đơn vị vận chuyển:</div>
+        <div className="flex gap-2 flex-wrap">
+          {donViVanChuyen && donViVanChuyen.length > 0 ? (
+            donViVanChuyen.map((p) => {
+              const value = p.code || p.ma || p.id || p.value || p;
+              const label =
+                p.tenDonVi ||
+                p.name ||
+                p.ten ||
+                p.label ||
+                p.code ||
+                p.ma ||
+                String(value);
+              const key = `${value}`;
+              return (
+                <div
+                  key={key}
+                  onClick={() => handleSelectShipping(value)}
+                  className={`cursor-pointer select-none px-3 py-2 rounded-lg border shadow-sm text-sm font-semibold ${
+                    selectedShipping === value
+                      ? "bg-amber-600 text-white border-amber-600"
+                      : "bg-white text-amber-600 border-gray-200 hover:bg-amber-50"
+                  }`}
+                >
+                  {label}
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-sm text-gray-500">
+              Không có đơn vị vận chuyển
+            </div>
+          )}
+        </div>
+
+        <div className="mt-2 text-sm text-gray-600">
+          {shippingLoading
+            ? "Đang tính phí vận chuyển..."
+            : shippingFee
+            ? `Phí vận chuyển: ${shippingFee.toLocaleString()} VND`
+            : "Chưa có phí vận chuyển"}
+        </div>
+      </div>
+    );
+  };
+
+  // Small helper to render shipping line used inside totals box
+  const renderShippingInfo = () => {
+    if (!isDelivery) return null;
+    return (
+      <div className="flex justify-between font-bold text-gray-700">
+        <span>Phí vận chuyển:</span>
+        <span className="text-green-600">
+          {shippingLoading
+            ? "Đang tính..."
+            : shippingFee
+            ? `${shippingFee.toLocaleString()} vnd`
+            : "0 vnd"}
+        </span>
+      </div>
+    );
+  };
+
   const paymentOptions = ["Chuyển khoản", "Tiền mặt", "Cả hai"];
 
   return (
     <>
       {contextHolder}
+
+      {/* Render các phần còn lại */}
+      {/* ... */}
 
       {renderShippingOptions()}
 
@@ -783,7 +808,7 @@ export default function SellPay({
             <div
               key={option}
               onClick={() => setPaymentMethod(option)}
-              className={`cursor-pointer select-none text-center py-2 px-6 rounded-xl font-bold border shadow transition-all ${
+              className={`cursor-pointer select-none text-center py-2 px-6 rounded-xl bg-white font-bold border shadow transition-all ${
                 paymentMethod === option
                   ? "bg-amber-600 text-white border-amber-600 shadow-md"
                   : "text-amber-600 hover:text-white hover:bg-amber-500 border-gray-300 hover:shadow-sm"
@@ -951,7 +976,6 @@ export default function SellPay({
                 <span className="font-medium text-gray-700">Khách hàng:</span>
                 <span className="font-bold text-gray-900">
                   {pendingConfirmData.customerName}
-                  {selectedCustomer?.isTemporary}
                 </span>
               </div>
               {pendingConfirmData.customerPhone && (

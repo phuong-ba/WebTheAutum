@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Package, ShoppingBag, ClipboardText } from '@phosphor-icons/react';
 
-export default function OrderSuccess() {
+export default function OrderSuccessOld() {
   const { maHoaDon: maHoaDonFromPath } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();

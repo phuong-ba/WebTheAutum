@@ -9,3 +9,11 @@ export const fetchAllKhachHang = createAsyncThunk("khach-hang", async () => {
     throw error.response?.data || "Đã xảy ra lỗi khi lấy dữ liệu";
   }
 });
+export const getByIdKhachHang = createAsyncThunk("khach-hang/byId", async (id) => {
+  try {
+    const response = await baseUrl.get(`khach-hang/detail/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || "Đã xảy ra lỗi khi lấy dữ liệu";
+  }
+});

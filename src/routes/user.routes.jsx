@@ -1,6 +1,6 @@
 import OrderDetailOld from "@/components/OrderDetailOld";
 import OrderHistory from "@/components/OrderHistory";
-import OrderSuccess from "@/components/OrderSuccess";
+import OrderSuccessOld from "@/components/OrderSuccessOld";
 
 import CustomerLogin from "@/pages/auth/CustomerLogin";
 import AllProducts from "@/pages/home/AllProducts";
@@ -20,6 +20,9 @@ const ProductDetail = React.lazy(() =>
   import("@/pages/home/productDetail/ProductDetail")
 );
 const YourBill = React.lazy(() => import("@/pages/home/order/YourBill"));
+const OrderSuccess = React.lazy(() =>
+  import("@/pages/home/order/OrderSuccess")
+);
 const CheckOut = React.lazy(() => import("@/pages/home/cart/CheckOut"));
 const OrderDetail = React.lazy(() => import("@/pages/home/order/OrderDetail"));
 const ViewCart = React.lazy(() => import("@/pages/home/cart/ViewCart"));
@@ -109,7 +112,6 @@ const userRouters = [
         element: (
           <LazyLoad>
             <YourBill />
-
           </LazyLoad>
         ),
       },
@@ -118,7 +120,14 @@ const userRouters = [
         element: (
           <LazyLoad>
             <OrderDetail />
-
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "orders/success/:id",
+        element: (
+          <LazyLoad>
+            <OrderSuccess />
           </LazyLoad>
         ),
       },
@@ -130,20 +139,11 @@ const userRouters = [
         path: "order-success/:maHoaDon",
         element: (
           <LazyLoad>
-            <OrderSuccess />
-
+            <OrderSuccessOld />
           </LazyLoad>
         ),
       },
 
-      {
-        path: "/orders", // Sẽ khớp với "/profile/orders"
-        element: (
-          <LazyLoad>
-            <OrderHistory />
-          </LazyLoad>
-        ),
-      },
       {
         path: "/ordersss/:maHoaDon",
         element: (

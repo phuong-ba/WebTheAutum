@@ -532,6 +532,106 @@ export function IconView(props) {
     </svg>
   );
 }
+export function IconClock(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M12 7v5l4 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+export function IconCalendar(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M16 2v4M8 2v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+export function IconEdit(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+export function IconTrash(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 6h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+export function IconSave(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <path d="M19 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M12 11a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+export function IconClose(props) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 18 18" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+export function IconChevronLeft(props) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+export function IconChevronRight(props) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+export function IconPlay(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 3v18l15-9L5 3z" fill="currentColor" />
+    </svg>
+  );
+}
+export function IconStop(props) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <rect x="5" y="5" width="14" height="14" fill="currentColor" />
+    </svg>
+  );
+}
+export function IconMoney(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 1v22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3 3 0 1 1 0 6H7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+export function IconTrendingUp(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 17l6-6 4 4 8-8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 7v6h-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+export function IconUser(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" {...props} xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 export function IconLove(props) {
   return (
     <svg

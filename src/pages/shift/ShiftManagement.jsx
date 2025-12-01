@@ -1,30 +1,159 @@
 import React, { useState, useEffect } from "react";
 import {
-  Clock,
-  Plus,
-  Edit2,
-  Trash2,
+  Table,
+  Button,
+  Card,
+  Tag,
+  Modal,
+  Input,
+  Select,
+  DatePicker,
+  TimePicker,
+  message,
+  Tooltip,
+  Row,
+  Col,
+  Typography,
+  Dropdown,
+  Menu,
+  Segmented,
+  Space,
   Calendar,
-  Users,
-  Save,
-  X,
-} from "lucide-react";
+  Badge
+} from "antd";
+import {
+  ClockCircleOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  CalendarOutlined,
+  TeamOutlined,
+  ExportOutlined,
+  UnorderedListOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled,
+  ExclamationCircleOutlined,
+  MoreOutlined,
+  FileExcelOutlined,
+  FileWordOutlined,
+  LeftOutlined,
+  RightOutlined
+} from "@ant-design/icons";
+import dayjs from "dayjs";
+
+const { TextArea } = Input;
+const { Option } = Select;
+const { Title, Text } = Typography;
+const { confirm } = Modal;
+
+// --- CẤU HÌNH API (Fix lỗi import.meta) ---
+const API_BASE = "http://localhost:8080/api";
+
+// --- HELPERS (Tích hợp trực tiếp để tránh lỗi import) ---
+const exportToCSV = (filename, data, columns) => {
+  if (!data || !data.length) {
+    message.warning("Không có dữ liệu để xuất");
+    return;
+  }
+  
+  // Lấy header từ keys của object đầu tiên nếu columns không được cung cấp, hoặc map từ columns
+  const headers = data.length > 0 ? Object.keys(data[0]) : [];
+  const csvContent = [
+    headers.join(","),
+    ...data.map(row => headers.map(fieldName => JSON.stringify(row[fieldName], (key, value) => value === null ? '' : value)).join(","))
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+const exportToWord = (filename, title, contentHtml) => {
+  const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
+       "xmlns:w='urn:schemas-microsoft-com:office:word' " +
+       "xmlns='http://www.w3.org/TR/REC-html40'>" +
+       "<head><meta charset='utf-8'><title>" + title + "</title></head><body>";
+  const footer = "</body></html>";
+  const sourceHTML = header + contentHtml + footer;
+
+  const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+  const fileDownload = document.createElement("a");
+  document.body.appendChild(fileDownload);
+  fileDownload.href = source;
+  fileDownload.download = filename;
+  fileDownload.click();
+  document.body.removeChild(fileDownload);
+};
+
+// --- COMPONENT LỊCH (Tích hợp trực tiếp) ---
+const AssignmentsCalendar = ({ phanCa, calendarDate, onPrev, onNext, onDayClick, onEventClick }) => {
+  const getListData = (value) => {
+    const listData = phanCa.filter(pc => 
+      dayjs(pc.ngayPhanCa).format('YYYY-MM-DD') === value.format('YYYY-MM-DD')
+    );
+    return listData || [];
+  };
+
+  const dateCellRender = (value) => {
+    const listData = getListData(value);
+    return (
+      <ul className="events list-none p-0 m-0">
+        {listData.map((item) => (
+          <li key={item.id} onClick={(e) => { e.stopPropagation(); onEventClick(item); }}>
+            <Badge status="warning" text={<span className="text-xs text-gray-600">{item.hoTenNhanVien} ({item.gioBatDau})</span>} />
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
+  return (
+    <div className="calendar-wrapper">
+        <div className="flex justify-between items-center mb-4 px-4">
+            <Button icon={<LeftOutlined />} onClick={onPrev} />
+            <span className="font-bold text-lg capitalize">{dayjs(calendarDate).format("MMMM YYYY")}</span>
+            <Button icon={<RightOutlined />} onClick={onNext} />
+        </div>
+        <Calendar 
+            value={dayjs(calendarDate)}
+            cellRender={dateCellRender} 
+            onSelect={(date) => {
+                if (date.format('MM') !== dayjs(calendarDate).format('MM')) {
+                    // Nếu click vào ngày tháng khác thì không trigger form ngay mà chuyển tháng
+                    // Logic tùy chỉnh
+                } else {
+                    onDayClick(date.format('YYYY-MM-DD'));
+                }
+            }}
+            headerRender={() => null} // Ẩn header mặc định để dùng header tùy chỉnh
+        />
+    </div>
+  );
+};
 
 export default function ShiftManagement() {
-  const API_BASE =
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
-
-  const [activeTab, setActiveTab] = useState("shifts");
+  // --- STATE ---
+  const [activeTab, setActiveTab] = useState("shifts"); // 'shifts' | 'assignments'
   const [caLamViec, setCaLamViec] = useState([]);
   const [phanCa, setPhanCa] = useState([]);
   const [nhanVien, setNhanVien] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [assignmentsView, setAssignmentsView] = useState("list"); // 'list' | 'calendar'
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
-  const [showCaForm, setShowCaForm] = useState(false);
-  const [showPhanCaForm, setShowPhanCaForm] = useState(false);
+  // Modal State
+  const [isCaModalVisible, setIsCaModalVisible] = useState(false);
+  const [isPhanCaModalVisible, setIsPhanCaModalVisible] = useState(false);
   const [editingCa, setEditingCa] = useState(null);
   const [editingPhanCa, setEditingPhanCa] = useState(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
 
+  // Forms
   const [formCa, setFormCa] = useState({
     tenCa: "",
     gioBatDau: "07:00",
@@ -33,63 +162,30 @@ export default function ShiftManagement() {
   });
 
   const [formPhanCa, setFormPhanCa] = useState({
-    idNhanVien: "",
-    idCaLamViec: "",
-    ngayPhanCa: new Date().toISOString().split("T")[0],
+    idNhanVien: null,
+    idCaLamViec: null,
+    ngayPhanCa: dayjs().format("YYYY-MM-DD"),
     ghiChu: "",
   });
 
-  // Lưu message lỗi phân ca (ví dụ: ca đã tồn tại)
-  const [errorPhanCa, setErrorPhanCa] = useState("");
-
-  // Toast thông báo (success / error)
-  const [notification, setNotification] = useState({
-    type: "", // "success" | "error"
-    message: "",
-  });
-
-  // Dialog xác nhận
-  const [confirmDialog, setConfirmDialog] = useState({
-    open: false,
-    title: "",
-    message: "",
-    onConfirm: null, // function async
-  });
+  // Custom Notification
+  const [notification, setNotification] = useState({ type: "", message: "" });
 
   const showNotification = (type, message) => {
     setNotification({ type, message });
-    setTimeout(() => {
-      setNotification({ type: "", message: "" });
-    }, 3000);
+    setTimeout(() => setNotification({ type: "", message: "" }), 3000);
   };
 
-  const openConfirm = ({ title, message, onConfirm }) => {
-    setConfirmDialog({
-      open: true,
-      title,
-      message,
-      onConfirm,
-    });
-  };
-
-  const handleConfirmCancel = () => {
-    setConfirmDialog((prev) => ({ ...prev, open: false, onConfirm: null }));
-  };
-
-  const handleConfirmOk = async () => {
-    if (confirmDialog.onConfirm) {
-      await confirmDialog.onConfirm();
-    }
-    setConfirmDialog((prev) => ({ ...prev, open: false, onConfirm: null }));
-  };
-
+  // --- INIT ---
   useEffect(() => {
     if (activeTab === "shifts") fetchCaLamViec();
-    if (activeTab === "assignments") fetchPhanCa();
-    fetchNhanVien();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (activeTab === "assignments") {
+        fetchPhanCa();
+        fetchNhanVien(); // Load nhân viên khi vào tab phân ca
+    }
   }, [activeTab]);
 
+  // --- API CALLS ---
   const fetchCaLamViec = async () => {
     setLoading(true);
     try {
@@ -98,13 +194,13 @@ export default function ShiftManagement() {
         const data = await response.json();
         setCaLamViec(Array.isArray(data) ? data : []);
       } else {
-        showNotification("error", "Không tải được danh sách ca làm việc");
+        showNotification("error", "Không tải được danh sách ca");
       }
     } catch (error) {
-      console.error("Lỗi:", error);
-      showNotification("error", "Lỗi khi tải danh sách ca làm việc");
+      showNotification("error", "Lỗi kết nối server");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fetchPhanCa = async () => {
@@ -118,43 +214,34 @@ export default function ShiftManagement() {
         showNotification("error", "Không tải được danh sách phân ca");
       }
     } catch (error) {
-      console.error("Lỗi:", error);
-      showNotification("error", "Lỗi khi tải danh sách phân ca");
+      showNotification("error", "Lỗi kết nối server");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  // ⚠️ Dùng API /phan-ca-nhan-vien: trả về List<NhanVienSelectDTO> {id, hoTen}
   const fetchNhanVien = async () => {
     try {
       const response = await fetch(`${API_BASE}/nhan-vien/phan-ca-nhan-vien`);
       if (response.ok) {
         const data = await response.json();
-        const nhanVienArray = Array.isArray(data) ? data : [];
-        setNhanVien(nhanVienArray);
-      } else {
-        showNotification("error", "Không tải được danh sách nhân viên");
+        setNhanVien(Array.isArray(data) ? data : []);
       }
     } catch (error) {
-      console.error("Lỗi:", error);
-      showNotification("error", "Lỗi khi tải danh sách nhân viên");
+      console.error("Lỗi tải nhân viên:", error);
     }
   };
 
-  // ================== CA LÀM VIỆC ==================
-
+  // --- ACTIONS: CA LÀM VIỆC ---
   const handleSaveCa = async () => {
     if (!formCa.tenCa || !formCa.gioBatDau || !formCa.gioKetThuc) {
-      showNotification("error", "Vui lòng điền đầy đủ thông tin ca làm việc");
+      showNotification("error", "Vui lòng nhập đầy đủ tên và giờ");
       return;
     }
-
+    setSubmitLoading(true);
     try {
-      const url = editingCa
-        ? `${API_BASE}/ca-lam-viec/${editingCa.id}`
-        : `${API_BASE}/ca-lam-viec`;
+      const url = editingCa ? `${API_BASE}/ca-lam-viec/${editingCa.id}` : `${API_BASE}/ca-lam-viec`;
       const method = editingCa ? "PUT" : "POST";
-
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -162,94 +249,55 @@ export default function ShiftManagement() {
       });
 
       if (response.ok) {
-        showNotification(
-          "success",
-          editingCa
-            ? "Cập nhật ca làm việc thành công"
-            : "Thêm ca làm việc mới thành công"
-        );
-        setFormCa({
-          tenCa: "",
-          gioBatDau: "07:00",
-          gioKetThuc: "12:00",
-          moTa: "",
-        });
+        showNotification("success", editingCa ? "Cập nhật thành công" : "Thêm mới thành công");
+        setFormCa({ tenCa: "", gioBatDau: "07:00", gioKetThuc: "12:00", moTa: "" });
         setEditingCa(null);
-        setShowCaForm(false);
+        setIsCaModalVisible(false);
         fetchCaLamViec();
       } else {
-        showNotification("error", "Lưu ca làm việc thất bại");
+        showNotification("error", "Lưu thất bại");
       }
     } catch (error) {
-      showNotification("error", "Lỗi: " + error.message);
-    }
-  };
-
-  const handleClickSaveCa = () => {
-    openConfirm({
-      title: editingCa ? "Xác nhận cập nhật" : "Xác nhận thêm ca làm việc",
-      message: editingCa
-        ? "Bạn có chắc chắn muốn cập nhật ca làm việc này?"
-        : "Bạn có chắc chắn muốn thêm ca làm việc mới?",
-      onConfirm: handleSaveCa,
-    });
-  };
-
-  const handleEditCa = (ca) => {
-    setEditingCa(ca);
-    setFormCa({
-      tenCa: ca.tenCa,
-      gioBatDau: ca.gioBatDau,
-      gioKetThuc: ca.gioKetThuc,
-      moTa: ca.moTa,
-    });
-    setShowCaForm(true);
-  };
-
-  const performDeleteCa = async (id) => {
-    try {
-      const response = await fetch(`${API_BASE}/ca-lam-viec/${id}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        showNotification("success", "Xóa ca làm việc thành công");
-        fetchCaLamViec();
-      } else {
-        showNotification("error", "Xóa ca làm việc thất bại");
-      }
-    } catch (error) {
-      showNotification("error", "Lỗi: " + error.message);
+      showNotification("error", "Lỗi hệ thống");
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
   const handleDeleteCa = (id) => {
-    openConfirm({
-      title: "Xác nhận xóa ca làm việc",
-      message: "Bạn có chắc chắn muốn xóa ca làm việc này?",
-      onConfirm: () => performDeleteCa(id),
+    confirm({
+      title: "Xác nhận xóa ca làm việc?",
+      icon: <ExclamationCircleOutlined style={{ color: "#ff4d4f" }} />,
+      content: "Hành động này không thể hoàn tác.",
+      okText: "Xóa",
+      okType: "danger",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          const response = await fetch(`${API_BASE}/ca-lam-viec/${id}`, { method: "DELETE" });
+          if (response.ok) {
+            showNotification("success", "Đã xóa thành công");
+            fetchCaLamViec();
+          } else {
+            showNotification("error", "Xóa thất bại (Ca có thể đang được sử dụng)");
+          }
+        } catch (error) {
+          showNotification("error", "Lỗi hệ thống");
+        }
+      },
     });
   };
 
-  // ================== PHÂN CA ==================
-
+  // --- ACTIONS: PHÂN CA ---
   const handleSavePhanCa = async () => {
-    if (
-      !formPhanCa.idNhanVien ||
-      !formPhanCa.idCaLamViec ||
-      !formPhanCa.ngayPhanCa
-    ) {
-      showNotification("error", "Vui lòng điền đầy đủ thông tin phân ca");
+    if (!formPhanCa.idNhanVien || !formPhanCa.idCaLamViec || !formPhanCa.ngayPhanCa) {
+      showNotification("error", "Vui lòng chọn nhân viên, ca và ngày");
       return;
     }
-
-    setErrorPhanCa(""); // reset lỗi trước khi save
-
+    setSubmitLoading(true);
     try {
-      const url = editingPhanCa
-        ? `${API_BASE}/phan-ca/${editingPhanCa.id}`
-        : `${API_BASE}/phan-ca`;
+      const url = editingPhanCa ? `${API_BASE}/phan-ca/${editingPhanCa.id}` : `${API_BASE}/phan-ca`;
       const method = editingPhanCa ? "PUT" : "POST";
-
       const payload = {
         ...formPhanCa,
         idNhanVien: Number(formPhanCa.idNhanVien),
@@ -263,641 +311,376 @@ export default function ShiftManagement() {
       });
 
       if (response.ok) {
-        showNotification(
-          "success",
-          editingPhanCa
-            ? "Cập nhật phân ca thành công"
-            : "Thêm phân ca mới thành công"
-        );
-        setFormPhanCa({
-          idNhanVien: "",
-          idCaLamViec: "",
-          ngayPhanCa: new Date().toISOString().split("T")[0],
-          ghiChu: "",
-        });
+        showNotification("success", editingPhanCa ? "Cập nhật phân ca thành công" : "Phân ca thành công");
         setEditingPhanCa(null);
-        setShowPhanCaForm(false);
+        setIsPhanCaModalVisible(false);
         fetchPhanCa();
       } else {
-        let msg = "Lưu phân ca thất bại";
-        if (response.status === 409) {
-          try {
-            const data = await response.json();
-            if (data?.message) {
-              msg = data.message;
-            } else {
-              msg = "Ca này trong ngày này đã được phân cho nhân viên khác!";
-            }
-          } catch (e) {
-            msg = "Ca này trong ngày này đã được phân cho nhân viên khác!";
-          }
-        }
-        setErrorPhanCa(msg);
-        showNotification("error", msg);
+        const err = await response.json();
+        showNotification("error", err.message || "Lưu thất bại");
       }
     } catch (error) {
-      const msg = "Lỗi: " + error.message;
-      setErrorPhanCa(msg);
-      showNotification("error", msg);
-    }
-  };
-
-  const handleClickSavePhanCa = () => {
-    openConfirm({
-      title: editingPhanCa ? "Xác nhận cập nhật phân ca" : "Xác nhận thêm phân ca",
-      message: editingPhanCa
-        ? "Bạn có chắc chắn muốn cập nhật phân ca này?"
-        : "Bạn có chắc chắn muốn thêm phân ca mới?",
-      onConfirm: handleSavePhanCa,
-    });
-  };
-
-  const handleEditPhanCa = (pc) => {
-    setEditingPhanCa(pc);
-    setFormPhanCa({
-      idNhanVien: pc.idNhanVien,
-      idCaLamViec: pc.idCaLamViec,
-      ngayPhanCa: pc.ngayPhanCa,
-      ghiChu: pc.ghiChu,
-    });
-    setShowPhanCaForm(true);
-    setErrorPhanCa("");
-  };
-
-  const performDeletePhanCa = async (id) => {
-    try {
-      const response = await fetch(`${API_BASE}/phan-ca/${id}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        showNotification("success", "Xóa phân ca thành công");
-        fetchPhanCa();
-      } else {
-        showNotification("error", "Xóa phân ca thất bại");
-      }
-    } catch (error) {
-      showNotification("error", "Lỗi: " + error.message);
+      showNotification("error", "Lỗi hệ thống");
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
   const handleDeletePhanCa = (id) => {
-    openConfirm({
-      title: "Xác nhận xóa phân ca",
-      message: "Bạn có chắc chắn muốn xóa phân ca này?",
-      onConfirm: () => performDeletePhanCa(id),
+    confirm({
+      title: "Xác nhận xóa phân ca?",
+      icon: <ExclamationCircleOutlined style={{ color: "#ff4d4f" }} />,
+      content: "Nhân viên sẽ bị gỡ khỏi lịch làm việc này.",
+      okText: "Xóa",
+      okType: "danger",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          const response = await fetch(`${API_BASE}/phan-ca/${id}`, { method: "DELETE" });
+          if (response.ok) {
+            showNotification("success", "Đã xóa phân ca");
+            fetchPhanCa();
+          } else {
+            showNotification("error", "Xóa thất bại");
+          }
+        } catch (error) {
+          showNotification("error", "Lỗi hệ thống");
+        }
+      },
     });
   };
 
-  // ====== Stats đơn giản cho header ======
-  const totalShifts = caLamViec.length;
-  const totalAssignments = phanCa.length;
+  // --- HELPER HANDLERS ---
+  const openEditCa = (record) => {
+    setEditingCa(record);
+    setFormCa({ ...record });
+    setIsCaModalVisible(true);
+  };
+
+  const openEditPhanCa = (record) => {
+    setEditingPhanCa(record);
+    setFormPhanCa({
+      idNhanVien: record.idNhanVien,
+      idCaLamViec: record.idCaLamViec,
+      ngayPhanCa: record.ngayPhanCa,
+      ghiChu: record.ghiChu,
+    });
+    setIsPhanCaModalVisible(true);
+  };
+
+  // --- EXPORT PREPARATION ---
+  const prepareShiftData = () => caLamViec.map(c => ({ "Tên ca": c.tenCa, "Bắt đầu": c.gioBatDau, "Kết thúc": c.gioKetThuc, "Mô tả": c.moTa }));
+  const prepareAssignmentData = () => phanCa.map(p => ({ "Nhân viên": p.hoTenNhanVien, "Ca": p.tenCa, "Ngày": p.ngayPhanCa, "Giờ": `${p.gioBatDau}-${p.gioKetThuc}`, "Ghi chú": p.ghiChu }));
+
+  const renderShiftsHtml = () => {
+    const rows = caLamViec.map(s => `<tr><td>${s.tenCa}</td><td>${s.gioBatDau}</td><td>${s.gioKetThuc}</td><td>${s.moTa || ''}</td></tr>`).join('');
+    return `<table border="1" style="width:100%;border-collapse:collapse"><thead><tr><th>Tên ca</th><th>Giờ bắt đầu</th><th>Giờ kết thúc</th><th>Mô tả</th></tr></thead><tbody>${rows}</tbody></table>`;
+  };
+
+  const renderAssignmentsHtml = () => {
+    const rows = phanCa.map(a => `<tr><td>${a.hoTenNhanVien}</td><td>${a.tenCa}</td><td>${a.ngayPhanCa}</td><td>${a.gioBatDau || ''} - ${a.gioKetThuc || ''}</td><td>${a.ghiChu || ''}</td></tr>`).join('');
+    return `<table border="1" style="width:100%;border-collapse:collapse"><thead><tr><th>Nhân viên</th><th>Ca</th><th>Ngày</th><th>Giờ</th><th>Ghi chú</th></tr></thead><tbody>${rows}</tbody></table>`;
+  };
+
+  // --- TABLE COLUMNS ---
+  const shiftColumns = [
+    { title: "Tên Ca", dataIndex: "tenCa", key: "tenCa", render: (text) => <span className="font-semibold text-slate-800">{text}</span> },
+    {
+        title: "Thời Gian",
+        key: "time",
+        render: (_, record) => (
+            <Tag icon={<ClockCircleOutlined />} color="orange" className="border-0 bg-orange-50 text-orange-600">
+                {record.gioBatDau} - {record.gioKetThuc}
+            </Tag>
+        )
+    },
+    { title: "Mô Tả", dataIndex: "moTa", key: "moTa", render: (text) => <span className="text-gray-500">{text || "—"}</span> },
+    {
+        key: "action",
+        width: 80,
+        align: "center",
+        render: (_, record) => (
+            <Dropdown
+                menu={{
+                    items: [
+                        { key: 'edit', label: 'Chỉnh sửa', icon: <EditOutlined />, onClick: () => openEditCa(record) },
+                        { key: 'delete', label: 'Xóa', icon: <DeleteOutlined />, danger: true, onClick: () => handleDeleteCa(record.id) }
+                    ]
+                }}
+            >
+                <Button type="text" icon={<MoreOutlined />} />
+            </Dropdown>
+        )
+    }
+  ];
+
+  const assignmentColumns = [
+    {
+        title: "Nhân Viên",
+        dataIndex: "hoTenNhanVien",
+        key: "hoTenNhanVien",
+        render: (text) => (
+            <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                    <TeamOutlined />
+                </div>
+                <span className="font-medium">{text}</span>
+            </div>
+        )
+    },
+    { title: "Ca Làm Việc", dataIndex: "tenCa", key: "tenCa", render: (text) => <span className="font-medium text-orange-600">{text}</span> },
+    {
+        title: "Thời Gian",
+        key: "time",
+        render: (_, record) => (
+            <div className="flex flex-col text-xs text-gray-500">
+                <span className="font-medium text-gray-700"><CalendarOutlined className="mr-1"/>{dayjs(record.ngayPhanCa).format("DD/MM/YYYY")}</span>
+                <span>{record.gioBatDau} - {record.gioKetThuc}</span>
+            </div>
+        )
+    },
+    { title: "Ghi Chú", dataIndex: "ghiChu", key: "ghiChu", ellipsis: true },
+    {
+        key: "action",
+        width: 80,
+        align: "center",
+        render: (_, record) => (
+            <Dropdown
+                menu={{
+                    items: [
+                        { key: 'edit', label: 'Chỉnh sửa', icon: <EditOutlined />, onClick: () => openEditPhanCa(record) },
+                        { key: 'delete', label: 'Xóa', icon: <DeleteOutlined />, danger: true, onClick: () => handleDeletePhanCa(record.id) }
+                    ]
+                }}
+            >
+                <Button type="text" icon={<MoreOutlined />} />
+            </Dropdown>
+        )
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Toast Notification */}
-        {notification.message && (
-          <div className="fixed top-4 right-4 z-50">
-            <div
-              className={`px-4 py-3 rounded-2xl shadow-lg text-sm font-semibold flex items-center gap-2 ${
-                notification.type === "success"
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-            >
-              {notification.type === "success" ? "✅" : "⚠️"}
-              <span>{notification.message}</span>
-            </div>
+    <div className="min-h-screen bg-[#f8f9fa] p-6 font-sans relative">
+      {/* CUSTOM TOAST NOTIFICATION */}
+      {notification.message && (
+        <div className="fixed top-6 right-6 z-[9999] animate-bounce-in">
+          <div className={`px-5 py-3.5 rounded-xl shadow-2xl text-sm font-semibold flex items-center gap-3 border ${
+              notification.type === "success" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200"
+            }`}
+          >
+            {notification.type === "success" ? <CheckCircleFilled className="text-xl text-emerald-500" /> : <CloseCircleFilled className="text-xl text-red-500" />}
+            <span>{notification.message}</span>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Confirm Dialog */}
-        {confirmDialog.open && (
-          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-40">
-            <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-slate-200">
-              <h4 className="text-lg font-semibold text-slate-900 mb-2">
-                {confirmDialog.title || "Xác nhận"}
-              </h4>
-              <p className="text-sm text-slate-600 mb-5">
-                {confirmDialog.message}
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={handleConfirmCancel}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium text-sm"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleConfirmOk}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ED7014] to-[#FF8C3A] text-white font-semibold text-sm shadow hover:shadow-md"
-                >
-                  Đồng ý
-                </button>
-              </div>
-            </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* HEADER */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-4">
+             <div className="w-12 h-12 rounded-2xl bg-[#fff7e6] flex items-center justify-center border border-orange-100 shadow-sm">
+                <CalendarOutlined className="text-2xl text-[#fa8c16]" />
+             </div>
+             <div>
+                <Title level={4} style={{ margin: 0, color: '#262626' }}>Quản Lý Ca Làm Việc</Title>
+                <Text type="secondary" className="text-sm">Thiết lập ca và phân công nhân sự</Text>
+             </div>
           </div>
-        )}
 
-        {/* Header */}
-        <div className="mb-8">
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm px-6 py-6 sm:px-8 sm:py-7">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-              <div className="flex items-start gap-4">
-                <div className="h-12 w-12 rounded-2xl bg-[#ED7014] flex items-center justify-center shadow-md shadow-orange-200">
-                  <Clock className="text-white" size={26} />
-                </div>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
-                    Quản Lý Ca Làm Việc
-                  </h1>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Tạo ca làm việc và phân công nhân viên theo ca
-                  </p>
-                  <div className="flex flex-wrap gap-2 mt-3 text-[11px] text-slate-600">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-200 px-3 py-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#ED7014]" />
-                      Số ca làm việc:{" "}
-                      <span className="font-semibold">{totalShifts}</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-200 px-3 py-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-                      Số phân ca:{" "}
-                      <span className="font-semibold">{totalAssignments}</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setActiveTab("shifts")}
-                  className={`px-4 py-2 rounded-2xl text-xs font-semibold tracking-wide uppercase transition-all ${
-                    activeTab === "shifts"
-                      ? "bg-[#ED7014] text-white shadow-md"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                >
-                  Ca làm việc
-                </button>
-                <button
-                  onClick={() => setActiveTab("assignments")}
-                  className={`px-4 py-2 rounded-2xl text-xs font-semibold tracking-wide uppercase transition-all ${
-                    activeTab === "assignments"
-                      ? "bg-[#ED7014] text-white shadow-md"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                >
-                  Phân ca
-                </button>
-              </div>
-            </div>
+          <div className="flex items-center gap-3">
+             {activeTab === "assignments" && (
+                 <div className="hidden sm:flex bg-gray-100 p-1 rounded-xl">
+                     <Button 
+                        type={assignmentsView === "list" ? "text" : "text"} 
+                        className={assignmentsView === "list" ? "bg-white shadow-sm font-semibold text-orange-600 rounded-lg" : "text-gray-500"}
+                        icon={<UnorderedListOutlined />}
+                        onClick={() => setAssignmentsView("list")}
+                     >
+                        Danh sách
+                     </Button>
+                     <Button 
+                        type={assignmentsView === "calendar" ? "text" : "text"} 
+                        className={assignmentsView === "calendar" ? "bg-white shadow-sm font-semibold text-orange-600 rounded-lg" : "text-gray-500"}
+                        icon={<CalendarOutlined />}
+                        onClick={() => setAssignmentsView("calendar")}
+                     >
+                        Lịch
+                     </Button>
+                 </div>
+             )}
+             <Button
+                type="primary"
+                size="large"
+                icon={<PlusOutlined />}
+                className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 border-none shadow-orange-200 shadow-lg rounded-xl h-11 px-6 font-semibold"
+                onClick={() => activeTab === "shifts" ? setIsCaModalVisible(true) : setIsPhanCaModalVisible(true)}
+             >
+                {activeTab === "shifts" ? "Thêm Ca Mới" : "Phân Ca Mới"}
+             </Button>
           </div>
         </div>
 
-        {/* Ca Làm Việc Tab */}
-        {activeTab === "shifts" && (
-          <div>
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Danh sách ca làm việc
-              </h2>
-              <button
-                onClick={() => {
-                  setEditingCa(null);
-                  setFormCa({
-                    tenCa: "",
-                    gioBatDau: "07:00",
-                    gioKetThuc: "12:00",
-                    moTa: "",
-                  });
-                  setShowCaForm(!showCaForm);
-                }}
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#ED7014] to-[#FF8C3A] px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg transition-all"
-              >
-                <Plus size={18} /> Thêm ca làm việc
-              </button>
+        {/* TABS & ACTIONS */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <Segmented
+                options={[
+                    { label: 'Danh sách ca', value: 'shifts', icon: <ClockCircleOutlined /> },
+                    { label: 'Lịch phân ca', value: 'assignments', icon: <TeamOutlined /> },
+                ]}
+                value={activeTab}
+                onChange={setActiveTab}
+                size="large"
+                className="bg-white p-1 border border-gray-100 shadow-sm rounded-xl"
+            />
+            
+            <div className="flex gap-2">
+                <Tooltip title="Xuất Excel">
+                    <Button icon={<FileExcelOutlined className="text-green-600"/>} onClick={() => exportToCSV(activeTab === 'shifts' ? 'ca-lam-viec.csv' : 'phan-ca.csv', activeTab === 'shifts' ? caLamViec : phanCa, activeTab === 'shifts' ? prepareShiftData() : prepareAssignmentData())} className="rounded-xl border-gray-200 bg-white text-gray-600 hover:bg-green-50 hover:border-green-200">Excel</Button>
+                </Tooltip>
+                <Tooltip title="Xuất Word">
+                    <Button icon={<FileWordOutlined className="text-blue-600"/>} onClick={() => exportToWord(activeTab === 'shifts' ? 'ca-lam-viec.doc' : 'phan-ca.doc', activeTab === 'shifts' ? 'Danh sách ca' : 'Danh sách phân ca', activeTab === 'shifts' ? renderShiftsHtml() : renderAssignmentsHtml())} className="rounded-xl border-gray-200 bg-white text-gray-600 hover:bg-blue-50 hover:border-blue-200">Word</Button>
+                </Tooltip>
             </div>
+        </div>
 
-            {showCaForm && (
-              <div className="mb-8">
-                <div className="bg-white border border-slate-200 rounded-3xl shadow-sm px-6 py-6 sm:px-7 sm:py-7">
-                  <div className="flex items-center justify-between mb-5">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-900">
-                        {editingCa ? "Cập nhật ca làm việc" : "Thêm ca làm việc mới"}
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Nhập tên ca, giờ bắt đầu, giờ kết thúc và mô tả (nếu có)
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setShowCaForm(false)}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-2">
-                        Tên ca
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ví dụ: Ca sáng, Ca chiều, Ca tối..."
-                        value={formCa.tenCa}
-                        onChange={(e) =>
-                          setFormCa({ ...formCa, tenCa: e.target.value })
-                        }
-                        className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#ED7014] focus:border-transparent"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-2">
-                          Giờ bắt đầu
-                        </label>
-                        <input
-                          type="time"
-                          value={formCa.gioBatDau}
-                          onChange={(e) =>
-                            setFormCa({ ...formCa, gioBatDau: e.target.value })
-                          }
-                          className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#ED7014] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-2">
-                          Giờ kết thúc
-                        </label>
-                        <input
-                          type="time"
-                          value={formCa.gioKetThuc}
-                          onChange={(e) =>
-                            setFormCa({
-                              ...formCa,
-                              gioKetThuc: e.target.value,
-                            })
-                          }
-                          className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#ED7014] focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-2">
-                        Mô tả (tuỳ chọn)
-                      </label>
-                      <textarea
-                        placeholder="Nhập mô tả chi tiết ca làm việc..."
-                        value={formCa.moTa}
-                        onChange={(e) =>
-                          setFormCa({ ...formCa, moTa: e.target.value })
-                        }
-                        className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#ED7014] focus:border-transparent h-24 resize-none"
-                      />
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                      <button
-                        onClick={handleClickSaveCa}
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#ED7014] to-[#FF8C3A] px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg transition-all"
-                      >
-                        <Save size={18} /> Lưu ca làm việc
-                      </button>
-                      <button
-                        onClick={() => setShowCaForm(false)}
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors"
-                      >
-                        <X size={16} /> Hủy
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {loading ? (
-              <div className="text-center py-16">
-                <div className="inline-block animate-spin">
-                  <Clock className="text-slate-400" size={40} />
-                </div>
-                <p className="text-slate-500 mt-4 text-sm">
-                  Đang tải danh sách ca làm việc...
-                </p>
-              </div>
+        {/* CONTENT AREA */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px]">
+            {activeTab === "shifts" ? (
+                <Table
+                    columns={shiftColumns}
+                    dataSource={caLamViec}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={{ pageSize: 6, showTotal: (t) => `Tổng ${t} ca` }}
+                    rowClassName="hover:bg-orange-50/30 cursor-pointer"
+                />
             ) : (
-              <div className="grid gap-4">
-                {caLamViec.length === 0 ? (
-                  <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-10 text-center">
-                    <Clock className="text-slate-300 mx-auto mb-3" size={42} />
-                    <p className="text-slate-800 text-sm">
-                      Chưa có ca làm việc nào
-                    </p>
-                    <p className="text-slate-500 text-xs mt-1">
-                      Thêm ca làm việc mới để bắt đầu quản lý lịch làm
-                    </p>
-                  </div>
-                ) : (
-                  caLamViec.map((ca) => (
-                    <div
-                      key={ca.id}
-                      className="bg-white border border-slate-200 rounded-3xl shadow-sm hover:shadow-md transition-all p-6"
-                    >
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-slate-100">
-                              <Clock size={18} className="text-[#ED7014]" />
-                            </span>
-                            <h4 className="font-semibold text-slate-900 text-lg">
-                              {ca.tenCa}
-                            </h4>
-                          </div>
-                          <p className="text-sm font-medium text-slate-800 mt-1">
-                            {ca.gioBatDau} - {ca.gioKetThuc}
-                          </p>
-                          {ca.moTa && (
-                            <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                              {ca.moTa}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditCa(ca)}
-                            className="inline-flex items-center justify-center rounded-2xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 transition-colors"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCa(ca.id)}
-                            className="inline-flex items-center justify-center rounded-2xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Phân Ca Tab */}
-        {activeTab === "assignments" && (
-          <div>
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Danh sách phân ca
-              </h2>
-              <button
-                onClick={() => {
-                  setEditingPhanCa(null);
-                  setFormPhanCa({
-                    idNhanVien: "",
-                    idCaLamViec: "",
-                    ngayPhanCa: new Date().toISOString().split("T")[0],
-                    ghiChu: "",
-                  });
-                  setErrorPhanCa("");
-                  setShowPhanCaForm(!showPhanCaForm);
-                }}
-                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#ED7014] to-[#FF8C3A] px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg transition-all"
-              >
-                <Plus size={18} /> Phân ca mới
-              </button>
-            </div>
-
-            {showPhanCaForm && (
-              <div className="mb-8">
-                <div className="bg-white border border-slate-200 rounded-3xl shadow-sm px-6 py-6 sm:px-7 sm:py-7">
-                  <div className="flex items-center justify-between mb-5">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-900">
-                        {editingPhanCa ? "Cập nhật phân ca" : "Thêm phân ca mới"}
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Chọn nhân viên, ca làm việc và ngày phân ca
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setShowPhanCaForm(false);
-                        setErrorPhanCa("");
-                      }}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-2">
-                        Nhân viên
-                      </label>
-                      <select
-                        value={formPhanCa.idNhanVien}
-                        onChange={(e) =>
-                          setFormPhanCa({
-                            ...formPhanCa,
-                            idNhanVien: e.target.value,
-                          })
-                        }
-                        className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#ED7014] focus:border-transparent"
-                      >
-                        <option value="">-- Chọn Nhân Viên --</option>
-                        {nhanVien.map((nv) => (
-                          <option key={nv.id} value={nv.id}>
-                            {nv.hoTen}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-2">
-                        Ca làm việc
-                      </label>
-                      <select
-                        value={formPhanCa.idCaLamViec}
-                        onChange={(e) =>
-                          setFormPhanCa({
-                            ...formPhanCa,
-                            idCaLamViec: e.target.value,
-                          })
-                        }
-                        className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#ED7014] focus:border-transparent"
-                      >
-                        <option value="">-- Chọn Ca Làm Việc --</option>
-                        {caLamViec.map((ca) => (
-                          <option key={ca.id} value={ca.id}>
-                            {ca.tenCa} ({ca.gioBatDau} - {ca.gioKetThuc})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-2">
-                          Ngày phân ca
-                        </label>
-                        <input
-                          type="date"
-                          value={formPhanCa.ngayPhanCa}
-                          onChange={(e) =>
-                            setFormPhanCa({
-                              ...formPhanCa,
-                              ngayPhanCa: e.target.value,
-                            })
-                          }
-                          className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#ED7014] focus:border-transparent"
+                <>
+                    {assignmentsView === "list" ? (
+                        <Table
+                            columns={assignmentColumns}
+                            dataSource={phanCa}
+                            rowKey="id"
+                            loading={loading}
+                            pagination={{ pageSize: 6, showTotal: (t) => `Tổng ${t} phân công` }}
+                            rowClassName="hover:bg-orange-50/30 cursor-pointer"
                         />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-2">
-                          Ghi chú (tuỳ chọn)
-                        </label>
-                        <textarea
-                          placeholder="Nhập ghi chú thêm..."
-                          value={formPhanCa.ghiChu}
-                          onChange={(e) =>
-                            setFormPhanCa({
-                              ...formPhanCa,
-                              ghiChu: e.target.value,
-                            })
-                          }
-                          className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#ED7014] focus:border-transparent h-20 resize-none"
-                        />
-                      </div>
-                    </div>
-
-                    {errorPhanCa && (
-                      <div className="mt-1 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
-                        ⚠️ {errorPhanCa}
-                      </div>
+                    ) : (
+                        <div className="p-4">
+                            <AssignmentsCalendar 
+                                phanCa={phanCa} 
+                                calendarDate={calendarDate} 
+                                onPrev={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} 
+                                onNext={() => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+                                onDayClick={(ymd) => {
+                                    setEditingPhanCa(null);
+                                    setFormPhanCa({ ...formPhanCa, ngayPhanCa: ymd });
+                                    setIsPhanCaModalVisible(true);
+                                }}
+                                onEventClick={(pc) => {
+                                    setEditingPhanCa(pc);
+                                    setFormPhanCa(pc);
+                                    setIsPhanCaModalVisible(true);
+                                }}
+                            />
+                        </div>
                     )}
-
-                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                      <button
-                        onClick={handleClickSavePhanCa}
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#ED7014] to-[#FF8C3A] px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg transition-all"
-                      >
-                        <Save size={18} /> Lưu phân ca
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowPhanCaForm(false);
-                          setErrorPhanCa("");
-                        }}
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200 transition-colors"
-                      >
-                        <X size={16} /> Hủy
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                </>
             )}
-
-            {loading ? (
-              <div className="text-center py-16">
-                <div className="inline-block animate-spin">
-                  <Users className="text-slate-400" size={40} />
-                </div>
-                <p className="text-slate-500 mt-4 text-sm">
-                  Đang tải danh sách phân ca...
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {phanCa.length === 0 ? (
-                  <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-10 text-center">
-                    <Users className="text-slate-300 mx-auto mb-3" size={42} />
-                    <p className="text-slate-800 text-sm">
-                      Chưa có phân ca nào
-                    </p>
-                    <p className="text-slate-500 text-xs mt-1">
-                      Tạo phân ca mới để gán ca cho nhân viên
-                    </p>
-                  </div>
-                ) : (
-                  phanCa.map((pc) => (
-                    <div
-                      key={pc.id}
-                      className="bg-white border border-slate-200 rounded-3xl shadow-sm hover:shadow-md transition-all p-6"
-                    >
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-slate-900 text-lg">
-                            {pc.hoTenNhanVien}
-                          </h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 text-sm">
-                            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-3 rounded-2xl">
-                              <Clock size={16} className="text-[#ED7014]" />
-                              <div>
-                                <p className="text-[11px] text-slate-500 font-medium uppercase">
-                                  Ca làm việc
-                                </p>
-                                <span className="font-semibold text-slate-800">
-                                  {pc.tenCa}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 bg-sky-50 border border-sky-100 p-3 rounded-2xl">
-                              <Calendar size={16} className="text-sky-600" />
-                              <div>
-                                <p className="text-[11px] text-slate-500 font-medium uppercase">
-                                  Ngày phân ca
-                                </p>
-                                <span className="font-semibold text-slate-800">
-                                  {pc.ngayPhanCa}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <p className="text-slate-700 text-xs font-semibold mt-3">
-                            🕐 {pc.gioBatDau} - {pc.gioKetThuc}
-                          </p>
-                          {pc.ghiChu && (
-                            <p className="text-[11px] text-slate-600 mt-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
-                              <span className="font-semibold text-slate-800">
-                                Ghi chú:
-                              </span>{" "}
-                              {pc.ghiChu}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditPhanCa(pc)}
-                            className="inline-flex items-center justify-center rounded-2xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 transition-colors"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDeletePhanCa(pc.id)}
-                            className="inline-flex items-center justify-center rounded-2xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        </div>
       </div>
+
+      {/* --- MODAL: THÊM/SỬA CA --- */}
+      <Modal
+        title={<div className="flex items-center gap-2 text-lg text-gray-800 pb-2 border-b border-gray-100"><ClockCircleOutlined className="text-[#fa8c16]"/> {editingCa ? "Cập Nhật Ca" : "Thêm Ca Mới"}</div>}
+        open={isCaModalVisible}
+        onCancel={() => setIsCaModalVisible(false)}
+        footer={null}
+        centered
+        className="rounded-2xl"
+      >
+        <div className="pt-4 space-y-4">
+            <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tên ca</label>
+                <Input size="large" className="rounded-xl" placeholder="Ví dụ: Ca Sáng" value={formCa.tenCa} onChange={e => setFormCa({...formCa, tenCa: e.target.value})} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Bắt đầu</label>
+                    <TimePicker size="large" className="w-full rounded-xl" format="HH:mm" value={formCa.gioBatDau ? dayjs(formCa.gioBatDau, "HH:mm") : null} onChange={(time, timeString) => setFormCa({...formCa, gioBatDau: timeString})} />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kết thúc</label>
+                    <TimePicker size="large" className="w-full rounded-xl" format="HH:mm" value={formCa.gioKetThuc ? dayjs(formCa.gioKetThuc, "HH:mm") : null} onChange={(time, timeString) => setFormCa({...formCa, gioKetThuc: timeString})} />
+                </div>
+            </div>
+            <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Mô tả</label>
+                <TextArea className="rounded-xl" rows={3} placeholder="Ghi chú thêm..." value={formCa.moTa} onChange={e => setFormCa({...formCa, moTa: e.target.value})} />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+                <Button className="rounded-xl border-none bg-gray-100 text-gray-600 font-medium h-10" onClick={() => setIsCaModalVisible(false)}>Hủy</Button>
+                <Button type="primary" className="rounded-xl bg-[#fa8c16] hover:bg-orange-500 border-none font-bold h-10 px-6" onClick={handleSaveCa} loading={submitLoading}>Lưu lại</Button>
+            </div>
+        </div>
+      </Modal>
+
+      {/* --- MODAL: PHÂN CA --- */}
+      <Modal
+        title={<div className="flex items-center gap-2 text-lg text-gray-800 pb-2 border-b border-gray-100"><TeamOutlined className="text-blue-500"/> {editingPhanCa ? "Cập Nhật Phân Ca" : "Phân Ca Mới"}</div>}
+        open={isPhanCaModalVisible}
+        onCancel={() => setIsPhanCaModalVisible(false)}
+        footer={null}
+        centered
+        className="rounded-2xl"
+      >
+        <div className="pt-4 space-y-4">
+            <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nhân viên</label>
+                <Select 
+                    size="large" 
+                    className="w-full" 
+                    placeholder="Chọn nhân viên"
+                    value={formPhanCa.idNhanVien}
+                    onChange={val => setFormPhanCa({...formPhanCa, idNhanVien: val})}
+                >
+                    {nhanVien.map(nv => <Option key={nv.id} value={nv.id}>{nv.hoTen}</Option>)}
+                </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ca làm việc</label>
+                    <Select 
+                        size="large" 
+                        className="w-full" 
+                        placeholder="Chọn ca"
+                        value={formPhanCa.idCaLamViec}
+                        onChange={val => setFormPhanCa({...formPhanCa, idCaLamViec: val})}
+                    >
+                        {caLamViec.map(ca => <Option key={ca.id} value={ca.id}>{ca.tenCa} ({ca.gioBatDau}-{ca.gioKetThuc})</Option>)}
+                    </Select>
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ngày làm</label>
+                    <DatePicker 
+                        size="large" 
+                        className="w-full rounded-xl" 
+                        format="DD/MM/YYYY"
+                        value={formPhanCa.ngayPhanCa ? dayjs(formPhanCa.ngayPhanCa) : null}
+                        onChange={(date, dateString) => setFormPhanCa({...formPhanCa, ngayPhanCa: date ? date.format("YYYY-MM-DD") : null})}
+                    />
+                </div>
+            </div>
+            <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ghi chú</label>
+                <TextArea className="rounded-xl" rows={2} placeholder="Ghi chú phân công..." value={formPhanCa.ghiChu} onChange={e => setFormPhanCa({...formPhanCa, ghiChu: e.target.value})} />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+                <Button className="rounded-xl border-none bg-gray-100 text-gray-600 font-medium h-10" onClick={() => setIsPhanCaModalVisible(false)}>Hủy</Button>
+                <Button type="primary" className="rounded-xl bg-blue-500 hover:bg-blue-600 border-none font-bold h-10 px-6" onClick={handleSavePhanCa} loading={submitLoading}>Lưu phân ca</Button>
+            </div>
+        </div>
+      </Modal>
     </div>
   );
 }
