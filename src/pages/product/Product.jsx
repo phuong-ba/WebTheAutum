@@ -1,13 +1,6 @@
 import FliterProduct from "./FliterProduct";
 import React, { useEffect, useState } from "react";
-import {
-  Space,
-  Table,
-  Tag,
-  message,
-  Modal,
-  Button
-} from "antd";
+import { Space, Table, Tag, message, Modal, Button } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import {
   ToggleLeftIcon,
@@ -607,11 +600,11 @@ export default function Product() {
       width: 150,
       render: (_, record) => (
         <Space>
-          <Button
+          {/* <Button
             type="link"
             icon={<EyeIcon size={24} />}
             onClick={() => navigate(`/admin/detail-product/${record.id}`)}
-          ></Button>{" "}
+          ></Button>{" "} */}
           <a
             onClick={(e) => {
               e.preventDefault();
@@ -736,7 +729,7 @@ export default function Product() {
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,
-            total: pagination.total
+            total: pagination.total,
           }}
           onChange={handleTableChange}
           locale={{ emptyText: "Không có dữ liệu sản phẩm" }}

@@ -429,7 +429,8 @@ export default function EditProduct() {
       setModifiedVariants({});
 
       setTimeout(() => {
-        navigate(`/admin/detail-product/${id}`);
+        // navigate(`/admin/detail-product/${id}`);
+        navigate(`/admin/product`);
       }, 1000);
     } catch (error) {
       console.error("❌ Lỗi update:", error);
