@@ -113,22 +113,22 @@ export default function SellPay({
     setQrModalVisible(true);
   };
   const copyToClipboard = async (text) => {
-      try {
-        if (!text) return;
-        await navigator.clipboard.writeText(String(text));
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1800);
-      } catch (err) {
-        console.error("❌ copyToClipboard error:", err);
-        messageApi.error("Không thể copy nội dung");
-      }
-    };
+    try {
+      if (!text) return;
+      await navigator.clipboard.writeText(String(text));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch (err) {
+      console.error("❌ copyToClipboard error:", err);
+      messageApi.error("Không thể copy nội dung");
+    }
+  };
   // --- [FIX LỖI LẶP] Kết nối Socket chỉ chạy 1 LẦN DÙ COMPONENT RE-RENDER ---
   useEffect(() => {
     // Show QR modal with prepared bank info and amount
 
     // Clipboard copy helper used by QR modal
-    
+
     // Chỉ khởi tạo nếu Ref chưa có client
     if (socketRef.current) return;
 
@@ -808,7 +808,7 @@ export default function SellPay({
             <div
               key={option}
               onClick={() => setPaymentMethod(option)}
-              className={`cursor-pointer select-none text-center py-2 px-6 rounded-xl bg-white font-bold border shadow transition-all ${
+              className={`cursor-pointer select-none text-center py-2 px-6 rounded-xl font-bold border shadow transition-all ${
                 paymentMethod === option
                   ? "bg-amber-600 text-white border-amber-600 shadow-md"
                   : "text-amber-600 hover:text-white hover:bg-amber-500 border-gray-300 hover:shadow-sm"
