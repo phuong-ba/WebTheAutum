@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Form, Input, Select, Radio, message, Spin, Modal, Button } from "antd";
 import { useNavigate } from "react-router-dom";
@@ -18,6 +19,7 @@ import {
 } from "@/redux/slices/vanChuyenSlice";
 import { diaChiApi } from "@/api/diaChiApi";
 import { CheckCircleIcon } from "@phosphor-icons/react";
+
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import { fetchAllGGKH } from "@/services/giamGiaKhachHangService";
@@ -111,6 +113,7 @@ export default function CheckOut() {
   );
   const discountAmount = appliedVoucher?.soTienGiam || 0;
   const total = subtotal + shippingFee - discountAmount;
+
 
   // Copy hàm kiểm tra điều kiện từ SellInformation
   const checkBasicDiscountConditions = (discount, totalAmount, customer) => {
@@ -402,6 +405,7 @@ export default function CheckOut() {
     return () => clearTimeout(timer);
   }, [form, cartItems, selectedProvider, dispatch]);
 
+
   const handleSelectShipping = (provider) => {
     dispatch(setSelectedShipping(provider));
   };
@@ -432,6 +436,7 @@ export default function CheckOut() {
       messageApi.error("Giỏ hàng trống!");
       return;
     }
+
 
     // Kiểm tra lại voucher trước khi đặt hàng
     if (appliedVoucher && Array.isArray(vouchers)) {
@@ -509,6 +514,7 @@ export default function CheckOut() {
     setFormValues(values);
     setConfirmOpen(true);
   };
+
 
   const renderVoucherSelector = () => {
     return (
@@ -1028,6 +1034,7 @@ export default function CheckOut() {
                   </p>
                 </div>
               </div>
+
 
               {appliedVoucher && (
                 <div>
