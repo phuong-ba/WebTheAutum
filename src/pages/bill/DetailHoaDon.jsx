@@ -1519,7 +1519,7 @@ const DetailHoaDon = () => {
                   </Button>
                 )}
 
-                
+                {/* Nút hoàn tiền - chỉ hiển thị khi trạng thái = 4 (đã hủy) */}
                 {invoice?.trangThai === 4 && (
                   <Button
                     icon={<DollarOutlined />}

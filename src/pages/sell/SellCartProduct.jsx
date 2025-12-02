@@ -16,7 +16,6 @@ const { Option } = Select;
 export default function SellCartProduct({ selectedBillId }) {
   const dispatch = useDispatch();
   const { data: productList } = useSelector((state) => state.chiTietSanPham);
-  console.log("🚀 ~ SellCartProduct ~ productList:", productList);
   const [cartProducts, setCartProducts] = useState([]);
   const [filteredCartProducts, setFilteredCartProducts] = useState([]);
   const [messageApi, contextHolder] = message.useMessage();
@@ -35,51 +34,47 @@ export default function SellCartProduct({ selectedBillId }) {
   }, [dispatch]);
 
   const removeInactiveProductsFromCart = async () => {
+    if (inactiveProductsHandled.current) return; // Nếu đã chạy rồi thì thôi
+    inactiveProductsHandled.current = true;
+
     if (!cartProducts.length || !productList.length) return;
 
     const inactiveItems = cartProducts.filter((cartItem) => {
       const product = productList.find(
         (p) => p.id === cartItem.idChiTietSanPham
       );
-      return product && !product.trangThai;
+      return product?.trangThai === false;
     });
 
-    if (inactiveItems.length === 0) return;
-
-    // Hoàn tồn kho
-    for (const item of inactiveItems) {
-      try {
-        await dispatch(
-          tangSoLuong({
-            id: item.idChiTietSanPham,
-            soLuong: item.quantity,
-          })
-        ).unwrap();
-      } catch (err) {
-        console.error("Hoàn kho thất bại:", err);
+    if (inactiveItems.length > 0) {
+      for (const item of inactiveItems) {
+        try {
+          // Trả lại kho đúng số lượng hiện có trong giỏ
+          await dispatch(
+            tangSoLuong({ id: item.idChiTietSanPham, soLuong: item.quantity })
+          ).unwrap();
+        } catch (error) {
+          console.error("Lỗi khi trả lại số lượng tồn kho:", error);
+        }
       }
-    }
 
-    // Xóa khỏi giỏ
-    const activeCart = cartProducts.filter((cartItem) => {
-      const product = productList.find(
-        (p) => p.id === cartItem.idChiTietSanPham
+      // Lọc lại giỏ, chỉ giữ sản phẩm active
+      const activeCart = cartProducts.filter((cartItem) => {
+        const product = productList.find(
+          (p) => p.id === cartItem.idChiTietSanPham
+        );
+        return product?.trangThai === true;
+      });
+
+      setCartProducts(activeCart);
+      saveCartToBill(activeCart);
+
+      messageApi.info(
+        "Một số sản phẩm đã ngừng kinh doanh và được loại khỏi giỏ hàng. Số lượng đã được trả lại kho."
       );
-      return product && product.trangThai;
-    });
 
-    setCartProducts(activeCart);
-    saveCartToBill(activeCart);
-
-    messageApi.warning(
-      <>
-        <strong>{inactiveItems.length} sản phẩm đã ngừng kinh doanh</strong>
-        <br />
-        Đã tự động xóa khỏi giỏ hàng và hoàn tồn kho.
-      </>
-    );
-
-    window.dispatchEvent(new Event("cartUpdated"));
+      window.dispatchEvent(new Event("cartUpdated"));
+    }
   };
 
   const loadCartFromBill = () => {
@@ -110,30 +105,17 @@ export default function SellCartProduct({ selectedBillId }) {
   }, [selectedBillId]);
 
   useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === "pendingBills") {
-        // Có thay đổi ở localStorage.pendingBills từ tab khác
-        inactiveProductsHandled.current = false; // Reset để kiểm tra lại sản phẩm ngừng kinh doanh
-        loadCartFromBill(); // Tải lại giỏ hàng từ localStorage mới nhất
-      }
-    };
-
-    // Lắng nghe thay đổi localStorage từ các tab khác
-    window.addEventListener("storage", handleStorageChange);
-
-    // Vẫn giữ lại các event nội bộ trong cùng tab (tăng giảm số lượng nhanh, xóa, v.v.)
-    const handleLocalUpdate = () => {
-      inactiveProductsHandled.current = false;
+    const handleCartUpdated = () => {
+      inactiveProductsHandled.current = false; // Reset cờ
       loadCartFromBill();
     };
 
-    window.addEventListener("cartUpdated", handleLocalUpdate);
-    window.addEventListener("billsUpdated", handleLocalUpdate);
+    window.addEventListener("cartUpdated", handleCartUpdated);
+    window.addEventListener("billsUpdated", handleCartUpdated);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("cartUpdated", handleLocalUpdate);
-      window.removeEventListener("billsUpdated", handleLocalUpdate);
+      window.removeEventListener("cartUpdated", handleCartUpdated);
+      window.removeEventListener("billsUpdated", handleCartUpdated);
     };
   }, [selectedBillId]);
 
@@ -236,19 +218,11 @@ export default function SellCartProduct({ selectedBillId }) {
     removeInactiveProductsFromCart();
   };
 
-  // THEO DÕI productList THAY ĐỔI → TỰ ĐỘNG DỌN SẢN PHẨM NGỪNG KINH DOANH
   useEffect(() => {
-    if (productList.length > 0) {
-      // 1. Cập nhật giá mới (nếu có)
-      if (cartProducts.length > 0) {
-        updateCartPrices();
-      }
-
-      // 2. QUAN TRỌNG: Luôn kiểm tra và xóa sản phẩm ngừng kinh doanh
-      // → Dù giỏ hàng đang trống hay đầy, đều phải dọn!
-      removeInactiveProductsFromCart();
+    if (cartProducts.length > 0 && productList.length > 0) {
+      updateCartPrices();
     }
-  }, [productList]); // Chỉ cần theo dõi productList là đủ
+  }, [productList]);
 
   const saveCartToBill = (cart) => {
     if (!selectedBillId) return;

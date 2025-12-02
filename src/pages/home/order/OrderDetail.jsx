@@ -154,7 +154,6 @@ export default function OrderDetailPage() {
   };
 
   return (
-
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 border-b flex justify-between items-center px-6 py-6 shadow-md">
         <div className="flex items-start gap-4">
@@ -268,7 +267,6 @@ export default function OrderDetailPage() {
                   <span className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-gray-400" /> Tạm tính
                   </span>
-
                   <span>{formatVND(data.tongTien || 0)}</span>
                 </div>
                 <div className="flex justify-between items-center">
