@@ -48,31 +48,38 @@ export default function ProductDetail() {
   };
   const handleSelectSize = (size) => {
     const found = dataDetail.find((d) => d.tenKichThuoc === size);
+
+    if (found?.soLuongTon === 0) {
+      messageApi.warning("Size này hiện đã hết hàng");
+      return;
+    }
+
     setSelectedDetail(found);
     setSelectedImage(found?.anhs?.[0]?.duongDanAnh);
     setQuantity(1);
   };
 
   const handleIncrease = () => {
-    if (quantity < (detail?.soLuongTon || Infinity)) {
+    if (quantity < (selectedDetail?.soLuongTon || 0)) {
       setQuantity(quantity + 1);
     } else {
-      messageApi.warning("Số lượng đã đạt tối đa ");
+      messageApi.warning("Số lượng đã đạt tối đa theo tồn kho");
     }
   };
 
   const handleChange = (e) => {
     let value = Number(e.target.value);
-    const maxQuantity = detail?.soLuongTon || 0;
+    const max = selectedDetail?.soLuongTon || 0;
 
     if (!value || value < 1) value = 1;
-    if (value > maxQuantity) {
-      value = maxQuantity;
-      messageApi.warning("Số lượng đã đạt tối đa");
+    if (value > max) {
+      value = max;
+      messageApi.warning("Số lượng vượt quá tồn kho");
     }
 
     setQuantity(value);
   };
+
   const addToCart = ({ product, selectedDetail }) => {
     if (!selectedDetail) {
       messageApi.error("Vui lòng chọn size trước khi thêm vào giỏ hàng");
@@ -130,7 +137,10 @@ export default function ProductDetail() {
       messageApi.error("Vui lòng chọn size trước khi thêm vào giỏ hàng");
       return;
     }
-
+    if (selectedDetail.soLuongTon === 0) {
+      messageApi.error("Sản phẩm này đã hết hàng");
+      return;
+    }
     addToCart({ product: detail, selectedDetail });
     setTimeout(() => {
       navigate("/cart");
@@ -183,8 +193,16 @@ export default function ProductDetail() {
             <div className="flex flex-col gap-4 flex-1  border-b">
               <div className="flex flex-col gap-2 items-start">
                 <div className="text-3xl font-bold"> {detail.tenSanPham}</div>
-                <div className="text-blue-800 text-xs font-bold px-3 py-1 bg-blue-200 rounded-md">
-                  Còn hàng
+                <div
+                  className={`text-xs font-bold px-3 py-1 rounded-md
+    ${
+      detail.soLuongTon > 0
+        ? "text-blue-800 bg-blue-200"
+        : "text-red-800 bg-red-200"
+    }
+  `}
+                >
+                  {detail.soLuongTon > 0 ? "Còn hàng" : "Hết hàng"}
                 </div>
               </div>{" "}
               <div className="text-blue-800 text-xs font-bold   rounded-md">
@@ -269,8 +287,14 @@ export default function ProductDetail() {
                   </div>
                 </div>
                 <div
-                  className="flex flex-1 items-center justify-center border border-gray-400 px-6 py-4 font-bold select-none cursor-pointer hover:text-white hover:bg-amber-700 active:bg-blue-900"
+                  className={`flex flex-1 items-center justify-center border px-6 py-4 font-bold select-none 
+    ${
+      selectedDetail?.soLuongTon === 0
+        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+        : "cursor-pointer hover:text-white hover:bg-amber-700"
+    }`}
                   onClick={() =>
+                    selectedDetail?.soLuongTon > 0 &&
                     addToCart({
                       product: detail,
                       selectedDetail,
@@ -279,7 +303,11 @@ export default function ProductDetail() {
                     })
                   }
                 >
-                  <div>Thêm vào giỏ hàng</div>
+                  <div>
+                    {selectedDetail?.soLuongTon === 0
+                      ? "Hết hàng"
+                      : "Thêm vào giỏ hàng"}
+                  </div>
                 </div>
               </div>
               <div

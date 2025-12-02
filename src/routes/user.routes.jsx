@@ -1,9 +1,7 @@
 import OrderDetailOld from "@/components/OrderDetailOld";
-import OrderHistory from "@/components/OrderHistory";
 import OrderSuccessOld from "@/components/OrderSuccessOld";
 
 import CustomerLogin from "@/pages/auth/CustomerLogin";
-import AllProducts from "@/pages/home/AllProducts";
 import { Spin } from "antd";
 import React, { Suspense } from "react";
 
