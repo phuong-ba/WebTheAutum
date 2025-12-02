@@ -7,8 +7,6 @@ import {
   Input,
   InputNumber,
   Tooltip,
-  Dropdown,
-  Menu,
   Segmented,
   Space,
   DatePicker,
@@ -27,17 +25,18 @@ import {
   CheckCircleOutlined,
   SyncOutlined,
   ExclamationCircleOutlined,
-  MoreOutlined,
-  WalletOutlined,
-  FormOutlined,
-  AppstoreOutlined,
-  CheckCircleFilled,
-  CloseCircleFilled,
   SearchOutlined,
   ReloadOutlined,
   FileExcelOutlined,
-  InfoCircleOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled,
+  AppstoreOutlined,
+  WalletOutlined,
 } from "@ant-design/icons";
+
+// 💡 ICON TÙY CHỈNH TỪ PHOSPHOR
+import { PencilLine, Eye } from "@phosphor-icons/react";
+
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
 
@@ -53,7 +52,7 @@ const PRIMARY_DARK = "#E67E22";
 // --- CẤU HÌNH API ---
 const API_BASE = "http://localhost:8080/api";
 
-// --- FORMAT HELPER ---
+// --- FORMAT HELPER (Giữ nguyên) ---
 const formatMoney = (value) => {
   if (value === null || value === undefined) return "—";
   if (value === 0) return "0 ₫";
@@ -72,37 +71,78 @@ const formatDateTime = (dateString) => {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
-// --- CONFIG TRẠNG THÁI (Đồng nhất màu Cam/Xanh Lá) ---
+// --- CONFIG TRẠNG THÁI (ĐÃ CẬP NHẬT: Đang hoạt động không bị mờ) ---
 const getStatusConfig = (isCompleted) => {
   if (!isCompleted) {
     return {
       label: "Đang hoạt động",
-      color: PRIMARY_COLOR,
-      bg: "#fff7e6", // Cam rất nhạt
-      icon: <SyncOutlined spin style={{ color: PRIMARY_COLOR }} />,
+      color: PRIMARY_DARK, // Sử dụng màu cam đậm
+      bg: "#ffede0", // Màu nền cam rất nhạt
+      icon: <SyncOutlined spin style={{ color: PRIMARY_DARK }} />,
       tagColor: PRIMARY_COLOR,
     };
   }
   return {
     label: "Đã hoàn thành",
-    color: "#52c41a", // Xanh lá
-    bg: "#f6ffed", // Xanh nhạt
+    color: "#52c41a",
+    bg: "#f6ffed",
     icon: <CheckCircleOutlined style={{ color: "#52c41a" }} />,
     tagColor: "green",
   };
 };
 
+// --- HELPERS (ExportToCSV giữ nguyên) ---
+const exportToCSV = (filename, data, columns) => {
+  if (!data || !data.length) {
+    message.warning("Không có dữ liệu để xuất");
+    return;
+  }
+
+  // Chuẩn bị dữ liệu để xuất CSV
+  const csvContent = [
+    ["Mã Giao Ca", "Nhân Viên", "Trạng Thái", "Tiền Đầu Ca", "Tiền Kết Thúc", "Tổng Doanh Thu", "Ngày Bắt Đầu"].join(","),
+    ...data.map((row) => {
+        const endMoney = (row.tongDoanhThu || 0) + (row.soTienBatDau || 0);
+        const status = row.thoiGianKetThuc ? "Đã hoàn thành" : "Đang hoạt động";
+        
+        return [
+            `GC${String(row.id).padStart(5, "0")}`,
+            row.hoTenNhanVien,
+            status,
+            (row.soTienBatDau || 0),
+            endMoney,
+            (row.tongDoanhThu || 0),
+            dayjs(row.thoiGianBatDau).format("YYYY-MM-DD HH:mm"),
+        ].join(",");
+    }),
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+
 export default function GiaoCaManagement() {
-  // 💡 SỬA LỖI CONFIRM MODAL: Dùng hook useModal và Context Holder
   const [modal, contextHolder] = Modal.useModal();
 
   // --- STATE DỮ LIỆU ---
   const [giaoCaList, setGiaoCaList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
+  
+  // Ca đã hoàn thành gần nhất để lấy tiền kết thúc
+  const [latestCompletedShift, setLatestCompletedShift] = useState(null);
 
   // --- STATE MODAL ---
   const [isStartModalVisible, setIsStartModalVisible] = useState(false);
@@ -125,7 +165,7 @@ export default function GiaoCaManagement() {
     message: "",
   });
 
-  // --- STATE FILTER ---
+  // --- STATE FILTER (Giữ nguyên) ---
   const [filterForm, setFilterForm] = useState({
     search: "",
     trangThai: null,
@@ -139,7 +179,7 @@ export default function GiaoCaManagement() {
     }, 3000);
   };
 
-  // --- INIT ---
+  // --- INIT (Giữ nguyên) ---
   useEffect(() => {
     const user = getCurrentUser();
     setCurrentUser(user);
@@ -181,6 +221,7 @@ export default function GiaoCaManagement() {
       if (response.ok) {
         const data = await response.json();
         const fullList = Array.isArray(data) ? data : [];
+        
         if (currentUser?.id) {
           const sortedList = fullList
             .filter((gc) => gc.idNhanVien === currentUser.id)
@@ -188,8 +229,13 @@ export default function GiaoCaManagement() {
               (a, b) => new Date(b.thoiGianBatDau) - new Date(a.thoiGianBatDau)
             );
           setGiaoCaList(sortedList);
+          
+          // TÌM CA ĐÃ HOÀN THÀNH GẦN NHẤT
+          const latestCompleted = sortedList.find(gc => !!gc.thoiGianKetThuc);
+          setLatestCompletedShift(latestCompleted);
         } else {
           setGiaoCaList([]);
+          setLatestCompletedShift(null);
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -259,7 +305,7 @@ export default function GiaoCaManagement() {
     setSubmitLoading(true);
     try {
       const payload = {
-        idNhanVien: currentUser.id, // Bắt buộc gửi kèm idNhanVien
+        idNhanVien: currentUser.id,
         ghiChu: endForm.ghiChu || "",
       };
 
@@ -295,6 +341,7 @@ export default function GiaoCaManagement() {
     }
   };
 
+  // Hàm handleDelete (Giữ nguyên)
   const handleDelete = (id) => {
     modal.confirm({
       title: "Xác nhận xóa giao ca",
@@ -316,7 +363,7 @@ export default function GiaoCaManagement() {
             showNotification("success", "Xóa giao ca thành công");
             fetchGiaoCa();
           } else {
-            const errorData = await response.json().catch(() => ({}));
+            const errorData = await response.json().catch(() => ({})); 
             const errorMessage =
               errorData.error || errorData.message || "Xóa giao ca thất bại";
             showNotification("error", errorMessage);
@@ -328,7 +375,7 @@ export default function GiaoCaManagement() {
     });
   };
 
-  // --- LỌC DỮ LIỆU ---
+  // --- LỌC DỮ LIỆU (Giữ nguyên) ---
   const getFilteredData = () => {
     let data = giaoCaList;
 
@@ -338,7 +385,6 @@ export default function GiaoCaManagement() {
       data = data.filter((gc) => !!gc.thoiGianKetThuc);
     }
 
-    // Áp dụng bộ lọc từ Form
     if (filterForm.search) {
       const searchLower = filterForm.search.toLowerCase();
       data = data.filter(
@@ -349,8 +395,6 @@ export default function GiaoCaManagement() {
       );
     }
 
-    // ... Thêm logic lọc TrangThai, NgayTao từ filterForm nếu cần
-
     return data;
   };
 
@@ -360,7 +404,7 @@ export default function GiaoCaManagement() {
   const totalCount = giaoCaList.length;
   const currentActiveShift = giaoCaList.find((gc) => !gc.thoiGianKetThuc);
 
-  // Xử lý nút Kết thúc ca trên header
+  // Xử lý nút Kết thúc ca trên header (Giữ nguyên)
   const handleHeaderEndShift = () => {
     if (currentActiveShift) {
       setSelectedGiaoCa(currentActiveShift);
@@ -370,12 +414,31 @@ export default function GiaoCaManagement() {
   };
 
   const handleFilterSearch = () => {
-    // Sau khi cập nhật filterForm, gọi lại fetchGiaoCa hoặc chỉ cần gọi getFilteredData nếu lọc là client-side
-    // Giả sử gọi lại API để làm việc với filterForm
     fetchGiaoCa();
   };
+  
+  // Xử lý logic tự động điền tiền đầu ca
+  const handleOpenStartShiftModal = () => {
+    const isFirstShift = !latestCompletedShift; // Xác định đây có phải ca đầu tiên không
+    
+    // Nếu là ca đầu tiên, để trống cho nhập tay
+    if (isFirstShift) {
+        setStartForm({ soTienBatDau: null, ghiChu: "" });
+    } else {
+        // Nếu là ca sau, tự động điền tiền kết thúc của ca trước
+        const calculatedEndMoney = (latestCompletedShift.tongDoanhThu || 0) + (latestCompletedShift.soTienBatDau || 0);
 
-  // --- CẤU HÌNH CỘT BẢNG (Đồng nhất với Hóa Đơn) ---
+        setStartForm({
+            soTienBatDau: calculatedEndMoney,
+            ghiChu: `Tiền đầu ca được fill tự động từ Tiền kết thúc của ca GC${String(latestCompletedShift.id).padStart(5, "0")}.`,
+        });
+    }
+
+    setIsStartModalVisible(true);
+  };
+
+
+  // --- CẤU HÌNH CỘT BẢNG (Đã cập nhật Icon Hành Động) ---
   const columns = [
     {
       title: (
@@ -389,6 +452,7 @@ export default function GiaoCaManagement() {
       render: (text, record, index) => (
         <span className="text-gray-700">{index + 1}</span>
       ),
+      className: "column-centered",
     },
     {
       title: (
@@ -398,7 +462,7 @@ export default function GiaoCaManagement() {
       ),
       dataIndex: "id",
       key: "id",
-      width: 150,
+      width: 130,
       render: (text) => (
         <span className="font-semibold text-blue-600 text-sm">
           GC{String(text).padStart(5, "0")}
@@ -412,7 +476,7 @@ export default function GiaoCaManagement() {
         </span>
       ),
       key: "nhanVien",
-      width: 200,
+      width: 150,
       render: (_, record) => (
         <div className="flex items-center gap-2 text-sm text-gray-800">
           <UserOutlined className="text-gray-400 text-xs" />
@@ -428,15 +492,20 @@ export default function GiaoCaManagement() {
       ),
       key: "status",
       align: "center",
-      width: 150,
+      width: 120,
       render: (_, record) => {
         const isCompleted = !!record.thoiGianKetThuc;
         const config = getStatusConfig(isCompleted);
         return (
+          // ĐÃ CẬP NHẬT: Loại bỏ style làm mờ khi Đang hoạt động, chỉ dùng màu rõ ràng
           <Tag
-            color={config.tagColor}
+            color={isCompleted ? config.tagColor : PRIMARY_DARK} // Dùng màu đậm hơn cho text khi đang hoạt động
             className="rounded-lg px-2.5 py-1 text-xs font-semibold"
-            style={{ backgroundColor: isCompleted ? config.bg : "#fff7e6" }}
+            style={{ 
+                backgroundColor: isCompleted ? config.bg : PRIMARY_COLOR + '10', // Màu nền cam nhạt
+                color: isCompleted ? config.color : PRIMARY_DARK, // Màu chữ cam đậm
+                border: `1px solid ${isCompleted ? config.tagColor : PRIMARY_DARK}` // Thêm border cam đậm
+            }}
           >
             {config.label}
           </Tag>
@@ -457,6 +526,30 @@ export default function GiaoCaManagement() {
         <span className="text-gray-600 font-medium">{formatMoney(val)}</span>
       ),
     },
+    // CỘT: TIỀN KẾT THÚC CA
+    {
+        title: (
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+            Tiền Kết Thúc
+          </span>
+        ),
+        key: "soTienKetThuc",
+        align: "right",
+        width: 140,
+        render: (_, record) => {
+            if (!record.thoiGianKetThuc)
+                return <span className="text-gray-300 text-xs italic">Đang chạy</span>;
+            
+            // Giả định: Tiền Kết thúc = Tiền đầu + Doanh thu
+            const endMoney = (record.tongDoanhThu || 0) + (record.soTienBatDau || 0);
+
+            return (
+                <span className="font-semibold text-gray-800">
+                    {formatMoney(endMoney)}
+                </span>
+            );
+        },
+    },
     {
       title: (
         <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -470,9 +563,8 @@ export default function GiaoCaManagement() {
       render: (val, record) => {
         if (!record.thoiGianKetThuc)
           return <span className="text-gray-300 text-xs italic">--</span>;
-        // Màu chữ Cam
         return (
-          <span className={`font-semibold`} style={{ color: PRIMARY_COLOR }}>
+          <span className={`font-bold`} style={{ color: PRIMARY_COLOR }}>
             {formatMoney(val)}
           </span>
         );
@@ -488,7 +580,7 @@ export default function GiaoCaManagement() {
       key: "thoiGianBatDau",
       width: 140,
       render: (text) => (
-        <span className="text-gray-700">{formatDateTime(text)}</span>
+        <span className="text-gray-700">{dayjs(text).format("HH:mm DD/MM/YYYY")}</span>
       ),
     },
     {
@@ -502,30 +594,24 @@ export default function GiaoCaManagement() {
       width: 100,
       render: (_, record) => (
         <Space size="small">
-          {!record.thoiGianKetThuc && (
-            <Tooltip title="Kết thúc ca">
-              <Button
-                icon={<StopOutlined />}
-                onClick={handleHeaderEndShift}
-                size="small"
-                type="primary"
-                danger
-                className="rounded-lg shadow-sm"
-              />
-            </Tooltip>
-          )}
-          <Tooltip title="Xem chi tiết/Ghi chú">
-            <Button
-              icon={<InfoCircleOutlined />}
+          {/* ICON MẮT (Đen, không Button) */}
+          <Tooltip title="Xem chi tiết">
+            <span
+              className="cursor-pointer p-1.5 inline-block text-gray-600 hover:text-blue-500 transition-colors"
               onClick={() => {
+                const endMoney = (record.tongDoanhThu || 0) + (record.soTienBatDau || 0);
+
                 modal.info({
-                  // Sử dụng modal.info để hiển thị chi tiết
                   title: "Chi tiết Giao ca",
                   content: (
                     <div className="space-y-3 pt-2">
                       <p>
                         <span className="font-semibold">Mã ca:</span> GC
                         {String(record.id).padStart(5, "0")}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Nhân viên:</span>{" "}
+                        {record.hoTenNhanVien}
                       </p>
                       <p>
                         <span className="font-semibold">Bắt đầu:</span>{" "}
@@ -538,14 +624,18 @@ export default function GiaoCaManagement() {
                           : "Đang hoạt động"}
                       </p>
                       <p>
-                        <span className="font-semibold">Tiền đầu:</span>{" "}
+                        <span className="font-semibold">Tiền đầu ca:</span>{" "}
                         {formatMoney(record.soTienBatDau)}
                       </p>
                       <p>
-                        <span className="font-semibold">Doanh thu:</span>{" "}
+                        <span className="font-semibold" style={{ color: PRIMARY_COLOR }}>Tổng Doanh thu:</span>{" "}
                         {record.tongDoanhThu
                           ? formatMoney(record.tongDoanhThu)
                           : "---"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-lg text-gray-800">Tiền kết thúc:</span>{" "}
+                        <span className="text-lg font-bold text-green-600">{formatMoney(endMoney)}</span>
                       </p>
                       {record.ghiChu && (
                         <p>
@@ -560,20 +650,12 @@ export default function GiaoCaManagement() {
                   width: 400,
                 });
               }}
-              size="small"
-              className="rounded-lg shadow-sm"
-            />
+            >
+              <Eye size={18} color="#000000" weight="regular" />
+            </span>
           </Tooltip>
-          <Tooltip title="Xóa">
-            <Button
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record.id)}
-              size="small"
-              type="primary"
-              danger
-              className="rounded-lg shadow-sm"
-            />
-          </Tooltip>
+          {/* 🔴 ĐÃ BỎ ICON KẾT THÚC (StopOutlined) trong cột Hành động theo yêu cầu */}
+          {/* Chỉ giữ lại nút lớn trên header */}
         </Space>
       ),
     },
@@ -582,7 +664,6 @@ export default function GiaoCaManagement() {
   // --- RENDER ---
   return (
     <div className="min-h-screen bg-[#f5f5f5] p-6 font-sans antialiased">
-      {/* 💡 CONTEXT HOLDER: Đảm bảo modal hoạt động */}
       {contextHolder}
 
       {/* --- CUSTOM NOTIFICATION TOAST --- */}
@@ -681,7 +762,7 @@ export default function GiaoCaManagement() {
                       ngayTao: null,
                     })
                   }
-                  className="rounded-lg !bg-white !border-white !text-[#ff8c42] font-medium hover:!bg-amber-800 hover:!text-white transition-all duration-200"
+                  className="!bg-white !text-[#ff8c42] hover:!bg-amber-800 hover:!text-white font-medium transition-all duration-200"
                 >
                   Nhập lại
                 </Button>
@@ -708,14 +789,16 @@ export default function GiaoCaManagement() {
             <Space>
               <Button
                 icon={<FileExcelOutlined />}
-                onClick={() => {}} // Thêm logic export
+                onClick={() => {
+                   exportToCSV("danh-sach-giao-ca.csv", filteredData, columns);
+                }}
                 className="rounded-lg font-medium !bg-white !border-white !text-[#ff8c42] hover:!bg-amber-800 hover:!text-white transition-all duration-200"
               >
                 Xuất Excel
               </Button>
               <Button
                 icon={<PlayCircleOutlined />}
-                onClick={() => setIsStartModalVisible(true)}
+                onClick={handleOpenStartShiftModal}
                 disabled={!!currentActiveShift}
                 className={`rounded-lg font-semibold shadow-md ${
                   currentActiveShift
@@ -813,12 +896,14 @@ export default function GiaoCaManagement() {
                 `hover:bg-orange-50/10 transition-colors cursor-pointer`
               }
               locale={{ emptyText: "Không có dữ liệu ca làm việc phù hợp" }}
+              // Thêm scroll X để đảm bảo không vỡ layout khi thêm cột
+              scroll={{ x: 1200 }} 
             />
           </div>
         </div>
       </div>
 
-      {/* --- MODAL BẮT ĐẦU CA --- */}
+      {/* --- MODAL BẮT ĐẦU CA (Đã cập nhật logic fill/disable) --- */}
       <Modal
         title={
           <div className="flex items-center gap-2 text-xl font-bold text-gray-800 pb-3 border-b border-gray-100">
@@ -843,8 +928,10 @@ export default function GiaoCaManagement() {
                 Thông tin bàn giao
               </div>
               <div className="text-xs text-gray-600 mt-1">
-                Số tiền đầu ca thường bằng số tiền thực tế trong két lúc nhận
-                bàn giao.
+                {!latestCompletedShift
+                    ? "Đây là ca đầu tiên của bạn, vui lòng nhập tiền mặt thực tế trong két."
+                    : `Tiền đầu ca được tự động điền từ Tiền kết thúc của ca trước (GC${String(latestCompletedShift.id).padStart(5, "0")}).`
+                }
               </div>
             </div>
           </div>
@@ -854,9 +941,8 @@ export default function GiaoCaManagement() {
               Tiền đầu ca (VNĐ) <span className="text-red-500">*</span>
             </label>
             <InputNumber
-              // ✅ SỬA WIDTH Ở ĐÂY
               className="w-full rounded-xl py-2 text-base shadow-sm border-gray-200 focus:border-orange-400 hover:border-orange-300"
-              style={{ width: "100%" }} // Đảm bảo width 100%
+              style={{ width: "100%" }}
               size="large"
               placeholder="0"
               formatter={(value) =>
@@ -868,6 +954,8 @@ export default function GiaoCaManagement() {
               onChange={(val) =>
                 setStartForm({ ...startForm, soTienBatDau: val })
               }
+              // LOGIC DISABLE: Chỉ cho phép nhập thủ công nếu là ca đầu tiên
+              disabled={!!latestCompletedShift}
             />
           </div>
 
@@ -911,7 +999,7 @@ export default function GiaoCaManagement() {
         </div>
       </Modal>
 
-      {/* --- MODAL KẾT THÚC CA --- */}
+      {/* --- MODAL KẾT THÚC CA (Giữ nguyên) --- */}
       <Modal
         title={
           <div className="flex items-center gap-2 text-xl font-bold text-gray-800 pb-3 border-b border-gray-100">
@@ -933,11 +1021,7 @@ export default function GiaoCaManagement() {
                   Bắt đầu
                 </div>
                 <div className="text-sm font-semibold text-gray-800 mt-1">
-                  {
-                    formatDateTime(selectedGiaoCa.thoiGianBatDau).split(
-                      " - "
-                    )[0]
-                  }
+                  {dayjs(selectedGiaoCa.thoiGianBatDau).format("HH:mm DD/MM/YYYY")}
                 </div>
               </div>
               <div className="bg-white p-3">

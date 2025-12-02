@@ -154,7 +154,8 @@ export default function OrderDetailPage() {
   };
 
   return (
-    <div className="bg-gradient-to-b from-gray-50 to-white">
+
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 border-b flex justify-between items-center px-6 py-6 shadow-md">
         <div className="flex items-start gap-4">
           <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -267,7 +268,8 @@ export default function OrderDetailPage() {
                   <span className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-gray-400" /> Tạm tính
                   </span>
-                  <span>{formatVND(data.soTien || 0)}</span>
+
+                  <span>{formatVND(data.tongTien || 0)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="flex items-center gap-2">
@@ -275,11 +277,22 @@ export default function OrderDetailPage() {
                   </span>
                   <span>{formatVND(data.phiVanChuyen || 0)}</span>
                 </div>
+
+                {data.giaTriGiamGia > 0 && (
+                  <div className="flex justify-between items-center text-green-600 font-semibold">
+                    <span className="flex items-center gap-2">
+                      <PackageIcon className="w-4 h-4" />
+                      Giảm giá ({data.maGiamGia || "Mã giảm giá"})
+                    </span>
+                    <span>-{formatVND(data.giaTriGiamGia)}</span>
+                  </div>
+                )}
+
                 <div className="border-t pt-3">
                   <div className="flex justify-between text-lg font-bold text-gray-900">
                     <span>Tổng cộng</span>
                     <span className="text-orange-500">
-                      {formatVND(data.tongTienSauGiam + data.phiVanChuyen)}
+                      {formatVND(data.tongTienSauGiam)}
                     </span>
                   </div>
                 </div>
