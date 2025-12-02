@@ -47,7 +47,6 @@ const hoaDonApi = {
       }
     });
 
-
     return axios.get(`${API_URL}`, {
       params: cleanParams
     });
@@ -89,20 +88,20 @@ const hoaDonApi = {
     });
   },
 
- getLichSu: (id) => {
+  getLichSu: (id) => {
     return axios.get(`${API_URL}/${id}/lich-su`);
   },
 
-sendEmail: (id, data) => {
-  return axios.post(`${API_URL}/send-email/${id}`, data);
-},
+  sendEmail: (id, data) => {
+    return axios.post(`${API_URL}/send-email/${id}`, data);
+  },
 
-create(hoaDon) {
-  return axios.post(`${API_URL}/add`, hoaDon, {
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  });
+  create(hoaDon) {
+    return axios.post(`${API_URL}/add`, hoaDon, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
   },
 
   getLichSuThanhToan: (id) => {
@@ -110,10 +109,48 @@ create(hoaDon) {
   },
 
   xoaChiTietSanPham: (idHoaDon, idChiTietSanPham) => {
-  return axios.delete(`${API_URL}/${idHoaDon}/chi-tiet/${idChiTietSanPham}`);
-},
+    return axios.delete(`${API_URL}/${idHoaDon}/chi-tiet/${idChiTietSanPham}`);
+  },
+
+  // ================ HOÀN TIỀN APIs ================
+  
+  // API kiểm tra điều kiện hoàn tiền
+  kiemTraHoanTien: (id) => {
+    return axios.get(`${API_URL}/${id}/kiem-tra-hoan-tien`);
+  },
+
+  // API thực hiện hoàn tiền
+  hoanTienHoaDon: (id, data) => {
+    return axios.post(`${API_URL}/${id}/hoan-tien`, data);
+  },
+
+  // API lấy lịch sử hoàn tiền
+  getLichSuHoanTien: (id) => {
+    return axios.get(`${API_URL}/${id}/lich-su-hoan-tien`);
+  },
+
+  // API lấy danh sách lý do hoàn tiền mẫu
+  getLyDoHoanTienMau: () => {
+    return axios.get(`${API_URL}/ly-do-hoan-tien-mau`);
+  },
+
+  // API xuất báo cáo hoàn tiền
+  exportBaoCaoHoanTien: (tuNgay, denNgay) => {
+    return axios.get(`${API_URL}/bao-cao-hoan-tien`, {
+      params: { 
+        tuNgay: tuNgay ? tuNgay.toISOString().split('T')[0] : null,
+        denNgay: denNgay ? denNgay.toISOString().split('T')[0] : null
+      },
+      responseType: 'blob'
+    });
+  },
+
+  // API lấy danh sách hóa đơn có thể hoàn tiền
+  getHoaDonCoTheHoanTien: (page = 0, size = 10) => {
+    return axios.get(`${API_URL}/co-the-hoan-tien`, {
+      params: { page, size }
+    });
+  }
 };
-
-
 
 export default hoaDonApi;
