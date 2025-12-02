@@ -29,7 +29,9 @@ export default function YourBill() {
 
   const customerToken = localStorage.getItem("customer_token");
   const customerId = localStorage.getItem("customer_id");
-
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   useEffect(() => {
     dispatch(searchOrder(""));
   }, [dispatch]);
