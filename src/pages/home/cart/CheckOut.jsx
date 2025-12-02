@@ -1,4 +1,4 @@
-// src/pages/client/CheckOut.js
+
 import React, { useEffect, useState, useRef } from "react";
 import { Form, Input, Select, Radio, message, Spin, Modal } from "antd";
 import { useNavigate } from "react-router-dom";
