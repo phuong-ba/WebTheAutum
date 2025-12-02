@@ -54,6 +54,15 @@ export default function ProductAll() {
   };
 
   const onAddToCartClick = (product) => {
+    const isOutOfStock = product.chiTietSanPhams.every(
+      (ct) => ct.soLuongTon === 0
+    );
+
+    if (isOutOfStock) {
+      messageApi.warning("Sản phẩm đã hết hàng!");
+      return;
+    }
+
     setSelectedProduct(product);
     setModalVisible(true);
     setSelectedSize(null);
@@ -231,12 +240,19 @@ export default function ProductAll() {
           <Button
             key="confirm"
             type="primary"
-            disabled={!selectedSize || !selectedColor || quantity < 1}
+            disabled={
+              !selectedSize ||
+              !selectedColor ||
+              quantity < 1 ||
+              selectedDetail?.soLuongTon === 0
+            }
             onClick={() =>
               addToCart({ product: selectedProduct, selectedDetail })
             }
           >
-            Thêm vào giỏ hàng
+            {selectedDetail?.soLuongTon === 0
+              ? "Hết hàng"
+              : "Thêm vào giỏ hàng"}
           </Button>,
         ]}
       >
