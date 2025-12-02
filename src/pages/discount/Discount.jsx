@@ -24,8 +24,9 @@ export default function Discount() {
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [selectedRecord, setSelectedRecord] = React.useState(null);
 
-  // Thêm state để theo dõi lần cuối cập nhật
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
+  // Thêm ref để theo dõi đang thay đổi thủ công
+  const isManualChangeRef = useRef(false);
+  const manualChangeTimeoutRef = useRef(null);
 
   useEffect(() => {
     dispatch(fetchPhieuGiamGia());
@@ -57,8 +58,14 @@ export default function Discount() {
     }
   };
 
-  // Hàm kiểm tra và cập nhật trạng thái - ĐƠN GIẢN HÓA
+  // Hàm kiểm tra và cập nhật trạng thái - THÊM KIỂM TRA manual change
   const checkAndUpdateStatus = async () => {
+    // Nếu đang thay đổi thủ công, không chạy auto update
+    if (isManualChangeRef.current) {
+      console.log("Đang thay đổi thủ công, bỏ qua auto update");
+      return;
+    }
+
     if (!data || data.length === 0) return;
 
     try {
@@ -91,7 +98,6 @@ export default function Discount() {
 
       // Cập nhật lại data sau khi đã cập nhật tất cả
       await dispatch(fetchPhieuGiamGia());
-      setLastUpdate(Date.now());
 
       if (needUpdate.length > 0) {
         messageApi.info(
@@ -104,15 +110,19 @@ export default function Discount() {
     }
   };
 
-  // Chạy kiểm tra trạng thái khi data thay đổi
+  // Chạy kiểm tra trạng thái khi data thay đổi - THÊM ĐIỀU KIỆN
   useEffect(() => {
-    checkAndUpdateStatus();
+    if (!isManualChangeRef.current) {
+      checkAndUpdateStatus();
+    }
   }, [data]);
 
-  // Thêm interval để kiểm tra định kỳ (mỗi 30 giây)
+  // Thêm interval để kiểm tra định kỳ (mỗi 30 giây) - THÊM ĐIỀU KIỆN
   useEffect(() => {
     const interval = setInterval(() => {
-      checkAndUpdateStatus();
+      if (!isManualChangeRef.current) {
+        checkAndUpdateStatus();
+      }
     }, 30000); // 30 giây
 
     return () => clearInterval(interval);
@@ -144,6 +154,15 @@ export default function Discount() {
     }
 
     try {
+      // Đánh dấu đang thay đổi thủ công
+      isManualChangeRef.current = true;
+
+      // Xóa timeout cũ nếu có
+      if (manualChangeTimeoutRef.current) {
+        clearTimeout(manualChangeTimeoutRef.current);
+      }
+
+      // Thực hiện thay đổi trạng thái
       await dispatch(
         changeStatusPhieuGiamGia({
           id: selectedRecord.id,
@@ -152,17 +171,24 @@ export default function Discount() {
       );
 
       messageApi.success(
-        selectedRecord.trangThai
+        selectedRecord.trangThai === 1
           ? "Kết thúc phiếu giảm giá thành công!"
           : "Kích hoạt phiếu giảm giá thành công!"
       );
 
       // Cập nhật lại data ngay lập tức
       await dispatch(fetchPhieuGiamGia());
-      setLastUpdate(Date.now());
+
+      // Đặt timeout để sau 10 giây mới cho phép auto update lại
+      manualChangeTimeoutRef.current = setTimeout(() => {
+        isManualChangeRef.current = false;
+        console.log("Đã hết thời gian manual change, cho phép auto update");
+      }, 10000); // 10 giây
     } catch (error) {
       console.error("Lỗi khi cập nhật trạng thái:", error);
       messageApi.error("Thao tác thất bại!");
+      // Nếu lỗi, reset lại manual change flag
+      isManualChangeRef.current = false;
     } finally {
       setIsModalVisible(false);
       setSelectedRecord(null);
@@ -426,6 +452,15 @@ export default function Discount() {
     },
   ];
 
+  // Cleanup timeout khi component unmount
+  useEffect(() => {
+    return () => {
+      if (manualChangeTimeoutRef.current) {
+        clearTimeout(manualChangeTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <>
       {contextHolder}
@@ -458,7 +493,6 @@ export default function Discount() {
               onChange: (page, pageSize) =>
                 setPagination({ current: page, pageSize }),
             }}
-            key={lastUpdate} // Thêm key để trigger re-render khi có thay đổi
           />
         </div>
       </div>
