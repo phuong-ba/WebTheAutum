@@ -1,6 +1,3 @@
-import OrderDetailOld from "@/components/OrderDetailOld";
-import OrderSuccessOld from "@/components/OrderSuccessOld";
-
 import CustomerLogin from "@/pages/auth/CustomerLogin";
 import { Spin } from "antd";
 import React, { Suspense } from "react";
@@ -132,23 +129,6 @@ const userRouters = [
       {
         path: "/customer/login",
         element: <CustomerLogin />,
-      },
-      {
-        path: "order-success/:maHoaDon",
-        element: (
-          <LazyLoad>
-            <OrderSuccessOld />
-          </LazyLoad>
-        ),
-      },
-
-      {
-        path: "/ordersss/:maHoaDon",
-        element: (
-          <LazyLoad>
-            <OrderDetailOld />
-          </LazyLoad>
-        ),
       },
     ],
   },
