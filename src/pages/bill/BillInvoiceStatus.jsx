@@ -40,6 +40,13 @@ export default function BillInvoiceStatus({
   const getStorageKey = () =>
     `invoice_${invoiceId ?? invoiceData?.id ?? "temp"}_statusHistory`;
 
+  // ================ KIỂM TRA CÓ THỂ HỦY ĐƠN HAY KHÔNG ================
+  const canCancelInvoice = () => {
+    // Chỉ cho phép hủy khi trạng thái là "Chờ xác nhận" (0)
+    // Không cho phép hủy khi đã ở trạng thái "Chờ giao hàng" (1) trở lên
+    return currentStatus === 0;
+  };
+
   useEffect(() => {
     if (currentStatus !== undefined) {
       setStatusStep(currentStatus);
@@ -195,6 +202,10 @@ export default function BillInvoiceStatus({
   };
 
   const handleCancelOrder = () => {
+    if (!canCancelInvoice()) {
+      message.warning("Không thể hủy đơn hàng ở trạng thái hiện tại!");
+      return;
+    }
     setIsCancelModalOpen(true);
   };
 
@@ -293,7 +304,8 @@ export default function BillInvoiceStatus({
                 </div>
               )}
 
-              {!isCompleted && !isFalseStatus && (
+              {/* Chỉ hiển thị nút hủy khi có thể hủy */}
+              {canCancelInvoice() && !isFalseStatus && (
                 <div
                   onClick={(e) => {
                     e.stopPropagation();
@@ -302,6 +314,18 @@ export default function BillInvoiceStatus({
                   className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow transition-colors"
                 >
                   Hủy đơn hàng
+                </div>
+              )}
+
+              {/* Hiển thị nút bị disabled khi không thể hủy (trừ trạng thái Đã hủy) */}
+              {!canCancelInvoice() && !isFalseStatus && currentStatus !== 4 && (
+                <div
+                  className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-not-allowed select-none text-center rounded-md bg-gray-400 text-white shadow"
+                  title={`Không thể hủy đơn hàng ở trạng thái "${
+                    steps[currentStatus]?.label || "này"
+                  }"`}
+                >
+                  Không thể hủy
                 </div>
               )}
             </div>
@@ -425,7 +449,7 @@ export default function BillInvoiceStatus({
         </div>
       </Modal>
 
-      {/* Modal xác nhận hủy đơn hàng */}
+      {/* Modal xác nhận hủy đơn hàng - CHỈ HIỆN KHI CÓ THỂ HỦY */}
       <Modal
         open={isCancelModalOpen}
         onCancel={() => setIsCancelModalOpen(false)}
@@ -452,6 +476,9 @@ export default function BillInvoiceStatus({
             <li>
               Hành động này <strong>không thể hoàn tác</strong>
             </li>
+            <li className="text-red-500 font-semibold">
+              ⚠️ Lưu ý: Chỉ có thể hủy đơn hàng ở trạng thái "Chờ xác nhận"
+            </li>
           </ul>
 
           <div className="mt-6 flex justify-end gap-3">
@@ -466,7 +493,7 @@ export default function BillInvoiceStatus({
               onClick={confirmCancelOrder}
               className="px-5 py-2 rounded-md bg-red-600 text-white font-bold hover:bg-red-700 shadow"
             >
-              Hủy đơn hàng
+              Xác nhận hủy
             </button>
           </div>
         </div>
