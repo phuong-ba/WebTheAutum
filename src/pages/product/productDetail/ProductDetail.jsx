@@ -25,6 +25,8 @@ import {
 } from "@ant-design/icons";
 import baseUrl from "@/api/instance";
 import "./ProductDetail.css";
+import { useDispatch } from "react-redux";
+import { fetchChiTietSanPham } from "@/services/chiTietSanPhamService";
 
 export default function ProductDetail({
   bienTheList = [],
@@ -41,7 +43,7 @@ export default function ProductDetail({
   const [quickInputModal, setQuickInputModal] = useState(false);
   const [quickInputForm] = Form.useForm();
   const [validationErrors, setValidationErrors] = useState({});
-
+  const dispatch = useDispatch();
   useEffect(() => {
     if (!Array.isArray(bienTheList) || bienTheList.length === 0) {
       setVariants([]);
@@ -235,7 +237,7 @@ export default function ProductDetail({
             if (!result.success) throw new Error(result.error);
           }
         }
-
+        dispatch(fetchChiTietSanPham());
         message.success("Cập nhật biến thể thành công");
       }
     } catch (error) {

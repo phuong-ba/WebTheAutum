@@ -19,6 +19,8 @@ import {
   Select,
   message,
   InputNumber,
+  Alert,
+  Statistic,
 } from "antd";
 import {
   EditOutlined,
@@ -30,28 +32,480 @@ import {
   UserOutlined,
   DollarOutlined,
   ClockCircleOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
+  HistoryOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
-import { TrashIcon } from "lucide-react";
-// COMMENT: Đã comment các import liên quan đến thêm sửa xoá sản phẩm
-// import {
-//   tangSoLuong,
-//   fetchChiTietSanPham,
-//   giamSoLuong,
-// } from "@/services/chiTietSanPhamService";
 import hoaDonApi from "../../api/HoaDonAPI";
 import { fetchNhanVien } from "@/services/nhanVienService";
 import { fetchPhuongThuc } from "@/services/phuongThucThanhToanService";
 import BillOrderInformation from "./BillOrderInformation";
 import BillInvoiceStatus from "./BillInvoiceStatus";
 import BillInvoiceHistory from "./BillInvoiceHistory";
-import { FloppyDiskIcon, XCircleIcon, XIcon } from "@phosphor-icons/react";
-// COMMENT: Đã comment component thêm sản phẩm
-// import BillProduct from "./BillProduct";
 import { diaChiApi } from "/src/api/diaChiApi";
-import { useDispatch, useSelector } from "react-redux";
 import BillBreadcrumb from "./BillBreadcrumb";
-const { Title, Text } = Typography;
+import dayjs from "dayjs";
 
+const { Title, Text } = Typography;
+const { TextArea } = Input;
+
+const HoanTienModal = ({ visible, onCancel, onSuccess, hoaDonId, invoice }) => {
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [kiemTraLoading, setKiemTraLoading] = useState(false);
+  const [lyDoMau, setLyDoMau] = useState([]);
+  const [dieuKien, setDieuKien] = useState(null);
+  const [lichSuHoanTien, setLichSuHoanTien] = useState([]);
+  const [showLichSu, setShowLichSu] = useState(false);
+  const [nhanVienId] = useState(localStorage.getItem("userId") || 1);
+
+  // Load lý do mẫu
+  useEffect(() => {
+    if (visible) {
+      loadLyDoMau();
+      loadLichSuHoanTien();
+    }
+  }, [visible, hoaDonId]);
+
+  // Kiểm tra điều kiện khi mở modal
+  useEffect(() => {
+    if (visible && hoaDonId) {
+      kiemTraDieuKienHoanTien();
+    }
+  }, [visible, hoaDonId]);
+
+  const loadLyDoMau = async () => {
+    try {
+      const response = await hoaDonApi.getLyDoHoanTienMau();
+      setLyDoMau(response.data.data || []);
+    } catch (error) {
+      console.error("Lỗi tải lý do mẫu:", error);
+      message.error("Không thể tải danh sách lý do mẫu");
+    }
+  };
+
+  const loadLichSuHoanTien = async () => {
+    try {
+      const response = await hoaDonApi.getLichSuHoanTien(hoaDonId);
+      setLichSuHoanTien(response.data.lichSuHoanTien || []);
+    } catch (error) {
+      console.error("Lỗi tải lịch sử hoàn tiền:", error);
+    }
+  };
+
+  const kiemTraDieuKienHoanTien = async () => {
+    try {
+      setKiemTraLoading(true);
+      const response = await hoaDonApi.kiemTraHoanTien(hoaDonId);
+
+      if (response.data.success) {
+        setDieuKien(response.data);
+
+        // Set giá trị mặc định cho form
+        if (response.data.coTheHoanTien && response.data.hoaDon) {
+          form.setFieldsValue({
+            lyDoHoanTien: null,
+            soTienHoan: response.data.soTienCoTheHoan,
+            ghiChuBoSung: "",
+            idNhanVienThucHien: parseInt(nhanVienId),
+          });
+        }
+      } else {
+        message.error(
+          response.data.message || "Không thể kiểm tra điều kiện hoàn tiền"
+        );
+      }
+    } catch (error) {
+      console.error("Lỗi kiểm tra điều kiện:", error);
+      message.error("Lỗi khi kiểm tra điều kiện hoàn tiền");
+    } finally {
+      setKiemTraLoading(false);
+    }
+  };
+
+  const handleSubmit = async (values) => {
+    try {
+      setLoading(true);
+
+      const requestData = {
+        lyDoHoanTien: values.lyDoHoanTien,
+        soTienHoan: values.soTienHoan,
+        ghiChuBoSung: values.ghiChuBoSung,
+        idNhanVienThucHien: parseInt(values.idNhanVienThucHien),
+      };
+
+      const response = await hoaDonApi.hoanTienHoaDon(hoaDonId, requestData);
+
+      if (response.data.success) {
+        message.success(response.data.message || "Hoàn tiền thành công!");
+
+        // Reset form
+        form.resetFields();
+
+        // Gọi callback thành công
+        if (onSuccess) {
+          onSuccess(response.data);
+        }
+
+        // Đóng modal
+        onCancel();
+      } else {
+        message.error(response.data.message || "Hoàn tiền thất bại!");
+      }
+    } catch (error) {
+      console.error("Lỗi hoàn tiền:", error);
+      message.error(
+        error.response?.data?.message || "Lỗi khi thực hiện hoàn tiền"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    form.resetFields();
+    setDieuKien(null);
+    setShowLichSu(false);
+    onCancel();
+  };
+
+  const formatMoney = (amount) => {
+    if (!amount && amount !== 0) return "0 ₫";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "—";
+    return dayjs(dateString).format("DD/MM/YYYY HH:mm:ss");
+  };
+
+  const columnsLichSu = [
+    {
+      title: "STT",
+      key: "stt",
+      width: 60,
+      align: "center",
+      render: (_, record, index) => index + 1,
+    },
+    {
+      title: "Ngày hoàn tiền",
+      dataIndex: "ngayThanhToan",
+      key: "ngayThanhToan",
+      render: (date) => formatDate(date),
+    },
+    {
+      title: "Số tiền",
+      dataIndex: "soTien",
+      key: "soTien",
+      align: "right",
+      render: (amount) => (
+        <Text strong style={{ color: "#ff4d4f" }}>
+          {formatMoney(amount)}
+        </Text>
+      ),
+    },
+    {
+      title: "Lý do",
+      dataIndex: "lyDo",
+      key: "lyDo",
+      render: (lyDo, record) =>
+        lyDo ||
+        record.ghiChu?.replace("[HOÀN TIỀN] ", "")?.split(" - ")[0] ||
+        "—",
+    },
+    {
+      title: "Phương thức",
+      dataIndex: ["phuongThucThanhToan", "ten"],
+      key: "phuongThuc",
+      render: (ten, record) =>
+        ten || record.phuongThucThanhToan?.tenPhuongThucThanhToan || "—",
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "trangThai",
+      key: "trangThai",
+      align: "center",
+      render: (status) => (
+        <Tag color={status ? "success" : "default"}>
+          {status ? "Thành công" : "Đang xử lý"}
+        </Tag>
+      ),
+    },
+  ];
+
+  return (
+    <Modal
+      title={
+        <Space>
+          <ExclamationCircleOutlined style={{ color: "#faad14" }} />
+          <span style={{ fontSize: "18px", fontWeight: "bold" }}>
+            Hoàn Tiền Hóa Đơn
+          </span>
+        </Space>
+      }
+      open={visible}
+      onCancel={handleCancel}
+      width={800}
+      footer={null}
+      centered
+    >
+      {!dieuKien ? (
+        <div style={{ textAlign: "center", padding: "40px 20px" }}>
+          <ReloadOutlined
+            spin
+            style={{ fontSize: "40px", color: "#1890ff", marginBottom: "20px" }}
+          />
+          <Text type="secondary">Đang kiểm tra điều kiện hoàn tiền...</Text>
+        </div>
+      ) : !dieuKien.coTheHoanTien ? (
+        <Alert
+          message="KHÔNG THỂ HOÀN TIỀN"
+          description={
+            <div style={{ marginTop: "10px" }}>
+              <Text>{dieuKien.lyDoKhongTheHoanTien}</Text>
+              {dieuKien.hoaDon && (
+                <div
+                  style={{
+                    marginTop: "15px",
+                    padding: "10px",
+                    backgroundColor: "#f6ffed",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Text strong>Mã hóa đơn:</Text>
+                      <div>{dieuKien.hoaDon.maHoaDon}</div>
+                    </Col>
+                    <Col span={12}>
+                      <Text strong>Trạng thái:</Text>
+                      <div>{dieuKien.hoaDon.trangThaiText}</div>
+                    </Col>
+                  </Row>
+                  {dieuKien.soNgayTruocKhiHoanTien > 0 && (
+                    <div style={{ marginTop: "10px" }}>
+                      <Text strong>Thời gian từ thanh toán:</Text>
+                      <div>{dieuKien.soNgayTruocKhiHoanTien} ngày</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          }
+          type="error"
+          showIcon
+          style={{ marginBottom: "20px" }}
+        />
+      ) : (
+        <>
+          {/* Thông tin hóa đơn */}
+          <Card size="small" style={{ marginBottom: "20px" }}>
+            <Row gutter={16}>
+              <Col span={8}>
+                <Statistic
+                  title="Mã hóa đơn"
+                  value={dieuKien.hoaDon.maHoaDon}
+                  valueStyle={{ fontSize: "16px", fontWeight: "bold" }}
+                />
+              </Col>
+              <Col span={8}>
+                <Statistic
+                  title="Tổng tiền"
+                  value={formatMoney(dieuKien.hoaDon.tongTienSauGiam)}
+                  valueStyle={{
+                    color: "#ff4d4f",
+                    fontSize: "16px",
+                    fontWeight: "bold",
+                  }}
+                />
+              </Col>
+              <Col span={8}>
+                <Statistic
+                  title="Trạng thái"
+                  value={dieuKien.hoaDon.trangThaiText}
+                  valueStyle={{ color: "#52c41a", fontSize: "16px" }}
+                />
+              </Col>
+            </Row>
+            {dieuKien.thoiGianConLai !== undefined && (
+              <Alert
+                message={`Thời gian còn lại để hoàn tiền: ${dieuKien.thoiGianConLai} ngày`}
+                type="info"
+                showIcon
+                style={{ marginTop: "10px" }}
+              />
+            )}
+          </Card>
+
+          {/* Lịch sử hoàn tiền (nếu có) */}
+          {lichSuHoanTien.length > 0 && (
+            <div style={{ marginBottom: "20px" }}>
+              <Button
+                type="link"
+                icon={<HistoryOutlined />}
+                onClick={() => setShowLichSu(!showLichSu)}
+              >
+                {showLichSu
+                  ? "Ẩn lịch sử hoàn tiền"
+                  : `Xem lịch sử hoàn tiền (${lichSuHoanTien.length})`}
+              </Button>
+              {showLichSu && (
+                <Table
+                  columns={columnsLichSu}
+                  dataSource={lichSuHoanTien}
+                  rowKey="id"
+                  size="small"
+                  pagination={false}
+                  style={{ marginTop: "10px" }}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Form hoàn tiền */}
+          <Form form={form} layout="vertical" onFinish={handleSubmit}>
+            <Form.Item
+              label="Lý do hoàn tiền"
+              name="lyDoHoanTien"
+              rules={[
+                { required: true, message: "Vui lòng chọn lý do hoàn tiền!" },
+              ]}
+            >
+              <Select
+                placeholder="Chọn lý do hoàn tiền"
+                showSearch
+                optionFilterProp="children"
+                options={lyDoMau.map((item) => ({
+                  value: item.ten,
+                  label: (
+                    <div>
+                      <div>{item.ten}</div>
+                      <div style={{ fontSize: "12px", color: "#666" }}>
+                        {item.moTa}
+                      </div>
+                    </div>
+                  ),
+                }))}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Số tiền hoàn"
+              name="soTienHoan"
+              rules={[
+                { required: true, message: "Vui lòng nhập số tiền hoàn!" },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || value <= 0) {
+                      return Promise.reject(
+                        new Error("Số tiền phải lớn hơn 0!")
+                      );
+                    }
+                    if (value > dieuKien.soTienCoTheHoan) {
+                      return Promise.reject(
+                        new Error(
+                          `Không thể hoàn quá ${formatMoney(
+                            dieuKien.soTienCoTheHoan
+                          )}!`
+                        )
+                      );
+                    }
+                    return Promise.resolve();
+                  },
+                }),
+              ]}
+            >
+              <InputNumber
+                style={{ width: "100%" }}
+                min={1}
+                max={dieuKien.soTienCoTheHoan}
+                formatter={(value) =>
+                  `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                }
+                parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                addonAfter="VND"
+              />
+            </Form.Item>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <div
+                  style={{
+                    padding: "8px",
+                    backgroundColor: "#f6ffed",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <Text type="secondary">Số tiền có thể hoàn:</Text>
+                  <div
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: "bold",
+                      color: "#52c41a",
+                    }}
+                  >
+                    {formatMoney(dieuKien.soTienCoTheHoan)}
+                  </div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="Nhân viên thực hiện"
+                  name="idNhanVienThucHien"
+                  rules={[
+                    {
+                      required: true,
+                      message: "Vui lòng nhập nhân viên thực hiện!",
+                    },
+                  ]}
+                >
+                  <InputNumber
+                    style={{ width: "100%" }}
+                    min={1}
+                    placeholder="Mã nhân viên"
+                    defaultValue={parseInt(nhanVienId)}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item label="Ghi chú bổ sung" name="ghiChuBoSung">
+              <TextArea
+                rows={3}
+                placeholder="Nhập ghi chú bổ sung (nếu có)..."
+                maxLength={500}
+                showCount
+              />
+            </Form.Item>
+
+            <Form.Item>
+              <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+                <Button onClick={handleCancel}>
+                  <CloseCircleOutlined /> Hủy
+                </Button>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={loading}
+                  icon={<CheckCircleOutlined />}
+                >
+                  Xác nhận hoàn tiền
+                </Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        </>
+      )}
+    </Modal>
+  );
+};
+
+// Main DetailHoaDon Component
 const DetailHoaDon = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -70,32 +524,26 @@ const DetailHoaDon = () => {
   const [tempLoaiHoaDon, setTempLoaiHoaDon] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [customerAddresses, setCustomerAddresses] = useState([]);
-  // COMMENT: Đã comment state hiển thị thêm sản phẩm
-  // const [showBillProduct, setShowBillProduct] = useState(false);
   const [editingQuantities, setEditingQuantities] = useState({});
   const [tinhList, setTinhList] = useState([]);
   const [quanMap, setQuanMap] = useState({});
   const [localQuanList, setLocalQuanList] = useState([]);
   const [addressForm] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
-  const dispatch = useDispatch();
 
-  // COMMENT: Đã comment state quản lý sản phẩm đã xóa
-  // const [deletedProducts, setDeletedProducts] = useState([]);
-
-  const [invoiceProducts, setInvoiceProducts] = useState([]);
-
-  // COMMENT: Đã comment selector sản phẩm
-  // const { data: productList } = useSelector((state) => state.chiTietSanPham);
-
-  const [nhanVienList, setNhanVienList] = useState([]);
-  const [phuongThucList, setPhuongThucList] = useState([]);
-  const [formErrors, setFormErrors] = useState({});
+  // Hoàn tiền state
+  const [hoanTienModalVisible, setHoanTienModalVisible] = useState(false);
+  const [kiemTraHoanTienLoading, setKiemTraHoanTienLoading] = useState(false);
+  const [kiemTraHoanTienResult, setKiemTraHoanTienResult] = useState(null);
   const [lichSuThanhToan, setLichSuThanhToan] = useState([]);
 
   const [canEditCustomerInfo, setCanEditCustomerInfo] = useState(false);
   const [canEditProducts, setCanEditProducts] = useState(false);
   const [tongTien, setTongTien] = useState(0);
+  const [invoiceProducts, setInvoiceProducts] = useState([]);
+  const [nhanVienList, setNhanVienList] = useState([]);
+  const [phuongThucList, setPhuongThucList] = useState([]);
+  const [formErrors, setFormErrors] = useState({});
 
   const getProductKey = (product) => {
     return product.idChiTietSanPham;
@@ -115,32 +563,6 @@ const DetailHoaDon = () => {
     }
   }, [invoice]);
 
-  // COMMENT: Đã comment hàm xóa chi tiết sản phẩm
-  // const xoaChiTietSanPham = async (idHoaDon, idChiTietSanPham) => {
-  //   try {
-  //     console.log(
-  //       `🔄 Gọi API xóa: /api/hoa-don/${idHoaDon}/chi-tiet/${idChiTietSanPham}`
-  //     );
-
-  //     const response = await hoaDonApi.xoaChiTietSanPham(
-  //       idHoaDon,
-  //       idChiTietSanPham
-  //     );
-
-  //     console.log("✅ API response:", response);
-  //     return response.data;
-  //   } catch (error) {
-  //     console.error("❌ Lỗi khi xóa chi tiết sản phẩm:", error);
-  //     console.error("❌ Error details:", {
-  //       status: error.response?.status,
-  //       statusText: error.response?.statusText,
-  //       data: error.response?.data,
-  //       url: error.config?.url,
-  //     });
-  //     throw error;
-  //   }
-  // };
-
   const fetchLichSuThanhToan = async () => {
     try {
       const response = await hoaDonApi.getLichSuThanhToan(id);
@@ -150,90 +572,6 @@ const DetailHoaDon = () => {
       setLichSuThanhToan([]);
     }
   };
-
-  // COMMENT: Đã comment các hàm tính toán tổng tiền cũ
-  // const calculateTotal = (products) => {
-  //   return products.reduce((total, product) => {
-  //     return (
-  //       total + (product.thanhTien || product.giaBan * product.soLuong || 0)
-  //     );
-  //   }, 0);
-  // };
-
-  // const calculateFinalTotal = () => {
-  //   if (!invoice) {
-  //     return {
-  //       tongTienSanPham: 0,
-  //       phiVanChuyen: 0,
-  //       tongTienTruocGiam: 0,
-  //       tienGiamGia: 0,
-  //       tongTienCuoiCung: 0,
-  //       phieuGiamGiaInfo: null,
-  //     };
-  //   }
-
-  //   // 1. Tiền hàng
-  //   const tongTienSanPham =
-  //     invoice.tongTien || calculateTotal(invoiceProducts) || 0;
-
-  //   // 2. Phí vận chuyển (luôn lấy giá trị mới nhất)
-  //   const phiVanChuyen = invoice.phiVanChuyen || 0;
-
-  //   // 3. Tổng trước khi giảm giá = tiền hàng + ship
-  //   const tongTienTruocGiam = tongTienSanPham + phiVanChuyen;
-
-  //   // 4. Tiền giảm giá (voucher, khuyến mãi)
-  //   // Ưu tiên lấy từ backend nếu có, nếu không thì tính lại từ tổng tiền cũ
-  //   let tienGiamGia = 0;
-  //   if (invoice.tienGiamGia != null) {
-  //     tienGiamGia = invoice.tienGiamGia;
-  //   } else if (invoice.tongTien && invoice.tongTienSauGiam != null) {
-  //     tienGiamGia = invoice.tongTien - invoice.tongTienSauGiam;
-  //   }
-
-  //   // 5. Tính lại tổng cuối cùng ĐÚNG (có ship, có giảm giá)
-  //   const tongTienCuoiCungTinhLai = Math.max(
-  //     0,
-  //     tongTienTruocGiam - tienGiamGia
-  //   );
-
-  //   // 6. Chỉ dùng soTienThanhToan nếu nó thực sự là số cuối cùng (backend mới)
-  //   // Nếu backend cũ vẫn gửi tongTienSauGiam chưa có ship → bỏ qua, dùng số mình tính lại
-  //   const finalAmount =
-  //     invoice.soTienThanhToan > 0
-  //       ? invoice.soTienThanhToan
-  //       : tongTienCuoiCungTinhLai;
-
-  //   // 7. Thông tin phiếu giảm giá
-  //   let phieuGiamGiaInfo = null;
-  //   if (invoice.phieuGiamGia) {
-  //     const p = invoice.phieuGiamGia;
-  //     phieuGiamGiaInfo = {
-  //       maPhieu: p.maPhieu,
-  //       tenPhieu: p.tenPhieu,
-  //       loaiGiamGia: p.loaiGiamGia,
-  //       giaTriGiamGia: p.giaTriGiamGia,
-  //       giamToiDa: p.mucGiaGiamToiDa || p.giamToiDa,
-  //       giaTriDonHangToiThieu: p.giaTriDonHangToiThieu,
-  //     };
-  //   }
-
-  //   return {
-  //     tongTienSanPham,
-  //     phiVanChuyen,
-  //     tongTienTruocGiam,
-  //     tienGiamGia: Math.max(0, tienGiamGia),
-  //     tongTienCuoiCung: finalAmount, // ← ĐẢM BẢO ĐÚNG 100%
-  //     phieuGiamGiaInfo,
-  //   };
-  // };
-
-  // COMMENT: Đã comment useEffect tính tổng tiền cũ
-  // useEffect(() => {
-  //   const total = calculateTotal(invoiceProducts);
-  //   setTongTien(total);
-  //   console.log(`💰 Tổng tiền cập nhật: ${formatMoney(total)}`);
-  // }, [invoiceProducts]);
 
   const checkEditPermissions = (status) => {
     const editable = status === 0;
@@ -258,12 +596,7 @@ const DetailHoaDon = () => {
       });
       setEditingQuantities(initialQuantities);
     }
-  }, [invoice, dispatch]);
-
-  // COMMENT: Đã comment dispatch fetch sản phẩm
-  // useEffect(() => {
-  //   dispatch(fetchChiTietSanPham());
-  // }, [dispatch]);
+  }, [invoice]);
 
   useEffect(() => {
     diaChiApi
@@ -423,36 +756,6 @@ const DetailHoaDon = () => {
         .join(", ")
         .trim();
 
-      // COMMENT: Đã comment phần xử lý chi tiết sản phẩm
-      // const currentChiTietSanPhams = invoiceProducts.map((product) => ({
-      //   idChiTietSanPham: getChiTietSanPhamId(product),
-      //   soLuong: product.soLuong,
-      //   giaBan: product.giaBan || product.giaSauGiam || 0,
-      //   ghiChu: product.ghiChu || "",
-      // }));
-
-      // COMMENT: Đã comment phần xóa sản phẩm
-      // if (deletedProducts.length > 0) {
-      //   console.log(
-      //     "🗑️ Bắt đầu xóa thật sự",
-      //     deletedProducts.length,
-      //     "sản phẩm"
-      //   );
-
-      //   for (const deletedProduct of deletedProducts) {
-      //     try {
-      //       await xoaChiTietSanPham(id, deletedProduct.idChiTietSanPham);
-      //       console.log("✅ Đã xóa sản phẩm:", deletedProduct.idChiTietSanPham);
-      //     } catch (error) {
-      //       console.error(
-      //         "❌ Lỗi khi xóa sản phẩm:",
-      //         deletedProduct.idChiTietSanPham,
-      //         error
-      //       );
-      //     }
-      //   }
-      // }
-
       const requestData = {
         ...values,
         idDiaChi: values.idDiaChi ?? null,
@@ -463,9 +766,6 @@ const DetailHoaDon = () => {
 
         trangThai: tempStatus,
         loaiHoaDon: tempLoaiHoaDon,
-
-        // COMMENT: Đã comment chi tiết sản phẩm trong request
-        // chiTietSanPhams: currentChiTietSanPhams,
       };
 
       await hoaDonApi.updateHoaDon(id, requestData);
@@ -473,8 +773,6 @@ const DetailHoaDon = () => {
       message.success("Cập nhật hóa đơn thành công!");
       setIsEditing(false);
 
-      // COMMENT: Đã comment reset state sản phẩm đã xóa
-      // setDeletedProducts([]);
       setEditingQuantities({});
       fetchLichSuHoaDon();
       await fetchInvoiceDetail();
@@ -564,38 +862,7 @@ const DetailHoaDon = () => {
   };
 
   const handleCancelEdit = () => {
-    // COMMENT: Đã comment phần khôi phục sản phẩm đã xóa
-    // if (deletedProducts.length > 0) {
-    //   console.log("🔄 Hoàn lại", deletedProducts.length, "sản phẩm đã xóa tạm");
-
-    //   const restoredProducts = [...invoiceProducts];
-
-    //   deletedProducts.forEach((deletedProduct) => {
-    //     const existingIndex = restoredProducts.findIndex(
-    //       (p) => getProductKey(p) === deletedProduct.productKey
-    //     );
-
-    //     if (existingIndex === -1 && deletedProduct.productData) {
-    //       restoredProducts.push(deletedProduct.productData);
-
-    //       setEditingQuantities((prev) => ({
-    //         ...prev,
-    //         [deletedProduct.productKey]: deletedProduct.soLuong,
-    //       }));
-
-    //       console.log(
-    //         "✅ Đã khôi phục sản phẩm:",
-    //         deletedProduct.productData.tenSanPham
-    //       );
-    //     }
-    //   });
-
-    //   setInvoiceProducts(restoredProducts);
-    // }
-
     setIsEditing(false);
-    // COMMENT: Đã comment reset state sản phẩm đã xóa
-    // setDeletedProducts([]);
     setEditingQuantities({});
     setFormErrors({});
     setTempStatus(invoice?.trangThai || 0);
@@ -606,137 +873,49 @@ const DetailHoaDon = () => {
     messageApi.info("Đã hủy thay đổi!");
   };
 
-  // COMMENT: Đã comment hàm xóa sản phẩm khỏi hóa đơn
-  // const handleDeleteProductFromInvoice = async (productKey) => {
-  //   if (!canEditProducts) {
-  //     message.warning("Không thể xóa sản phẩm ở trạng thái hiện tại!");
-  //     return;
-  //   }
+  // Hoàn tiền functions
+  const kiemTraHoanTien = async () => {
+    try {
+      setKiemTraHoanTienLoading(true);
+      const response = await hoaDonApi.kiemTraHoanTien(id);
 
-  //   const product = invoiceProducts.find(
-  //     (p) => getProductKey(p) === productKey
-  //   );
-  //   if (!product) return;
+      if (response.data.success) {
+        setKiemTraHoanTienResult(response.data);
 
-  //   const chiTietId = getChiTietSanPhamId(product);
+        // Nếu có thể hoàn tiền, hiển thị modal
+        if (response.data.coTheHoanTien) {
+          setHoanTienModalVisible(true);
+        } else {
+          // Hiển thị thông báo không thể hoàn tiền
+          message.warning(
+            response.data.lyDoKhongTheHoanTien ||
+              "Không thể hoàn tiền cho hóa đơn này"
+          );
+        }
+      } else {
+        message.error(
+          response.data.message || "Không thể kiểm tra điều kiện hoàn tiền"
+        );
+      }
+    } catch (error) {
+      console.error("Lỗi kiểm tra hoàn tiền:", error);
+      message.error("Không thể kiểm tra điều kiện hoàn tiền");
+    } finally {
+      setKiemTraHoanTienLoading(false);
+    }
+  };
 
-  //   setDeletedProducts((prev) => [
-  //     ...prev,
-  //     {
-  //       idChiTietSanPham: chiTietId,
-  //       soLuong: product.soLuong,
-  //       productKey: productKey,
-  //       productData: product,
-  //     },
-  //   ]);
+  const handleHoanTienSuccess = (responseData) => {
+    // Refresh dữ liệu
+    fetchInvoiceDetail();
+    fetchLichSuHoaDon();
+    fetchLichSuThanhToan();
 
-  //   const updated = invoiceProducts.filter(
-  //     (p) => getProductKey(p) !== productKey
-  //   );
-  //   setInvoiceProducts(updated);
-
-  //   setEditingQuantities((prev) => {
-  //     const newState = { ...prev };
-  //     delete newState[productKey];
-  //     return newState;
-  //   });
-
-  //   messageApi.success("Đã đánh dấu xóa sản phẩm! Bấm Lưu để xác nhận.");
-  // };
-
-  // COMMENT: Đã comment các hàm tăng giảm số lượng
-  // const handleIncreaseQuantity = async (productKey) => {
-  //   if (!canEditProducts) {
-  //     message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
-  //     return;
-  //   }
-
-  //   const product = invoiceProducts.find(
-  //     (p) => getProductKey(p) === productKey
-  //   );
-  //   if (!product) return;
-
-  //   const chiTietId = getChiTietSanPhamId(product);
-  //   if (!chiTietId) return;
-
-  //   try {
-  //     const currentProduct = productList.find((p) => p.id === chiTietId);
-  //     if (!currentProduct || currentProduct.soLuongTon <= 0) {
-  //       messageApi.warning("Sản phẩm đã hết hàng!");
-  //       return;
-  //     }
-
-  //     await dispatch(giamSoLuong({ id: chiTietId, soLuong: 1 })).unwrap();
-
-  //     const updatedProducts = invoiceProducts.map((p) => {
-  //       if (getProductKey(p) === productKey) {
-  //         const newQuantity = p.soLuong + 1;
-  //         const newThanhTien = newQuantity * p.giaBan;
-  //         return {
-  //           ...p,
-  //           soLuong: newQuantity,
-  //           thanhTien: newThanhTien,
-  //         };
-  //       }
-  //       return p;
-  //     });
-
-  //     setInvoiceProducts(updatedProducts);
-  //     setEditingQuantities((prev) => ({
-  //       ...prev,
-  //       [productKey]: product.soLuong + 1,
-  //     }));
-
-  //     await dispatch(fetchChiTietSanPham()).unwrap();
-  //     messageApi.success("Đã tăng số lượng!");
-  //   } catch (error) {
-  //     console.error("Lỗi khi tăng số lượng:", error);
-  //     messageApi.error("Không thể tăng số lượng (hết hàng hoặc lỗi hệ thống)");
-  //   }
-  // };
-
-  // const handleDecreaseQuantity = async (productKey) => {
-  //   if (!canEditProducts) {
-  //     message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
-  //     return;
-  //   }
-
-  //   const product = invoiceProducts.find(
-  //     (p) => getProductKey(p) === productKey
-  //   );
-  //   if (!product || product.soLuong <= 1) return;
-
-  //   try {
-  //     const chiTietId = getChiTietSanPhamId(product);
-
-  //     await dispatch(tangSoLuong({ id: chiTietId, soLuong: 1 })).unwrap();
-
-  //     const updatedProducts = invoiceProducts.map((p) => {
-  //       if (getProductKey(p) === productKey) {
-  //         const newQuantity = p.soLuong - 1;
-  //         const newThanhTien = newQuantity * p.giaBan;
-  //         return {
-  //           ...p,
-  //           soLuong: newQuantity,
-  //           thanhTien: newThanhTien,
-  //         };
-  //       }
-  //       return p;
-  //     });
-
-  //     setInvoiceProducts(updatedProducts);
-  //     setEditingQuantities((prev) => ({
-  //       ...prev,
-  //       [productKey]: product.soLuong - 1,
-  //     }));
-
-  //     await dispatch(fetchChiTietSanPham()).unwrap();
-  //     messageApi.success("Đã giảm số lượng!");
-  //   } catch (error) {
-  //     console.error("Lỗi khi giảm số lượng:", error);
-  //     messageApi.error("Lỗi khi giảm số lượng!");
-  //   }
-  // };
+    // Hiển thị thông báo
+    message.success(
+      `Đã hoàn tiền ${formatMoney(responseData.soTienHoan)} thành công!`
+    );
+  };
 
   const getChiTietSanPhamId = (product) => {
     return (
@@ -746,182 +925,6 @@ const DetailHoaDon = () => {
       product.id
     );
   };
-
-  // COMMENT: Đã comment hàm thay đổi số lượng
-  // const handleQuantityChange = (productId, newQuantity) => {
-  //   if (!canEditProducts) {
-  //     message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
-  //     return;
-  //   }
-
-  //   if (!newQuantity || newQuantity < 1) return;
-
-  //   setEditingQuantities((prev) => ({
-  //     ...prev,
-  //     [productId]: newQuantity,
-  //   }));
-  // };
-
-  // COMMENT: Đã comment hàm áp dụng số lượng
-  // const handleApplyQuantity = async (productId) => {
-  //   if (!canEditProducts) {
-  //     message.warning("Không thể thay đổi số lượng ở trạng thái hiện tại!");
-  //     return;
-  //   }
-
-  //   const newQuantity = editingQuantities[productId];
-  //   const product = invoiceProducts.find((p) => getProductKey(p) === productId);
-  //   if (!product || !newQuantity || newQuantity === product.soLuong) return;
-
-  //   const chiTietId = getChiTietSanPhamId(product);
-  //   if (!chiTietId) {
-  //     messageApi.error("Không xác định được sản phẩm!");
-  //     return;
-  //   }
-
-  //   const quantityDiff = newQuantity - product.soLuong;
-
-  //   try {
-  //     if (quantityDiff > 0) {
-  //       const currentProduct = productList.find((p) => p.id === chiTietId);
-  //       if (!currentProduct || currentProduct.soLuongTon < quantityDiff) {
-  //         messageApi.warning(
-  //           `Chỉ còn ${currentProduct?.soLuongTon || 0} sản phẩm trong kho!`
-  //         );
-  //         setEditingQuantities((prev) => ({
-  //           ...prev,
-  //           [productId]: product.soLuong,
-  //         }));
-  //         return;
-  //       }
-
-  //       await dispatch(
-  //         giamSoLuong({ id: chiTietId, soLuong: quantityDiff })
-  //       ).unwrap();
-  //     } else if (quantityDiff < 0) {
-  //       await dispatch(
-  //         tangSoLuong({ id: chiTietId, soLuong: Math.abs(quantityDiff) })
-  //       ).unwrap();
-  //     }
-
-  //     const updatedProducts = invoiceProducts.map((p) => {
-  //       if (getProductKey(p) === productId) {
-  //         const newThanhTien = newQuantity * p.giaBan;
-  //         return {
-  //           ...p,
-  //           soLuong: newQuantity,
-  //           thanhTien: newThanhTien,
-  //         };
-  //       }
-  //       return p;
-  //     });
-
-  //     setInvoiceProducts(updatedProducts);
-
-  //     await dispatch(fetchChiTietSanPham()).unwrap();
-  //     messageApi.success(`Cập nhật số lượng thành ${newQuantity}`);
-  //   } catch (error) {
-  //     console.error("Cập nhật số lượng thất bại:", error);
-  //     messageApi.error("Cập nhật số lượng thất bại!");
-  //     setEditingQuantities((prev) => ({
-  //       ...prev,
-  //       [productId]: product.soLuong,
-  //     }));
-  //   }
-  // };
-
-  // COMMENT: Đã comment hàm xử lý nhấn Enter
-  // const handleQuantityKeyPress = (e, productId) => {
-  //   if (e.key === "Enter") {
-  //     handleApplyQuantity(productId);
-  //   }
-  // };
-
-  // COMMENT: Đã comment hàm thêm sản phẩm vào hóa đơn
-  // const handleAddProductToInvoice = async (product) => {
-  //   if (!canEditProducts) {
-  //     message.warning("Không thể thêm sản phẩm ở trạng thái hiện tại!");
-  //     return;
-  //   }
-
-  //   try {
-  //     if (product.soLuongTon <= 0) {
-  //       messageApi.warning("Sản phẩm đã hết hàng!");
-  //       return;
-  //     }
-
-  //     const productIdToCheck = product.id;
-
-  //     await dispatch(
-  //       giamSoLuong({ id: productIdToCheck, soLuong: 1 })
-  //     ).unwrap();
-
-  //     const existingProduct = invoiceProducts.find(
-  //       (p) => p.idChiTietSanPham === productIdToCheck
-  //     );
-
-  //     let updatedProducts;
-  //     if (existingProduct) {
-  //       updatedProducts = invoiceProducts.map((p) => {
-  //         if (p.idChiTietSanPham === productIdToCheck) {
-  //           return {
-  //             ...p,
-  //             soLuong: p.soLuong + 1,
-  //             thanhTien: (p.soLuong + 1) * p.giaBan,
-  //           };
-  //         }
-  //         return p;
-  //       });
-  //     } else {
-  //       const newProduct = {
-  //         id: null,
-  //         idChiTietSanPham: product.id,
-  //         tenSanPham: product.tenSanPham,
-  //         mauSac: product.tenMauSac,
-  //         kichThuoc: product.tenKichThuoc,
-  //         giaBan: product.giaSauGiam ?? product.giaBan ?? 0,
-  //         soLuong: 1,
-  //         thanhTien: product.giaSauGiam ?? product.giaBan ?? 0,
-  //         anhUrls: product.anhs?.map((a) => a.duongDanAnh) || [],
-  //       };
-  //       updatedProducts = [...invoiceProducts, newProduct];
-  //     }
-
-  //     const finalProducts = [];
-  //     const productMap = new Map();
-
-  //     updatedProducts.forEach((p) => {
-  //       const key = p.idChiTietSanPham;
-  //       if (productMap.has(key)) {
-  //         const existing = productMap.get(key);
-  //         existing.soLuong += p.soLuong;
-  //         existing.thanhTien = existing.soLuong * existing.giaBan;
-  //       } else {
-  //         productMap.set(key, { ...p });
-  //       }
-  //     });
-
-  //     finalProducts.push(...productMap.values());
-
-  //     console.log(`📊 Kết quả cuối cùng: ${finalProducts.length} sản phẩm`);
-  //     finalProducts.forEach((p) => {
-  //       console.log(`   - ${p.tenSanPham}: ${p.soLuong} cái`);
-  //     });
-
-  //     setInvoiceProducts(finalProducts);
-
-  //     setEditingQuantities((prev) => ({
-  //       ...prev,
-  //       [productIdToCheck]: (prev[productIdToCheck] || 0) + 1,
-  //     }));
-
-  //     await dispatch(fetchChiTietSanPham()).unwrap();
-  //     messageApi.success("Đã thêm sản phẩm vào hóa đơn!");
-  //   } catch (error) {
-  //     console.error("Thêm sản phẩm thất bại:", error);
-  //     messageApi.error("Thêm sản phẩm thất bại! Có thể đã hết hàng.");
-  //   }
-  // };
 
   useEffect(() => {
     fetchInvoiceDetail();
@@ -1319,47 +1322,6 @@ const DetailHoaDon = () => {
       width: 150,
       align: "center",
       render: (value) => value || "—",
-      // render: (value, record) => {
-      //   // COMMENT: Đã comment phần chỉnh sửa số lượng khi editing
-      //   // const productKey = getProductKey(record);
-      //   // const currentQuantity = editingQuantities[productKey] ?? value;
-
-      //   // return isEditing ? (
-      //   //   <div className="flex items-center gap-2 justify-center">
-      //   //     <button
-      //   //       onClick={() => handleDecreaseQuantity(productKey)}
-      //   //       className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
-      //   //       disabled={currentQuantity <= 1}
-      //   //     >
-      //   //       -
-      //   //     </button>
-
-      //   //     <InputNumber
-      //   //       min={1}
-      //   //       max={1000}
-      //   //       value={currentQuantity}
-      //   //       onChange={(val) => handleQuantityChange(productKey, val)}
-      //   //       onBlur={() => handleApplyQuantity(productKey)}
-      //   //       onPressEnter={(e) => handleQuantityKeyPress(e, productKey)}
-      //   //       style={{
-      //   //         width: 40,
-      //   //         textAlign: "center",
-      //   //       }}
-      //   //       className="no-spinner"
-      //   //       size="small"
-      //   //     />
-
-      //   //     <button
-      //   //       onClick={() => handleIncreaseQuantity(productKey)}
-      //   //       className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
-      //   //     >
-      //   //       +
-      //   //     </button>
-      //   //   </div>
-      //   // ) : (
-      //   // <span style={{ fontWeight: 500 }}>{value}</span>;
-      //   // );
-      // },
     },
     {
       title: "Thành tiền",
@@ -1378,88 +1340,6 @@ const DetailHoaDon = () => {
         );
       },
     },
-    // COMMENT: Đã comment cột thao tác khi editing
-    // ...(isEditing && canEditProducts
-    //   ? [
-    //       {
-    //         title: "Thao tác",
-    //         key: "actions",
-    //         width: 80,
-    //         align: "center",
-    //         render: (_, record) => {
-    //           const productKey = getProductKey(record);
-
-    //           const handleDelete = async () => {
-    //             // Confirm trước khi xóa (tùy chọn, khuyến khích)
-    //             const confirm = await Modal.confirm({
-    //               title: "Xóa sản phẩm khỏi hóa đơn?",
-    //               content: (
-    //                 <div>
-    //                   <p>
-    //                     <strong>{record.tenSanPham}</strong> (x{record.soLuong})
-    //                   </p>
-    //                   <p className="text-xs text-gray-500 mt-2">
-    //                     Số lượng sẽ được hoàn lại vào tồn kho ngay lập tức.
-    //                   </p>
-    //                 </div>
-    //               ),
-    //               okText: "Xóa và hoàn kho",
-    //               okButtonProps: { danger: true },
-    //               cancelText: "Hủy",
-    //             });
-
-    //             if (!confirm) return;
-
-    //             const chiTietId = getChiTietSanPhamId(record);
-    //             const soLuongXoa = record.soLuong || 1;
-
-    //             if (!chiTietId) {
-    //               message.error("Không xác định được sản phẩm!");
-    //               return;
-    //             }
-
-    //             try {
-    //               // BƯỚC 1: Hoàn tồn kho ngay lập tức
-    //               await dispatch(
-    //                 tangSoLuong({ id: chiTietId, soLuong: soLuongXoa })
-    //               ).unwrap();
-
-    //               // BƯỚC 2: Xóa khỏi danh sách hiển thị
-    //               setInvoiceProducts((prev) =>
-    //                 prev.filter((p) => getProductKey(p) !== productKey)
-    //               );
-
-    //               // BƯỚC 3: Xóa số lượng đang edit
-    //               setEditingQuantities((prev) => {
-    //                 const newQty = { ...prev };
-    //                 delete newQty[productKey];
-    //                 return newQty;
-    //               });
-
-    //               message.success(
-    //                 `Đã xóa sản phẩm và hoàn ${soLuongXoa} cái về tồn kho!`
-    //               );
-    //             } catch (err) {
-    //               console.error("Lỗi hoàn tồn kho khi xóa:", err);
-    //               message.error("Không thể hoàn tồn kho. Vui lòng thử lại!");
-    //             }
-    //           };
-
-    //           return (
-    //             <Button
-    //               type="text"
-    //               danger
-    //               size="small"
-    //               icon={<TrashIcon size={18} />}
-    //               onClick={handleDelete}
-    //               title="Xóa sản phẩm khỏi hóa đơn"
-    //               className="hover:bg-red-50"
-    //             />
-    //           );
-    //         },
-    //       },
-    //     ]
-    //   : []),
   ];
 
   if (loading) {
@@ -1611,29 +1491,47 @@ const DetailHoaDon = () => {
               <Space>
                 {isEditing ? (
                   <Space>
-                    <div
-                      className="flex gap-1 items-center cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-sm text-white hover:bg-cyan-800 active:bg-cyan-800 shadow transition-colors"
+                    <Button
+                      type="primary"
                       onClick={handleSave}
+                      icon={<CheckCircleOutlined />}
                     >
-                      <FloppyDiskIcon size={20} weight="fill" /> Lưu
-                    </div>
-                    <div
-                      className="flex gap-1 items-center cursor-pointer select-none  text-center py-2 px-6 rounded-lg bg-[#777676] font-bold text-sm text-white   hover:bg-red-600 active:bg-rose-900 border  active:border-[#808080] shadow transition-colors"
+                      Lưu
+                    </Button>
+                    <Button
                       onClick={handleCancelEdit}
+                      icon={<CloseCircleOutlined />}
                     >
-                      <XCircleIcon size={20} weight="fill" /> Hủy
-                    </div>
+                      Hủy
+                    </Button>
                   </Space>
                 ) : canEdit && invoice?.trangThai === 0 ? (
-                  <div
+                  <Button
+                    type="primary"
                     onClick={handleEditToggle}
-                    className="font-bold text-sm py-2 px-4 min-w-[120px] cursor-pointer select-none text-center rounded-md bg-[#E67E22] text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+                    icon={<EditOutlined />}
                   >
                     Chỉnh sửa
-                  </div>
+                  </Button>
                 ) : (
                   <Button icon={<LockOutlined />} disabled>
                     Không thể sửa
+                  </Button>
+                )}
+
+                
+                {invoice?.trangThai === 4 && (
+                  <Button
+                    icon={<DollarOutlined />}
+                    onClick={kiemTraHoanTien}
+                    loading={kiemTraHoanTienLoading}
+                    style={{
+                      backgroundColor: "#52c41a",
+                      color: "white",
+                      borderColor: "#52c41a",
+                    }}
+                  >
+                    Hoàn tiền
                   </Button>
                 )}
 
@@ -1680,12 +1578,13 @@ const DetailHoaDon = () => {
                             <UserOutlined /> Thông tin khách hàng
                           </div>
                           {isEditing && canEditCustomerInfo && (
-                            <div
-                              className="cursor-pointer select-none text-center py-2 px-6 rounded-lg bg-[#E67E22] font-bold text-sm text-white hover:bg-amber-600 active:bg-cyan-800 shadow transition-colors"
+                            <Button
+                              type="default"
+                              size="small"
                               onClick={openAddressModal}
                             >
                               Chọn địa chỉ
-                            </div>
+                            </Button>
                           )}
                         </div>
                       }
@@ -1896,7 +1795,7 @@ const DetailHoaDon = () => {
                     <>
                       <div className="flex justify-between items-center">
                         <div>
-                          <ShoppingOutlined /> Danh sách sản phẩm chọn
+                          <ShoppingOutlined /> Danh sách sản phẩm
                         </div>
                       </div>
                     </>
@@ -1914,13 +1813,6 @@ const DetailHoaDon = () => {
                     <Empty description="Không có sản phẩm" />
                   )}
                 </Card>
-
-                {/* COMMENT: Đã comment component thêm sản phẩm */}
-                {/* {showBillProduct && isEditing && canEditProducts && (
-                  <div style={{ marginBottom: 16 }}>
-                    <BillProduct onAddProduct={handleAddProductToInvoice} />
-                  </div>
-                )} */}
 
                 <Card title="Ghi chú của khách" style={{ marginBottom: 16 }}>
                   <div>
@@ -1991,26 +1883,6 @@ const DetailHoaDon = () => {
                         </Text>
                       </div>
                     )}
-
-                    {/* {finalTotal.tienGiamGia > 0 &&
-                      finalTotal.phieuGiamGiaInfo && (
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#d4380d",
-                            background: "#fff2e8",
-                            padding: "4px 8px",
-                            borderRadius: 4,
-                          }}
-                        >
-                          Áp dụng:{" "}
-                          <strong>
-                            {finalTotal.phieuGiamGiaInfo.tenPhieu}
-                          </strong>
-                          {finalTotal.phieuGiamGiaInfo.maPhieu &&
-                            ` (${finalTotal.phieuGiamGiaInfo.maPhieu})`}
-                        </div>
-                      )} */}
 
                     <Divider style={{ margin: "12px 0" }} />
 
@@ -2109,6 +1981,7 @@ const DetailHoaDon = () => {
           </Form>
         </div>
 
+        {/* Email Modal */}
         <Modal
           title={
             <Space>
@@ -2162,6 +2035,7 @@ const DetailHoaDon = () => {
           </Form>
         </Modal>
 
+        {/* Address Modal */}
         {addressModalVisible && (
           <Modal
             title={
@@ -2219,6 +2093,14 @@ const DetailHoaDon = () => {
             )}
           </Modal>
         )}
+
+        <HoanTienModal
+          visible={hoanTienModalVisible}
+          onCancel={() => setHoanTienModalVisible(false)}
+          onSuccess={handleHoanTienSuccess}
+          hoaDonId={id}
+          invoice={invoice}
+        />
       </div>
     </>
   );

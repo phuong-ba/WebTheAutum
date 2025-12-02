@@ -154,7 +154,7 @@ export default function OrderDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="bg-gradient-to-b from-gray-50 to-white">
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 border-b flex justify-between items-center px-6 py-6 shadow-md">
         <div className="flex items-start gap-4">
           <div className="bg-white rounded-xl p-4 shadow-sm">
