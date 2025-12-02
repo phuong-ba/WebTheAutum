@@ -13,14 +13,13 @@ import {
   Segmented,
   Calendar,
   Badge,
-  Breadcrumb,
   Card,
   Space,
+  Breadcrumb,
 } from "antd";
 import {
   ClockCircleOutlined,
   PlusOutlined,
-  EditOutlined,
   DeleteOutlined,
   CalendarOutlined,
   TeamOutlined,
@@ -34,6 +33,10 @@ import {
   LeftOutlined,
   RightOutlined,
 } from "@ant-design/icons";
+
+// Đã cập nhật theo yêu cầu trước đó
+import { PencilLine } from "@phosphor-icons/react";
+
 import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
@@ -256,7 +259,7 @@ export default function ShiftManagement() {
     }
   };
 
-  // --- ACTIONS: CA LÀM VIỆC ---
+  // --- ACTIONS: CA LÀM VIỆC (Giữ nguyên) ---
   const handleSaveCa = async () => {
     if (!formCa.tenCa || !formCa.gioBatDau || !formCa.gioKetThuc) {
       showNotification("error", "Vui lòng nhập đầy đủ tên và giờ");
@@ -298,7 +301,7 @@ export default function ShiftManagement() {
     }
   };
 
-  // 🔴 HÀM XÓA CA: ĐÃ CHUYỂN DÙNG useModal
+  // 🔴 HÀM XÓA CA (Giữ nguyên)
   const handleDeleteCa = (id) => {
     modal.confirm({
       title: "Xác nhận xóa ca làm việc?",
@@ -339,7 +342,7 @@ export default function ShiftManagement() {
     });
   };
 
-  // --- ACTIONS: PHÂN CA ---
+  // --- ACTIONS: PHÂN CA (Giữ nguyên) ---
   const handleSavePhanCa = async () => {
     if (
       !formPhanCa.idNhanVien ||
@@ -386,7 +389,7 @@ export default function ShiftManagement() {
     }
   };
 
-  // 🔴 HÀM XÓA PHÂN CA: ĐÃ CHUYỂN DÙNG useModal
+  // 🔴 HÀM XÓA PHÂN CA (Giữ nguyên)
   const handleDeletePhanCa = (id) => {
     modal.confirm({
       title: "Xác nhận xóa phân ca?",
@@ -486,28 +489,31 @@ export default function ShiftManagement() {
       "Ghi chú": p.ghiChu,
     }));
 
-  // --- TABLE COLUMNS (Đồng bộ với form bảng hóa đơn) ---
+  // --- TABLE COLUMNS (ĐÃ CẬP NHẬT ICON SỬA SANG PencilLine VÀ CÂN CHỈNH LẠI) ---
   const shiftColumns = [
     {
       title: "STT",
       key: "stt",
       align: "center",
-      width: 60,
+      width: 50,
       render: (_, __, index) => index + 1,
+      className: "column-centered",
     },
     {
       title: "MÃ CA",
       dataIndex: "id",
       key: "id",
       align: "center",
-      width: 100,
+      width: 80,
       render: (text) => `CA${text}`,
+      className: "column-centered",
     },
     {
       title: "TÊN CA",
       dataIndex: "tenCa",
       key: "tenCa",
       align: "left",
+      width: 150,
       render: (text) => text || "—",
     },
     {
@@ -515,16 +521,18 @@ export default function ShiftManagement() {
       dataIndex: "gioBatDau",
       key: "gioBatDau",
       align: "center",
-      width: 140,
+      width: 120,
       render: (text) => text || "—",
+      className: "column-centered",
     },
     {
       title: "GIỜ KẾT THÚC",
       dataIndex: "gioKetThuc",
       key: "gioKetThuc",
       align: "center",
-      width: 140,
+      width: 120,
       render: (text) => text || "—",
+      className: "column-centered",
     },
     {
       title: "MÔ TẢ",
@@ -532,6 +540,7 @@ export default function ShiftManagement() {
       key: "moTa",
       align: "left",
       ellipsis: true,
+      width: 300,
       render: (text) => text || "—",
     },
     {
@@ -544,7 +553,7 @@ export default function ShiftManagement() {
           <Tooltip title="Chỉnh sửa">
             <Button
               type="text"
-              icon={<EditOutlined />}
+              icon={<PencilLine size={18} color={PRIMARY_COLOR} weight="bold" />}
               onClick={() => openEditCa(record)}
             />
           </Tooltip>
@@ -558,6 +567,7 @@ export default function ShiftManagement() {
           </Tooltip>
         </Space>
       ),
+      className: "column-centered",
     },
   ];
 
@@ -566,22 +576,25 @@ export default function ShiftManagement() {
       title: "STT",
       key: "stt",
       align: "center",
-      width: 60,
+      width: 50,
       render: (_, __, index) => index + 1,
+      className: "column-centered",
     },
     {
       title: "MÃ PC",
       dataIndex: "id",
       key: "id",
       align: "center",
-      width: 100,
+      width: 80,
       render: (text) => `PC${text}`,
+      className: "column-centered",
     },
     {
       title: "NHÂN VIÊN",
       dataIndex: "hoTenNhanVien",
       key: "hoTenNhanVien",
       align: "left",
+      width: 150,
       render: (text) => text || "—",
     },
     {
@@ -589,26 +602,29 @@ export default function ShiftManagement() {
       dataIndex: "tenCa",
       key: "tenCa",
       align: "center",
-      width: 150,
+      width: 120,
       render: (text) => text || "—",
+      className: "column-centered",
     },
     {
       title: "NGÀY PHÂN CA",
       dataIndex: "ngayPhanCa",
       key: "ngayPhanCa",
       align: "center",
-      width: 140,
+      width: 130,
       render: (date) => dayjs(date).format("DD/MM/YYYY"),
+      className: "column-centered",
     },
     {
       title: "GIỜ LÀM VIỆC",
       key: "time",
       align: "center",
-      width: 150,
+      width: 130,
       render: (_, record) =>
         record.gioBatDau && record.gioKetThuc
           ? `${record.gioBatDau} - ${record.gioKetThuc}`
           : "—",
+      className: "column-centered",
     },
     {
       title: "GHI CHÚ",
@@ -616,6 +632,7 @@ export default function ShiftManagement() {
       key: "ghiChu",
       align: "left",
       ellipsis: true,
+      width: 150,
       render: (text) => text || "—",
     },
     {
@@ -623,7 +640,7 @@ export default function ShiftManagement() {
       dataIndex: "trangThai",
       key: "trangThai",
       align: "center",
-      width: 160,
+      width: 150,
       render: (trangThai) => {
         const isActive = trangThai;
         const color = isActive ? "#52C41A" : "#FF4D4F";
@@ -639,6 +656,7 @@ export default function ShiftManagement() {
           </Tag>
         );
       },
+      className: "column-centered",
     },
     {
       title: "HÀNH ĐỘNG",
@@ -650,7 +668,7 @@ export default function ShiftManagement() {
           <Tooltip title="Chỉnh sửa">
             <Button
               type="text"
-              icon={<EditOutlined />}
+              icon={<PencilLine size={18} color={PRIMARY_COLOR} weight="bold" />}
               onClick={() => openEditPhanCa(record)}
             />
           </Tooltip>
@@ -664,6 +682,7 @@ export default function ShiftManagement() {
           </Tooltip>
         </Space>
       ),
+      className: "column-centered",
     },
   ];
 
@@ -927,7 +946,7 @@ export default function ShiftManagement() {
               onClick={() =>
                 exportToCSV(
                   activeTab === "shifts" ? "ca-lam-viec.csv" : "phan-ca.csv",
-                  activeTab === "shifts" ? caLamViec : prepareAssignmentData()
+                  activeTab === "shifts" ? prepareShiftData() : prepareAssignmentData()
                 )
               }
               className="!bg-white !border-white !text-[#ff8c42] font-medium hover:!bg-amber-800 hover:!text-white"
@@ -940,7 +959,8 @@ export default function ShiftManagement() {
         <div className="p-4">
           {activeTab === "shifts" ? (
             <Table
-              className="shift-table"
+              // Bổ sung custom class để thêm đường kẻ dọc, giống như bảng Hóa đơn
+              className="shift-table custom-striped-table"
               columns={shiftColumns}
               dataSource={caLamViec}
               rowKey="id"
@@ -956,11 +976,12 @@ export default function ShiftManagement() {
               rowClassName={() =>
                 "hover:bg-orange-50/40 transition-colors cursor-pointer"
               }
-              scroll={{ x: 1200 }}
+              scroll={{ x: 1000 }}
             />
           ) : assignmentsView === "list" ? (
             <Table
-              className="shift-table"
+              // Bổ sung custom class để thêm đường kẻ dọc, giống như bảng Hóa đơn
+              className="shift-table custom-striped-table"
               columns={assignmentColumns}
               dataSource={filteredPhanCa}
               rowKey="id"
