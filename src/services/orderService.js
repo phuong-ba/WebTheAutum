@@ -7,7 +7,7 @@ export const addOrder = createAsyncThunk(
     "order/addOrder",
     async (orderRequest, { rejectWithValue }) => {
         try {
-            const response = await baseUrl.post("orders/place-order", orderRequest);
+            const response = await baseUrl.post("hoa-don/add", orderRequest);
 
             console.log("Đặt hàng thành công:", response.data);
             return response.data; // { success: true, message: "...", data: { hoaDon, paymentUrl } }
