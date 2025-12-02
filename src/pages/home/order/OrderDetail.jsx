@@ -209,7 +209,7 @@ export default function OrderDetailPage() {
                         </span>
                         <span className="font-semibold text-orange-600">
                           {formatVND(
-                            item.thanhTien || item.giaBan * item.soLuong
+                            item.giaSauGiam
                           )}
                         </span>
                       </div>

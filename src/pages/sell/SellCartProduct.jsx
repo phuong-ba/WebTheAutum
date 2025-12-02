@@ -8,7 +8,7 @@ import {
   fetchChiTietSanPham,
   giamSoLuong,
 } from "@/services/chiTietSanPhamService";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 const { Option } = Select;
@@ -27,15 +27,62 @@ export default function SellCartProduct({ selectedBillId }) {
 
   const [editingQuantities, setEditingQuantities] = useState({});
 
+  const inactiveProductsHandled = useRef(false);
+
   useEffect(() => {
     dispatch(fetchChiTietSanPham());
   }, [dispatch]);
 
+  const removeInactiveProductsFromCart = async () => {
+    if (inactiveProductsHandled.current) return; // Nếu đã chạy rồi thì thôi
+    inactiveProductsHandled.current = true;
+
+    if (!cartProducts.length || !productList.length) return;
+
+    const inactiveItems = cartProducts.filter((cartItem) => {
+      const product = productList.find(
+        (p) => p.id === cartItem.idChiTietSanPham
+      );
+      return product?.trangThai === false;
+    });
+
+    if (inactiveItems.length > 0) {
+      for (const item of inactiveItems) {
+        try {
+          // Trả lại kho đúng số lượng hiện có trong giỏ
+          await dispatch(
+            tangSoLuong({ id: item.idChiTietSanPham, soLuong: item.quantity })
+          ).unwrap();
+        } catch (error) {
+          console.error("Lỗi khi trả lại số lượng tồn kho:", error);
+        }
+      }
+
+      // Lọc lại giỏ, chỉ giữ sản phẩm active
+      const activeCart = cartProducts.filter((cartItem) => {
+        const product = productList.find(
+          (p) => p.id === cartItem.idChiTietSanPham
+        );
+        return product?.trangThai === true;
+      });
+
+      setCartProducts(activeCart);
+      saveCartToBill(activeCart);
+
+      messageApi.info(
+        "Một số sản phẩm đã ngừng kinh doanh và được loại khỏi giỏ hàng. Số lượng đã được trả lại kho."
+      );
+
+      window.dispatchEvent(new Event("cartUpdated"));
+    }
+  };
+
   const loadCartFromBill = () => {
+    inactiveProductsHandled.current = false;
+
     if (!selectedBillId) {
       setCartProducts([]);
       setFilteredCartProducts([]);
-      setEditingQuantities({});
       return;
     }
 
@@ -46,15 +93,10 @@ export default function SellCartProduct({ selectedBillId }) {
       setCartProducts(currentBill.cart);
       setFilteredCartProducts(currentBill.cart);
 
-      const initialEditing = {};
-      currentBill.cart.forEach((item) => {
-        initialEditing[item.idChiTietSanPham] = item.quantity;
-      });
-      setEditingQuantities(initialEditing);
+      setTimeout(removeInactiveProductsFromCart, 0);
     } else {
       setCartProducts([]);
       setFilteredCartProducts([]);
-      setEditingQuantities({});
     }
   };
 
@@ -63,9 +105,14 @@ export default function SellCartProduct({ selectedBillId }) {
   }, [selectedBillId]);
 
   useEffect(() => {
-    const handleCartUpdated = () => loadCartFromBill();
+    const handleCartUpdated = () => {
+      inactiveProductsHandled.current = false; // Reset cờ
+      loadCartFromBill();
+    };
+
     window.addEventListener("cartUpdated", handleCartUpdated);
     window.addEventListener("billsUpdated", handleCartUpdated);
+
     return () => {
       window.removeEventListener("cartUpdated", handleCartUpdated);
       window.removeEventListener("billsUpdated", handleCartUpdated);
@@ -149,7 +196,6 @@ export default function SellCartProduct({ selectedBillId }) {
     ...new Set(cartProducts.map((p) => p.color).filter(Boolean)),
   ];
 
-  // Cập nhật giá khi có khuyến mãi mới
   const updateCartPrices = () => {
     if (!productList?.length || !cartProducts.length) return;
 
@@ -168,6 +214,8 @@ export default function SellCartProduct({ selectedBillId }) {
 
     setCartProducts(updated);
     saveCartToBill(updated);
+
+    removeInactiveProductsFromCart();
   };
 
   useEffect(() => {
@@ -193,6 +241,8 @@ export default function SellCartProduct({ selectedBillId }) {
     );
 
     localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
+
+    // Đẩy event thông báo cập nhật bills
     window.dispatchEvent(new Event("billsUpdated"));
   };
 

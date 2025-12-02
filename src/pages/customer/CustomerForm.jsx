@@ -389,7 +389,7 @@ export default function CustomerForm({ customer, onCancel, onSuccess }) {
                   {
                     validator: (_, value) => {
                       if (!value) return Promise.resolve();
-                      const birth = value; 
+                      const birth = value;
                       const now = dayjs();
 
                       if (birth.isAfter(now)) {

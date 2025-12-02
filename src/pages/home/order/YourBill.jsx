@@ -29,7 +29,7 @@ export default function YourBill() {
         order.maHoaDon.toLowerCase().includes(searchText.toLowerCase())
       )
     : customerToken
-    ? data?.filter((order) => order.khachHang.id.toString() === customerId)
+    ? data?.filter((order) => order?.khachHang?.id.toString() === customerId)
     : [];
 
   const handleSearch = () => {
@@ -48,7 +48,7 @@ export default function YourBill() {
   const ordersToShow = isSearching
     ? searchedOrders
     : customerToken
-    ? data?.filter((order) => order.khachHang.id.toString() === customerId)
+    ? data?.filter((order) => order?.khachHang?.id.toString() === customerId)
     : [];
 
   const hasOrders = ordersToShow && ordersToShow.length > 0;
