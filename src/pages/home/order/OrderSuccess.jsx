@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { CheckCircle, Package, Truck, MapPin } from "lucide-react";
 import { CheckCircleIcon, SealCheckIcon } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "react-router";
@@ -7,7 +7,9 @@ export default function OrderSuccess() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(id);
