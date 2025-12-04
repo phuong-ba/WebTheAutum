@@ -2,6 +2,91 @@ import baseUrl from "@/api/instance";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { authService } from "./authService";
 
+// Fetch today's assigned shift for an employee (phanCa)
+export const fetchTodayAssignedShift = async (nhanVienId) => {
+  try {
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+    console.log("📅 Fetching assigned shift for:", nhanVienId, "on date:", today);
+    
+    // Get all phanCa (shift assignments)
+    const phanCaResponse = await baseUrl.get("phan-ca");
+    const phanCaList = Array.isArray(phanCaResponse.data) ? phanCaResponse.data : [];
+    
+    // Find today's assignment for this employee
+    const todayAssignment = phanCaList.find(
+      (pc) => pc && 
+      String(pc.idNhanVien) === String(nhanVienId) &&
+      pc.ngayPhanCa === today
+    );
+    
+    if (!todayAssignment) {
+      console.log("❌ No assigned shift found for today");
+      return null;
+    }
+    
+    console.log("✅ Found today's assignment:", todayAssignment);
+    
+    // Get shift definition (caLamViec) to get the scheduled end time
+    const caLamViecResponse = await baseUrl.get("ca-lam-viec");
+    const caLamViecList = Array.isArray(caLamViecResponse.data) ? caLamViecResponse.data : [];
+    
+    const shiftDefinition = caLamViecList.find(
+      (ca) => ca && String(ca.id) === String(todayAssignment.idCaLamViec)
+    );
+    
+    if (!shiftDefinition) {
+      console.log("⚠️ Shift definition not found for id:", todayAssignment.idCaLamViec);
+      return todayAssignment;
+    }
+    
+    console.log("📊 Shift definition:", shiftDefinition);
+    
+    // Combine assignment with shift definition
+    return {
+      ...todayAssignment,
+      tenCa: shiftDefinition.tenCa,
+      gioBatDau: shiftDefinition.gioBatDau, // e.g., "07:00"
+      gioKetThuc: shiftDefinition.gioKetThuc, // e.g., "12:00"
+      moTaCa: shiftDefinition.moTa
+    };
+  } catch (error) {
+    console.error("⚠️ Error fetching today's assigned shift:", error);
+    return null;
+  }
+};
+
+// Check if current time has passed the scheduled shift end time
+export const isShiftTimeExpired = (gioKetThuc) => {
+  if (!gioKetThuc) return false;
+  
+  const now = new Date();
+  const [endHour, endMinute] = gioKetThuc.split(":").map(Number);
+  
+  const endTime = new Date();
+  endTime.setHours(endHour, endMinute, 0, 0);
+  
+  const isExpired = now > endTime;
+  console.log(`⏰ Shift end check: Current time ${now.toLocaleTimeString()} vs End time ${gioKetThuc} -> Expired: ${isExpired}`);
+  
+  return isExpired;
+};
+
+// Get remaining time until shift ends (in minutes)
+export const getShiftRemainingTime = (gioKetThuc) => {
+  if (!gioKetThuc) return null;
+  
+  const now = new Date();
+  const [endHour, endMinute] = gioKetThuc.split(":").map(Number);
+  
+  const endTime = new Date();
+  endTime.setHours(endHour, endMinute, 0, 0);
+  
+  const diffMs = endTime - now;
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  
+  return diffMinutes;
+};
+
 export const fetchCaDangHoatDong = createAsyncThunk(
   "giaoCa/fetchCurrent",
   async (nhanVienId, { rejectWithValue }) => {
@@ -13,9 +98,10 @@ export const fetchCaDangHoatDong = createAsyncThunk(
       const list = Array.isArray(data) ? data : [];
       console.log("📊 Lấy danh sách giao ca, count:", list.length);
 
-      // Find the first active shift (no thoiGianKetThuc or isCompleted !== true)
+      // Find the first active shift (no thoiGianKetThuc or isCompleted !== true) for this employee
       const activeShift = list.find(
-        (gc) => gc && (!gc.thoiGianKetThuc || gc.isCompleted !== true)
+        (gc) => gc && (!gc.thoiGianKetThuc || gc.isCompleted !== true) &&
+        (gc.idNhanVien === nhanVienId || gc.nhanVienId === nhanVienId || gc.id_nhan_vien === nhanVienId)
       );
 
       if (activeShift) {
@@ -112,9 +198,10 @@ export const checkRemainingShift = async () => {
     const list = Array.isArray(data) ? data : [];
     console.log("📋 Danh sách giao ca còn lại:", list.length);
 
-    // Find active shift (no thoiGianKetThuc and not completed)
+    // Find active shift that belongs to current user (no thoiGianKetThuc and not completed)
     const activeShift = list.find(
-      (gc) => gc && !gc.thoiGianKetThuc && gc.isCompleted !== true
+      (gc) => gc && !gc.thoiGianKetThuc && gc.isCompleted !== true &&
+      (gc.idNhanVien === nhanVienId || gc.nhanVienId === nhanVienId || gc.id_nhan_vien === nhanVienId)
     );
 
     if (activeShift) {

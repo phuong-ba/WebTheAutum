@@ -8,6 +8,7 @@ import {
   createEndShiftWarning,
   clearShiftStatus,
 } from "@/utils/shiftStatusHelper";
+import { useShift } from "@/contexts/ShiftContext";
 import { message, Modal } from "antd";
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -17,6 +18,9 @@ import ChangeShiftsBreadcrumb from "./ChangeShiftsBreadcrumb";
 export default function ChangeShifts() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  
+  // Use ShiftContext for immediate UI updates
+  const { setActiveShift, clearShift, refreshShiftStatus } = useShift();
 
   const currentShift = useSelector((state) => state.giaoCa?.currentShift);
   const loading = useSelector((state) => state.giaoCa?.loading);
@@ -67,6 +71,12 @@ export default function ChangeShifts() {
     if (startGiaoCa.fulfilled.match(result)) {
       setInitialCash("");
       setGhiChuBatDau("");
+      
+      // Update ShiftContext immediately
+      if (result.payload) {
+        setActiveShift(result.payload);
+      }
+      
       dispatch(fetchCaDangHoatDong(nhanVienId));
       messageApi.success({
         content: "Bắt đầu ca thành công! Chúc một ca làm việc hiệu quả!",
@@ -99,6 +109,9 @@ export default function ChangeShifts() {
 
       // Clear shift info from localStorage immediately
       clearShiftStatus();
+      
+      // Update ShiftContext immediately to block access
+      clearShift();
 
       messageApi.success({
         content: "Kết thúc ca thành công! Cảm ơn bạn đã làm việc chăm chỉ!",
