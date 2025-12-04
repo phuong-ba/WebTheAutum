@@ -34,7 +34,6 @@ import {
   RightOutlined,
 } from "@ant-design/icons";
 
-// Đã cập nhật theo yêu cầu trước đó
 import { PencilLine } from "@phosphor-icons/react";
 
 import { Link } from "react-router-dom";
@@ -53,7 +52,7 @@ const TITLE_COLOR = "#E67E22"; // Màu cam cho tiêu đề
 // --- CẤU HÌNH API ---
 const API_BASE = "http://localhost:8080/api";
 
-// --- HELPERS (Giữ nguyên) ---
+// --- HELPERS ---
 const exportToCSV = (filename, data, columns) => {
   if (!data || !data.length) {
     message.warning("Không có dữ liệu để xuất");
@@ -84,7 +83,7 @@ const exportToCSV = (filename, data, columns) => {
   document.body.removeChild(link);
 };
 
-// --- COMPONENT LỊCH (Giữ nguyên) ---
+// --- COMPONENT LỊCH (ĐÃ CẬP NHẬT HIỂN THỊ GIỜ) ---
 const AssignmentsCalendar = ({
   phanCa,
   calendarDate,
@@ -117,7 +116,8 @@ const AssignmentsCalendar = ({
               status="warning"
               text={
                 <span className="text-xs text-gray-600">
-                  {item.hoTenNhanVien} ({item.gioBatDau})
+                  {/* CẬP NHẬT: Hiển thị cả giờ bắt đầu và kết thúc */}
+                  {item.hoTenNhanVien} ({item.gioBatDau} - {item.gioKetThuc})
                 </span>
               }
             />
@@ -154,7 +154,6 @@ const AssignmentsCalendar = ({
 
 // --- COMPONENT CHÍNH ---
 export default function ShiftManagement() {
-  // 💡 SỬA LỖI CONFIRM MODAL: Dùng hook useModal
   const [modal, contextHolder] = Modal.useModal();
 
   // --- STATE ---
@@ -215,7 +214,7 @@ export default function ShiftManagement() {
     }
   }, [activeTab]);
 
-  // --- API CALLS (Giữ nguyên) ---
+  // --- API CALLS ---
   const fetchCaLamViec = async () => {
     try {
       const response = await fetch(`${API_BASE}/ca-lam-viec`);
@@ -259,7 +258,7 @@ export default function ShiftManagement() {
     }
   };
 
-  // --- ACTIONS: CA LÀM VIỆC (Giữ nguyên) ---
+  // --- ACTIONS: CA LÀM VIỆC ---
   const handleSaveCa = async () => {
     if (!formCa.tenCa || !formCa.gioBatDau || !formCa.gioKetThuc) {
       showNotification("error", "Vui lòng nhập đầy đủ tên và giờ");
@@ -301,7 +300,6 @@ export default function ShiftManagement() {
     }
   };
 
-  // 🔴 HÀM XÓA CA (Giữ nguyên)
   const handleDeleteCa = (id) => {
     modal.confirm({
       title: "Xác nhận xóa ca làm việc?",
@@ -342,7 +340,7 @@ export default function ShiftManagement() {
     });
   };
 
-  // --- ACTIONS: PHÂN CA (Giữ nguyên) ---
+  // --- ACTIONS: PHÂN CA ---
   const handleSavePhanCa = async () => {
     if (
       !formPhanCa.idNhanVien ||
@@ -389,7 +387,6 @@ export default function ShiftManagement() {
     }
   };
 
-  // 🔴 HÀM XÓA PHÂN CA (Giữ nguyên)
   const handleDeletePhanCa = (id) => {
     modal.confirm({
       title: "Xác nhận xóa phân ca?",
@@ -428,7 +425,7 @@ export default function ShiftManagement() {
     });
   };
 
-  // --- HELPER HANDLERS (Giữ nguyên) ---
+  // --- HELPER HANDLERS ---
   const openEditCa = (record) => {
     setEditingCa(record);
     setFormCa({ ...record });
@@ -472,7 +469,7 @@ export default function ShiftManagement() {
     return matches;
   });
 
-  // --- EXPORT PREPARATION (Giữ nguyên) ---
+  // --- EXPORT PREPARATION ---
   const prepareShiftData = () =>
     caLamViec.map((c) => ({
       "Tên ca": c.tenCa,
@@ -489,7 +486,7 @@ export default function ShiftManagement() {
       "Ghi chú": p.ghiChu,
     }));
 
-  // --- TABLE COLUMNS (ĐÃ CẬP NHẬT ICON SỬA SANG PencilLine VÀ CÂN CHỈNH LẠI) ---
+  // --- TABLE COLUMNS ---
   const shiftColumns = [
     {
       title: "STT",
@@ -695,7 +692,7 @@ export default function ShiftManagement() {
         minHeight: "100vh",
       }}
     >
-      {/* 🔴 CONTEXT HOLDER: PHẢI ĐƯỢC ĐẶT Ở ĐÂY */}
+      {/* CONTEXT HOLDER */}
       {contextHolder}
 
       {/* CUSTOM TOAST NOTIFICATION */}
@@ -803,7 +800,6 @@ export default function ShiftManagement() {
       </div>
 
       {/* SEARCH & FILTER */}
-      {/* --- Tiêu đề bộ lọc --- */}
       <div
         className="text-white px-6 py-2 rounded-t-lg shadow"
         style={{
@@ -827,7 +823,6 @@ export default function ShiftManagement() {
         }}
         bodyStyle={{ padding: "20px" }}
       >
-        {/* --- Hàng trên: 3 ô --- */}
         <div
           style={{
             display: "grid",
@@ -946,7 +941,9 @@ export default function ShiftManagement() {
               onClick={() =>
                 exportToCSV(
                   activeTab === "shifts" ? "ca-lam-viec.csv" : "phan-ca.csv",
-                  activeTab === "shifts" ? prepareShiftData() : prepareAssignmentData()
+                  activeTab === "shifts"
+                    ? prepareShiftData()
+                    : prepareAssignmentData()
                 )
               }
               className="!bg-white !border-white !text-[#ff8c42] font-medium hover:!bg-amber-800 hover:!text-white"
@@ -959,7 +956,6 @@ export default function ShiftManagement() {
         <div className="p-4">
           {activeTab === "shifts" ? (
             <Table
-              // Bổ sung custom class để thêm đường kẻ dọc, giống như bảng Hóa đơn
               className="shift-table custom-striped-table"
               columns={shiftColumns}
               dataSource={caLamViec}
@@ -969,7 +965,9 @@ export default function ShiftManagement() {
                 pageSize: 5,
                 showSizeChanger: true,
                 showTotal: (total) => (
-                  <span className="text-gray-400 text-sm">Tổng {total} ca</span>
+                  <span className="text-gray-400 text-sm">
+                    Tổng {total} ca
+                  </span>
                 ),
                 pageSizeOptions: ["5", "10", "20", "50"],
               }}
@@ -980,7 +978,6 @@ export default function ShiftManagement() {
             />
           ) : assignmentsView === "list" ? (
             <Table
-              // Bổ sung custom class để thêm đường kẻ dọc, giống như bảng Hóa đơn
               className="shift-table custom-striped-table"
               columns={assignmentColumns}
               dataSource={filteredPhanCa}
@@ -1037,7 +1034,7 @@ export default function ShiftManagement() {
         </div>
       </div>
 
-      {/* MODALS: Áp dụng màu cam cho nút chính */}
+      {/* MODALS */}
       {/* --- MODAL: THÊM/SỬA CA --- */}
       <Modal
         title={
@@ -1201,7 +1198,9 @@ export default function ShiftManagement() {
                 className="w-full rounded-lg"
                 format="DD/MM/YYYY"
                 value={
-                  formPhanCa.ngayPhanCa ? dayjs(formPhanCa.ngayPhanCa) : null
+                  formPhanCa.ngayPhanCa
+                    ? dayjs(formPhanCa.ngayPhanCa)
+                    : null
                 }
                 onChange={(date, dateString) =>
                   setFormPhanCa({
