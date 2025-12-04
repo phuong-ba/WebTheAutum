@@ -4,10 +4,13 @@ import logo from "/src/assets/login/logoAutumn.png";
 import { Form, Input, message } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { fetchCaDangHoatDong } from "@/services/giaoCaService";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [messageApi, contextHolder] = message.useMessage();
 
   const onFinish = async (values) => {
@@ -45,13 +48,18 @@ export default function Login() {
           })
         );
 
-        const role = (data.chucVuName || "").trim().toLowerCase();
-
-        if (role === "quản lý" || role === "admin") {
-          navigate("/admin");
-        } else {
-          navigate("/admin");
+        // After login, always redirect to giao ca page so user can start/continue shift
+        // Also trigger fetching current shift into redux store for route guard
+        try {
+          const userId = data.id;
+          if (userId) {
+            dispatch(fetchCaDangHoatDong(userId));
+          }
+        } catch (e) {
+          console.warn("Failed to fetch giao ca after login", e);
         }
+
+        navigate("/admin/changeShifts");
       } else {
         messageApi.error({
           content: (

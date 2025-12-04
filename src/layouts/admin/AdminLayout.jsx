@@ -4,6 +4,7 @@ import Footer from "./Footer";
 import { Outlet } from "react-router";
 import Navbar from "./Navbar";
 import LoginSuccessNotification from '@/pages/auth/LoginSuccessNotification';
+import ShiftCheckMiddleware from '@/pages/shift/ShiftCheckMiddleware';
 
 export default function AdminLayout() {
   return (
@@ -15,7 +16,9 @@ export default function AdminLayout() {
         <Header />
 
         <div className="flex-1 bg-[#f3f3f9] overflow-auto">
-          <Outlet />
+          <ShiftCheckMiddleware>
+            <Outlet />
+          </ShiftCheckMiddleware>
         </div>
         <Footer />
       </div>

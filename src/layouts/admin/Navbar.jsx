@@ -18,6 +18,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Menu } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { ClockUserIcon } from "@phosphor-icons/react";
 
 export default function Navbar() {
@@ -30,6 +31,10 @@ export default function Navbar() {
     const role = localStorage.getItem("user_role") || "STAFF";
     setUserRole(role);
   }, []);
+
+  // Lấy trạng thái giao ca từ redux (nếu có)
+  const currentShift = useSelector((state) => state.giaoCa?.currentShift);
+  const giaoCaLoading = useSelector((state) => state.giaoCa?.loading);
 
   // Menu items cho ADMIN/QUẢN LÝ (Full quyền)
   const adminMenuItems = [
@@ -148,7 +153,31 @@ export default function Navbar() {
         mode="inline"
         inlineCollapsed={collapsed}
         items={getMenuItems()}
-        onClick={({ key }) => navigate(key)}
+        onClick={({ key }) => {
+          // Always allow navigating to changeShifts itself
+          if (String(key).startsWith("/admin/changeShifts")) {
+            navigate(key);
+            return;
+          }
+
+          const roleNormalized = (userRole || "").toString().trim().toLowerCase();
+          const isManager = roleNormalized === "quản lý" || roleNormalized === "admin" || roleNormalized.includes("quản lý");
+
+          // If manager/admin -> allow all navigation
+          if (isManager) {
+            navigate(key);
+            return;
+          }
+
+          // If redux has an active shift, allow; otherwise redirect to giao ca management
+          if (currentShift) {
+            navigate(key);
+            return;
+          }
+
+          // fallback: when loading or unknown, redirect to giao ca page
+          navigate("/admin/changeShifts");
+        }}
         className="custom-menu flex-1 w-full border-none"
         style={{
           backgroundColor: "#FDF6EC",
