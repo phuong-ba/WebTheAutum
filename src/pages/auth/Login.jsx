@@ -5,7 +5,11 @@ import { Form, Input, message } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { fetchCaDangHoatDong } from "@/services/giaoCaService";
+import {
+  fetchCaDangHoatDong,
+  checkRemainingShift,
+} from "@/services/giaoCaService";
+import { authService } from "@/services/authService";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -16,7 +20,6 @@ export default function Login() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-
       const response = await fetch("http://localhost:8080/api/auth/login", {
         method: "POST",
         headers: {
@@ -31,6 +34,7 @@ export default function Login() {
       const data = await response.json();
 
       if (data.accessToken) {
+        // Lưu thông tin đăng nhập
         localStorage.setItem("auth_token", data.accessToken);
         localStorage.setItem("token_type", data.typeToken || "Bearer");
         localStorage.setItem("user_name", data.hoTen || "");
@@ -48,18 +52,43 @@ export default function Login() {
           })
         );
 
-        // After login, always redirect to giao ca page so user can start/continue shift
-        // Also trigger fetching current shift into redux store for route guard
-        try {
-          const userId = data.id;
-          if (userId) {
-            dispatch(fetchCaDangHoatDong(userId));
+        console.log("✅ Đăng nhập thành công");
+        console.log("📋 User Role:", data.chucVuName);
+        console.log("👤 User ID:", data.id);
+
+        // Sau khi đăng nhập, lấy thông tin giao ca (non-blocking)
+        const userId = data.id;
+        if (userId) {
+          try {
+            // Lấy ca đang hoạt động
+            await dispatch(fetchCaDangHoatDong(userId)).unwrap();
+            console.log("✅ Lấy thông tin giao ca thành công");
+
+            // Kiểm tra xem nhân viên có ca nào không (đặc biệt là sau khi kết thúc ca)
+            const shiftCheck = await checkRemainingShift();
+            if (!shiftCheck.hasShift) {
+              console.log("⚠️ Nhân viên không có ca hoạt động");
+              // Cập nhật trạng thái
+              localStorage.setItem("giao_ca_status", "inactive");
+            }
+          } catch (e) {
+            console.warn("⚠️ Lỗi khi lấy thông tin giao ca:", e);
+            // Tiếp tục dù lỗi, không block đăng nhập
           }
-        } catch (e) {
-          console.warn("Failed to fetch giao ca after login", e);
         }
 
-        navigate("/admin/changeShifts");
+        // Chuyển hướng dựa trên role
+        const normalizedRole = data.chucVuName?.trim().toLowerCase();
+        if (normalizedRole === "quản lý") {
+          console.log("🔐 Đi tới admin dashboard");
+          navigate("/admin");
+        } else if (normalizedRole === "nhân viên") {
+          console.log("🔐 Đi tới giao ca");
+          navigate("/admin/changeShifts");
+        } else {
+          console.log("🔐 Role không rõ ràng, đi tới /admin");
+          navigate("/admin");
+        }
       } else {
         messageApi.error({
           content: (
