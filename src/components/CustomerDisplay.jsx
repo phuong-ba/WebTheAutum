@@ -107,7 +107,11 @@ export default function CustomerDisplay() {
                 setCurrentOrder(normalizedOrder);
                 setCountdown(10);
               } else {
-                setStatus("ACTIVE");
+                if (normalizedOrder.qrCodeString) {
+                  setStatus("PAYMENT");
+                } else {
+                  setStatus("ACTIVE");
+                }
                 setCurrentOrder(normalizedOrder);
               }
             } catch (error) {
@@ -194,6 +198,7 @@ export default function CustomerDisplay() {
 
   // --- RENDER STATES ---
   if (status === "IDLE") return <IdleScreen />;
+  if (status === "PAYMENT") return <PaymentScreen order={currentOrder} />;
   if (status === "CANCELLED")
     return <CancelledScreen order={currentOrder} countdown={countdown} />;
   if (status === "SUCCESS")
@@ -201,7 +206,7 @@ export default function CustomerDisplay() {
 
   // --- MAIN SCREEN ---
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col md:flex-row font-sans text-gray-800">
+    <div className="fixed inset-0 bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col md:flex-row font-sans text-gray-800 overflow-y-auto">
       {/* CỘT TRÁI: SẢN PHẨM */}
       <div className="w-full md:w-[65%] h-full flex flex-col p-4 md:p-6 md:pr-3">
         <div className="rounded-t-2xl px-6 py-5 flex items-center justify-between text-white shadow-md bg-gradient-to-r from-orange-500 to-orange-600">
@@ -220,7 +225,7 @@ export default function CustomerDisplay() {
           </div>
         </div>
 
-        <div className="bg-white flex-grow rounded-b-2xl shadow-xl overflow-y-auto p-5 space-y-3 border-t-4 border-orange-500 custom-scrollbar">
+        <div className="bg-white flex-grow rounded-b-2xl shadow-xl p-5 space-y-3 border-t-4 border-orange-500">
           {currentOrder.items.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-400">
               <ShoppingCart
@@ -474,6 +479,65 @@ const CancelledScreen = ({ order, countdown }) => (
       <p className="font-bold text-2xl text-red-600">{order?.maHoaDon}</p>
     </div>
     <p className="text-gray-400 text-sm mt-6">Tự động đóng sau {countdown}s</p>
+  </div>
+);
+
+// --- PAYMENT SCREEN ---
+const PaymentScreen = ({ order }) => (
+  <div className="fixed inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+    <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 border-4 border-blue-200">
+      {/* QR Code */}
+      <div className="flex flex-col items-center mb-6">
+        <div className="bg-blue-100 p-4 rounded-2xl shadow-lg mb-4">
+          <QRCode value={order.qrCodeString} size={200} />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          Quét mã VietQR
+        </h2>
+        <p className="text-gray-600 text-center">
+          Vui lòng quét mã để thanh toán
+        </p>
+      </div>
+
+      {/* Thông tin tiền */}
+      <div className="space-y-4">
+        <div className="flex justify-between text-gray-700">
+          <span className="font-medium">Tổng tiền hàng</span>
+          <b className="text-lg">{formatCurrency(order.tongTien)}</b>
+        </div>
+
+        {order.tienGiam > 0 && (
+          <div className="flex justify-between text-green-600">
+            <span className="font-medium">Giảm giá</span>
+            <b className="text-lg">-{formatCurrency(order.tienGiam)}</b>
+          </div>
+        )}
+
+        {order.phiVanChuyen > 0 && (
+          <div className="flex justify-between text-blue-600">
+            <span className="font-medium">Phí vận chuyển</span>
+            <b className="text-lg">+{formatCurrency(order.phiVanChuyen)}</b>
+          </div>
+        )}
+
+        <div className="border-t-2 border-gray-300 pt-4">
+          <div className="flex justify-between items-center">
+            <span className="font-bold text-gray-800 text-lg">
+              Khách phải trả
+            </span>
+            <span className="text-3xl font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              {formatCurrency(order.tongTienSauGiam || order.tongTien)}
+            </span>
+          </div>
+        </div>
+
+        <div className="text-center mt-4">
+          <span className="text-sm text-white bg-gradient-to-r from-blue-600 to-purple-700 px-4 py-2 rounded-full uppercase font-bold shadow-sm">
+            {order.hinhThucThanhToan || "Chuyển khoản"}
+          </span>
+        </div>
+      </div>
+    </div>
   </div>
 );
 
