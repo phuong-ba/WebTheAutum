@@ -9,7 +9,12 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { ClockIcon, CreditCardIcon, PackageIcon, XCircleIcon } from "@phosphor-icons/react";
+import {
+  ClockIcon,
+  CreditCardIcon,
+  PackageIcon,
+  XCircleIcon,
+} from "@phosphor-icons/react";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { orderDetail } from "@/services/orderService";
@@ -41,10 +46,16 @@ export default function OrderDetailPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   useEffect(() => {
-    if (id) {
+    if (!id) return;
+
+    dispatch(orderDetail(id));
+
+    const interval = setInterval(() => {
       dispatch(orderDetail(id));
-    }
-  }, [dispatch, id]);
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [id, dispatch]);
 
   if (loading) {
     return (
@@ -81,7 +92,6 @@ export default function OrderDetailPage() {
         duration: 4,
       });
 
-      // Tải lại dữ liệu đơn hàng để cập nhật trạng thái
       dispatch(orderDetail(id));
     } catch (error) {
       console.error("Lỗi hủy đơn:", error);
@@ -302,15 +312,62 @@ export default function OrderDetailPage() {
                     <span className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-gray-400" /> Tạm tính
                     </span>
-
                     <span>{formatVND(data.tongTien || 0)}</span>
                   </div>
+
                   <div className="flex justify-between items-center">
                     <span className="flex items-center gap-2">
                       <Truck className="w-4 h-4 text-gray-400" /> Phí vận chuyển
                     </span>
                     <span>{formatVND(data.phiVanChuyen || 0)}</span>
                   </div>
+
+                  {/* THÊM HIỂN THỊ PHỤ PHÍ */}
+                  {(data.phiPhu > 0 || data.phiPhuMoi > 0) && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-amber-600 font-semibold">
+                        <span className="flex items-center gap-2">
+                          <svg
+                            className="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 9a1 1 0 012 0v3a1 1 0 11-2 0V9zm1-5a1 1 0 00-1 1v1a1 1 0 002 0V5a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Phụ phí
+                        </span>
+                        <span>
+                          +
+                          {formatVND(
+                            (data.phiPhu || 0) + (data.phiPhuMoi || 0)
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Hiển thị chi tiết phụ phí nếu có */}
+                      {data.phiPhuDetails && data.phiPhuDetails.length > 0 && (
+                        <div className="ml-6 space-y-1 text-sm">
+                          {data.phiPhuDetails.map((detail, index) => (
+                            <div
+                              key={index}
+                              className="flex justify-between text-amber-700"
+                            >
+                              <span className="text-xs">
+                                • {detail.ten || detail.loai}
+                              </span>
+                              <span className="text-xs">
+                                +{formatVND(detail.soTien || 0)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {data.giaTriGiamGia > 0 && (
                     <div className="flex justify-between items-center text-green-600 font-semibold">
@@ -329,6 +386,28 @@ export default function OrderDetailPage() {
                         {formatVND(data.tongTienSauGiam)}
                       </span>
                     </div>
+
+                    {/* Hiển thị ghi chú phụ phí nếu có */}
+                    {data.phiPhuDetails && data.phiPhuDetails.length > 0 && (
+                      <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-sm text-amber-800 font-medium mb-1">
+                          📝 Ghi chú phụ phí:
+                        </p>
+                        <ul className="text-xs text-amber-700 space-y-1">
+                          {data.phiPhuDetails.map((detail, index) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <span className="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 flex-shrink-0"></span>
+                              <span>
+                                {detail.ghiChu || detail.ten} -
+                                <span className="font-semibold ml-1">
+                                  +{formatVND(detail.soTien || 0)}
+                                </span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -338,7 +417,7 @@ export default function OrderDetailPage() {
                     <span className="font-medium">Phương thức thanh toán</span>
                   </div>
                   <div className="bg-orange-50 text-orange-700 font-medium px-4 py-3 rounded-lg border border-orange-200 flex items-center gap-2">
-                    <CreditCardIcon size={16} /> {data.hinhThucThanhToan} (COD)
+                    <CreditCardIcon size={16} /> {data.hinhThucThanhToan}
                   </div>
                   {data.ghiChuThanhToan && (
                     <p className="text-sm text-gray-500 mt-2 italic">

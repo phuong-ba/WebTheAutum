@@ -21,7 +21,7 @@ export default function ProductList() {
   const [selectedColor, setSelectedColor] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndexes, setCurrentImageIndexes] = useState({});
-
+  const [availableSizes, setAvailableSizes] = useState([]);
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndexes((prev) => {
@@ -64,7 +64,7 @@ export default function ProductList() {
 
   const selectedDetail =
     selectedProduct?.chiTietSanPhams.find(
-      (ct) => ct.tenKichThuoc === selectedSize && ct.tenMauSac === selectedColor
+      (ct) => ct.tenMauSac === selectedColor && ct.tenKichThuoc === selectedSize
     ) || null;
 
   const addToCart = ({ product, selectedDetail }) => {
@@ -120,11 +120,20 @@ export default function ProductList() {
     setModalVisible(false);
     window.dispatchEvent(new Event("cartUpdated"));
   };
+  const filteredData = data
+    ?.filter((product) => product.trangThai === true) // chỉ lấy sản phẩm active
+    ?.map((product) => ({
+      ...product,
+      chiTietSanPhams: product.chiTietSanPhams.filter(
+        (ct) => ct.trangThai === true
+      ),
+    }))
+    ?.filter((product) => product.chiTietSanPhams.length > 0);
   return (
     <>
       {contextHolder}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {data.map((product) => (
+        {filteredData.map((product) => (
           <div key={product.id} className="flex flex-col gap-4">
             <div className="p-12 bg-gray-100 min-w-[306px] max-w-[306px] min-h-[325px] max-h-[325px] flex items-center justify-center rounded-2xl relative group cursor-pointer">
               <img
@@ -196,8 +205,8 @@ export default function ProductList() {
             key="confirm"
             type="primary"
             disabled={
-              !selectedSize ||
               !selectedColor ||
+              !selectedSize ||
               quantity < 1 ||
               selectedDetail?.soLuongTon === 0
             }
@@ -213,57 +222,64 @@ export default function ProductList() {
       >
         {selectedProduct && (
           <>
+            {/* CHỌN MÀU TRƯỚC */}
             <div className="mb-4">
-              <div className="mb-2 font-semibold">Chọn size:</div>
-              <div className="flex gap-2 flex-wrap ">
+              <div className="mb-2 font-semibold">Chọn màu:</div>
+              <div className="flex gap-2 flex-wrap">
                 {Array.from(
                   new Set(
-                    selectedProduct.chiTietSanPhams.map((ct) => ct.tenKichThuoc)
+                    selectedProduct.chiTietSanPhams.map((ct) => ct.tenMauSac)
                   )
-                ).map((size) => (
+                ).map((color) => (
                   <div
-                    key={size}
+                    key={color}
                     className={`px-4 py-2 border rounded cursor-pointer ${
-                      selectedSize === size
-                        ? "bg-orange-600 text-white border border-black "
-                        : "bg-white   "
+                      selectedColor === color
+                        ? "bg-orange-600 text-white border-black"
+                        : "bg-white"
                     }`}
                     onClick={() => {
-                      setSelectedSize(size);
-                      const colors = selectedProduct.chiTietSanPhams
-                        .filter((ct) => ct.tenKichThuoc === size)
-                        .map((ct) => ct.tenMauSac);
-                      setAvailableColors(colors);
-                      setSelectedColor(null);
+                      setSelectedColor(color);
+                      // LỌC SIZE THEO MÀU
+                      const sizes = selectedProduct.chiTietSanPhams
+                        .filter((ct) => ct.tenMauSac === color)
+                        .map((ct) => ct.tenKichThuoc);
+                      setAvailableColors([]);
+                      setAvailableSizes(sizes);
+                      setSelectedSize(null);
                     }}
                   >
-                    {size}
+                    {color}
                   </div>
                 ))}
               </div>
             </div>
 
-            {availableColors.length > 0 && (
+            {/* SAU KHI CHỌN MÀU MỚI CHO CHỌN SIZE */}
+            {availableSizes?.length > 0 && (
               <div className="mb-4">
-                <div className="mb-2 font-semibold">Chọn màu:</div>
+                <div className="mb-2 font-semibold">Chọn size:</div>
                 <div className="flex gap-2 flex-wrap">
-                  {availableColors.map((color) => (
+                  {availableSizes.map((size) => (
                     <div
-                      key={color}
+                      key={size}
                       className={`px-4 py-2 border rounded cursor-pointer ${
-                        selectedColor === color
-                          ? "bg-orange-600 text-white border border-black"
+                        selectedSize === size
+                          ? "bg-orange-600 text-white border-black"
                           : "bg-white"
                       }`}
-                      onClick={() => setSelectedColor(color)}
+                      onClick={() => {
+                        setSelectedSize(size);
+                      }}
                     >
-                      {color}
+                      {size}
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
+            {/* SỐ LƯỢNG */}
             <div className="mb-4">
               <div className="mb-2 font-semibold">Số lượng:</div>
               <InputNumber
