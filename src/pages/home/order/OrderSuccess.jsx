@@ -2,17 +2,25 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle, Package, Truck, MapPin } from "lucide-react";
 import { CheckCircleIcon, SealCheckIcon } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "react-router";
+import { orderDetail } from "@/services/orderService";
+import { useDispatch, useSelector } from "react-redux";
 
 export default function OrderSuccess() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const dispatch = useDispatch();
+  const data = useSelector((state) => state.order.dataDetail);
+  useEffect(() => {
+    if (!id) return;
+    dispatch(orderDetail(id));
+  }, []);
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(id);
+      await navigator.clipboard.writeText(data.maHoaDon);
       setCopied(true);
       setTimeout(() => setCopied(false), 500);
     } catch (err) {
@@ -48,7 +56,9 @@ export default function OrderSuccess() {
             <div className="flex items-center justify-between">
               <span className="text-gray-600">Mã đơn hàng:</span>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-orange-500">{id}</span>
+                <span className="font-bold text-orange-500">
+                  {data.maHoaDon}
+                </span>
                 <div
                   onClick={handleCopy}
                   className={`

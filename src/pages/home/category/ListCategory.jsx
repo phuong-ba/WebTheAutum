@@ -60,7 +60,11 @@ export default function ListCategory() {
           {data.map((item, index) => {
             const color = colors[index % colors.length];
             return (
-              <div key={item.id} className="flex justify-center px-1">
+              <div
+                key={item.id}
+                className="flex justify-center px-1"
+                onClick={() => navigate(`/product`)}
+              >
                 <div
                   className={`${color.bg} min-w-[200px] max-w-[200px] min-h-[260px] max-h-[260px] rounded-2xl group  
                     p-5 flex flex-col justify-center items-center gap-8 shadow cursor-pointer`}
