@@ -1,10 +1,20 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { message, Modal } from "antd";
-import { ExclamationCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
-import { 
-  fetchTodayAssignedShift, 
-  isShiftTimeExpired, 
-  getShiftRemainingTime 
+import {
+  ExclamationCircleOutlined,
+  ClockCircleOutlined,
+} from "@ant-design/icons";
+import {
+  fetchTodayAssignedShift,
+  isShiftTimeExpired,
+  getShiftRemainingTime,
 } from "@/services/giaoCaService";
 
 const API_BASE = "http://localhost:8080/api";
@@ -32,17 +42,20 @@ export const ShiftProvider = ({ children }) => {
   const [shiftStatus, setShiftStatus] = useState(() => {
     return localStorage.getItem("giao_ca_status") || "inactive";
   });
+
   const [shiftInfo, setShiftInfo] = useState(() => {
     const cached = localStorage.getItem("giao_ca_info");
     return cached ? JSON.parse(cached) : null;
   });
+
   const [isChecking, setIsChecking] = useState(true);
   const [lastCheckTime, setLastCheckTime] = useState(null);
-  
+
   // Scheduled shift info (from phanCa + caLamViec)
   const [scheduledShiftInfo, setScheduledShiftInfo] = useState(null);
   const [shiftTimeExpired, setShiftTimeExpired] = useState(false);
   const [shiftEndWarningShown, setShiftEndWarningShown] = useState(false);
+
   const autoEndTriggeredRef = useRef(false);
 
   // Get current user from localStorage
@@ -77,11 +90,17 @@ export const ShiftProvider = ({ children }) => {
     try {
       const assignedShift = await fetchTodayAssignedShift(currentUser.id);
       if (assignedShift) {
-        console.log("📅 [ShiftContext] Today's scheduled shift:", assignedShift);
+        console.log(
+          "📅 [ShiftContext] Today's scheduled shift:",
+          assignedShift
+        );
         setScheduledShiftInfo(assignedShift);
-        
+
         // Check if shift time is already expired
-        if (assignedShift.gioKetThuc && isShiftTimeExpired(assignedShift.gioKetThuc)) {
+        if (
+          assignedShift.gioKetThuc &&
+          isShiftTimeExpired(assignedShift.gioKetThuc)
+        ) {
           console.log("⏰ [ShiftContext] Shift time has already expired!");
           setShiftTimeExpired(true);
         }
@@ -93,45 +112,30 @@ export const ShiftProvider = ({ children }) => {
     }
   }, [getCurrentUser, isAdmin]);
 
-  // Handle automatic shift end
-  const handleAutoEndShift = useCallback(async () => {
-    console.log("🔴 [ShiftContext] Auto-ending shift due to time expiration...");
-    
-    // Clear shift status immediately
-    setShiftStatus("inactive");
-    setShiftInfo(null);
-    localStorage.setItem("giao_ca_status", "inactive");
-    localStorage.removeItem("giao_ca_info");
-    
-    // Show modal notification
-    Modal.warning({
-      title: "⏰ Ca làm việc đã hết thời gian!",
-      content: (
-        <div>
-          <p>Thời gian ca làm việc của bạn đã kết thúc.</p>
-          <p>Ca của bạn kết thúc lúc: <strong>{scheduledShiftInfo?.gioKetThuc}</strong></p>
-          <p>Bạn sẽ được chuyển đến trang giao ca để hoàn tất thủ tục bàn giao.</p>
-        </div>
-      ),
-      okText: "Đến trang giao ca",
-      centered: true,
-      onOk: () => {
-        window.location.href = "/admin/changeShifts";
-      },
-    });
-  }, [scheduledShiftInfo]);
-
   // Check if shift time has expired and handle auto-end
   const checkShiftTimeExpiration = useCallback(() => {
-    if (!scheduledShiftInfo?.gioKetThuc || isAdmin() || autoEndTriggeredRef.current) {
+    if (
+      !scheduledShiftInfo?.gioKetThuc ||
+      isAdmin() ||
+      autoEndTriggeredRef.current
+    ) {
       return;
     }
 
-    const remainingMinutes = getShiftRemainingTime(scheduledShiftInfo.gioKetThuc);
-    console.log(`⏰ [ShiftContext] Remaining time: ${remainingMinutes} minutes`);
+    const remainingMinutes = getShiftRemainingTime(
+      scheduledShiftInfo.gioKetThuc
+    );
+    console.log(
+      `⏰ [ShiftContext] Remaining time: ${remainingMinutes} minutes`
+    );
 
     // Show warning when approaching shift end (5 minutes remaining)
-    if (remainingMinutes !== null && remainingMinutes > 0 && remainingMinutes <= SHIFT_END_WARNING_MINUTES && !shiftEndWarningShown) {
+    if (
+      remainingMinutes !== null &&
+      remainingMinutes > 0 &&
+      remainingMinutes <= SHIFT_END_WARNING_MINUTES &&
+      !shiftEndWarningShown
+    ) {
       setShiftEndWarningShown(true);
       message.warning({
         content: `⏰ Ca làm việc của bạn sẽ kết thúc trong ${remainingMinutes} phút. Vui lòng chuẩn bị bàn giao ca!`,
@@ -142,108 +146,152 @@ export const ShiftProvider = ({ children }) => {
 
     // Check if shift time has expired
     if (isShiftTimeExpired(scheduledShiftInfo.gioKetThuc)) {
-      console.log("⏰ [ShiftContext] Shift time EXPIRED! Triggering auto-end...");
+      console.log(
+        "⏰ [ShiftContext] Shift time EXPIRED! Triggering auto-end..."
+      );
       setShiftTimeExpired(true);
-      
+
       // Only trigger auto-end once
       if (!autoEndTriggeredRef.current && shiftStatus === "active") {
         autoEndTriggeredRef.current = true;
-        handleAutoEndShift();
+
+        // Handle automatic shift end
+        console.log(
+          "🔴 [ShiftContext] Auto-ending shift due to time expiration..."
+        );
+
+        // Show modal notification and redirect to shift handover page
+        Modal.warning({
+          title: "⏰ Ca làm việc đã hết thời gian!",
+          content: (
+            <div>
+              <p>Thời gian ca làm việc của bạn đã kết thúc.</p>
+              <p>
+                <strong>
+                  Ca của bạn kết thúc lúc: {scheduledShiftInfo?.gioKetThuc}
+                </strong>
+              </p>
+              <p>
+                Bạn sẽ được chuyển đến trang giao ca để hoàn tất thủ tục bàn
+                giao.
+              </p>
+            </div>
+          ),
+          okText: "Đến trang giao ca",
+          centered: true,
+          onOk: () => {
+            // Redirect to shift handover page
+            window.location.href = "/admin/changeShifts";
+          },
+          onCancel: () => {
+            // Even if user closes modal, still redirect after a short delay
+            setTimeout(() => {
+              window.location.href = "/admin/changeShifts";
+            }, 2000);
+          },
+        });
       }
     }
-  }, [scheduledShiftInfo, isAdmin, shiftEndWarningShown, shiftStatus, handleAutoEndShift]);
+  }, [scheduledShiftInfo, isAdmin, shiftEndWarningShown, shiftStatus]);
 
   // Main shift check function
-  const checkShiftStatus = useCallback(async (showMessage = false) => {
-    const currentUser = getCurrentUser();
-    
-    // No user logged in
-    if (!currentUser) {
-      setShiftStatus("inactive");
-      setShiftInfo(null);
-      setIsChecking(false);
-      return { hasShift: false, shift: null };
-    }
+  const checkShiftStatus = useCallback(
+    async (showMessage = false) => {
+      const currentUser = getCurrentUser();
 
-    // Admin always has access
-    if (isAdmin()) {
-      setShiftStatus("admin");
-      setIsChecking(false);
-      return { hasShift: true, isAdmin: true };
-    }
+      // No user logged in
+      if (!currentUser) {
+        setShiftStatus("inactive");
+        setShiftInfo(null);
+        setIsChecking(false);
+        return { hasShift: false, shift: null };
+      }
 
-    try {
-      console.log("🔄 [ShiftContext] Polling shift status...");
-      const response = await fetch(`${API_BASE}/giao-ca`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-      });
+      // Admin always has access
+      if (isAdmin()) {
+        setShiftStatus("admin");
+        setIsChecking(false);
+        return { hasShift: true, isAdmin: true };
+      }
 
-      if (response.ok) {
-        const data = await response.json();
-        const list = Array.isArray(data) ? data : [];
-
-        // Find active shift that belongs to current user
-        const activeShift = list.find((gc) => {
-          if (!gc) return false;
-          const isActive = !gc.thoiGianKetThuc && gc.isCompleted !== true;
-          if (!isActive) return false;
-
-          const shiftEmployeeId =
-            gc.idNhanVien || gc.nhanVienId || gc.id_nhan_vien;
-          return (
-            shiftEmployeeId &&
-            String(shiftEmployeeId) === String(currentUser.id)
-          );
+      try {
+        console.log("🔄 [ShiftContext] Polling shift status...");
+        const response = await fetch(`${API_BASE}/giao-ca`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+          },
         });
 
-        if (activeShift) {
-          console.log("✅ [ShiftContext] Active shift found:", activeShift.id);
-          setShiftStatus("active");
-          setShiftInfo(activeShift);
-          localStorage.setItem("giao_ca_status", "active");
-          localStorage.setItem("giao_ca_info", JSON.stringify(activeShift));
-          setIsChecking(false);
-          setLastCheckTime(new Date());
-          return { hasShift: true, shift: activeShift };
-        } else {
-          console.log("❌ [ShiftContext] No active shift found");
-          
-          // Check if shift was previously active (shift just ended)
-          const previousStatus = shiftStatus;
-          
-          setShiftStatus("inactive");
-          setShiftInfo(null);
-          localStorage.setItem("giao_ca_status", "inactive");
-          localStorage.removeItem("giao_ca_info");
-          setIsChecking(false);
-          setLastCheckTime(new Date());
+        if (response.ok) {
+          const data = await response.json();
+          const list = Array.isArray(data) ? data : [];
 
-          // Show message only if shift just ended (transition from active to inactive)
-          if (previousStatus === "active" && showMessage) {
-            message.warning({
-              content: "⚠️ Ca làm việc của bạn đã kết thúc. Bạn sẽ không thể thao tác cho đến khi bắt đầu ca mới.",
-              duration: 5,
-              icon: <ExclamationCircleOutlined />,
-            });
+          // Find active shift that belongs to current user
+          const activeShift = list.find((gc) => {
+            if (!gc) return false;
+
+            const isActive = !gc.thoiGianKetThuc && gc.isCompleted !== true;
+            if (!isActive) return false;
+
+            const shiftEmployeeId =
+              gc.idNhanVien || gc.nhanVienId || gc.id_nhan_vien;
+            return (
+              shiftEmployeeId &&
+              String(shiftEmployeeId) === String(currentUser.id)
+            );
+          });
+
+          if (activeShift) {
+            console.log(
+              "✅ [ShiftContext] Active shift found:",
+              activeShift.id
+            );
+            setShiftStatus("active");
+            setShiftInfo(activeShift);
+            localStorage.setItem("giao_ca_status", "active");
+            localStorage.setItem("giao_ca_info", JSON.stringify(activeShift));
+            setIsChecking(false);
+            setLastCheckTime(new Date());
+            return { hasShift: true, shift: activeShift };
+          } else {
+            console.log("❌ [ShiftContext] No active shift found");
+
+            // Check if shift was previously active (shift just ended)
+            const previousStatus = shiftStatus;
+            setShiftStatus("inactive");
+            setShiftInfo(null);
+            localStorage.setItem("giao_ca_status", "inactive");
+            localStorage.removeItem("giao_ca_info");
+            setIsChecking(false);
+            setLastCheckTime(new Date());
+
+            // Show message only if shift just ended (transition from active to inactive)
+            if (previousStatus === "active" && showMessage) {
+              message.warning({
+                content:
+                  "⚠️ Ca làm việc của bạn đã kết thúc. Bạn sẽ không thể thao tác cho đến khi bắt đầu ca mới.",
+                duration: 5,
+                icon: <ExclamationCircleOutlined />,
+              });
+            }
+
+            return { hasShift: false, shift: null };
           }
-
-          return { hasShift: false, shift: null };
+        } else {
+          console.warn("⚠️ [ShiftContext] API error:", response.status);
+          setIsChecking(false);
+          // Keep current state on API error
+          return { hasShift: shiftStatus === "active", shift: shiftInfo };
         }
-      } else {
-        console.warn("⚠️ [ShiftContext] API error:", response.status);
+      } catch (error) {
+        console.error("❌ [ShiftContext] Shift check error:", error);
         setIsChecking(false);
-        // Keep current state on API error
+        // Keep current state on network error
         return { hasShift: shiftStatus === "active", shift: shiftInfo };
       }
-    } catch (error) {
-      console.error("❌ [ShiftContext] Shift check error:", error);
-      setIsChecking(false);
-      // Keep current state on network error
-      return { hasShift: shiftStatus === "active", shift: shiftInfo };
-    }
-  }, [getCurrentUser, isAdmin, shiftStatus, shiftInfo]);
+    },
+    [getCurrentUser, isAdmin, shiftStatus, shiftInfo]
+  );
 
   // Manual refresh function
   const refreshShiftStatus = useCallback(async () => {
@@ -289,15 +337,20 @@ export const ShiftProvider = ({ children }) => {
   // Periodic check for shift time expiration
   useEffect(() => {
     const currentUser = getCurrentUser();
-    if (!currentUser || isAdmin() || shiftStatus !== "active" || !scheduledShiftInfo?.gioKetThuc) {
+    if (
+      !currentUser ||
+      isAdmin() ||
+      shiftStatus !== "active" ||
+      !scheduledShiftInfo?.gioKetThuc
+    ) {
       return;
     }
 
     console.log("⏰ [ShiftContext] Starting shift time expiration check...");
-    
+
     // Check immediately
     checkShiftTimeExpiration();
-    
+
     // Then check every minute
     const intervalId = setInterval(() => {
       checkShiftTimeExpiration();
@@ -307,7 +360,13 @@ export const ShiftProvider = ({ children }) => {
       console.log("⏹️ [ShiftContext] Stopping shift time expiration check");
       clearInterval(intervalId);
     };
-  }, [getCurrentUser, isAdmin, shiftStatus, scheduledShiftInfo, checkShiftTimeExpiration]);
+  }, [
+    getCurrentUser,
+    isAdmin,
+    shiftStatus,
+    scheduledShiftInfo,
+    checkShiftTimeExpiration,
+  ]);
 
   // Periodic polling for shift status
   useEffect(() => {
@@ -317,7 +376,7 @@ export const ShiftProvider = ({ children }) => {
     }
 
     console.log("🔄 [ShiftContext] Starting periodic shift check...");
-    
+
     const intervalId = setInterval(() => {
       checkShiftStatus(true); // Show message on status change
     }, SHIFT_CHECK_INTERVAL);
@@ -332,7 +391,10 @@ export const ShiftProvider = ({ children }) => {
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === "giao_ca_status") {
-        console.log("📢 [ShiftContext] localStorage change detected:", e.newValue);
+        console.log(
+          "📢 [ShiftContext] localStorage change detected:",
+          e.newValue
+        );
         setShiftStatus(e.newValue || "inactive");
         if (e.newValue !== "active") {
           setShiftInfo(null);
@@ -355,7 +417,9 @@ export const ShiftProvider = ({ children }) => {
     shiftStatus,
     shiftInfo,
     isChecking,
-    isShiftActive: (shiftStatus === "active" || shiftStatus === "admin") && !shiftTimeExpired,
+    isShiftActive:
+      (shiftStatus === "active" || shiftStatus === "admin") &&
+      !shiftTimeExpired,
     isAdmin: isAdmin(),
     lastCheckTime,
     refreshShiftStatus,
@@ -369,9 +433,7 @@ export const ShiftProvider = ({ children }) => {
   };
 
   return (
-    <ShiftContext.Provider value={value}>
-      {children}
-    </ShiftContext.Provider>
+    <ShiftContext.Provider value={value}>{children}</ShiftContext.Provider>
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Table,
   Button,
@@ -13,6 +13,7 @@ import {
   Select,
   message,
 } from "antd";
+import { useShift } from "@/contexts/ShiftContext";
 import {
   PlayCircleOutlined,
   StopOutlined,
@@ -144,6 +145,12 @@ const exportToCSV = (filename, data) => {
 
 export default function GiaoCaManagement() {
   const [modal, contextHolder] = Modal.useModal();
+
+  // Sử dụng ShiftContext để theo dõi trạng thái ca làm việc
+  const { shiftTimeExpired, scheduledShiftInfo } = useShift();
+
+  // Ref để tránh mở modal nhiều lần
+  const autoOpenModalRef = useRef(false);
 
   // --- STATE DỮ LIỆU ---
   const [giaoCaList, setGiaoCaList] = useState([]);
@@ -349,6 +356,7 @@ export default function GiaoCaManagement() {
         setEndForm({ ghiChu: "" });
         setIsEndModalVisible(false);
         setSelectedGiaoCa(null);
+        autoOpenModalRef.current = false; // Reset ref khi kết thúc ca thành công
         fetchGiaoCa();
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -426,6 +434,45 @@ export default function GiaoCaManagement() {
   const handleFilterSearch = () => {
     // Trigger re-render bằng cách gọi getFilteredData()
   };
+
+  // Tự động mở modal kết thúc ca khi đến giờ kết thúc
+  useEffect(() => {
+    if (
+      shiftTimeExpired &&
+      currentActiveShift &&
+      !isEndModalVisible &&
+      !autoOpenModalRef.current
+    ) {
+      console.log(
+        "⏰ [GiaoCaManagement] Ca đã hết thời gian, tự động mở modal kết thúc ca"
+      );
+      autoOpenModalRef.current = true;
+
+      // Hiển thị thông báo
+      message.warning({
+        content: `⏰ Ca làm việc của bạn đã kết thúc lúc ${scheduledShiftInfo?.gioKetThuc}. Vui lòng hoàn tất thủ tục bàn giao ca.`,
+        duration: 5,
+        icon: <ExclamationCircleOutlined />,
+      });
+
+      // Tự động mở modal kết thúc ca sau 1 giây
+      setTimeout(() => {
+        setSelectedGiaoCa(currentActiveShift);
+        setIsEndModalVisible(true);
+        setEndForm({ ghiChu: "" });
+      }, 1000);
+    }
+
+    // Reset ref khi modal đóng hoặc ca đã kết thúc
+    if (!isEndModalVisible && !currentActiveShift) {
+      autoOpenModalRef.current = false;
+    }
+  }, [
+    shiftTimeExpired,
+    currentActiveShift,
+    isEndModalVisible,
+    scheduledShiftInfo?.gioKetThuc,
+  ]);
 
   // Xử lý logic tự động điền tiền đầu ca (Sử dụng latestCompletedShift đã được sửa)
   const handleOpenStartShiftModal = () => {
