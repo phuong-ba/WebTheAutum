@@ -1,54 +1,41 @@
-import axios from "axios";
-
-const API_URL = "http://localhost:8080/api/khach-hang";
-
-const authHeader = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
-  withCredentials: true,
-});
+import baseUrl from "./instance";
 
 export const khachHangApi = {
   getAll: async () => {
-    const res = await axios.get(`${API_URL}/all`, authHeader());
+    const res = await baseUrl.get(`khach-hang/all`);
     return res.data;
   },
   getById: async (id) => {
-    const res = await axios.get(`${API_URL}/detail/${id}`, authHeader());
+    const res = await baseUrl.get(`khach-hang/detail/${id}`);
     return res.data;
   },
-  
   create: async (data) => {
-    const res = await axios.post(`${API_URL}/add`, data, authHeader());
+    const res = await baseUrl.post(`khach-hang/add`, data);
     return res.data;
   },
   update: async (id, data) => {
-    const res = await axios.put(`${API_URL}/update/${id}`, data, authHeader());
+    const res = await baseUrl.put(`khach-hang/update/${id}`, data);
     return res.data;
   },
   delete: async (id) => {
-    const res = await axios.delete(`${API_URL}/delete/${id}`, authHeader());
+    const res = await baseUrl.delete(`khach-hang/delete/${id}`);
     return res.data;
   },
   search: async (keyword) => {
-    const res = await axios.get(`${API_URL}/search`, {
-      ...authHeader(),
+    const res = await baseUrl.get(`khach-hang/search`, {
       params: { keyword },
     });
     return res.data;
   },
   filter: async (gioiTinh, trangThai) => {
-    const res = await axios.get(`${API_URL}/filter`, {
-      ...authHeader(),
+    const res = await baseUrl.get(`khach-hang/filter`, {
       params: { gioiTinh, trangThai },
     });
     return res.data;
   },
   checkEmailAndSDt: async (email, sdt) => {
-    const res = await axios.get(`${API_URL}/check`, {
+    const res = await baseUrl.get(`khach-hang/check`, {
       params: { email, sdt },
-      ...authHeader(),
     });
     return res.data;
   },

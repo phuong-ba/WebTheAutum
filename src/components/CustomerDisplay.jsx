@@ -67,7 +67,7 @@ export default function CustomerDisplay() {
   };
 
   useEffect(() => {
-    const socketFactory = () => new SockJS("http://localhost:8080/ws");
+    const socketFactory = () => new SockJS("http://192.203.4.118:8080/ws");
     const stompClient = Stomp.over(socketFactory);
 
     stompClient.connect(

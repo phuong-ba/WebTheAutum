@@ -1,10 +1,8 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:8080/api/nhan-vien';
+import baseUrl from "./instance";
 
 const nhanVienApi = {
   getAll() {
-    return axios.get(API_URL);
+    return baseUrl.get("nhan-vien");
   }
 };
 

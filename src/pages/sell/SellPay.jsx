@@ -131,7 +131,7 @@ export default function SellPay({
     // Chỉ khởi tạo nếu Ref chưa có client
     if (socketRef.current) return;
 
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS("http://192.203.4.118:8080/ws");
     const client = Stomp.over(socket);
     client.debug = () => {};
 
@@ -156,9 +156,7 @@ export default function SellPay({
     };
   }, []); // Dependency rỗng
 
-  // --- Gửi dữ liệu đồng bộ (Chạy khi data thay đổi) ---
   useEffect(() => {
-    // Chỉ gửi khi có client và đang kết nối VÀ chưa chuyển sang trạng thái đã thanh toán
     if (stompClient && stompClient.connected && !isPaid) {
       const qrCodeString =
         qrModalVisible && qrData

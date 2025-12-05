@@ -1,10 +1,8 @@
-import axios from "axios";
-
-const API_URL = "http://localhost:8080/api/dot-giam-gia-add"; // đổi port nếu cần
+import baseUrl from "./instance";
 
 // Lấy tất cả đợt giảm giá
 export const getAllDotGiamGia = () => {
-  return axios.get(API_URL);
+  return baseUrl.get("dot-giam-gia-add");
 };
 
 // Lấy form data (sản phẩm + trạng thái chọn)
@@ -16,32 +14,36 @@ export const getFormData = (
   page = 0,
   size = 10
 ) => {
-  let url = `${API_URL}/form-data?page=${page}&size=${size}&q=${encodeURIComponent(q)}`;
-
-  if (dotId !== null) url += `&dotId=${dotId}`;
-  if (mauSacId !== null) url += `&mauSacId=${mauSacId}`;
-  if (kichThuocId !== null) url += `&kichThuocId=${kichThuocId}`;
-
-  return axios.get(url);
+  let url = "dot-giam-gia-add/form-data";
+  
+  return baseUrl.get(url, {
+    params: {
+      dotId,
+      q,
+      mauSacId,
+      kichThuocId,
+      page,
+      size
+    }
+  });
 };
-
 
 // Tạo mới đợt giảm giá
 export const createDotGiamGia = (data) => {
-  return axios.post(API_URL, data);
+  return baseUrl.post("dot-giam-gia-add", data);
 };
 
 // Cập nhật đợt giảm giá
 export const updateDotGiamGia = (id, data) => {
-  return axios.put(`${API_URL}/${id}`, data);
+  return baseUrl.put(`dot-giam-gia-add/${id}`, data);
 };
 
 // Xóa đợt giảm giá
 export const deleteDotGiamGia = (id) => {
-  return axios.delete(`${API_URL}/${id}`);
+  return baseUrl.delete(`dot-giam-gia-add/${id}`);
 };
 
 // Kiểm tra sản phẩm có đang trong đợt giảm giá nào không
 export const checkProductActiveSales = (ctspId) => {
-  return axios.get(`${API_URL}/check-product/${ctspId}`);
+  return baseUrl.get(`dot-giam-gia-add/check-product/${ctspId}`);
 };

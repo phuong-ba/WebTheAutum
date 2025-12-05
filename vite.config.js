@@ -11,5 +11,9 @@ export default defineConfig({
   },
   define: {
     global: "globalThis",
+  }, server: {
+    host: true,        // ← THÊM DÒNG NÀY (quan trọng nhất!!!)
+    port: 5173,        // ← Tùy chọn, nhưng nên có cho rõ ràng
+    strictPort: true,  // ← Nếu port 5173 bị chiếm thì báo lỗi thay vì tự nhảy port khác
   },
 });
