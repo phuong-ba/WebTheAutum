@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Form, Input, Select, Radio, message, Spin, Modal, Button } from "antd";
 import { useNavigate } from "react-router-dom";
@@ -6,7 +5,7 @@ import ClientBreadcrumb from "../ClientBreadcrumb";
 import { formatVND } from "@/api/formatVND";
 import TextArea from "antd/es/input/TextArea";
 import { useDispatch, useSelector } from "react-redux";
-import { addOrder } from "@/services/orderService";
+import { addOrder, taoVietQR } from "@/services/orderService";
 import { fetchPhieuGiamGia } from "@/services/phieuGiamGiaService";
 import { getByIdKhachHang } from "@/services/khachHangService";
 import {
@@ -62,7 +61,9 @@ export default function CheckOut() {
 
   const lastShippingCalculationRef = useRef({ cartHash: null });
   const idKhachHang = JSON.parse(localStorage.getItem("customer_id") || "null");
-
+  const [qrCountdown, setQrCountdown] = useState(300); // 5 phút
+  const [qrData, setQrData] = useState(null); // { qrUrl, maDon, noiDung, orderId }
+  const qrTimerRef = useRef(null);
   useEffect(() => {
     window.scrollTo(0, 0);
     dispatch(fetchDonViVanChuyen());
@@ -73,7 +74,19 @@ export default function CheckOut() {
     setCartItems(cart);
     fetchProvinces();
   }, [dispatch]);
-
+  useEffect(() => {
+    if (qrData && qrCountdown > 0) {
+      qrTimerRef.current = setTimeout(() => {
+        setQrCountdown((prev) => prev - 1);
+      }, 1000);
+    } else if (qrCountdown === 0) {
+      messageApi.warning("QR thanh toán đã hết hạn!");
+      setQrData(null);
+    }
+    return () => {
+      if (qrTimerRef.current) clearTimeout(qrTimerRef.current);
+    };
+  }, [qrCountdown, qrData]);
   useEffect(() => {
     if (idKhachHang) dispatch(getByIdKhachHang(idKhachHang));
   }, [idKhachHang, dispatch]);
@@ -113,7 +126,6 @@ export default function CheckOut() {
   );
   const discountAmount = appliedVoucher?.soTienGiam || 0;
   const total = subtotal + shippingFee - discountAmount;
-
 
   // Copy hàm kiểm tra điều kiện từ SellInformation
   const checkBasicDiscountConditions = (discount, totalAmount, customer) => {
@@ -170,29 +182,21 @@ export default function CheckOut() {
     return { isValid: true, message: "OK" };
   };
 
-  // SỬA LẠI: Hàm tính giảm giá đúng logic
   const calculateDiscountAmount = (discount, total) => {
     if (!discount || total <= 0) return 0;
 
     if (discount.loaiGiamGia === true) {
-      // Giảm giá cố định (true = cố định)
       return Math.min(discount.giaTriGiamGia, total);
     } else {
-      // Giảm giá phần trăm (false = phần trăm)
-      // Tính giá trị giảm theo phần trăm
       const amount = (total * discount.giaTriGiamGia) / 100;
-
-      // Kiểm tra giới hạn tối đa nếu có
       if (discount.mucGiaGiamToiDa && amount > discount.mucGiaGiamToiDa) {
         return Math.min(discount.mucGiaGiamToiDa, total);
       }
 
-      // Đảm bảo không giảm quá tổng tiền
       return Math.min(amount, total);
     }
   };
 
-  // Lấy tất cả mã giảm giá khả dụng
   const getAllActiveDiscounts = () => {
     if (!Array.isArray(vouchers)) return [];
 
@@ -232,7 +236,6 @@ export default function CheckOut() {
     return [...publicDiscounts, ...personalDiscounts];
   };
 
-  // Cập nhật available vouchers khi có thay đổi
   useEffect(() => {
     const updateAvailableVouchers = () => {
       if (cartItems.length === 0) {
@@ -265,11 +268,9 @@ export default function CheckOut() {
         }
       }
 
-      // Sắp xếp theo giá trị giảm giảm dần
       available.sort((a, b) => b.discountAmount - a.discountAmount);
       setAvailableVouchers(available);
 
-      // Tự động áp dụng mã tốt nhất nếu chưa có mã nào được áp dụng
       if (available.length > 0 && !appliedVoucher) {
         const bestDiscount = available[0];
         const discountAmount = calculateDiscountAmount(bestDiscount, subtotal);
@@ -289,7 +290,6 @@ export default function CheckOut() {
     updateAvailableVouchers();
   }, [vouchers, subtotal, dataKhachHang, giamGiaKhachHangData, cartItems]);
 
-  // Kiểm tra lại voucher đang áp dụng khi có thay đổi
   useEffect(() => {
     if (!appliedVoucher || !Array.isArray(vouchers)) return;
 
@@ -405,7 +405,6 @@ export default function CheckOut() {
     return () => clearTimeout(timer);
   }, [form, cartItems, selectedProvider, dispatch]);
 
-
   const handleSelectShipping = (provider) => {
     dispatch(setSelectedShipping(provider));
   };
@@ -431,54 +430,79 @@ export default function CheckOut() {
     messageApi.success("Đã hủy áp dụng mã giảm giá");
   };
 
-  const handleConfirmOrder = async (values) => {
+  const handleShowQR = async (values) => {
     if (cartItems.length === 0) {
       messageApi.error("Giỏ hàng trống!");
       return;
     }
 
+    setLoading(true);
 
-    // Kiểm tra lại voucher trước khi đặt hàng
-    if (appliedVoucher && Array.isArray(vouchers)) {
-      const currentDiscount = vouchers.find((v) => v.id === appliedVoucher.id);
-      if (currentDiscount) {
-        const condition = checkBasicDiscountConditions(
-          currentDiscount,
-          subtotal,
-          dataKhachHang
-        );
-        if (!condition.isValid) {
-          messageApi.error(
-            `Mã giảm giá ${appliedVoucher.maGiamGia} không còn khả dụng: ${condition.message}`
-          );
-          return;
-        }
-      }
+    try {
+      // Tạo QR với số tiền và thông tin
+      const qr = await dispatch(
+        taoVietQR({
+          amount: total,
+          orderId: `QR_${Date.now()}`,
+          noiDung: `THANH TOAN DON HANG ${formatVND(total)} - ${values.HoTen}`,
+          tenKhachHang: values.HoTen,
+        })
+      ).unwrap();
+
+      // Lưu tạm thông tin form để dùng sau
+      setFormValues(values);
+
+      // Hiển thị QR
+      setQrData({
+        qrUrl: qr.qrImageUrl || qr.paymentUrl || qr.qrDataURL,
+        noiDung:
+          qr.addInfo || qr.noiDung || `THANH TOAN DON HANG ${formatVND(total)}`,
+        amount: total,
+      });
+      setQrCountdown(300);
+      setConfirmOpen(true); // Mở modal QR
+    } catch (error) {
+      messageApi.error("Không tạo được QR thanh toán!");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Sửa trong phần handleConfirmOrder
+  const handleConfirmOrder = async () => {
+    if (!formValues) return;
 
     setLoading(true);
 
-    const fullAddress = `${
-      values.DoresisChi || values.DiaChi
-    }, ${districtName}, ${provinceName}`;
+    const fullAddress = `${formValues.DiaChi}, ${districtName}, ${provinceName}`;
+
+    const idPhuongThucThanhToan = paymentMethod === "cod" ? 1 : 2;
 
     const orderRequest = {
       idKhachHang: idKhachHang || null,
       idPhieuGiamGia: appliedVoucher?.id || null,
-      idPhuongThucThanhToan: paymentMethod === "bank" ? 2 : 1,
-      loaiHoaDon: false,
+      idPhuongThucThanhToan,
+      loaiHoaDon: false, // ONLINE
       phiVanChuyen: shippingFee,
       tongTien: subtotal,
       tongTienSauGiam: total,
       diaChiKhachHang: fullAddress,
-      diaChiCuThe: values.DiaChi,
-      idTinh: values.province,
-      idQuan: values.district,
-      hoTen: values.HoTen,
-      sdt: values.SoDienThoai,
-      email: values.Email || null,
-      ghiChu: values.note || null,
+      diaChiCuThe: formValues.DiaChi,
+      idTinh: formValues.province,
+      idQuan: formValues.district,
+      hoTen: formValues.HoTen,
+      sdt: formValues.SoDienThoai,
+      email: formValues.Email || null,
+      ghiChu: formValues.note || null,
+      soTienThanhToan: paymentMethod === "bank" ? total : null,
+      ghiChuThanhToan:
+        paymentMethod === "bank"
+          ? `Chuyển khoản qua QR - Nội dung: ${
+              qrData?.noiDung || "THANH TOAN DON HANG"
+            }`
+          : null,
       trangThai: 0,
+
       chiTietList: cartItems.map((item) => ({
         idChiTietSanPham: item.id,
         soLuong: item.quantity,
@@ -487,35 +511,46 @@ export default function CheckOut() {
 
     try {
       const result = await dispatch(addOrder(orderRequest)).unwrap();
+      const hoaDon = result.data || result;
+
       localStorage.removeItem("cart");
       setCartItems([]);
       window.dispatchEvent(new Event("cartUpdated"));
-      messageApi.success("Đặt hàng thành công!");
-      const hoaDon = result.data || result;
 
-      if (paymentMethod === "bank" && result.paymentUrl) {
-        window.location.href = result.paymentUrl;
+      // Hiển thị thông báo khác nhau tùy phương thức thanh toán
+      if (paymentMethod === "bank") {
+        messageApi.success(
+          "Đặt hàng thành công! Đang chờ xác nhận thanh toán."
+        );
       } else {
-        navigate(`/orders/success/${hoaDon.id}`);
+        messageApi.success("Đặt hàng thành công! Đơn hàng đang chờ xác nhận.");
       }
+
+      navigate(`/orders/success/${hoaDon.id}`);
     } catch (error) {
-      messageApi.error(error.message || "Đặt hàng thất bại!");
+      console.error(error);
+      messageApi.error("Tạo đơn hàng thất bại. Vui lòng thử lại!");
     } finally {
       setLoading(false);
       setConfirmOpen(false);
+      setQrData(null);
+      setQrCountdown(300);
     }
   };
-
-  const onFinish = (values) => {
+  const onFinish = async (values) => {
     if (!values.province || !values.district) {
       messageApi.error("Vui lòng chọn đầy đủ tỉnh/thành và quận/huyện!");
       return;
     }
+
     setFormValues(values);
-    setConfirmOpen(true);
+
+    if (paymentMethod === "bank") {
+      await handleShowQR(values);
+    } else {
+      setConfirmOpen(true);
+    }
   };
-
-
   const renderVoucherSelector = () => {
     return (
       <div className="mt-4">
@@ -741,7 +776,7 @@ export default function CheckOut() {
     <>
       {contextHolder}
       <Spin spinning={loading}>
-        <div className="flex flex-col gap-10 py-10 max-w-7xl mx-auto px-4">
+        <div className="flex flex-col gap-10 py-10 ">
           <div>
             <h1 className="text-3xl font-bold">Thanh toán</h1>
             <ClientBreadcrumb />
@@ -879,9 +914,9 @@ export default function CheckOut() {
                       </Radio>
                       <Radio value="bank">
                         <div>
-                          <strong>Chuyển khoản ngân hàng (VNPAY)</strong>
+                          <strong>Chuyển khoản (Quét QR)</strong>
                           <p className="text-gray-600 text-sm">
-                            Thanh toán an toàn qua cổng VNPAY
+                            Nhanh – An toàn – Tự động xác nhận
                           </p>
                         </div>
                       </Radio>
@@ -896,14 +931,13 @@ export default function CheckOut() {
                     {loading
                       ? "Đang xử lý..."
                       : paymentMethod === "bank"
-                      ? "Thanh toán qua VNPAY"
+                      ? "Tạo QR thanh toán"
                       : "Đặt hàng ngay"}
                   </button>
                 </Form>
               </div>
             </div>
 
-            {/* Sidebar tóm tắt đơn hàng */}
             <div className="flex flex-col lg:sticky lg:top-6">
               <div className="bg-white shadow-xl rounded-xl p-8 border border-gray-100">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800">
@@ -987,37 +1021,159 @@ export default function CheckOut() {
         </div>
       </Spin>
 
-      {/* Modal xác nhận đơn hàng */}
       <Modal
         open={confirmOpen}
-        onCancel={() => setConfirmOpen(false)}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setQrData(null);
+          setQrCountdown(300);
+        }}
         footer={null}
-        width={600}
+        width={qrData ? 750 : 600}
+        maskClosable={false}
+        destroyOnClose={true}
+        closeIcon={null}
       >
         <div className="p-6">
-          <div className="text-center mb-6">
-            <CheckCircleIcon
-              size={60}
-              className="text-orange-600 mx-auto mb-3"
-            />
-            <h2 className="text-2xl font-bold">Xác nhận đơn hàng</h2>
-            <p className="text-gray-600">
-              Kiểm tra lại thông tin trước khi đặt hàng
-            </p>
-          </div>
+          {qrData ? (
+            <div className="text-center">
+              {/* Logo + Tiêu đề */}
+              <div className="mb-6">
+                <CheckCircleIcon
+                  size={70}
+                  className="text-green-600 mx-auto mb-4"
+                />
+                <h2 className="text-3xl font-bold text-gray-800">
+                  Quét QR để thanh toán
+                </h2>
+                <p className="text-lg text-gray-600 mt-2">
+                  Vui lòng hoàn tất chuyển khoản trong thời gian còn lại
+                </p>
+              </div>
 
-          {formValues && (
-            <div className="space-y-6">
+              {/* QR Code lớn */}
+              <div className="inline-block p-8 bg-white rounded-3xl shadow-2xl border-8 border-gray-100 mb-8">
+                <img
+                  src={qrData.qrUrl}
+                  alt="VietQR"
+                  className="w-80 h-80 object-contain"
+                />
+              </div>
+
+              {/* Đếm ngược lớn */}
+              <div className="text-6xl font-bold text-orange-600 mb-8 font-mono tracking-wider">
+                {Math.floor(qrCountdown / 60)
+                  .toString()
+                  .padStart(2, "0")}
+                :{(qrCountdown % 60).toString().padStart(2, "0")}
+              </div>
+
+              {/* Thông tin chuyển khoản */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-2xl space-y-6 mb-8 border">
+                <div>
+                  <div className="text-gray-600 text-lg">
+                    Số tiền cần chuyển:
+                  </div>
+                  <div className="text-4xl font-bold text-orange-600">
+                    {formatVND(total)}
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-md">
+                  <div className="text-gray-600 mb-3 text-lg">
+                    Nội dung chuyển khoản:
+                  </div>
+                  <div className="font-mono text-xl text-blue-700 break-all bg-gray-50 p-4 rounded-lg">
+                    {qrData.noiDung}
+                  </div>
+                </div>
+
+                <div className="text-amber-700 font-bold text-lg bg-amber-50 p-4 rounded-lg">
+                  Ghi đúng nội dung để hệ thống tự động xác nhận đơn hàng!
+                </div>
+              </div>
+
+              {/* Cảnh báo chống bấm nhầm */}
+              <div className="bg-red-50 border-2 border-red-300 text-red-700 p-6 rounded-xl mb-6">
+                <p className="font-bold text-xl">
+                  CHỈ bấm nút bên dưới khi bạn đã chuyển khoản thành công
+                </p>
+                <p className="text-sm mt-3">
+                  Nếu bấm nhầm mà chưa chuyển tiền → đơn hàng sẽ bị hủy sau 5
+                  phút và bạn phải đặt lại.
+                </p>
+              </div>
+
+              {qrCountdown <= 290 ? (
+                <Button
+                  type="primary"
+                  danger
+                  size="large"
+                  loading={loading}
+                  className="w-full h-16 text-xl font-bold"
+                  onClick={handleConfirmOrder}
+                >
+                  Tôi đã chuyển khoản thành công → Xem đơn hàng
+                </Button>
+              ) : (
+                <div className="space-y-4">
+                  <Button
+                    disabled
+                    size="large"
+                    className="w-full h-16 text-xl opacity-70"
+                  >
+                    Chưa thể bấm • Vui lòng chuyển khoản trước
+                  </Button>
+                  <p className="text-gray-500">
+                    Nút sẽ mở sau 10 giây để tránh bấm nhầm
+                  </p>
+                </div>
+              )}
+
+              {/* Nút hủy */}
+              <div className="mt-6">
+                <Button
+                  size="large"
+                  className="w-full"
+                  onClick={() => {
+                    setConfirmOpen(false);
+                    setQrData(null);
+                    setQrCountdown(300);
+                    messageApi.info(
+                      "Đã hủy thanh toán QR. Bạn có thể đặt lại đơn hàng."
+                    );
+                  }}
+                >
+                  Hủy thanh toán QR
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              <div className="text-center">
+                <CheckCircleIcon
+                  size={70}
+                  className="text-orange-600 mx-auto mb-4"
+                />
+                <h2 className="text-3xl font-bold text-gray-800">
+                  Xác nhận đơn hàng
+                </h2>
+                <p className="text-lg text-gray-600 mt-2">
+                  Vui lòng kiểm tra lại thông tin trước khi đặt hàng
+                </p>
+              </div>
+
+              {/* Thông tin người nhận */}
               <div>
-                <h3 className="font-semibold mb-2">Thông tin người nhận</h3>
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-lg mb-3">Người nhận</h3>
+                <div className="bg-gray-50 p-5 rounded-lg space-y-2 text-base">
                   <p>
-                    <strong>Họ tên:</strong> {formValues.HoTen}
+                    <strong>Họ tên:</strong> {formValues?.HoTen}
                   </p>
                   <p>
-                    <strong>SĐT:</strong> {formValues.SoDienThoai}
+                    <strong>SĐT:</strong> {formValues?.SoDienThoai}
                   </p>
-                  {formValues.Email && (
+                  {formValues?.Email && (
                     <p>
                       <strong>Email:</strong> {formValues.Email}
                     </p>
@@ -1025,98 +1181,85 @@ export default function CheckOut() {
                 </div>
               </div>
 
+              {/* Địa chỉ giao hàng */}
               <div>
-                <h3 className="font-semibold mb-2">Địa chỉ giao hàng</h3>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p>{formValues.DiaChi}</p>
+                <h3 className="font-semibold text-lg mb-3">
+                  Địa chỉ giao hàng
+                </h3>
+                <div className="bg-gray-50 p-5 rounded-lg text-base">
+                  <p className="font-medium">{formValues?.DiaChi}</p>
                   <p className="text-gray-600">
                     {districtName}, {provinceName}
                   </p>
                 </div>
               </div>
 
-
+              {/* Mã giảm giá */}
               {appliedVoucher && (
                 <div>
-                  <h3 className="font-semibold mb-2">Mã giảm giá đã áp dụng</h3>
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <p>
-                      <strong>{appliedVoucher.tenChuongTrinh}</strong>
+                  <h3 className="font-semibold text-lg mb-3">
+                    Mã giảm giá đã áp dụng
+                  </h3>
+                  <div className="bg-green-50 border border-green-300 p-5 rounded-lg">
+                    <p className="font-bold text-green-700">
+                      {appliedVoucher.tenChuongTrinh}
                     </p>
                     <p className="text-green-600">
-                      Mã: {appliedVoucher.maGiamGia} - Giảm:{" "}
-                      {formatVND(appliedVoucher.soTienGiam)}
-                      {appliedVoucher.loaiGiamGia === false && (
-                        <span>
-                          {" "}
-                          ({appliedVoucher.giaTriGiamGia}%)
-                          {appliedVoucher.mucGiaGiamToiDa && (
-                            <span className="text-gray-500">
-                              {" "}
-                              (Tối đa:{" "}
-                              {formatVND(appliedVoucher.mucGiaGiamToiDa)})
-                            </span>
-                          )}
-                        </span>
-                      )}
+                      Mã: {appliedVoucher.maGiamGia}
                     </p>
-                    {appliedVoucher.kieu === 1 && (
-                      <p className="text-amber-600 text-sm">
-                        ⭐ Mã cá nhân - Chỉ sử dụng 1 lần
-                      </p>
-                    )}
+                    <p className="font-semibold">
+                      Giảm: {formatVND(appliedVoucher.soTienGiam)}
+                    </p>
                   </div>
                 </div>
               )}
 
               <div>
-                <h3 className="font-semibold mb-2">Thanh toán</h3>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  {paymentMethod === "cod"
-                    ? "Thanh toán khi nhận hàng (COD)"
-                    : "Chuyển khoản ngân hàng (VNPAY)"}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-semibold mb-2">Tóm tắt</h3>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <h3 className="font-semibold text-lg mb-3">
+                  Tóm tắt thanh toán
+                </h3>
+                <div className="bg-gray-50 p-5 rounded-lg space-y-3 text-base">
                   <div className="flex justify-between">
-                    <span>Tạm tính:</span> <span>{formatVND(subtotal)}</span>
+                    <span>Tạm tính:</span>
+                    <span>{formatVND(subtotal)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Phí vận chuyển:</span>{" "}
+                    <span>Phí vận chuyển:</span>
                     <span>
                       {shippingFee === 0 ? "Miễn phí" : formatVND(shippingFee)}
                     </span>
                   </div>
                   {discountAmount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Giảm giá:</span>{" "}
+                    <div className="flex justify-between text-green-600 font-medium">
+                      <span>Giảm giá:</span>
                       <span>-{formatVND(discountAmount)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-bold text-lg pt-2 border-t border-gray-300">
+                  <div className="flex justify-between text-xl font-bold pt-3 border-t-2 border-orange-500">
                     <span>Tổng cộng:</span>
                     <span className="text-orange-600">{formatVND(total)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-4 mt-8">
-                <button
+              <div className="flex gap-4 pt-6">
+                <Button
+                  size="large"
+                  className="flex-1"
                   onClick={() => setConfirmOpen(false)}
-                  className="flex-1 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50"
                 >
                   Quay lại chỉnh sửa
-                </button>
-                <button
-                  onClick={() => handleConfirmOrder(formValues)}
-                  disabled={loading}
-                  className="flex-1 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                </Button>
+                <Button
+                  type="primary"
+                  size="large"
+                  danger
+                  loading={loading}
+                  className="flex-1 text-lg font-bold"
+                  onClick={handleConfirmOrder} // ← Đổi thành handleConfirmOrder
                 >
                   {loading ? "Đang xử lý..." : "Xác nhận đặt hàng"}
-                </button>
+                </Button>
               </div>
             </div>
           )}

@@ -2,14 +2,25 @@ import {
   endGiaoCa,
   fetchCaDangHoatDong,
   startGiaoCa,
+  checkRemainingShift,
 } from "@/services/giaoCaService";
+import {
+  createEndShiftWarning,
+  clearShiftStatus,
+} from "@/utils/shiftStatusHelper";
+import { useShift } from "@/contexts/ShiftContext";
 import { message, Modal } from "antd";
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import ChangeShiftsBreadcrumb from "./ChangeShiftsBreadcrumb";
 
 export default function ChangeShifts() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  
+  // Use ShiftContext for immediate UI updates
+  const { setActiveShift, clearShift, refreshShiftStatus } = useShift();
 
   const currentShift = useSelector((state) => state.giaoCa?.currentShift);
   const loading = useSelector((state) => state.giaoCa?.loading);
@@ -60,6 +71,12 @@ export default function ChangeShifts() {
     if (startGiaoCa.fulfilled.match(result)) {
       setInitialCash("");
       setGhiChuBatDau("");
+      
+      // Update ShiftContext immediately
+      if (result.payload) {
+        setActiveShift(result.payload);
+      }
+      
       dispatch(fetchCaDangHoatDong(nhanVienId));
       messageApi.success({
         content: "Bắt đầu ca thành công! Chúc một ca làm việc hiệu quả!",
@@ -89,11 +106,47 @@ export default function ChangeShifts() {
       setIsEndModalOpen(false);
       setFinalCash("");
       setGhiChuKetThuc("");
-      dispatch(fetchCaDangHoatDong(nhanVienId));
+
+      // Clear shift info from localStorage immediately
+      clearShiftStatus();
+      
+      // Update ShiftContext immediately to block access
+      clearShift();
+
       messageApi.success({
         content: "Kết thúc ca thành công! Cảm ơn bạn đã làm việc chăm chỉ!",
         duration: 2,
       });
+
+      // Check if employee has any remaining shift
+      console.log("🔄 Đang kiểm tra xem nhân viên có ca tiếp theo không...");
+      const remainingShiftCheck = await checkRemainingShift();
+
+      // Show warning/info about remaining shifts
+      const warning = createEndShiftWarning(remainingShiftCheck.hasShift);
+      if (warning.type === "info") {
+        messageApi.info({
+          content: warning.message,
+          duration: 4,
+        });
+      } else {
+        messageApi.warning({
+          content: warning.message,
+          duration: 4,
+        });
+      }
+
+      if (remainingShiftCheck.hasShift) {
+        console.log("✅ Nhân viên có ca tiếp theo, tải ca hiện tại");
+        await dispatch(fetchCaDangHoatDong(nhanVienId));
+      } else {
+        console.log("❌ Nhân viên không có ca nào khác");
+      }
+
+      // Redirect to changeShifts after 3 seconds
+      setTimeout(() => {
+        navigate("/admin/changeShifts");
+      }, 3000);
     } else {
       messageApi.error(result.payload?.messageApi || "Lỗi khi kết thúc ca");
     }

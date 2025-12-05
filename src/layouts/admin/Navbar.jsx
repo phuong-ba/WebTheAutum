@@ -18,7 +18,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Menu } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useShift } from "@/contexts/ShiftContext";
 import { ClockUserIcon } from "@phosphor-icons/react";
 
 export default function Navbar() {
@@ -26,15 +26,14 @@ export default function Navbar() {
   const location = useLocation();
   const [userRole, setUserRole] = useState("STAFF");
 
+  // Use ShiftContext for real-time shift status
+  const { isShiftActive, isChecking: isCheckingShift, isAdmin: contextIsAdmin, shiftTimeExpired } = useShift();
+
   // Lấy thông tin user từ localStorage
   useEffect(() => {
     const role = localStorage.getItem("user_role") || "STAFF";
     setUserRole(role);
   }, []);
-
-  // Lấy trạng thái giao ca từ redux (nếu có)
-  const currentShift = useSelector((state) => state.giaoCa?.currentShift);
-  const giaoCaLoading = useSelector((state) => state.giaoCa?.loading);
 
   // Menu items cho ADMIN/QUẢN LÝ (Full quyền)
   const adminMenuItems = [
@@ -128,10 +127,19 @@ export default function Navbar() {
   // Chọn menu items dựa trên role - SỬA CHỖ NÀY
   const getMenuItems = () => {
     // Role "Quản lý" hoặc "ADMIN" đều có full quyền
-    if (userRole === "ADMIN" || userRole === "Quản lý") {
+    if (userRole === "ADMIN" || userRole === "Quản lý" || contextIsAdmin) {
       return adminMenuItems;
     } else {
-      return staffMenuItems;
+      // Cho nhân viên: disable menu nếu đang kiểm tra, không có ca hoạt động, hoặc ca đã hết thời gian
+      const shouldDisable = isCheckingShift || !isShiftActive || shiftTimeExpired;
+      return staffMenuItems.map(item => ({
+        ...item,
+        disabled: shouldDisable && !String(item.key).startsWith("/admin/changeShifts"),
+        children: item.children?.map(child => ({
+          ...child,
+          disabled: shouldDisable && !String(child.key).startsWith("/admin/changeShifts"),
+        }))
+      }));
     }
   };
 
@@ -161,7 +169,7 @@ export default function Navbar() {
           }
 
           const roleNormalized = (userRole || "").toString().trim().toLowerCase();
-          const isManager = roleNormalized === "quản lý" || roleNormalized === "admin" || roleNormalized.includes("quản lý");
+          const isManager = roleNormalized === "quản lý" || roleNormalized === "admin" || roleNormalized.includes("quản lý") || contextIsAdmin;
 
           // If manager/admin -> allow all navigation
           if (isManager) {
@@ -169,14 +177,14 @@ export default function Navbar() {
             return;
           }
 
-          // If redux has an active shift, allow; otherwise redirect to giao ca management
-          if (currentShift) {
-            navigate(key);
+          // For staff: prevent navigation if checking, no active shift, or shift time expired
+          if (isCheckingShift || !isShiftActive || shiftTimeExpired) {
+            // Do nothing - prevent navigation
             return;
           }
 
-          // fallback: when loading or unknown, redirect to giao ca page
-          navigate("/admin/changeShifts");
+          // If shift is active, allow navigation
+          navigate(key);
         }}
         className="custom-menu flex-1 w-full border-none"
         style={{

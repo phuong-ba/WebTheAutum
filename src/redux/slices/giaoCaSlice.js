@@ -20,6 +20,10 @@ const giaoCaSlice = createSlice({
         state.loading = false;
         state.currentShift = action.payload;
       })
+      .addCase(endGiaoCa.fulfilled, (state) => {
+        state.loading = false;
+        state.currentShift = null; // Clear current shift when ended
+      })
 
   },
 });

@@ -161,7 +161,7 @@ export default function BillTable({
       render: (_, record) => {
         const tongTienSauGiam = record.tongTienSauGiam ?? record.tongTien;
         const phiShip = record.loaiHoaDon ? 0 : record.phiVanChuyen || 0;
-        const tongCong = tongTienSauGiam + phiShip;
+        const tongCong = tongTienSauGiam;
         return (
           <span style={{ color: "#FF6B35", fontWeight: 600 }}>
             {formatMoney(tongCong)}

@@ -32,7 +32,7 @@ const hoaDonApi = {
       }
     });
   },
-  
+
   canEditShippingStatus: (id) => {
     return axios.get(`${API_URL}/${id}/can-edit-shipping`);
   },
@@ -112,8 +112,6 @@ const hoaDonApi = {
     return axios.delete(`${API_URL}/${idHoaDon}/chi-tiet/${idChiTietSanPham}`);
   },
 
-  // ================ HOÀN TIỀN APIs ================
-  
   // API kiểm tra điều kiện hoàn tiền
   kiemTraHoanTien: (id) => {
     return axios.get(`${API_URL}/${id}/kiem-tra-hoan-tien`);
@@ -137,7 +135,7 @@ const hoaDonApi = {
   // API xuất báo cáo hoàn tiền
   exportBaoCaoHoanTien: (tuNgay, denNgay) => {
     return axios.get(`${API_URL}/bao-cao-hoan-tien`, {
-      params: { 
+      params: {
         tuNgay: tuNgay ? tuNgay.toISOString().split('T')[0] : null,
         denNgay: denNgay ? denNgay.toISOString().split('T')[0] : null
       },
