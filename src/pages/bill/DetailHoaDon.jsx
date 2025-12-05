@@ -375,7 +375,6 @@ const DetailHoaDon = () => {
       newAddress.diaChiCuThe !== oldAddress.diaChiCuThe;
 
     if (isAddressChanged) {
-  
       return 10000;
     }
 
@@ -1256,43 +1255,54 @@ const DetailHoaDon = () => {
         return 0;
       }
 
-      const tongTienCalc = tongTien || invoice.tongTien || 0;
-      const phiVanChuyen = invoice.phiVanChuyen || 0;
-      const tongTienTruocGiam = tongTienCalc + phiVanChuyen;
+      // Chỉ tính giảm giá dựa trên tổng tiền sản phẩm (KHÔNG bao gồm phí vận chuyển)
+      const tongTienSanPham = tongTien || invoice.tongTien || 0;
 
+      // Kiểm tra điều kiện tối thiểu của đơn hàng (nếu có)
       if (
         invoice.giaTriDonHangToiThieu &&
-        tongTienTruocGiam < invoice.giaTriDonHangToiThieu
+        tongTienSanPham < invoice.giaTriDonHangToiThieu
       ) {
         return 0;
       }
 
       let discount = 0;
 
+      // Tính toán giảm giá dựa trên loại giảm giá
       if (invoice.loaiGiamGia === true) {
+        // Giảm giá cố định (VNĐ)
         discount = invoice.giaTriGiamGia || 0;
       } else {
-        discount = (tongTienTruocGiam * invoice.giaTriGiamGia) / 100;
+        // Giảm giá theo phần trăm (%)
+        discount = (tongTienSanPham * invoice.giaTriGiamGia) / 100;
       }
 
+      // Áp dụng mức giảm tối đa (nếu có)
       if (invoice.mucGiaGiamToiDa) {
         discount = Math.min(discount, invoice.mucGiaGiamToiDa);
       }
 
-      discount = Math.min(discount, tongTienTruocGiam);
+      // Đảm bảo giảm giá không vượt quá tổng tiền sản phẩm
+      discount = Math.min(discount, tongTienSanPham);
       return discount;
     })(),
 
     tongTienCuoiCung: () => {
-      const tongTienTruocGiam =
-        (tongTien || invoice.tongTien || 0) +
-        (invoice.phiVanChuyen || 0) +
-        (phiPhu || 0);
+      // 1. Tính tiền sản phẩm
+      const tongTienSanPham = tongTien || invoice.tongTien || 0;
 
+      // 2. Áp dụng giảm giá (chỉ cho tiền sản phẩm)
       const discount = finalTotal.tienGiamGia;
-      const tongTienSauGiam = tongTienTruocGiam - discount;
+      const tongTienSauGiam = tongTienSanPham - discount;
 
-      return Math.max(0, tongTienSauGiam);
+      // 3. Cộng các loại phí (vận chuyển, phụ phí)
+      const tongTienCuoiCung =
+        Math.max(0, tongTienSauGiam) +
+        (invoice.phiVanChuyen || 0) +
+        (phiPhu || 0) +
+        (phiPhuMoi || 0);
+
+      return tongTienCuoiCung;
     },
 
     phieuGiamGiaInfo:
@@ -1725,7 +1735,6 @@ const DetailHoaDon = () => {
                       </div>
                     )}
 
-               
                     {(finalTotal.phiPhu > 0 || finalTotal.phiPhuMoi > 0) && (
                       <div
                         style={{
