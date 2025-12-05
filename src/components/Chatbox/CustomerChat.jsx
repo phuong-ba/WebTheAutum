@@ -307,7 +307,7 @@ export default function CustomerChat() {
                         </div>
                       )}
                       {m.parsed?.follow_up_question && (
-                        <div className="mt-2 text-gray-700 text-sm font-medium">
+                        <div className="mt-2 text-white-700 text-sm font-medium">
                           {m.parsed.follow_up_question}
                         </div>
                       )}
