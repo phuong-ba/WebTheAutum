@@ -1,16 +1,11 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:8080/api/vnpay'; // URL backend của bạn
+import baseUrl from "./instance";
 
 export const vnPayService = {
   // Tạo thanh toán VNPay
   createPayment: async (maHoaDon) => {
     try {
-      const response = await axios.post(`${API_URL}/create-payment`, null, {
-        params: { maHoaDon },
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await baseUrl.post("vnpay/create-payment", null, {
+        params: { maHoaDon }
       });
       return response.data;
     } catch (error) {
@@ -22,7 +17,7 @@ export const vnPayService = {
   // Kiểm tra trạng thái thanh toán
   checkPaymentStatus: async (maHoaDon) => {
     try {
-      const response = await axios.get(`${API_URL}/check-payment-status`, {
+      const response = await baseUrl.get("vnpay/check-payment-status", {
         params: { maHoaDon },
       });
       return response.data;
@@ -35,7 +30,7 @@ export const vnPayService = {
   // Hủy thanh toán
   cancelPayment: async (maHoaDon) => {
     try {
-      const response = await axios.post(`${API_URL}/cancel-payment`, null, {
+      const response = await baseUrl.post("vnpay/cancel-payment", null, {
         params: { maHoaDon },
       });
       return response.data;
@@ -48,7 +43,7 @@ export const vnPayService = {
   // Lấy danh sách ngân hàng hỗ trợ
   getSupportedBanks: async () => {
     try {
-      const response = await axios.get(`${API_URL}/supported-banks`);
+      const response = await baseUrl.get("vnpay/supported-banks");
       return response.data;
     } catch (error) {
       console.error('Error getting supported banks:', error);

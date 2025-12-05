@@ -9,7 +9,13 @@ const baseUrl = axios.create({
   },
   timeout: 10000, 
 });
-
+// const baseUrl = axios.create({
+//   baseURL: "http://192.203.4.118:8080/api/",
+//   headers: {
+//     "Content-Type": "application/json",
+//   },
+//   timeout: 10000, 
+// });
 baseUrl.interceptors.request.use(
   (config) => {
     const token = JSON.parse(Cookies.get("token") || "null");

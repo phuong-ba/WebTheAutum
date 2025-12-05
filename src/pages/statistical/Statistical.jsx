@@ -6,7 +6,7 @@ import {
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
-import ThongKeAPI from '../../api/ThongKeAPI';
+import ThongKeApi from '@/api/ThongKeAPI';
 
 const { Option } = Select;
 
@@ -35,7 +35,7 @@ export default function Statistical() {
   const fetchStatistics = async (period) => {
     setLoading(true);
     try {
-      const response = await ThongKeAPI.getAllStatistics(period);
+      const response = await ThongKeApi.getAllStatistics(period);
       setStatistics(response.data);
       message.success('Đã tải dữ liệu thống kê');
     } catch (error) {

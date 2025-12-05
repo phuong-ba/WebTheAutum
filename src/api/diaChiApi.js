@@ -1,15 +1,13 @@
-import axios from "axios";
-
-const API_URL = "http://localhost:8080/api/dia-chi";
+import baseUrl from "./instance";
 
 export const diaChiApi = {
   getAllTinhThanh: async () => {
-    const res = await axios.get(`${API_URL}/tinh-thanh`);
+    const res = await baseUrl.get("dia-chi/tinh-thanh");
     return res.data;
   },
 
   getQuanByTinh: async (idTinh) => {
-    const res = await axios.get(`${API_URL}/quan-huyen`, {
+    const res = await baseUrl.get("dia-chi/quan-huyen", {
       params: { idTinh },
     });
     return res.data;

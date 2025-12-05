@@ -1,40 +1,34 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:8080/api/hoa-don';
+import baseUrl from "./instance";
 
 const hoaDonApi = {
   getAllHoaDon(page = 0, size = 5) {
-    return axios.get(API_URL, {
+    return baseUrl.get("hoa-don", {
       params: { page, size }
     });
   },
 
   getDetail: (id) => {
-    return axios.get(`${API_URL}/detail/${id}`);
+    return baseUrl.get(`hoa-don/detail/${id}`);
   },
 
   canEdit: (id) => {
-    return axios.get(`${API_URL}/${id}/can-edit`);
+    return baseUrl.get(`hoa-don/${id}/can-edit`);
   },
 
   updateHoaDon: (id, data) => {
-    return axios.put(`${API_URL}/${id}`, data);
+    return baseUrl.put(`hoa-don/${id}`, data);
   },
 
   getById(id) {
-    return axios.get(`${API_URL}/${id}`);
+    return baseUrl.get(`hoa-don/${id}`);
   },
 
   update(id, hoaDon) {
-    return axios.put(`${API_URL}/${id}`, hoaDon, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    return baseUrl.put(`hoa-don/${id}`, hoaDon);
   },
 
   canEditShippingStatus: (id) => {
-    return axios.get(`${API_URL}/${id}/can-edit-shipping`);
+    return baseUrl.get(`hoa-don/${id}/can-edit-shipping`);
   },
 
   searchAndFilter(params) {
@@ -47,94 +41,85 @@ const hoaDonApi = {
       }
     });
 
-    return axios.get(`${API_URL}`, {
+    return baseUrl.get("hoa-don", {
       params: cleanParams
     });
   },
 
   exportExcel() {
-    return axios.get(`${API_URL}/export`, {
+    return baseUrl.get("hoa-don/export", {
       responseType: 'blob'
     });
   },
 
   printInvoices(invoiceIds) {
-    return axios.post(`${API_URL}/print`, invoiceIds, {
+    return baseUrl.post("hoa-don/print", invoiceIds, {
       responseType: 'blob'
     });
   },
 
   generateMaHoaDon() {
-    return axios.get(`${API_URL}/generate-ma`);
+    return baseUrl.get("hoa-don/generate-ma");
   },
 
   getAllPhieuGiamGia: () => {
-    return axios.get('http://localhost:8080/api/phieu-giam-gia');
+    return baseUrl.get("phieu-giam-gia");
   },
 
   getAllProducts: () => {
-    return axios.get('http://localhost:8080/api/chi-tiet-san-pham');
+    return baseUrl.get("chi-tiet-san-pham");
   },
 
   updateStatus(id, trangThai) {
-    return axios.put(`${API_URL}/${id}/trang-thai`, null, {
-      params: { trangThai: trangThai }
+    return baseUrl.put(`hoa-don/${id}/trang-thai`, null, {
+      params: { trangThai }
     });
   },
 
   updateService: (invoiceId, loaiHoaDon) => {
-    return axios.put(`${API_URL}/${invoiceId}/service`, {
+    return baseUrl.put(`hoa-don/${invoiceId}/service`, {
       loaiHoaDon
     });
   },
 
   getLichSu: (id) => {
-    return axios.get(`${API_URL}/${id}/lich-su`);
+    return baseUrl.get(`hoa-don/${id}/lich-su`);
   },
 
   sendEmail: (id, data) => {
-    return axios.post(`${API_URL}/send-email/${id}`, data);
+    return baseUrl.post(`hoa-don/send-email/${id}`, data);
   },
 
   create(hoaDon) {
-    return axios.post(`${API_URL}/add`, hoaDon, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    return baseUrl.post("hoa-don/add", hoaDon);
   },
 
   getLichSuThanhToan: (id) => {
-    return axios.get(`${API_URL}/${id}/lich-su-thanh-toan`);
+    return baseUrl.get(`hoa-don/${id}/lich-su-thanh-toan`);
   },
 
   xoaChiTietSanPham: (idHoaDon, idChiTietSanPham) => {
-    return axios.delete(`${API_URL}/${idHoaDon}/chi-tiet/${idChiTietSanPham}`);
+    return baseUrl.delete(`hoa-don/${idHoaDon}/chi-tiet/${idChiTietSanPham}`);
   },
 
-  // API kiểm tra điều kiện hoàn tiền
   kiemTraHoanTien: (id) => {
-    return axios.get(`${API_URL}/${id}/kiem-tra-hoan-tien`);
+    return baseUrl.get(`hoa-don/${id}/kiem-tra-hoan-tien`);
   },
 
-  // API thực hiện hoàn tiền
   hoanTienHoaDon: (id, data) => {
-    return axios.post(`${API_URL}/${id}/hoan-tien`, data);
+    return baseUrl.post(`hoa-don/${id}/hoan-tien`, data);
   },
 
-  // API lấy lịch sử hoàn tiền
   getLichSuHoanTien: (id) => {
-    return axios.get(`${API_URL}/${id}/lich-su-hoan-tien`);
+    return baseUrl.get(`hoa-don/${id}/lich-su-hoan-tien`);
   },
 
-  // API lấy danh sách lý do hoàn tiền mẫu
   getLyDoHoanTienMau: () => {
-    return axios.get(`${API_URL}/ly-do-hoan-tien-mau`);
+    return baseUrl.get("hoa-don/ly-do-hoan-tien-mau");
   },
 
-  // API xuất báo cáo hoàn tiền
   exportBaoCaoHoanTien: (tuNgay, denNgay) => {
-    return axios.get(`${API_URL}/bao-cao-hoan-tien`, {
+    return baseUrl.get("hoa-don/bao-cao-hoan-tien", {
       params: {
         tuNgay: tuNgay ? tuNgay.toISOString().split('T')[0] : null,
         denNgay: denNgay ? denNgay.toISOString().split('T')[0] : null
@@ -143,9 +128,8 @@ const hoaDonApi = {
     });
   },
 
-  // API lấy danh sách hóa đơn có thể hoàn tiền
   getHoaDonCoTheHoanTien: (page = 0, size = 10) => {
-    return axios.get(`${API_URL}/co-the-hoan-tien`, {
+    return baseUrl.get("hoa-don/co-the-hoan-tien", {
       params: { page, size }
     });
   }
