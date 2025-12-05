@@ -8,9 +8,6 @@ const MainHome = React.lazy(() => import("@/pages/home/main/MainHome"));
 const ProductAll = React.lazy(() =>
   import("@/pages/home/productDetail/ProductAll")
 );
-const CategoryAll = React.lazy(() =>
-  import("@/pages/home/productDetail/CategoryAll")
-);
 const ProductDetail = React.lazy(() =>
   import("@/pages/home/productDetail/ProductDetail")
 );
@@ -59,14 +56,6 @@ const userRouters = [
         element: (
           <LazyLoad>
             <ProductAll />
-          </LazyLoad>
-        ),
-      },
-      {
-        path: "category",
-        element: (
-          <LazyLoad>
-            <CategoryAll />
           </LazyLoad>
         ),
       },
