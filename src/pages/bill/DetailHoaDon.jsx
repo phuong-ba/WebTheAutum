@@ -23,6 +23,7 @@ import {
   Alert,
   Statistic,
   Collapse,
+  Progress,
 } from "antd";
 import {
   EditOutlined,
@@ -60,11 +61,238 @@ const { TextArea } = Input;
 const { Panel } = Collapse;
 
 const HoanTienModal = ({ visible, onCancel, onSuccess, hoaDonId, invoice }) => {
-  // ... (giữ nguyên code HoanTienModal)
-  return <Modal>...</Modal>;
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+
+  // Tính số tiền tối đa có thể hoàn (dựa trên số tiền đã thanh toán)
+  const maxHoanTien = invoice?.soTienThanhToan || 0;
+  const daHoanTruoc = invoice?.tongTienHoan || 0;
+  const conLaiCoTheHoan = maxHoanTien - daHoanTruoc;
+
+  const onFinish = async (values) => {
+    if (values.soTienHoan > conLaiCoTheHoan) {
+      message.error(
+        "Số tiền hoàn không được vượt quá số tiền còn lại có thể hoàn!"
+      );
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const request = {
+        soTienHoan: values.soTienHoan,
+        lyDo: values.lyDo || "Khách hàng yêu cầu hoàn tiền",
+        ghiChu: values.ghiChu,
+        phuongThucHoanTien: values.phuongThucHoanTien || "CHUYEN_KHOAN",
+      };
+
+      const response = await hoaDonApi.hoanTienHoaDon(hoaDonId, request);
+
+      if (response.data?.success) {
+        message.success(
+          response.data.message ||
+            `Đã hoàn ${formatMoney(values.soTienHoan)} thành công!`
+        );
+        form.resetFields();
+        onSuccess?.(response.data);
+        onCancel?.();
+      } else {
+        message.error(response.data?.message || "Hoàn tiền thất bại!");
+      }
+    } catch (error) {
+      console.error("Lỗi hoàn tiền:", error);
+      const errMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Không thể thực hiện hoàn tiền. Vui lòng thử lại!";
+      message.error(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatMoney = (amount) => {
+    if (!amount) return "0 ₫";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
+  };
+
+  return (
+    <Modal
+      title={
+        <Space>
+          <DollarOutlined style={{ color: "#52c41a" }} />
+          <Title level={4} style={{ margin: 0 }}>
+            Hoàn tiền đơn hàng #{invoice?.maHoaDon}
+          </Title>
+        </Space>
+      }
+      open={visible}
+      onCancel={onCancel}
+      footer={null}
+      width={600}
+      destroyOnClose
+    >
+      <div style={{ padding: "16px 0" }}>
+        {/* Thông tin tổng quan */}
+        <Alert
+          message={
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <Text strong>Thông tin thanh toán hiện tại</Text>
+              <div>
+                <Text type="secondary">Tổng tiền đơn hàng:</Text>{" "}
+                <Text strong>{formatMoney(invoice?.tongTienSauGiam)}</Text>
+              </div>
+              <div>
+                <Text type="secondary">Đã thanh toán:</Text>{" "}
+                <Text strong style={{ color: "#52c41a" }}>
+                  {formatMoney(maxHoanTien)}
+                </Text>
+              </div>
+              {daHoanTruoc > 0 && (
+                <div>
+                  <Text type="secondary">Đã hoàn trước đó:</Text>{" "}
+                  <Text strong style={{ color: "#faad14" }}>
+                    {formatMoney(daHoanTruoc)}
+                  </Text>
+                </div>
+              )}
+              <div>
+                <Text type="secondary">Còn lại có thể hoàn:</Text>{" "}
+                <Text strong style={{ color: "#1890ff", fontSize: 18 }}>
+                  {formatMoney(conLaiCoTheHoan)}
+                </Text>
+              </div>
+            </Space>
+          }
+          type="info"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          style={{ marginBottom: 20 }}
+        />
+
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{
+            soTienHoan: conLaiCoTheHoan,
+            phuongThucHoanTien: "CHUYEN_KHOAN",
+          }}
+        >
+          <Form.Item
+            label="Số tiền hoàn lại (VNĐ)"
+            name="soTienHoan"
+            rules={[
+              { required: true, message: "Vui lòng nhập số tiền hoàn!" },
+              {
+                type: "number",
+                min: 1000,
+                message: "Số tiền hoàn phải lớn hơn 1.000 ₫",
+              },
+              {
+                validator: (_, value) =>
+                  value > conLaiCoTheHoan
+                    ? Promise.reject(
+                        new Error(
+                          `Không được vượt quá ${formatMoney(conLaiCoTheHoan)}`
+                        )
+                      )
+                    : Promise.resolve(),
+              },
+            ]}
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              formatter={(value) =>
+                `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+              }
+              parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+              addonAfter="₫"
+              min={1000}
+              max={conLaiCoTheHoan}
+              step={1000}
+              precision={0}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="Phương thức hoàn tiền"
+            name="phuongThucHoanTien"
+            rules={[{ required: true, message: "Chọn phương thức hoàn tiền!" }]}
+          >
+            <Select placeholder="Chọn phương thức">
+              <Select.Option value="CHUYEN_KHOAN">
+                Chuyển khoản ngân hàng
+              </Select.Option>
+              <Select.Option value="TIEN_MAT">Tiền mặt</Select.Option>
+              <Select.Option value="VI_DIEN_TU">Ví điện tử</Select.Option>
+              <Select.Option value="KHAC">Khác</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Lý do hoàn tiền"
+            name="lyDo"
+            rules={[
+              { required: true, message: "Vui lòng nhập lý do hoàn tiền!" },
+            ]}
+          >
+            <Select placeholder="Chọn lý do phổ biến hoặc nhập trực tiếp">
+              <Select.Option value="Khách hủy đơn">
+                Khách hủy đơn hàng
+              </Select.Option>
+              <Select.Option value="Sản phẩm lỗi/hỏng">
+                Sản phẩm lỗi, hỏng
+              </Select.Option>
+              <Select.Option value="Giao sai sản phẩm">
+                Giao sai sản phẩm
+              </Select.Option>
+              <Select.Option value="Khách không nhận hàng">
+                Khách không nhận hàng
+              </Select.Option>
+              <Select.Option value="Thay đổi ý kiến">
+                Khách thay đổi ý kiến
+              </Select.Option>
+              <Select.Option value="Khác">Khác</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item label="Ghi chú thêm (nếu có)" name="ghiChu">
+            <TextArea
+              rows={3}
+              placeholder="Ghi chú chi tiết về việc hoàn tiền..."
+            />
+          </Form.Item>
+
+          <Divider />
+
+          <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
+            <Space>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                loading={loading}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold shadow-md transition"
+              >
+                {loading ? "Đang xử lý..." : "Xác nhận hoàn tiền"}
+              </button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </div>
+    </Modal>
+  );
 };
 
-// Main DetailHoaDon Component
 const DetailHoaDon = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -106,6 +334,33 @@ const DetailHoaDon = () => {
   const [phiPhuMoi, setPhiPhuMoi] = useState(0);
   const [phiPhuDetails, setPhiPhuDetails] = useState([]);
   const [showPhiPhuDetails, setShowPhiPhuDetails] = useState(false);
+
+  // Tính toán thông tin thanh toán
+  const paymentSummary = {
+    // Số tiền đã thanh toán (từ API)
+    soTienThanhToan: invoice?.soTienThanhToan || 0,
+
+    // Số tiền cần thanh toán (từ API)
+    soTienCanThanhToan: invoice?.soTienCanThanhToan || 0,
+
+    // Tổng tiền sau giảm giá (từ API)
+    tongTienSauGiam: invoice?.tongTienSauGiam || 0,
+
+    // Tính số tiền còn lại phải thanh toán
+    soTienConLai: () => {
+      const totalAfterDiscount = invoice?.tongTienSauGiam || 0;
+      const paid = invoice?.soTienThanhToan || 0;
+      return Math.max(0, totalAfterDiscount - paid);
+    },
+
+    // Tính phần trăm đã thanh toán
+    phanTramDaThanhToan: () => {
+      const totalAfterDiscount = invoice?.tongTienSauGiam || 0;
+      const paid = invoice?.soTienThanhToan || 0;
+      if (totalAfterDiscount <= 0) return 0;
+      return (paid / totalAfterDiscount) * 100;
+    },
+  };
 
   const getProductKey = (product) => {
     return product.idChiTietSanPham || product.id || product.idCTSP;
@@ -1800,6 +2055,105 @@ const DetailHoaDon = () => {
 
                     <Divider style={{ margin: "12px 0" }} />
 
+                    {/* PHẦN THÔNG TIN THANH TOÁN */}
+
+                    {/* Tổng tiền sau giảm giá */}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text>Tổng tiền sau giảm giá:</Text>
+                      <Text strong>
+                        {formatMoney(paymentSummary.tongTienSauGiam)}
+                      </Text>
+                    </div>
+
+                    {/* Đã thanh toán */}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text>Đã thanh toán:</Text>
+                      <Text strong style={{ color: "#52c41a" }}>
+                        {formatMoney(paymentSummary.soTienThanhToan)}
+                      </Text>
+                    </div>
+
+                    {/* Còn lại cần thanh toán */}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text>Còn lại cần thanh toán:</Text>
+                      <Text
+                        strong
+                        style={{
+                          color:
+                            paymentSummary.soTienCanThanhToan > 0
+                              ? "#faad14"
+                              : "#52c41a",
+                        }}
+                      >
+                        {formatMoney(paymentSummary.soTienCanThanhToan)}
+                      </Text>
+                    </div>
+
+                    {/* Thanh toán đủ hay chưa */}
+                    {paymentSummary.soTienCanThanhToan === 0 ? (
+                      <Alert
+                        message="Đã thanh toán đủ"
+                        type="success"
+                        showIcon
+                        style={{ marginTop: 8 }}
+                      />
+                    ) : (
+                      <Alert
+                        message={`Còn phải thanh toán: ${formatMoney(
+                          paymentSummary.soTienCanThanhToan
+                        )}`}
+                        type="warning"
+                        showIcon
+                        style={{ marginTop: 8 }}
+                      />
+                    )}
+
+                    {/* Phần trăm thanh toán */}
+                    <div style={{ marginTop: 12 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: 4,
+                        }}
+                      >
+                        <Text type="secondary">Tiến độ thanh toán:</Text>
+                        <Text type="secondary">
+                          {paymentSummary.phanTramDaThanhToan().toFixed(1)}%
+                        </Text>
+                      </div>
+                      <Progress
+                        percent={paymentSummary
+                          .phanTramDaThanhToan()
+                          .toFixed(1)}
+                        status={
+                          paymentSummary.phanTramDaThanhToan() >= 100
+                            ? "success"
+                            : paymentSummary.phanTramDaThanhToan() > 0
+                            ? "active"
+                            : "normal"
+                        }
+                      />
+                    </div>
+
+                    <Divider style={{ margin: "12px 0" }} />
+
+                    {/* Tổng thanh toán cuối cùng */}
                     <div
                       style={{
                         display: "flex",
@@ -1889,7 +2243,17 @@ const DetailHoaDon = () => {
                     />
                   )}
                 </Card>
-                <BillInvoiceHistory />
+
+                {/* Truyền dữ liệu thanh toán vào BillInvoiceHistory */}
+                <BillInvoiceHistory
+                  paymentData={{
+                    soTienThanhToan: paymentSummary.soTienThanhToan,
+                    soTienCanThanhToan: paymentSummary.soTienCanThanhToan,
+                    tongTienSauGiam: paymentSummary.tongTienSauGiam,
+                    phiPhu: phiPhu,
+                    phiVanChuyen: invoice?.phiVanChuyen || 0,
+                  }}
+                />
               </Col>
             </Row>
           </Form>
