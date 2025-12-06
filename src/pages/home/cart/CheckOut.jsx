@@ -482,7 +482,7 @@ export default function CheckOut() {
       idKhachHang: idKhachHang || null,
       idPhieuGiamGia: appliedVoucher?.id || null,
       idPhuongThucThanhToan,
-      loaiHoaDon: false, // ONLINE
+      loaiHoaDon: false,
       phiVanChuyen: shippingFee,
       tongTien: subtotal,
       tongTienSauGiam: total,
