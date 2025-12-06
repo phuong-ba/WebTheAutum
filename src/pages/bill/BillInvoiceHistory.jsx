@@ -1,20 +1,57 @@
-import { ClockCountdownIcon } from "@phosphor-icons/react";
+import { ClockCountdownIcon, CurrencyCircleDollarIcon } from "@phosphor-icons/react";
 import React, { useState, useEffect } from "react";
 import hoaDonApi from "../../api/HoaDonAPI";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-export default function BillInvoiceHistory() {
+export default function BillInvoiceHistory({ paymentData }) {
   const { id } = useParams();
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Sử dụng dữ liệu từ props hoặc fetch từ API
+  const displaySummary = {
+    // Số tiền đã thanh toán từ props hoặc từ API
+    soTienThanhToan: paymentData?.soTienThanhToan || 0,
+    
+    // Số tiền cần thanh toán từ props hoặc từ API
+    soTienCanThanhToan: paymentData?.soTienCanThanhToan || 0,
+    
+    // Tổng tiền sau giảm giá từ props hoặc từ API
+    tongTienSauGiam: paymentData?.tongTienSauGiam || 0,
+    
+    // Tính toán số tiền còn lại
+    soTienConLai: Math.max(
+      0, 
+      (paymentData?.tongTienSauGiam || 0) - (paymentData?.soTienThanhToan || 0)
+    )
+  };
+
   useEffect(() => {
     if (id) {
       fetchPaymentHistory();
+      // Nếu không có paymentData từ props, fetch từ API
+      if (!paymentData) {
+        fetchPaymentSummary();
+      }
     }
-  }, [id]);
+  }, [id, paymentData]);
 
+  // Lấy thông tin tổng quan thanh toán từ API (nếu không có từ props)
+  const fetchPaymentSummary = async () => {
+    if (!id || paymentData) return;
+
+    try {
+      const response = await hoaDonApi.getHoaDonDetail(id);
+      if (response) {
+        // Cập nhật state nếu cần
+      }
+    } catch (err) {
+      console.error("❌ Lỗi tải thông tin thanh toán:", err);
+    }
+  };
+
+  // Lấy lịch sử thanh toán
   const fetchPaymentHistory = async () => {
     if (!id) return;
 
@@ -22,7 +59,6 @@ export default function BillInvoiceHistory() {
       setLoading(true);
       setError(null);
 
-      // SỬA: Lấy từ API lịch sử thanh toán thực tế
       const response = await hoaDonApi.getLichSuThanhToan(id);
       const historyData = response.data;
 
@@ -34,7 +70,7 @@ export default function BillInvoiceHistory() {
           : item.trangThai
           ? "Thanh toán thành công"
           : "Thanh toán chờ xử lý",
-        employeeName: "Hệ thống", // Có thể thêm logic lấy nhân viên nếu có
+        employeeName: "Hệ thống",
         timestamp: item.ngayThanhToan,
         amount: item.soTien,
         paymentMethod:
@@ -62,7 +98,7 @@ export default function BillInvoiceHistory() {
   };
 
   const formatCurrency = (amount) => {
-    if (!amount) return "0 ₫";
+    if (amount === null || amount === undefined) return "0 ₫";
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
@@ -85,6 +121,12 @@ export default function BillInvoiceHistory() {
     }
   };
 
+  // Tính phần trăm đã thanh toán
+  const calculatePaymentPercentage = () => {
+    if (displaySummary.tongTienSauGiam <= 0) return 0;
+    return (displaySummary.soTienThanhToan / displaySummary.tongTienSauGiam) * 100;
+  };
+
   if (loading) {
     return (
       <div className="bg-white flex flex-col rounded-lg shadow overflow-hidden my-5">
@@ -101,30 +143,9 @@ export default function BillInvoiceHistory() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-white flex flex-col rounded-lg shadow overflow-hidden my-5">
-        <div className="flex justify-between items-center py-3 px-6 bg-gray-200">
-          <div className="text-sm font-semibold flex gap-2 items-center">
-            <ClockCountdownIcon size={20} />
-            Lịch sử thanh toán
-          </div>
-        </div>
-        <div className="px-3 py-6 text-center">
-          <div className="text-red-500">{error}</div>
-          <button
-            onClick={fetchPaymentHistory}
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Thử lại
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="bg-white flex flex-col rounded-lg shadow overflow-hidden my-5">
+      {/* Header */}
       <div className="flex justify-between items-center py-3 px-6 bg-gray-200">
         <div className="text-sm font-semibold flex gap-2 items-center">
           <ClockCountdownIcon size={20} />
@@ -135,8 +156,91 @@ export default function BillInvoiceHistory() {
         </div>
       </div>
 
+      {/* Phần thông tin thanh toán tổng quan */}
+      <div className="px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-2 mb-3">
+          <CurrencyCircleDollarIcon size={18} className="text-gray-600" />
+          <div className="text-sm font-semibold text-gray-700">Tổng quan thanh toán</div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Tổng tiền phải thanh toán */}
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+            <div className="text-xs text-gray-600 mb-1">Tổng tiền</div>
+            <div className="text-lg font-bold text-blue-600">
+              {formatCurrency(displaySummary.tongTienSauGiam)}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">Sau giảm giá</div>
+          </div>
+          
+          {/* Đã thanh toán */}
+          <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+            <div className="text-xs text-gray-600 mb-1">Đã thanh toán</div>
+            <div className="text-lg font-bold text-green-600">
+              {formatCurrency(displaySummary.soTienThanhToan)}
+            </div>
+            <div className="mt-1">
+              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-green-500 transition-all duration-500"
+                  style={{ 
+                    width: `${calculatePaymentPercentage()}%` 
+                  }}
+                ></div>
+              </div>
+              <div className="text-xs text-gray-500 mt-1 text-right">
+                {calculatePaymentPercentage().toFixed(1)}%
+              </div>
+            </div>
+          </div>
+          
+          {/* Cần thanh toán thêm */}
+          <div className={`p-3 rounded-lg border ${
+            displaySummary.soTienCanThanhToan > 0 
+              ? "bg-amber-50 border-amber-100" 
+              : "bg-gray-50 border-gray-100"
+          }`}>
+            <div className="text-xs text-gray-600 mb-1">
+              {displaySummary.soTienCanThanhToan > 0 
+                ? "Cần thanh toán thêm" 
+                : "Đã thanh toán đủ"
+              }
+            </div>
+            <div className={`text-lg font-bold ${
+              displaySummary.soTienCanThanhToan > 0 
+                ? "text-amber-600" 
+                : "text-gray-600"
+            }`}>
+              {formatCurrency(displaySummary.soTienCanThanhToan)}
+            </div>
+            
+            {/* Hiển thị thông báo */}
+            {displaySummary.soTienCanThanhToan > 0 ? (
+              <div className="text-xs text-amber-500 mt-1">
+                Còn thiếu {formatCurrency(displaySummary.soTienCanThanhToan)}
+              </div>
+            ) : (
+              <div className="text-xs text-green-500 mt-1">
+                Đã thanh toán đủ
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Phần lịch sử chi tiết */}
       <div className="px-3 py-3">
-        {paymentHistory.length === 0 ? (
+        {error ? (
+          <div className="text-center py-4">
+            <div className="text-red-500">{error}</div>
+            <button
+              onClick={fetchPaymentHistory}
+              className="mt-2 px-4 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : paymentHistory.length === 0 ? (
           <div className="text-center py-4 text-gray-500">
             Không có lịch sử thanh toán
           </div>
@@ -163,8 +267,10 @@ export default function BillInvoiceHistory() {
                     )}
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-sm">
-                      {formatCurrency(item.amount)}
+                    <div className={`font-bold text-sm ${
+                      item.isRefund ? "text-red-600" : "text-green-600"
+                    }`}>
+                      {item.isRefund ? "-" : ""}  {formatCurrency(displaySummary.soTienThanhToan)}
                     </div>
                     <div className="text-xs text-gray-500">
                       {formatDateTime(item.timestamp)}

@@ -10,7 +10,11 @@ import { useDispatch, useSelector } from "react-redux";
 const { Search } = Input;
 const { Option } = Select;
 
-export default function BillListProduct({ selectedBillId, onAddProduct, isEditing }) {
+export default function BillListProduct({
+  selectedBillId,
+  onAddProduct,
+  isEditing,
+}) {
   const dispatch = useDispatch();
   const { data } = useSelector((state) => state.chiTietSanPham);
   const [messageApi, contextHolder] = message.useMessage();
@@ -73,9 +77,6 @@ export default function BillListProduct({ selectedBillId, onAddProduct, isEditin
         return;
       }
 
-      // Giảm tồn kho
-      await dispatch(giamSoLuong({ id: product.id, soLuong: 1 })).unwrap();
-
       const unitPrice = product.giaSauGiam ?? product.giaBan ?? 0;
       const originalPrice = product.giaBan ?? 0;
       const hasDiscount =
@@ -96,7 +97,9 @@ export default function BillListProduct({ selectedBillId, onAddProduct, isEditin
         giaBan: product.giaBan,
         giaSauGiam: product.giaSauGiam,
         maVach: product.maVach,
-        anhUrls: product.anhs?.[0]?.duongDanAnh ? [product.anhs[0].duongDanAnh] : [],
+        anhUrls: product.anhs?.[0]?.duongDanAnh
+          ? [product.anhs[0].duongDanAnh]
+          : [],
         tenSanPham: product.tenSanPham,
         mauSac: product.tenMauSac,
         kichThuoc: product.tenKichThuoc,
@@ -170,7 +173,6 @@ export default function BillListProduct({ selectedBillId, onAddProduct, isEditin
     }
   };
 
-  // ====================== TABLE COLUMNS ==========================
   const columns = [
     {
       title: "STT",
@@ -226,10 +228,12 @@ export default function BillListProduct({ selectedBillId, onAddProduct, isEditin
       title: "Tồn kho",
       dataIndex: "soLuongTon",
       render: (value) => (
-        <span style={{ color: value > 0 ? 'green' : 'red', fontWeight: 'bold' }}>
+        <span
+          style={{ color: value > 0 ? "green" : "red", fontWeight: "bold" }}
+        >
           {value}
         </span>
-      )
+      ),
     },
     {
       title: "Giá bán",
@@ -268,7 +272,6 @@ export default function BillListProduct({ selectedBillId, onAddProduct, isEditin
     },
   ];
 
-  // ====================== RENDER ==========================
   return (
     <>
       {contextHolder}
@@ -285,44 +288,6 @@ export default function BillListProduct({ selectedBillId, onAddProduct, isEditin
         </div>
 
         <div className="p-4">
-          <div className="flex gap-3 mb-4">
-            <Search
-              placeholder="Tìm tên, màu, size, giá..."
-              allowClear
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              style={{ width: 250 }}
-            />
-
-            <Select
-              mode="multiple"
-              placeholder="Lọc theo màu"
-              value={colorFilter}
-              onChange={setColorFilter}
-              style={{ width: 200 }}
-              allowClear
-            >
-              {[...new Set((data || []).map((p) => p.tenMauSac))].map((m) => (
-                <Option key={m} value={m}>
-                  {m}
-                </Option>
-              ))}
-            </Select>
-
-            <Select
-              placeholder="Lọc theo giá"
-              value={priceFilter}
-              onChange={setPriceFilter}
-              style={{ width: 160 }}
-              allowClear
-            >
-              <Option value="duoi-200">Dưới 200k</Option>
-              <Option value="200-500">200k - 500k</Option>
-              <Option value="500-1000">500k - 1tr</Option>
-              <Option value="tren-1000">Trên 1tr</Option>
-            </Select>
-          </div>
-
           <Table
             columns={columns}
             dataSource={filteredData}
