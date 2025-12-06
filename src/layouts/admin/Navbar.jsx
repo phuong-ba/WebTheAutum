@@ -27,7 +27,12 @@ export default function Navbar() {
   const [userRole, setUserRole] = useState("STAFF");
 
   // Use ShiftContext for real-time shift status
-  const { isShiftActive, isChecking: isCheckingShift, isAdmin: contextIsAdmin, shiftTimeExpired } = useShift();
+  const {
+    isShiftActive,
+    isChecking: isCheckingShift,
+    isAdmin: contextIsAdmin,
+    shiftTimeExpired,
+  } = useShift();
 
   // Lấy thông tin user từ localStorage
   useEffect(() => {
@@ -117,11 +122,6 @@ export default function Navbar() {
       icon: <AppstoreOutlined />,
       label: "Giao Ca",
     },
-    {
-      key: "/admin/dateWork",
-      icon: <AppstoreOutlined />,
-      label: "Lịch làm việc",
-    },
   ];
 
   // Chọn menu items dựa trên role - SỬA CHỖ NÀY
@@ -131,14 +131,18 @@ export default function Navbar() {
       return adminMenuItems;
     } else {
       // Cho nhân viên: disable menu nếu đang kiểm tra, không có ca hoạt động, hoặc ca đã hết thời gian
-      const shouldDisable = isCheckingShift || !isShiftActive || shiftTimeExpired;
-      return staffMenuItems.map(item => ({
+      const shouldDisable =
+        isCheckingShift || !isShiftActive || shiftTimeExpired;
+      return staffMenuItems.map((item) => ({
         ...item,
-        disabled: shouldDisable && !String(item.key).startsWith("/admin/changeShifts"),
-        children: item.children?.map(child => ({
+        disabled:
+          shouldDisable && !String(item.key).startsWith("/admin/changeShifts"),
+        children: item.children?.map((child) => ({
           ...child,
-          disabled: shouldDisable && !String(child.key).startsWith("/admin/changeShifts"),
-        }))
+          disabled:
+            shouldDisable &&
+            !String(child.key).startsWith("/admin/changeShifts"),
+        })),
       }));
     }
   };
@@ -168,8 +172,15 @@ export default function Navbar() {
             return;
           }
 
-          const roleNormalized = (userRole || "").toString().trim().toLowerCase();
-          const isManager = roleNormalized === "quản lý" || roleNormalized === "admin" || roleNormalized.includes("quản lý") || contextIsAdmin;
+          const roleNormalized = (userRole || "")
+            .toString()
+            .trim()
+            .toLowerCase();
+          const isManager =
+            roleNormalized === "quản lý" ||
+            roleNormalized === "admin" ||
+            roleNormalized.includes("quản lý") ||
+            contextIsAdmin;
 
           // If manager/admin -> allow all navigation
           if (isManager) {
