@@ -12,10 +12,9 @@ import { Stomp } from "@stomp/stompjs";
 let stompClient = null;
 let isConnected = false;
 
-/**
- * Khởi tạo kết nối WebSocket
- * @returns {Object} Stomp client instance
- */
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
 export const initializeWebSocket = () => {
   if (stompClient && isConnected) {
     console.log("⚠️ WebSocket đã được kết nối");
@@ -23,7 +22,7 @@ export const initializeWebSocket = () => {
   }
 
   console.log("🔄 Đang khởi tạo WebSocket...");
-  const socket = new SockJS("http://localhost:8080/ws");
+  const socket = new SockJS(apiBaseUrl);
   stompClient = Stomp.over(socket);
   // BẬT DEBUG ĐẦY ĐỦ
   stompClient.debug = (str) => {

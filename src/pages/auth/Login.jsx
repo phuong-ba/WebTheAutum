@@ -9,7 +9,7 @@ import {
   fetchCaDangHoatDong,
   checkRemainingShift,
 } from "@/services/giaoCaService";
-import { authService } from "@/services/authService";
+import authServiceAPI from "@/api/authAPI";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -20,18 +20,7 @@ export default function Login() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:8080/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: values.email,
-          matKhau: values.password,
-        }),
-      });
-
-      const data = await response.json();
+      const data = await authServiceAPI.login(values.email, values.password);
 
       if (data.accessToken) {
         // Lưu thông tin đăng nhập

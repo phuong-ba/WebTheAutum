@@ -4,6 +4,7 @@ import logo from "/src/assets/login/logoAutumn.png";
 import { Form, Input, message } from "antd";
 import { LockOutlined } from "@ant-design/icons";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import authServiceAPI from "@/api/authAPI";
 
 export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
@@ -25,19 +26,10 @@ export default function ResetPassword() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-
-      const response = await fetch("http://localhost:8080/api/auth/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token: token,
-          newPassword: values.newPassword
-        }),
-      });
-
-      const data = await response.json();
+      const data = await authServiceAPI.resetPassword(
+        token,
+        values.newPassword
+      );
 
       if (data.success) {
         message.success(data.message);
@@ -45,7 +37,6 @@ export default function ResetPassword() {
       } else {
         message.error(data.message);
       }
-
     } catch (error) {
       console.error("❌ Reset password error:", error);
       message.error("Lỗi kết nối. Vui lòng thử lại!");
@@ -81,11 +72,13 @@ export default function ResetPassword() {
               Hệ thống quản lý cửa hàng The Autumn trên nền tảng kỹ thuật số
             </p>
           </div>
-          
+
           <div className="flex flex-1 flex-col justify-between items-center w-full">
             <div className="w-full max-w-[400px]">
-              <h2 className="text-2xl font-bold text-center mb-2">Đặt lại mật khẩu</h2>
-              
+              <h2 className="text-2xl font-bold text-center mb-2">
+                Đặt lại mật khẩu
+              </h2>
+
               {!isSuccess && (
                 <div className="token-info bg-gray-100 p-4 rounded-lg mb-4 border-l-4 border-[#dc833a]">
                   <p className="text-sm text-gray-600 mb-2">Token reset:</p>
@@ -104,8 +97,11 @@ export default function ResetPassword() {
                   <Form.Item
                     name="newPassword"
                     rules={[
-                      { required: true, message: "Vui lòng nhập mật khẩu mới!" },
-                      { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự!" }
+                      {
+                        required: true,
+                        message: "Vui lòng nhập mật khẩu mới!",
+                      },
+                      { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự!" },
                     ]}
                   >
                     <Input.Password
@@ -117,15 +113,23 @@ export default function ResetPassword() {
 
                   <Form.Item
                     name="confirmPassword"
-                    dependencies={['newPassword']}
+                    dependencies={["newPassword"]}
                     rules={[
-                      { required: true, message: "Vui lòng xác nhận mật khẩu!" },
+                      {
+                        required: true,
+                        message: "Vui lòng xác nhận mật khẩu!",
+                      },
                       ({ getFieldValue }) => ({
                         validator(_, value) {
-                          if (!value || getFieldValue('newPassword') === value) {
+                          if (
+                            !value ||
+                            getFieldValue("newPassword") === value
+                          ) {
                             return Promise.resolve();
                           }
-                          return Promise.reject(new Error('Mật khẩu xác nhận không khớp!'));
+                          return Promise.reject(
+                            new Error("Mật khẩu xác nhận không khớp!")
+                          );
                         },
                       }),
                     ]}
@@ -145,9 +149,9 @@ export default function ResetPassword() {
                     >
                       {loading ? "ĐANG XỬ LÝ..." : "ĐẶT LẠI MẬT KHẨU"}
                     </button>
-                    
+
                     <div className="flex justify-center mt-4 text-sm">
-                      <a 
+                      <a
                         href="/login"
                         className="text-[#dc833a] hover:underline"
                         onClick={(e) => {
@@ -168,7 +172,8 @@ export default function ResetPassword() {
                       Thành công!
                     </h3>
                     <p className="text-sm text-gray-600">
-                      Mật khẩu đã được đặt lại thành công. Bạn có thể đăng nhập với mật khẩu mới.
+                      Mật khẩu đã được đặt lại thành công. Bạn có thể đăng nhập
+                      với mật khẩu mới.
                     </p>
                   </div>
                   <a

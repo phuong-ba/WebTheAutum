@@ -33,24 +33,20 @@ import {
   LeftOutlined,
   RightOutlined,
 } from "@ant-design/icons";
-
 import { PencilLine } from "@phosphor-icons/react";
-
 import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
+import shiftManagementApi from "@/api/lichCa";
 
 dayjs.locale("vi");
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-// Màu chủ đạo - đồng bộ với trang quản lý hóa đơn
-const PRIMARY_COLOR = "#ff8c42"; // Màu cam cho nút và header bảng
-const TITLE_COLOR = "#E67E22"; // Màu cam cho tiêu đề
-
-// --- CẤU HÌNH API ---
-const API_BASE = "http://localhost:8080/api";
+// Màu chủ đạo
+const PRIMARY_COLOR = "#ff8c42";
+const TITLE_COLOR = "#E67E22";
 
 // --- HELPERS ---
 const exportToCSV = (filename, data, columns) => {
@@ -83,7 +79,7 @@ const exportToCSV = (filename, data, columns) => {
   document.body.removeChild(link);
 };
 
-// --- COMPONENT LỊCH (ĐÃ CẬP NHẬT HIỂN THỊ GIỜ) ---
+// --- COMPONENT LỊCH ---
 const AssignmentsCalendar = ({
   phanCa,
   calendarDate,
@@ -116,7 +112,6 @@ const AssignmentsCalendar = ({
               status="warning"
               text={
                 <span className="text-xs text-gray-600">
-                  {/* CẬP NHẬT: Hiển thị cả giờ bắt đầu và kết thúc */}
                   {item.hoTenNhanVien} ({item.gioBatDau} - {item.gioKetThuc})
                 </span>
               }
@@ -146,7 +141,7 @@ const AssignmentsCalendar = ({
             onDayClick(date.format("YYYY-MM-DD"));
           }
         }}
-        headerRender={() => null} // Ẩn header mặc định để dùng header tùy chỉnh
+        headerRender={() => null}
       />
     </div>
   );
@@ -217,30 +212,27 @@ export default function ShiftManagement() {
   // --- API CALLS ---
   const fetchCaLamViec = async () => {
     try {
-      const response = await fetch(`${API_BASE}/ca-lam-viec`);
-      if (response.ok) {
-        const data = await response.json();
-        setCaLamViec(Array.isArray(data) ? data : []);
-      } else {
-        message.error("Không tải được danh sách ca");
-      }
+      const data = await shiftManagementApi.getAllCaLamViec();
+      setCaLamViec(Array.isArray(data) ? data : []);
     } catch (error) {
-      message.error("Lỗi kết nối server");
+      console.error("Lỗi tải danh sách ca:", error);
+      message.error(error.response?.data?.message || "Không tải được danh sách ca");
     }
   };
 
   const fetchPhanCa = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/phan-ca`);
-      if (response.ok) {
-        const data = await response.json();
-        setPhanCa(Array.isArray(data) ? data : []);
-      } else {
-        message.error("Không tải được danh sách phân ca");
-      }
+      // Tạo params từ filters
+      const params = {};
+      if (filters.caLamViecId) params.caLamViecId = filters.caLamViecId;
+      if (filters.ngayPhanCa) params.ngayPhanCa = filters.ngayPhanCa;
+      
+      const data = await shiftManagementApi.getAllPhanCa(params);
+      setPhanCa(Array.isArray(data) ? data : []);
     } catch (error) {
-      message.error("Lỗi kết nối server");
+      console.error("Lỗi tải danh sách phân ca:", error);
+      message.error(error.response?.data?.message || "Không tải được danh sách phân ca");
     } finally {
       setLoading(false);
     }
@@ -248,11 +240,8 @@ export default function ShiftManagement() {
 
   const fetchNhanVien = async () => {
     try {
-      const response = await fetch(`${API_BASE}/nhan-vien/phan-ca-nhan-vien`);
-      if (response.ok) {
-        const data = await response.json();
-        setNhanVien(Array.isArray(data) ? data : []);
-      }
+      const data = await shiftManagementApi.getNhanVienForPhanCa();
+      setNhanVien(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Lỗi tải nhân viên:", error);
     }
@@ -264,37 +253,35 @@ export default function ShiftManagement() {
       showNotification("error", "Vui lòng nhập đầy đủ tên và giờ");
       return;
     }
+    
     setSubmitLoading(true);
     try {
-      const url = editingCa
-        ? `${API_BASE}/ca-lam-viec/${editingCa.id}`
-        : `${API_BASE}/ca-lam-viec`;
-      const method = editingCa ? "PUT" : "POST";
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formCa),
-      });
-
-      if (response.ok) {
-        showNotification(
-          "success",
-          editingCa ? "Cập nhật thành công" : "Thêm mới thành công"
-        );
-        setFormCa({
-          tenCa: "",
-          gioBatDau: "07:00",
-          gioKetThuc: "12:00",
-          moTa: "",
-        });
-        setEditingCa(null);
-        setIsCaModalVisible(false);
-        fetchCaLamViec();
+      let data;
+      if (editingCa) {
+        data = await shiftManagementApi.updateCaLamViec(editingCa.id, formCa);
       } else {
-        showNotification("error", "Lưu thất bại");
+        data = await shiftManagementApi.createCaLamViec(formCa);
       }
+
+      showNotification(
+        "success",
+        editingCa ? "Cập nhật thành công" : "Thêm mới thành công"
+      );
+      setFormCa({
+        tenCa: "",
+        gioBatDau: "07:00",
+        gioKetThuc: "12:00",
+        moTa: "",
+      });
+      setEditingCa(null);
+      setIsCaModalVisible(false);
+      fetchCaLamViec();
     } catch (error) {
-      showNotification("error", "Lỗi hệ thống");
+      console.error("Lỗi lưu ca:", error);
+      showNotification(
+        "error",
+        error.response?.data?.message || "Lưu thất bại"
+      );
     } finally {
       setSubmitLoading(false);
     }
@@ -310,31 +297,22 @@ export default function ShiftManagement() {
       cancelText: "Hủy",
       onOk: async () => {
         try {
-          const response = await fetch(`${API_BASE}/ca-lam-viec/${id}`, {
-            method: "DELETE",
-          });
-          if (response.ok) {
-            showNotification("success", "Đã xóa thành công");
-            fetchCaLamViec();
-          } else {
-            let errorMessage = "Xóa thất bại (Lỗi không xác định).";
-            if (response.status === 404) {
-              errorMessage = "Xóa thất bại: Không tìm thấy ca làm việc này.";
-            } else if (response.status === 409) {
-              errorMessage =
-                "Xóa thất bại: Ca này đang được phân công cho nhân viên.";
-            } else {
-              try {
-                const err = await response.json();
-                errorMessage = err.message || errorMessage;
-              } catch {
-                errorMessage = `Xóa thất bại. Mã lỗi: ${response.status}.`;
-              }
-            }
-            showNotification("error", errorMessage);
-          }
+          await shiftManagementApi.deleteCaLamViec(id);
+          showNotification("success", "Đã xóa thành công");
+          fetchCaLamViec();
         } catch (error) {
-          showNotification("error", "Lỗi kết nối hệ thống.");
+          console.error("Lỗi xóa ca:", error);
+          let errorMessage = "Xóa thất bại (Lỗi không xác định).";
+          
+          if (error.response?.status === 404) {
+            errorMessage = "Xóa thất bại: Không tìm thấy ca làm việc này.";
+          } else if (error.response?.status === 409) {
+            errorMessage = "Xóa thất bại: Ca này đang được phân công cho nhân viên.";
+          } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          
+          showNotification("error", errorMessage);
         }
       },
     });
@@ -342,46 +320,39 @@ export default function ShiftManagement() {
 
   // --- ACTIONS: PHÂN CA ---
   const handleSavePhanCa = async () => {
-    if (
-      !formPhanCa.idNhanVien ||
-      !formPhanCa.idCaLamViec ||
-      !formPhanCa.ngayPhanCa
-    ) {
+    if (!formPhanCa.idNhanVien || !formPhanCa.idCaLamViec || !formPhanCa.ngayPhanCa) {
       showNotification("error", "Vui lòng chọn nhân viên, ca và ngày");
       return;
     }
+    
     setSubmitLoading(true);
     try {
-      const url = editingPhanCa
-        ? `${API_BASE}/phan-ca/${editingPhanCa.id}`
-        : `${API_BASE}/phan-ca`;
-      const method = editingPhanCa ? "PUT" : "POST";
       const payload = {
         ...formPhanCa,
         idNhanVien: Number(formPhanCa.idNhanVien),
         idCaLamViec: Number(formPhanCa.idCaLamViec),
       };
 
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        showNotification(
-          "success",
-          editingPhanCa ? "Cập nhật phân ca thành công" : "Phân ca thành công"
-        );
-        setEditingPhanCa(null);
-        setIsPhanCaModalVisible(false);
-        fetchPhanCa();
+      let data;
+      if (editingPhanCa) {
+        data = await shiftManagementApi.updatePhanCa(editingPhanCa.id, payload);
       } else {
-        const err = await response.json();
-        showNotification("error", err.message || "Lưu thất bại");
+        data = await shiftManagementApi.createPhanCa(payload);
       }
+
+      showNotification(
+        "success",
+        editingPhanCa ? "Cập nhật phân ca thành công" : "Phân ca thành công"
+      );
+      setEditingPhanCa(null);
+      setIsPhanCaModalVisible(false);
+      fetchPhanCa();
     } catch (error) {
-      showNotification("error", "Lỗi hệ thống");
+      console.error("Lỗi lưu phân ca:", error);
+      showNotification(
+        "error",
+        error.response?.data?.message || "Lưu thất bại"
+      );
     } finally {
       setSubmitLoading(false);
     }
@@ -397,32 +368,60 @@ export default function ShiftManagement() {
       cancelText: "Hủy",
       onOk: async () => {
         try {
-          const response = await fetch(`${API_BASE}/phan-ca/${id}`, {
-            method: "DELETE",
-          });
-          if (response.ok) {
-            showNotification("success", "Đã xóa phân ca");
-            fetchPhanCa();
-          } else {
-            let errorMessage = "Xóa thất bại (Lỗi không xác định).";
-            if (response.status === 404) {
-              errorMessage = "Xóa thất bại: Không tìm thấy phân ca này.";
-            } else {
-              try {
-                const err = await response.json();
-                errorMessage =
-                  err.message || `Xóa thất bại. Mã lỗi: ${response.status}.`;
-              } catch {
-                errorMessage = `Xóa thất bại. Mã lỗi: ${response.status}.`;
-              }
-            }
-            showNotification("error", errorMessage);
-          }
+          await shiftManagementApi.deletePhanCa(id);
+          showNotification("success", "Đã xóa phân ca");
+          fetchPhanCa();
         } catch (error) {
-          showNotification("error", "Lỗi kết nối hệ thống.");
+          console.error("Lỗi xóa phân ca:", error);
+          let errorMessage = "Xóa thất bại (Lỗi không xác định).";
+          
+          if (error.response?.status === 404) {
+            errorMessage = "Xóa thất bại: Không tìm thấy phân ca này.";
+          } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          
+          showNotification("error", errorMessage);
         }
       },
     });
+  };
+
+  // --- EXPORT HANDLERS ---
+  const handleExportShiftsExcel = async () => {
+    try {
+      const blob = await shiftManagementApi.exportCaLamViecExcel();
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `danh-sach-ca-lam-viec-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      message.success("Xuất file Excel thành công!");
+    } catch (error) {
+      console.error("Lỗi xuất Excel ca:", error);
+      // Fallback: dùng export CSV cũ
+      exportToCSV("ca-lam-viec.csv", prepareShiftData());
+    }
+  };
+
+  const handleExportAssignmentsExcel = async () => {
+    try {
+      const blob = await shiftManagementApi.exportPhanCaExcel();
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `danh-sach-phan-ca-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      message.success("Xuất file Excel thành công!");
+    } catch (error) {
+      console.error("Lỗi xuất Excel phân ca:", error);
+      // Fallback: dùng export CSV cũ
+      exportToCSV("phan-ca.csv", prepareAssignmentData());
+    }
   };
 
   // --- HELPER HANDLERS ---
@@ -448,7 +447,7 @@ export default function ShiftManagement() {
     fetchPhanCa();
   };
 
-  // Lọc dữ liệu hiển thị (tạm thời lọc trên client)
+  // Lọc dữ liệu hiển thị
   const filteredPhanCa = phanCa.filter((pc) => {
     let matches = true;
     if (filters.search) {
@@ -477,6 +476,7 @@ export default function ShiftManagement() {
       "Kết thúc": c.gioKetThuc,
       "Mô tả": c.moTa,
     }));
+    
   const prepareAssignmentData = () =>
     filteredPhanCa.map((p) => ({
       "Nhân viên": p.hoTenNhanVien,
@@ -683,10 +683,8 @@ export default function ShiftManagement() {
     },
   ];
 
-  // --- RENDER ---
   return (
-    <div
-      style={{
+    <div style={{
         padding: "24px",
         backgroundColor: "#f5f5f5",
         minHeight: "100vh",
@@ -731,8 +729,7 @@ export default function ShiftManagement() {
       </div>
 
       {/* HEADER TABS & ACTIONS */}
-      <div
-        style={{
+      <div style={{
           marginTop: 24,
           marginBottom: 16,
           display: "flex",
@@ -823,8 +820,7 @@ export default function ShiftManagement() {
         }}
         bodyStyle={{ padding: "20px" }}
       >
-        <div
-          style={{
+        <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
             gap: 12,
@@ -887,8 +883,7 @@ export default function ShiftManagement() {
         </div>
 
         {/* --- Nút hành động --- */}
-        <div
-          style={{
+        <div style={{
             display: "flex",
             justifyContent: "flex-end",
             gap: 12,
@@ -938,14 +933,7 @@ export default function ShiftManagement() {
             )}
             <Button
               icon={<FileExcelOutlined />}
-              onClick={() =>
-                exportToCSV(
-                  activeTab === "shifts" ? "ca-lam-viec.csv" : "phan-ca.csv",
-                  activeTab === "shifts"
-                    ? prepareShiftData()
-                    : prepareAssignmentData()
-                )
-              }
+              onClick={activeTab === "shifts" ? handleExportShiftsExcel : handleExportAssignmentsExcel}
               className="!bg-white !border-white !text-[#ff8c42] font-medium hover:!bg-amber-800 hover:!text-white"
             >
               Xuất Excel

@@ -11,6 +11,7 @@ import logo from "/src/assets/login/logoAutumn.png";
 import CustomerForgotPassword from "./CustomerForgotPassword";
 import ClientBreadcrumb from "../home/ClientBreadcrumb";
 import LoginBreadcrumb from "./LoginBreadcrumb";
+import authServiceAPI from "@/api/authAPI";
 
 export default function CustomerLogin() {
   const [loading, setLoading] = useState(false);
@@ -22,21 +23,10 @@ export default function CustomerLogin() {
   const onLoginFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await fetch(
-        "http://localhost:8080/api/customer/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: values.email,
-            matKhau: values.password,
-          }),
-        }
+      const data = await authServiceAPI.loginCustomer(
+        values.email,
+        values.password
       );
-
-      const data = await response.json();
 
       if (data.accessToken) {
         localStorage.setItem("customer_token", data.accessToken);
@@ -83,41 +73,28 @@ export default function CustomerLogin() {
   const onRegisterFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await fetch(
-        "http://localhost:8080/api/customer/auth/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: values.email,
-            matKhau: values.password,
-            hoTen: values.hoTen,
-            sdt: values.sdt || null,
-            gioiTinh: values.gioiTinh || true,
-          }),
-        }
-      );
+      await authServiceAPI.registerCustomer({
+        hoTen: values.hoTen,
+        email: values.email,
+        matKhau: values.password,
+        diaChi: values.diaChi || "",
+        // Nếu backend không yêu cầu gioiTinh thì bỏ, hoặc thêm nếu cần
+        // gioiTinh: values.gioiTinh ?? true,
+      });
 
-      if (response.ok) {
-        messageApi.success({
-          content: "Đăng ký thành công! Vui lòng đăng nhập.",
-          duration: 3,
-        });
-        setIsLogin(true);
-      } else {
-        const errorData = await response.json();
-        messageApi.error({
-          content: errorData.message || "Đăng ký thất bại. Vui lòng thử lại!",
-          duration: 3,
-        });
-      }
+      messageApi.success({
+        content: "Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.",
+        duration: 4,
+      });
+
+      // Chuyển sang form đăng nhập
+      setIsLogin(true);
     } catch (error) {
-      console.error("❌ Customer register error:", error);
+      console.error("Customer register error:", error);
+
       messageApi.error({
-        content: "Không thể kết nối đến máy chủ. Vui lòng thử lại!",
-        duration: 3,
+        content: error.message || "Đăng ký thất bại. Vui lòng thử lại!",
+        duration: 4,
       });
     } finally {
       setLoading(false);

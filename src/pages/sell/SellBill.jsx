@@ -20,9 +20,9 @@ export default function SellBill({ onSelectBill }) {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false); // State cho modal xóa
   const [billToDelete, setBillToDelete] = useState(null); // Hóa đơn cần xóa
 
-  // ✅ Kết nối WebSocket khi component mount
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   useEffect(() => {
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS((apiBaseUrl));
     const client = Stomp.over(socket);
     client.debug = () => {}; // Tắt debug log
 

@@ -161,9 +161,9 @@ export default function CustomerChat() {
     );
   };
 
-  // Connect WebSocket
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   const connectWS = (rid) => {
-    const sock = new SockJS("http://localhost:8080/ws");
+    const sock = new SockJS(apiBaseUrl);
     stompClient.current = over(sock);
 
     stompClient.current.connect({}, () => {

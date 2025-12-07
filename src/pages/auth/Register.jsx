@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import bgLogin from "/src/assets/login/bglogin.jpg";
 import logo from "/src/assets/login/logoAutumn.png";
-import { Form, Input, message  } from "antd";
+import { Form, Input, message } from "antd";
 import { UserOutlined, LockOutlined, MailOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import authServiceAPI from "@/api/authAPI";
 
 export default function Register() {
   const [loading, setLoading] = useState(false);
@@ -11,39 +12,32 @@ export default function Register() {
   const [messageApi, messageContextHolder] = message.useMessage();
 
   const onFinish = async (values) => {
+    // Kiểm tra mật khẩu xác nhận trước khi gọi API
+    if (values.password !== values.confirmPassword) {
+      messageApi.error("Mật khẩu xác nhận không khớp!");
+      return;
+    }
+
     setLoading(true);
     try {
-
-      const response = await fetch("http://localhost:8080/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          hoTen: values.username,
-          email: values.email,
-          matKhau: values.password,
-          diaChi: values.diaChi || "",
-          sdt: values.sdt || "",
-        }),
+      await authServiceAPI.register({
+        hoTen: values.username,
+        email: values.email,
+        matKhau: values.password,
+        diaChi: values.diaChi || "",
+        sdt: values.sdt || "",
       });
 
-      const contentType = response.headers.get("content-type");
-      let data;
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        data = { messageApi: text };
-      }
+      messageApi.success({
+        content:
+          "Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt tài khoản.",
+        duration: 5,
+      });
 
-      if (response.ok) {
-        messageApi.success("Đăng ký thành công!");
-        navigate("/login");
-      } else {
-        messageApi.error(data.message || "Đăng ký thất bại!");
-      }
+      setTimeout(() => navigate("/login"), 2000);
     } catch (error) {
-      console.error("❌ Register error:", error);
-      messageApi.error("Đăng ký thất bại. Vui lòng thử lại!");
+      console.error("Register error:", error);
+      messageApi.error(error.message || "Đăng ký thất bại. Vui lòng thử lại!");
     } finally {
       setLoading(false);
     }

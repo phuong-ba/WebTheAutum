@@ -3,7 +3,6 @@ import {
   Space,
   Table,
   Tag,
-  message,
   Modal,
   Image,
   Button,
@@ -12,6 +11,7 @@ import {
   Popconfirm,
   Input,
   Tooltip,
+  message,
 } from "antd";
 import CloudinaryUpload from "../CloudinaryUpload";
 import {
@@ -43,7 +43,10 @@ export default function ProductDetail({
   const [quickInputModal, setQuickInputModal] = useState(false);
   const [quickInputForm] = Form.useForm();
   const [validationErrors, setValidationErrors] = useState({});
+  const [messageApi, contentMess] = message.useMessage();
+
   const dispatch = useDispatch();
+
   useEffect(() => {
     if (!Array.isArray(bienTheList) || bienTheList.length === 0) {
       setVariants([]);
@@ -143,7 +146,7 @@ export default function ProductDetail({
   const handleUploadImageForVariant = async (variantKey, uploadedImage) => {
     const variant = variants.find((v) => v.key === variantKey);
     if (!variant?.idChiTietSanPham) {
-      message.error("Biến thể chưa được lưu, không thể upload ảnh");
+      messageApi.error("Biến thể chưa được lưu, không thể upload ảnh");
       return;
     }
 
@@ -162,10 +165,10 @@ export default function ProductDetail({
               : v
           )
         );
-        message.success("Đã lưu ảnh cho biến thể");
+        messageApi.success("Đã lưu ảnh cho biến thể");
       }
     } catch (error) {
-      message.error("Lỗi khi lưu ảnh");
+      messageApi.error("Lỗi khi lưu ảnh");
     }
   };
 
@@ -180,9 +183,9 @@ export default function ProductDetail({
           v.key === variantKey ? { ...v, imageUrl: null, imageId: null } : v
         )
       );
-      message.success("Đã xóa ảnh");
+      messageApi.success("Đã xóa ảnh");
     } catch (error) {
-      message.error("Lỗi khi xóa ảnh");
+      messageApi.error("Lỗi khi xóa ảnh");
     }
   };
 
@@ -238,10 +241,10 @@ export default function ProductDetail({
           }
         }
         dispatch(fetchChiTietSanPham());
-        message.success("Cập nhật biến thể thành công");
+        messageApi.success("Cập nhật biến thể thành công");
       }
     } catch (error) {
-      message.error(error.message || "Lỗi khi cập nhật biến thể");
+      messageApi.error(error.message || "Lỗi khi cập nhật biến thể");
     }
   };
 
@@ -269,7 +272,7 @@ export default function ProductDetail({
       const result = await apiFunction(variant.idChiTietSanPham, value);
       if (!result.success) throw new Error(result.error);
     } catch (error) {
-      message.error(error.message || `Lỗi khi cập nhật ${field}`);
+      messageApi.error(error.message || `Lỗi khi cập nhật ${field}`);
     }
   };
 
@@ -286,7 +289,7 @@ export default function ProductDetail({
       console.log("📦 Quick input raw values:", { soLuong, donGia });
 
       if (selectedRowKeys.length === 0) {
-        message.warning("Vui lòng chọn ít nhất một biến thể để áp dụng");
+        messageApi.warning("Vui lòng chọn ít nhất một biến thể để áp dụng");
         return;
       }
 
@@ -296,7 +299,7 @@ export default function ProductDetail({
       console.log("🔧 Has values:", { hasSoLuong, hasDonGia });
 
       if (!hasSoLuong && !hasDonGia) {
-        message.warning("Vui lòng nhập ít nhất một giá trị để áp dụng");
+        messageApi.warning("Vui lòng nhập ít nhất một giá trị để áp dụng");
         return;
       }
 
@@ -339,14 +342,14 @@ export default function ProductDetail({
 
       await Promise.all(updatePromises);
 
-      message.success(
+      messageApi.success(
         `Đã cập nhật ${selectedRowKeys.length} biến thể thành công`
       );
       setQuickInputModal(false);
       quickInputForm.resetFields();
     } catch (error) {
       console.error("❌ Quick input error:", error);
-      message.error("Lỗi khi cập nhật hàng loạt");
+      messageApi.error("Lỗi khi cập nhật hàng loạt");
     }
   };
 
@@ -370,15 +373,15 @@ export default function ProductDetail({
         return newErrors;
       });
 
-      message.success("Xóa biến thể thành công");
+      messageApi.success("Xóa biến thể thành công");
     } catch (error) {
-      message.error(error.message || "Lỗi khi xóa biến thể");
+      messageApi.error(error.message || "Lỗi khi xóa biến thể");
     }
   };
 
   const handleDeleteMultiple = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning("Vui lòng chọn ít nhất một biến thể để xóa");
+      messageApi.warning("Vui lòng chọn ít nhất một biến thể để xóa");
       return;
     }
 
@@ -415,11 +418,11 @@ export default function ProductDetail({
           });
 
           setSelectedRowKeys([]);
-          message.success(
+          messageApi.success(
             `Đã xóa ${selectedRowKeys.length} biến thể thành công`
           );
         } catch (error) {
-          message.error("Lỗi khi xóa biến thể");
+          messageApi.error("Lỗi khi xóa biến thể");
         }
       },
     });
@@ -457,7 +460,7 @@ export default function ProductDetail({
     setValidationErrors({});
 
     if (!validateVariantsBeforeCreate()) {
-      message.error(
+      messageApi.error(
         "Vui lòng kiểm tra lại thông tin các biến thể trước khi tạo sản phẩm"
       );
 
@@ -475,7 +478,7 @@ export default function ProductDetail({
     }
 
     if (variants.length === 0) {
-      message.error("Không có biến thể nào để tạo sản phẩm");
+      messageApi.error("Không có biến thể nào để tạo sản phẩm");
       return;
     }
 
@@ -490,10 +493,13 @@ export default function ProductDetail({
 
     const handleConfirm = () => {
       console.log("🎯 Bắt đầu tạo sản phẩm với các biến thể:", variants);
-      message.success(
+      messageApi.success(
         `Đã tạo thành công ${variants.length} biến thể sản phẩm!`
       );
       handleReset();
+      messageApi.success(
+        "Sản phẩm đã được tạo thành công! Đang chuyển về trang quản lý sản phẩm..."
+      );
     };
 
     onShowConfirmModal?.({
@@ -513,7 +519,7 @@ export default function ProductDetail({
     setEditingKey("");
     setValidationErrors({});
     onResetCallback?.();
-    message.info("Đã làm mới danh sách biến thể");
+    messageApi.info("Đã làm mới danh sách biến thể");
   };
 
   const rowSelection = {
@@ -856,70 +862,202 @@ export default function ProductDetail({
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
-      <div className="bg-[#E67E22] text-white px-6 py-3 flex justify-between items-center">
-        <div className="font-bold text-2xl text-white">
-          Chi tiết biến thể ({variants.length} biến thể)
-        </div>
-        <div className="flex gap-3">
-          {selectedRowKeys.length > 0 && (
-            <>
-              <button
-                onClick={() => setQuickInputModal(true)}
-                className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm"
-              >
-                Nhập nhanh ({selectedRowKeys.length})
-              </button>
-              <Popconfirm
-                title="Xác nhận xóa"
-                description={`Bạn có chắc muốn xóa ${selectedRowKeys.length} biến thể đã chọn?`}
-                onConfirm={handleDeleteMultiple}
-                okText="Có"
-                cancelText="Không"
-              >
-                <button className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm">
-                  Xóa đã chọn ({selectedRowKeys.length})
+    <>
+      {contentMess}
+      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
+        <div className="bg-[#E67E22] text-white px-6 py-3 flex justify-between items-center">
+          <div className="font-bold text-2xl text-white">
+            Chi tiết biến thể ({variants.length} biến thể)
+          </div>
+          <div className="flex gap-3">
+            {selectedRowKeys.length > 0 && (
+              <>
+                <button
+                  onClick={() => setQuickInputModal(true)}
+                  className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm"
+                >
+                  Nhập nhanh ({selectedRowKeys.length})
                 </button>
-              </Popconfirm>
-            </>
-          )}
+                <Popconfirm
+                  title="Xác nhận xóa"
+                  description={`Bạn có chắc muốn xóa ${selectedRowKeys.length} biến thể đã chọn?`}
+                  onConfirm={handleDeleteMultiple}
+                  okText="Có"
+                  cancelText="Không"
+                >
+                  <button className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm">
+                    Xóa đã chọn ({selectedRowKeys.length})
+                  </button>
+                </Popconfirm>
+              </>
+            )}
+          </div>
         </div>
-      </div>
 
-      <div className="p-6">
-        <ValidationSummary />
+        <div className="p-6">
+          <ValidationSummary />
 
-        <Form form={form} component={false}>
-          <Table
-            components={{
-              body: {
-                cell: (props) => (
-                  <td {...props} className="ant-table-cell">
-                    {props.children}
-                  </td>
-                ),
-              },
+          <Form form={form} component={false}>
+            <Table
+              components={{
+                body: {
+                  cell: (props) => (
+                    <td {...props} className="ant-table-cell">
+                      {props.children}
+                    </td>
+                  ),
+                },
+              }}
+              rowSelection={rowSelection}
+              columns={columns}
+              dataSource={variants}
+              rowKey="key"
+              bordered
+              pagination={{
+                pageSize: 5,
+                showSizeChanger: true,
+                pageSizeOptions: ["5", "10", "20"],
+                showQuickJumper: true,
+                showTotal: (total, range) =>
+                  `${range[0]}-${range[1]} của ${total} biến thể`,
+              }}
+              scroll={{ x: 1800 }}
+              locale={{
+                emptyText:
+                  "Chưa có biến thể nào. Hãy tạo biến thể để hiển thị ở đây.",
+              }}
+            />
+          </Form>
+
+          <Modal
+            open={previewOpen}
+            footer={null}
+            onCancel={() => setPreviewOpen(false)}
+          >
+            <img alt="preview" style={{ width: "100%" }} src={previewImage} />
+          </Modal>
+
+          <Modal
+            title={
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "10px" }}
+              >
+                <span style={{ fontSize: "20px" }}>⚡</span>
+                <span style={{ fontSize: "18px", fontWeight: "bold" }}>
+                  NHẬP NHANH GIÁ & SỐ LƯỢNG
+                </span>
+              </div>
+            }
+            open={quickInputModal}
+            onCancel={() => {
+              setQuickInputModal(false);
+              quickInputForm.resetFields();
             }}
-            rowSelection={rowSelection}
-            columns={columns}
-            dataSource={variants}
-            rowKey="key"
-            bordered
-            pagination={{
-              pageSize: 5,
-              showSizeChanger: true,
-              pageSizeOptions: ["5", "10", "20"],
-              showQuickJumper: true,
-              showTotal: (total, range) =>
-                `${range[0]}-${range[1]} của ${total} biến thể`,
-            }}
-            scroll={{ x: 1800 }}
-            locale={{
-              emptyText:
-                "Chưa có biến thể nào. Hãy tạo biến thể để hiển thị ở đây.",
-            }}
-          />
-        </Form>
+            onOk={() => quickInputForm.submit()}
+            okText="Áp dụng"
+            cancelText="Hủy"
+            width={500}
+            centered
+          >
+            <div
+              style={{
+                background: "#fff7e6",
+                border: "1px solid #ffd591",
+                padding: "12px",
+                borderRadius: "8px",
+                marginBottom: "20px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "8px",
+                }}
+              >
+                <span style={{ fontWeight: "bold", color: "#d46b08" }}>
+                  Thông tin
+                </span>
+              </div>
+              <p style={{ margin: 0, color: "#8c8c8c", fontSize: "13px" }}>
+                Giá trị sẽ được áp dụng cho{" "}
+                <strong>{selectedRowKeys.length}</strong> biến thể đã chọn.
+                <br />
+                <strong>Để trống nếu không muốn thay đổi trường đó.</strong>
+              </p>
+            </div>
+
+            <Form
+              form={quickInputForm}
+              onFinish={handleQuickInputAll}
+              layout="vertical"
+              initialValues={{
+                soLuong: undefined,
+                donGia: undefined,
+              }}
+            >
+              <Form.Item
+                name="soLuong"
+                label={<span style={{ fontWeight: "bold" }}>Số lượng</span>}
+              >
+                <InputNumber
+                  min={0}
+                  placeholder="Nhập số lượng cho tất cả"
+                  style={{ width: "100%" }}
+                  size="large"
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="donGia"
+                label={<span style={{ fontWeight: "bold" }}>Đơn giá</span>}
+              >
+                <InputNumber
+                  min={0}
+                  placeholder="Nhập đơn giá cho tất cả"
+                  formatter={(value) => {
+                    if (value === undefined || value === null || value === "") {
+                      return "";
+                    }
+                    return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                  }}
+                  parser={(value) => {
+                    if (!value || value === "") {
+                      return undefined;
+                    }
+                    const parsed = value.replace(/\$\s?|(,*)/g, "");
+                    const num = Number(parsed);
+                    return isNaN(num) ? undefined : num;
+                  }}
+                  addonAfter="₫"
+                  style={{ width: "100%" }}
+                  size="large"
+                />
+              </Form.Item>
+            </Form>
+          </Modal>
+
+          <div className="flex justify-end gap-3 mt-6">
+            <div
+              onClick={handleReset}
+              className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
+            >
+              Nhập lại
+            </div>
+            <div
+              onClick={handleTaoSanPham}
+              disabled={variants.length === 0 || loading}
+              className={`bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none ${
+                Object.keys(validationErrors).length > 0
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+            >
+              {loading ? "⏳ Đang tạo..." : `Tạo sản phẩm (${variants.length})`}
+            </div>
+          </div>
+        </div>
 
         <Modal
           open={previewOpen}
@@ -928,134 +1066,7 @@ export default function ProductDetail({
         >
           <img alt="preview" style={{ width: "100%" }} src={previewImage} />
         </Modal>
-
-        <Modal
-          title={
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "20px" }}>⚡</span>
-              <span style={{ fontSize: "18px", fontWeight: "bold" }}>
-                NHẬP NHANH GIÁ & SỐ LƯỢNG
-              </span>
-            </div>
-          }
-          open={quickInputModal}
-          onCancel={() => {
-            setQuickInputModal(false);
-            quickInputForm.resetFields();
-          }}
-          onOk={() => quickInputForm.submit()}
-          okText="Áp dụng"
-          cancelText="Hủy"
-          width={500}
-          centered
-        >
-          <div
-            style={{
-              background: "#fff7e6",
-              border: "1px solid #ffd591",
-              padding: "12px",
-              borderRadius: "8px",
-              marginBottom: "20px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                marginBottom: "8px",
-              }}
-            >
-              <span style={{ fontWeight: "bold", color: "#d46b08" }}>
-                Thông tin
-              </span>
-            </div>
-            <p style={{ margin: 0, color: "#8c8c8c", fontSize: "13px" }}>
-              Giá trị sẽ được áp dụng cho{" "}
-              <strong>{selectedRowKeys.length}</strong> biến thể đã chọn.
-              <br />
-              <strong>Để trống nếu không muốn thay đổi trường đó.</strong>
-            </p>
-          </div>
-
-          <Form
-            form={quickInputForm}
-            onFinish={handleQuickInputAll}
-            layout="vertical"
-            initialValues={{
-              soLuong: undefined,
-              donGia: undefined,
-            }}
-          >
-            <Form.Item
-              name="soLuong"
-              label={<span style={{ fontWeight: "bold" }}>Số lượng</span>}
-            >
-              <InputNumber
-                min={0}
-                placeholder="Nhập số lượng cho tất cả"
-                style={{ width: "100%" }}
-                size="large"
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="donGia"
-              label={<span style={{ fontWeight: "bold" }}>Đơn giá</span>}
-            >
-              <InputNumber
-                min={0}
-                placeholder="Nhập đơn giá cho tất cả"
-                formatter={(value) => {
-                  if (value === undefined || value === null || value === "") {
-                    return "";
-                  }
-                  return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-                }}
-                parser={(value) => {
-                  if (!value || value === "") {
-                    return undefined;
-                  }
-                  const parsed = value.replace(/\$\s?|(,*)/g, "");
-                  const num = Number(parsed);
-                  return isNaN(num) ? undefined : num;
-                }}
-                addonAfter="₫"
-                style={{ width: "100%" }}
-                size="large"
-              />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        <div className="flex justify-end gap-3 mt-6">
-          <div
-            onClick={handleReset}
-            className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
-          >
-            Nhập lại
-          </div>
-          <div
-            onClick={handleTaoSanPham}
-            disabled={variants.length === 0 || loading}
-            className={`bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none ${
-              Object.keys(validationErrors).length > 0
-                ? "opacity-50 cursor-not-allowed"
-                : ""
-            }`}
-          >
-            {loading ? "⏳ Đang tạo..." : `Tạo sản phẩm (${variants.length})`}
-          </div>
-        </div>
       </div>
-
-      <Modal
-        open={previewOpen}
-        footer={null}
-        onCancel={() => setPreviewOpen(false)}
-      >
-        <img alt="preview" style={{ width: "100%" }} src={previewImage} />
-      </Modal>
-    </div>
+    </>
   );
 }
