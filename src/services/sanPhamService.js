@@ -33,12 +33,17 @@ export const fetchDanhMuc = createAsyncThunk("san-pham/danh-muc", async () => {
   }
 });
 
-export const fetchBanChay = createAsyncThunk("san-pham/ban-chay", async () => {
-  try {
-    const response = await baseUrl.get(`san-pham/ban-chay`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || "Đã xảy ra lỗi khi lấy dữ liệu";
+export const fetchBanChay = createAsyncThunk(
+  "san-pham/ban-chay", 
+  async (timeRange = "week") => { 
+    try {
+      const response = await baseUrl.get(`san-pham/ban-chay`, {
+        params: { timeRange } 
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || "Đã xảy ra lỗi khi lấy dữ liệu";
+    }
   }
-});
+);
 

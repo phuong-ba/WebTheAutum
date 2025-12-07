@@ -284,7 +284,7 @@ export default function ProductDetail({
 
   const handleQuickInputAll = async (values) => {
     try {
-      const { soLuong, donGia } = values;
+      let { soLuong, donGia } = values;
 
       console.log("📦 Quick input raw values:", { soLuong, donGia });
 
@@ -293,28 +293,51 @@ export default function ProductDetail({
         return;
       }
 
-      const hasSoLuong = soLuong !== undefined && soLuong !== null;
-      const hasDonGia = donGia !== undefined && donGia !== null;
+      // CHUYỂN ĐỔI GIÁ TRỊ ĐÚNG CÁCH
+      const parsedSoLuong =
+        soLuong !== undefined && soLuong !== null && soLuong !== ""
+          ? Number(soLuong)
+          : undefined;
 
-      console.log("🔧 Has values:", { hasSoLuong, hasDonGia });
+      const parsedDonGia =
+        donGia !== undefined && donGia !== null && donGia !== ""
+          ? parseFloat(donGia)
+          : undefined;
+
+      console.log("🔧 Parsed values:", { parsedSoLuong, parsedDonGia });
+
+      const hasSoLuong = parsedSoLuong !== undefined && !isNaN(parsedSoLuong);
+      const hasDonGia = parsedDonGia !== undefined && !isNaN(parsedDonGia);
 
       if (!hasSoLuong && !hasDonGia) {
-        messageApi.warning("Vui lòng nhập ít nhất một giá trị để áp dụng");
+        messageApi.warning(
+          "Vui lòng nhập ít nhất một giá trị hợp lệ để áp dụng"
+        );
         return;
       }
 
+      // Cập nhật local state
       const updatedVariants = variants.map((v) => {
         if (selectedRowKeys.includes(v.key)) {
           const updates = { ...v };
-          if (hasSoLuong) updates.soLuong = soLuong;
-          if (hasDonGia) updates.donGia = donGia;
+          if (hasSoLuong) {
+            updates.soLuong = parsedSoLuong;
+            console.log(`📝 Set quantity for ${v.key}: ${updates.soLuong}`);
+          }
+          if (hasDonGia) {
+            updates.donGia = parsedDonGia;
+            console.log(`💰 Set price for ${v.key}: ${updates.donGia}`);
+          }
           return updates;
         }
         return v;
       });
 
+      console.log("🔄 Updated variants:", updatedVariants);
+
       setVariants(updatedVariants);
 
+      // Xóa validation errors
       setValidationErrors((prev) => {
         const newErrors = { ...prev };
         selectedRowKeys.forEach((key) => {
@@ -324,23 +347,59 @@ export default function ProductDetail({
         return newErrors;
       });
 
+      // Gọi API cho từng biến thể đã chọn
       const updatePromises = selectedRowKeys.map(async (key) => {
         const variant = updatedVariants.find((v) => v.key === key);
-        if (!variant?.idChiTietSanPham) return Promise.resolve();
+        if (!variant?.idChiTietSanPham) {
+          console.log(
+            `⚠️ Variant ${key} has no idChiTietSanPham, skipping API call`
+          );
+          return Promise.resolve();
+        }
 
         const promises = [];
+
         if (hasSoLuong) {
-          promises.push(capNhatSoLuong(variant.idChiTietSanPham, soLuong));
-        }
-        if (hasDonGia) {
-          promises.push(
-            capNhatGia(variant.idChiTietSanPham, parseFloat(donGia))
+          console.log(
+            `📤 API: Updating quantity for ${variant.idChiTietSanPham}: ${parsedSoLuong}`
           );
+          const result = await capNhatSoLuong(
+            variant.idChiTietSanPham,
+            parsedSoLuong
+          );
+          console.log(
+            `📥 Quantity API response for ${variant.idChiTietSanPham}:`,
+            result
+          );
+          if (!result.success) {
+            throw new Error(`Lỗi cập nhật số lượng: ${result.error}`);
+          }
         }
-        return Promise.all(promises);
+
+        if (hasDonGia) {
+          console.log(
+            `📤 API: Updating price for ${variant.idChiTietSanPham}: ${parsedDonGia}`
+          );
+          const result = await capNhatGia(
+            variant.idChiTietSanPham,
+            parsedDonGia
+          );
+          console.log(
+            `📥 Price API response for ${variant.idChiTietSanPham}:`,
+            result
+          );
+          if (!result.success) {
+            throw new Error(`Lỗi cập nhật giá: ${result.error}`);
+          }
+        }
+
+        return Promise.resolve();
       });
 
       await Promise.all(updatePromises);
+
+      // Refresh dữ liệu từ server
+      dispatch(fetchChiTietSanPham());
 
       messageApi.success(
         `Đã cập nhật ${selectedRowKeys.length} biến thể thành công`
@@ -349,7 +408,9 @@ export default function ProductDetail({
       quickInputForm.resetFields();
     } catch (error) {
       console.error("❌ Quick input error:", error);
-      messageApi.error("Lỗi khi cập nhật hàng loạt");
+      messageApi.error(
+        "Lỗi khi cập nhật hàng loạt: " + (error.message || "Không xác định")
+      );
     }
   };
 
@@ -921,7 +982,6 @@ export default function ProductDetail({
                 showTotal: (total, range) =>
                   `${range[0]}-${range[1]} của ${total} biến thể`,
               }}
-        
               locale={{
                 emptyText:
                   "Chưa có biến thể nào. Hãy tạo biến thể để hiển thị ở đây.",
@@ -1000,6 +1060,14 @@ export default function ProductDetail({
               <Form.Item
                 name="soLuong"
                 label={<span style={{ fontWeight: "bold" }}>Số lượng</span>}
+                normalize={(value) => {
+                  // Chuyển đổi giá trị khi form submit
+                  if (value === "" || value === undefined || value === null) {
+                    return undefined;
+                  }
+                  const num = Number(value);
+                  return isNaN(num) ? undefined : num;
+                }}
               >
                 <InputNumber
                   min={0}
@@ -1012,6 +1080,19 @@ export default function ProductDetail({
               <Form.Item
                 name="donGia"
                 label={<span style={{ fontWeight: "bold" }}>Đơn giá</span>}
+                normalize={(value) => {
+                  // Chuyển đổi giá trị khi form submit
+                  if (value === "" || value === undefined || value === null) {
+                    return undefined;
+                  }
+                  // Xử lý định dạng tiền tệ
+                  const parsed =
+                    typeof value === "string"
+                      ? value.replace(/\$\s?|(,*)/g, "")
+                      : value.toString().replace(/\$\s?|(,*)/g, "");
+                  const num = parseFloat(parsed);
+                  return isNaN(num) ? undefined : num;
+                }}
               >
                 <InputNumber
                   min={0}
@@ -1020,15 +1101,17 @@ export default function ProductDetail({
                     if (value === undefined || value === null || value === "") {
                       return "";
                     }
-                    return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                    const num = Number(value);
+                    if (isNaN(num)) return "";
+                    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                   }}
                   parser={(value) => {
                     if (!value || value === "") {
-                      return undefined;
+                      return "";
                     }
                     const parsed = value.replace(/\$\s?|(,*)/g, "");
-                    const num = Number(parsed);
-                    return isNaN(num) ? undefined : num;
+                    const num = parseFloat(parsed);
+                    return isNaN(num) ? "" : num;
                   }}
                   addonAfter="₫"
                   style={{ width: "100%" }}

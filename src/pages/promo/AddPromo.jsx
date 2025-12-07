@@ -46,6 +46,7 @@ export default function AddPromo() {
   const [giaTriToiThieuState, setGiaTriToiThieuState] = useState(
     form.getFieldValue("giaTriToiThieu") || 0
   );
+  const [loading, setLoading] = useState(false);
 
   const now = dayjs();
 
@@ -68,8 +69,6 @@ export default function AddPromo() {
     setGiaTriToiThieuState(0);
   }, [loaiGiamGia, giaTriGiamState]);
 
-  console.log("🚀 ~ AddPromo ~ chiTietSanPhamData:", chiTietSanPhamData);
-
   useEffect(() => {
     let tongGiam = 0;
     Object.entries(chiTietSanPhamData).forEach(([spId, chiTietArr]) => {
@@ -89,22 +88,51 @@ export default function AddPromo() {
 
   useEffect(() => {
     const fetchData = async () => {
-      console.log("🚀 ~ fetchData ~ editingItem:", editingItem);
       if (editingItem) {
+        setLoading(true);
         try {
           const res = await dispatch(
             getSanPhamTheoDot(editingItem.id)
-).unwrap();
-          const sanPhamIds = res.data.map((sp) => sp.sanPhamId);
-          console.log("🚀 ~ fetchData ~ sanPhamIds:", sanPhamIds);
-          setSelectedSanPhamKeys(sanPhamIds);
+          ).unwrap();
 
+          // Lấy danh sách sản phẩm duy nhất từ API
+          const uniqueSanPhamIds = [
+            ...new Set(res.data.map((item) => item.sanPhamId)),
+          ];
+          console.log("🚀 ~ fetchData ~ uniqueSanPhamIds:", uniqueSanPhamIds);
+          setSelectedSanPhamKeys(uniqueSanPhamIds);
+
+          // Tạo map cho chi tiết sản phẩm: {sanPhamId: [chiTietId1, chiTietId2, ...]}
           const chiTietMap = {};
-          console.log("🚀 ~ fetchData ~ chiTietMap:", chiTietMap);
-          res.data.forEach((sp) => {
-            chiTietMap[sp.sanPhamId] = sp.chiTietIds;
+          res.data.forEach((item) => {
+            const { sanPhamId, chiTietId } = item;
+            if (!chiTietMap[sanPhamId]) {
+              chiTietMap[sanPhamId] = [];
+            }
+            if (!chiTietMap[sanPhamId].includes(chiTietId)) {
+              chiTietMap[sanPhamId].push(chiTietId);
+            }
           });
+
+          console.log("🚀 ~ fetchData ~ chiTietMap:", chiTietMap);
           setSelectedChiTietKeys(chiTietMap);
+
+          // Chuẩn bị dữ liệu chi tiết sản phẩm cho TableChiTietSanPham
+          const chiTietDataMap = {};
+          res.data.forEach((item) => {
+            const { sanPhamId, chiTietId, ...rest } = item;
+            if (!chiTietDataMap[sanPhamId]) {
+              chiTietDataMap[sanPhamId] = [];
+            }
+            // Tạo object với id là chiTietId
+            chiTietDataMap[sanPhamId].push({
+              id: chiTietId,
+              ...rest,
+            });
+          });
+
+          console.log("🚀 ~ fetchData ~ chiTietDataMap:", chiTietDataMap);
+          setChiTietSanPhamData(chiTietDataMap);
 
           form.setFieldsValue({
             tenDot: editingItem.tenDot,
@@ -118,10 +146,12 @@ export default function AddPromo() {
           setGiaTriGiamState(editingItem.giaTriGiam);
           setGiaTriToiThieuState(editingItem.giaTriToiThieu);
         } catch (err) {
-          console.error(err);
+          console.error("Lỗi khi tải dữ liệu:", err);
           messageApi.error(
             "Không thể tải danh sách chi tiết theo đợt giảm giá!"
           );
+        } finally {
+          setLoading(false);
         }
       }
     };
@@ -186,7 +216,7 @@ export default function AddPromo() {
       ngayBatDau: values.ngayBatDau?.format("YYYY-MM-DD"),
       ngayKetThuc: values.ngayKetThuc?.format("YYYY-MM-DD"),
       trangThai: autoTrangThai,
-ctspIds: allChiTietIds,
+      ctspIds: allChiTietIds,
       sanphamIds: selectedSanPhamKeys,
     };
 
@@ -212,8 +242,12 @@ ctspIds: allChiTietIds,
 
   const onFinish = (values) => {
     setConfirmModalVisible(true);
-    form.__submitValues = values; // Lưu tạm giá trị form để dùng khi nhấn Đồng ý
+    form.__submitValues = values;
   };
+
+  if (loading) {
+    return <div className="p-6 text-center">Đang tải dữ liệu...</div>;
+  }
 
   return (
     <>
@@ -272,7 +306,7 @@ ctspIds: allChiTietIds,
                   <Form.Item
                     name="ngayKetThuc"
                     label="Ngày kết thúc"
-dependencies={["ngayBatDau"]}
+                    dependencies={["ngayBatDau"]}
                     rules={[{ required: true, message: "Chọn ngày kết thúc" }]}
                   >
                     <DatePicker
@@ -351,12 +385,13 @@ dependencies={["ngayBatDau"]}
                     />
                   </Form.Item>
                 </Col>
-</Row>
+              </Row>
 
               <TableSanPham
                 selectedRowKeys={selectedSanPhamKeys}
                 onSelectChange={handleSanPhamSelectChange}
               />
+
               {selectedSanPhamKeys.length > 0 && (
                 <div className="flex justify-end gap-3 mb-4">
                   <button
@@ -383,16 +418,6 @@ dependencies={["ngayBatDau"]}
                         cleared[id] = [];
                       });
                       setSelectedChiTietKeys(cleared);
-                      setChiTietSanPhamData((prev) => {
-                        const newData = {};
-                        selectedSanPhamKeys.forEach((id) => {
-                          newData[id] = (prev[id] || []).map((item) => ({
-                            ...item,
-                            giaBan: 0,
-                          }));
-                        });
-                        return newData;
-                      });
                       messageApi.info("Đã bỏ chọn tất cả chi tiết sản phẩm");
                     }}
                     className="bg-red-600 text-white border border-red-600 rounded px-4 py-1 hover:bg-white hover:text-red-600 transition duration-200"
@@ -401,6 +426,7 @@ dependencies={["ngayBatDau"]}
                   </button>
                 </div>
               )}
+
               {selectedSanPhamKeys.length > 0 ? (
                 selectedSanPhamKeys.map((sanPhamId) => (
                   <TableChiTietSanPham
@@ -410,6 +436,7 @@ dependencies={["ngayBatDau"]}
                     loaiGiamGia={loaiGiamGia}
                     giaTriGiam={giaTriGiamState}
                     giaTriGiamToiThieu={form.getFieldValue("giaTriToiThieu")}
+                    initialData={chiTietSanPhamData[sanPhamId] || []}
                     onSelectChange={(keys) =>
                       setSelectedChiTietKeys((prev) => ({
                         ...prev,
@@ -417,7 +444,7 @@ dependencies={["ngayBatDau"]}
                       }))
                     }
                     onDataChange={(data) =>
-setChiTietSanPhamData((prev) => ({
+                      setChiTietSanPhamData((prev) => ({
                         ...prev,
                         [sanPhamId]: data,
                       }))
@@ -488,7 +515,7 @@ setChiTietSanPhamData((prev) => ({
               Hủy
             </div>
             <div
-className="w-40 cursor-pointer text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
+              className="w-40 cursor-pointer text-center py-3 rounded-xl bg-[#E67E22] font-bold text-white hover:bg-amber-600 active:bg-cyan-800 shadow"
               onClick={async () => {
                 const values = form.__submitValues;
                 if (values) {
