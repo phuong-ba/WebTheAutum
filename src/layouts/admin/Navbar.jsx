@@ -15,11 +15,20 @@ import {
   MailOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  UserOutlined,
+  WechatOutlined,
 } from "@ant-design/icons";
 import { Button, Menu } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useShift } from "@/contexts/ShiftContext";
-import { ClockUserIcon } from "@phosphor-icons/react";
+import {
+  CalendarIcon,
+  ChatCircleDotsIcon,
+  ClockUserIcon,
+  SealPercentIcon,
+  UsersIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -50,15 +59,11 @@ export default function Navbar() {
     { key: "/admin/sell", icon: <IconBook />, label: "Quản lý bán hàng" },
     { key: "/admin/bill", icon: <IconAlign />, label: "Quản lý hóa đơn" },
     {
-      key: "sub1",
       label: "Quản lý sản phẩm",
       icon: <IconProduct />,
-      children: [
-        { key: "/admin/product", label: "Danh mục sản phẩm" },
-        { key: "/admin/category", label: "Danh mục" },
-        { key: "/admin/collection", label: "Bộ sưu tập" },
-        { key: "/admin/warehouse", label: "Kho hàng" },
-      ],
+
+      key: "/admin/product",
+      label: "Danh mục sản phẩm",
     },
     {
       key: "/admin/discount",
@@ -67,22 +72,22 @@ export default function Navbar() {
     },
     {
       key: "/admin/promo",
-      icon: <IconDiscount />,
+      icon: <SealPercentIcon size={24} />,
       label: "Quản lý đợt giảm giá",
     },
     {
       key: "/admin/user",
-      icon: <AppstoreOutlined />,
+      icon: <UsersIcon size={24} />,
       label: "Quản lý nhân viên",
     },
     {
       key: "/admin/customer",
-      icon: <AppstoreOutlined className="w-6 h-6" />,
+      icon: <UsersThreeIcon size={24} />,
       label: "Quản lý khách hàng",
     },
     {
       key: "/admin/chatbot",
-      icon: <AppstoreOutlined />,
+      icon: <ChatCircleDotsIcon size={24} />,
       label: "Quản lý chat",
     },
     {
@@ -92,7 +97,7 @@ export default function Navbar() {
     },
     {
       key: "/admin/dateWork",
-      icon: <AppstoreOutlined />,
+      icon: <CalendarIcon size={24} />,
       label: "Lịch làm việc",
     },
   ];

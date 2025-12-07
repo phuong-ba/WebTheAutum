@@ -921,7 +921,7 @@ export default function ProductDetail({
                 showTotal: (total, range) =>
                   `${range[0]}-${range[1]} của ${total} biến thể`,
               }}
-              scroll={{ x: 1800 }}
+        
               locale={{
                 emptyText:
                   "Chưa có biến thể nào. Hãy tạo biến thể để hiển thị ở đây.",
