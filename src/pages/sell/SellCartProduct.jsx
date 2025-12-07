@@ -151,6 +151,8 @@ export default function SellCartProduct({ selectedBillId }) {
           p.weight,
           p.unitPrice?.toString(),
           p.totalPrice?.toString(),
+          p.maVach || "",
+          p.idChiTietSanPham?.toString() || "",
         ]
           .join(" ")
           .toLowerCase()
@@ -198,6 +200,10 @@ export default function SellCartProduct({ selectedBillId }) {
           return a.totalPrice - b.totalPrice;
         case "total_desc":
           return b.totalPrice - a.totalPrice;
+        case "barcode_asc":
+          return (a.maVach || "").localeCompare(b.maVach || "");
+        case "barcode_desc":
+          return (b.maVach || "").localeCompare(a.maVach || "");
         default:
           return 0;
       }
@@ -225,6 +231,8 @@ export default function SellCartProduct({ selectedBillId }) {
           ...item,
           unitPrice: newPrice,
           totalPrice: item.quantity * newPrice,
+          // Cập nhật mã vạch nếu có
+          maVach: fresh.maVach || item.maVach,
         };
       }
       return item;
@@ -481,7 +489,7 @@ export default function SellCartProduct({ selectedBillId }) {
         <div className="flex items-center justify-between gap-2 p-4 border-b border-gray-300">
           <div className="flex gap-3">
             <Search
-              placeholder="Tìm tên, màu, size, giá..."
+              placeholder="Tìm tên, mã vạch, màu, size, giá..."
               allowClear
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
@@ -513,9 +521,28 @@ export default function SellCartProduct({ selectedBillId }) {
               <Option value="500k-1M">500.000₫ - 1.000.000₫</Option>
               <Option value="over1M">Trên 1.000.000₫</Option>
             </Select>
+            <Select
+              value={sortBy}
+              onChange={setSortBy}
+              className="min-w-[180px]"
+              disabled={!cartProducts.length}
+            >
+              <Option value="default">Mặc định</Option>
+              <Option value="name_asc">Tên A → Z</Option>
+              <Option value="name_desc">Tên Z → A</Option>
+              <Option value="barcode_asc">Mã vạch A → Z</Option>
+              <Option value="barcode_desc">Mã vạch Z → A</Option>
+              <Option value="price_asc">Giá thấp → cao</Option>
+              <Option value="price_desc">Giá cao → thấp</Option>
+              <Option value="quantity_asc">Số lượng ít → nhiều</Option>
+              <Option value="quantity_desc">Số lượng nhiều → ít</Option>
+              <Option value="total_asc">Thành tiền thấp → cao</Option>
+              <Option value="total_desc">Thành tiền cao → thấp</Option>
+            </Select>
             {(searchKeyword ||
               categoryFilter !== "all" ||
-              priceFilter !== "all") && (
+              priceFilter !== "all" ||
+              sortBy !== "default") && (
               <button
                 onClick={clearFilters}
                 className="text-xs bg-gray-500 text-white rounded px-3 py-1 hover:bg-gray-600"
@@ -556,14 +583,27 @@ export default function SellCartProduct({ selectedBillId }) {
                   />
 
                   <div className="flex-1">
-                    <div className="font-bold text-lg">{product.name}</div>
-                    <div className="flex gap-2 my-1">
-                      <span className="bg-amber-600 text-white px-3 py-1 rounded text-xs font-bold">
-                        {product.color}
-                      </span>
-                      <span className="bg-amber-600 text-white px-3 py-1 rounded text-xs font-bold">
-                        {product.size}
-                      </span>
+                    <div className="font-bold text-lg mb-2">{product.name}</div>
+
+                    <div className="flex gap-2 my-3">
+                      {product.maVach && (
+                        <span className="bg-amber-600 text-white px-3 py-1 rounded text-xs font-bold">
+                          {product.maVach}
+                        </span>
+                      )}
+
+                      {product.color && (
+                        <span className="bg-amber-600 text-white px-3 py-1 rounded text-xs font-bold">
+                          {product.color}
+                        </span>
+                      )}
+
+                      {product.size && (
+                        <span className="bg-amber-600 text-white px-3 py-1 rounded text-xs font-bold">
+                          {product.size}
+                        </span>
+                      )}
+
                       {product.weight && (
                         <span className="bg-gray-600 text-white px-3 py-1 rounded text-xs font-bold">
                           {product.weight}
@@ -571,8 +611,8 @@ export default function SellCartProduct({ selectedBillId }) {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 mt-2">
-                      <span>Số lượng:</span>
+                    <div className="flex items-center gap-3 mt-4">
+                      <span className="font-medium">Số lượng:</span>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() =>

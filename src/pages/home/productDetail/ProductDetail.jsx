@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
-
 import payment from "/src/assets/img/footer-pay.png";
-
 import { NavLink, useNavigate, useParams } from "react-router";
 import ClientBreadcrumb from "../ClientBreadcrumb";
 import { MinusIcon, PlusIcon, SealCheckIcon } from "@phosphor-icons/react";
@@ -29,9 +27,9 @@ export default function ProductDetail() {
   const [activeDetails, setActiveDetails] = useState([]);
   const dispatch = useDispatch();
   const dataDetail = useSelector((state) => state.chiTietSanPham.dataDetail);
-  console.log("🚀 ~ ProductDetail ~ dataDetail:", dataDetail);
 
   const { id } = useParams();
+
   useEffect(() => {
     if (dataDetail && dataDetail.length > 0) {
       const active = dataDetail.filter((item) => item.trangThai === true);
@@ -53,20 +51,19 @@ export default function ProductDetail() {
     if (id) dispatch(getChiTietSanPhamBySanPham(id));
   }, [dispatch, id]);
 
-  // -------------------------------------------------
-  // SET MẶC ĐỊNH
-  // -------------------------------------------------
-  useEffect(() => {
-    if (dataDetail && dataDetail.length > 0) {
-      // Nếu có mã Hex thì dùng maHex, nếu không thì dùng tên màu
-      const defaultColor =
-        dataDetail[0].maHex || dataDetail[0].tenMauSac || null;
+  // Hàm kiểm tra sản phẩm có giảm giá không
+  const hasDiscount = (product) => {
+    if (!product) return false;
+    return product.giaSauGiam && product.giaSauGiam < product.giaBan;
+  };
 
-      setSelectedColor(defaultColor);
-      setSelectedDetail(dataDetail[0]);
-      setSelectedImage(dataDetail[0]?.anhs?.[0]?.duongDanAnh);
-    }
-  }, [dataDetail]);
+  // Hàm tính phần trăm giảm giá
+  const calculateDiscountPercentage = (product) => {
+    if (!hasDiscount(product)) return 0;
+
+    const discount = product.giaBan - product.giaSauGiam;
+    return Math.round((discount / product.giaBan) * 100);
+  };
 
   const detail = selectedDetail || dataDetail?.[0];
 
@@ -143,7 +140,7 @@ export default function ProductDetail() {
   // -------------------------------------------------
   // ADD TO CART
   // -------------------------------------------------
-  const addToCart = ({ product, selectedDetail }) => {
+  const addToCart = ({ product, selectedDetail, quantity }) => {
     if (!selectedDetail)
       return messageApi.error("Vui lòng chọn biến thể trước!");
 
@@ -178,7 +175,7 @@ export default function ProductDetail() {
         tenSanPham: product.tenSanPham,
         tenKichThuoc: selectedDetail.tenKichThuoc,
         maHex: selectedDetail.maHex,
-        tenMauSac: selectedDetail.tenMauSac, // NEW SUPPORT
+        tenMauSac: selectedDetail.tenMauSac,
         giaBan: product.giaBan,
         giaSauGiam: product.giaSauGiam,
         soLuongTon: selectedDetail.soLuongTon,
@@ -204,7 +201,7 @@ export default function ProductDetail() {
     if (selectedDetail.soLuongTon === 0)
       return messageApi.error("Sản phẩm đã hết hàng");
 
-    addToCart({ product: detail, selectedDetail });
+    addToCart({ product: detail, selectedDetail, quantity });
     setTimeout(() => navigate("/cart"), 1000);
   };
 
@@ -218,10 +215,12 @@ export default function ProductDetail() {
       children: <InformationProduct detail={detail} />,
     },
   ];
+
   const isDisabledAddToCart =
     !selectedDetail ||
     !selectedDetail.trangThai ||
     selectedDetail.soLuongTon === 0;
+
   return (
     <>
       {messageContextHolder}
@@ -255,6 +254,13 @@ export default function ProductDetail() {
               <div className="flex flex-col gap-2 items-start">
                 <div className="text-3xl font-bold">{detail.tenSanPham}</div>
 
+                {/* Hiển thị badge giảm giá nếu có */}
+                {hasDiscount(detail) && (
+                  <div className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
+                    -{calculateDiscountPercentage(detail)}%
+                  </div>
+                )}
+
                 <div
                   className={`text-xs font-bold px-3 py-1 rounded-md ${
                     detail.soLuongTon > 0
@@ -276,14 +282,27 @@ export default function ProductDetail() {
                 {detail.moTa}
               </div>
 
-              {/* PRICE */}
-              <div className="flex gap-1 items-center">
-                <div className="text-sm line-through text-gray-500">
-                  {formatVND(detail.giaBan)}
-                </div>
-                <div className="font-semibold text-orange-800 text-2xl">
-                  {formatVND(detail.giaSauGiam)}
-                </div>
+              {/* PRICE - Hiển thị theo điều kiện có giảm giá */}
+              <div className="flex gap-1 items-center flex-wrap">
+                {hasDiscount(detail) ? (
+                  // Hiển thị khi có giảm giá
+                  <>
+                    <div className="text-sm line-through text-gray-500">
+                      {formatVND(detail.giaBan)}
+                    </div>
+                    <div className="font-semibold text-orange-800 text-2xl">
+                      {formatVND(detail.giaSauGiam)}
+                    </div>
+                    <div className="text-sm text-red-600 font-semibold ml-2">
+                      (Giảm {calculateDiscountPercentage(detail)}%)
+                    </div>
+                  </>
+                ) : (
+                  // Hiển thị khi không có giảm giá
+                  <div className="font-semibold text-orange-800 text-2xl">
+                    {formatVND(detail.giaBan)}
+                  </div>
+                )}
               </div>
 
               {/* MÀU SẮC */}
