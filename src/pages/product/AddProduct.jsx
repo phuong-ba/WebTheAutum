@@ -1117,7 +1117,7 @@ export default function AddProduct() {
   return (
     <>
       {contentMessNew}
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className=" bg-gray-50 p-6">
         <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
           <div className="font-bold text-4xl text-[#E67E22]">
             Quản lý sản phẩm

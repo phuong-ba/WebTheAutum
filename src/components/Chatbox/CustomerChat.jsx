@@ -3,10 +3,9 @@ import SockJS from "sockjs-client";
 import { over } from "stompjs";
 import { useNavigate } from "react-router-dom";
 
-// Component hiển thị sản phẩm
 function ProductCard({ product }) {
-  const productLink = `http://localhost:5173/productDetail/${product.id}`;
-
+  const linkPro = import.meta.env.VITE_LINK_URL;
+  const productLink = `${linkPro}/productDetail/${product.id}`;
   return (
     <div className="flex flex-col border rounded-xl p-2 gap-2 bg-white shadow hover:shadow-lg transition">
       <a href={productLink} target="_blank" rel="noopener noreferrer">
@@ -161,7 +160,7 @@ export default function CustomerChat() {
     );
   };
 
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   const connectWS = (rid) => {
     const sock = new SockJS(apiBaseUrl);
     stompClient.current = over(sock);
