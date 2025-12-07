@@ -4,6 +4,7 @@ import logo from "/src/assets/login/logoAutumn.png";
 import { Form, Input, message } from "antd";
 import { MailOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import authServiceAPI from "@/api/authAPI";
 
 export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
@@ -13,18 +14,7 @@ export default function ForgotPassword() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-
-      const response = await fetch("http://localhost:8080/api/auth/forgot-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: values.email
-        }),
-      });
-
-      const data = await response.json();
+      const data = await authServiceAPI.forgotPassword(values.email);
 
       if (data.success) {
         message.success(data.message);
@@ -32,7 +22,6 @@ export default function ForgotPassword() {
       } else {
         message.error(data.message);
       }
-
     } catch (error) {
       console.error("❌ Forgot password error:", error);
       message.error("Lỗi kết nối. Vui lòng thử lại!");
@@ -72,7 +61,9 @@ export default function ForgotPassword() {
             {!isSubmitted ? (
               <>
                 <div className="w-full max-w-[400px]">
-                  <h2 className="text-2xl font-bold text-center mb-2">Quên mật khẩu</h2>
+                  <h2 className="text-2xl font-bold text-center mb-2">
+                    Quên mật khẩu
+                  </h2>
                   <p className="text-sm text-center text-gray-600 mb-6">
                     Nhập email của bạn để nhận link đặt lại mật khẩu
                   </p>
@@ -87,7 +78,7 @@ export default function ForgotPassword() {
                       name="email"
                       rules={[
                         { required: true, message: "Vui lòng nhập email!" },
-                        { type: "email", message: "Email không hợp lệ!" }
+                        { type: "email", message: "Email không hợp lệ!" },
                       ]}
                     >
                       <Input
@@ -106,8 +97,8 @@ export default function ForgotPassword() {
                         {loading ? "ĐANG GỬI..." : "GỬI YÊU CẦU"}
                       </button>
                       <div className="flex justify-center mt-2 text-sm">
-                        <a 
-                          href="/login" 
+                        <a
+                          href="/login"
                           className="text-[#dc833a] hover:underline"
                           onClick={(e) => {
                             e.preventDefault();
@@ -129,7 +120,7 @@ export default function ForgotPassword() {
                     Email đã được gửi!
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Chúng tôi đã gửi link đặt lại mật khẩu đến email của bạn. 
+                    Chúng tôi đã gửi link đặt lại mật khẩu đến email của bạn.
                     Vui lòng kiểm tra hộp thư (kể cả thư spam).
                   </p>
                 </div>

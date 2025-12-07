@@ -57,6 +57,7 @@ export default function SellPay({
   const [pendingHoaDonData, setPendingHoaDonData] = useState(null);
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [pendingConfirmData, setPendingConfirmData] = useState(null);
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
   // --- Socket States ---
   const socketRef = useRef(null); // Dùng Ref để lưu trữ client và tránh lặp
@@ -131,7 +132,7 @@ export default function SellPay({
     // Chỉ khởi tạo nếu Ref chưa có client
     if (socketRef.current) return;
 
-    const socket = new SockJS("http://192.203.4.118:8080/ws");
+    const socket = new SockJS(apiBaseUrl);
     const client = Stomp.over(socket);
     client.debug = () => {};
 
@@ -219,31 +220,37 @@ export default function SellPay({
     selectedShipping,
   ]);
 
-  // Các useEffect và hàm khác giữ nguyên...
-  // (Tôi chỉ giữ lại các phần liên quan đến state và hàm chính)
-
   useEffect(() => {
     dispatch(fetchDonViVanChuyen());
   }, [dispatch]);
 
   useEffect(() => {
-    if (donViVanChuyen.length > 0 && !selectedShipping) {
-      dispatch(setSelectedShipping("GHN"));
+    if (isDelivery && donViVanChuyen.length > 0 && !selectedShipping) {
+      const ghnProvider = donViVanChuyen.find(
+        (p) => String(p.code || p.ma || p.id || p).toUpperCase() === "GHN"
+      );
+      if (ghnProvider) {
+        const ghnCode =
+          ghnProvider.code || ghnProvider.ma || ghnProvider.id || "GHN";
+        dispatch(setSelectedShipping(ghnCode));
+      }
     }
-  }, [donViVanChuyen, selectedShipping, dispatch]);
+  }, [donViVanChuyen, selectedShipping, isDelivery, dispatch]);
 
   useEffect(() => {
-    const shouldCalculateShipping =
-      isDelivery && cartItems.length > 0 && selectedShipping && addressForm;
-    if (shouldCalculateShipping) {
+    if (!isDelivery) {
+      dispatch(resetShippingFee());
+      return;
+    }
+
+    if (cartItems.length > 0 && selectedShipping && addressForm) {
       const timer = setTimeout(() => {
         calculateShippingFee();
-      }, 1000);
+      }, 800); // nhanh hơn chút cho trải nghiệm mượt
+
       return () => clearTimeout(timer);
-    } else {
-      dispatch(resetShippingFee());
     }
-  }, [isDelivery, cartItems, selectedShipping, addressForm]);
+  }, [isDelivery, cartItems, selectedShipping, addressForm, dispatch]);
 
   useEffect(() => {
     if (isDelivery && selectedShipping && cartItems.length > 0) {
@@ -770,7 +777,7 @@ export default function SellPay({
       {/* Render các phần còn lại */}
       {/* ... */}
 
-      {renderShippingOptions()}
+      {isDelivery && renderShippingOptions()}
 
       <div className="bg-gray-50 p-5 rounded-lg border-l-4 border border-amber-700 shadow-sm">
         <div className="flex flex-col gap-6">

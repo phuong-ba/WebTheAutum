@@ -6,7 +6,7 @@ import {
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
-import ThongKeApi from '@/api/ThongKeAPI';
+import ThongKeAPI from '@/api/ThongKeAPI';
 
 const { Option } = Select;
 
@@ -17,7 +17,6 @@ export default function Statistical() {
   const [orderStatusPeriod, setOrderStatusPeriod] = useState('day');
   const [topProducts, setTopProducts] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
-
 
 
   // State lưu dữ liệu từ API
@@ -35,7 +34,7 @@ export default function Statistical() {
   const fetchStatistics = async (period) => {
     setLoading(true);
     try {
-      const response = await ThongKeApi.getAllStatistics(period);
+      const response = await ThongKeAPI.getAllStatistics(period);
       setStatistics(response.data);
       message.success('Đã tải dữ liệu thống kê');
     } catch (error) {

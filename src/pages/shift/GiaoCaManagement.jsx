@@ -17,7 +17,7 @@ import { useShift } from "@/contexts/ShiftContext";
 import {
   PlayCircleOutlined,
   StopOutlined,
-  DeleteOutlined, // Giữ lại icon cho trường hợp khác nếu cần, nhưng không sử dụng cho chức năng xóa
+  DeleteOutlined,
   UserOutlined,
   RiseOutlined,
   CheckCircleOutlined,
@@ -31,24 +31,19 @@ import {
   AppstoreOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
-
-// 💡 ICON TÙY CHỈNH TỪ PHOSPHOR
 import { Eye } from "@phosphor-icons/react";
-
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
+import giaoCaApi from "@/api/giaoCa";
 
 dayjs.locale("vi");
 
 const { TextArea } = Input;
 const { Option } = Select;
 
-// Màu chủ đạo (đồng bộ với trang hóa đơn)
+// Màu chủ đạo
 const PRIMARY_COLOR = "#ff8c42";
 const PRIMARY_DARK = "#E67E22";
-
-// --- CẤU HÌNH API ---
-const API_BASE = "http://localhost:8080/api";
 
 // --- FORMAT HELPER ---
 const formatMoney = (value) => {
@@ -94,14 +89,13 @@ const getStatusConfig = (isCompleted) => {
   };
 };
 
-// --- HELPERS (ExportToCSV giữ nguyên) ---
+// --- HELPERS ExportToCSV ---
 const exportToCSV = (filename, data) => {
   if (!data || !data.length) {
     message.warning("Không có dữ liệu để xuất");
     return;
   }
 
-  // Chuẩn bị dữ liệu để xuất CSV
   const csvContent = [
     [
       "Mã Giao Ca",
@@ -113,7 +107,6 @@ const exportToCSV = (filename, data) => {
       "Ngày Bắt Đầu",
     ].join(","),
     ...data.map((row) => {
-      // Ưu tiên soTienKetThuc nếu có, nếu không thì tính: Tiền đầu + Doanh thu
       const endMoney =
         row.soTienKetThuc !== undefined && row.soTienKetThuc !== null
           ? row.soTienKetThuc
@@ -175,7 +168,7 @@ export default function GiaoCaManagement() {
 
   const [currentUser, setCurrentUser] = useState(null);
 
-  // --- STATE THÔNG BÁO (NOTIFICATION TÙY CHỈNH) ---
+  // --- STATE THÔNG BÁO ---
   const [notification, setNotification] = useState({
     type: "",
     message: "",
@@ -219,51 +212,41 @@ export default function GiaoCaManagement() {
     setCurrentUser(user);
   }, []);
 
-  // --- API FUNCTIONS (ĐÃ SỬA LOGIC TÌM latestCompletedShift VÀ LỌC DANH SÁCH) ---
-
+  // --- API FUNCTIONS ---
   const fetchGiaoCa = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/giao-ca`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const fullList = Array.isArray(data) ? data : [];
+      const data = await giaoCaApi.getAllGiaoCa();
+      const fullList = Array.isArray(data) ? data : [];
 
-        // 1. TÌM CA ĐÃ HOÀN THÀNH GẦN NHẤT TỪ TOÀN BỘ DỮ LIỆU (của bất kỳ ai)
-        const allCompletedShifts = fullList.filter(
-          (gc) => !!gc.thoiGianKetThuc
+      // 1. TÌM CA ĐÃ HOÀN THÀNH GẦN NHẤT TỪ TOÀN BỘ DỮ LIỆU
+      const allCompletedShifts = fullList.filter(
+        (gc) => !!gc.thoiGianKetThuc
+      );
+
+      // Sắp xếp TẤT CẢ các ca đã hoàn thành theo thời gian kết thúc mới nhất
+      const latestCompleted = allCompletedShifts.sort(
+        (a, b) => new Date(b.thoiGianKetThuc) - new Date(a.thoiGianKetThuc)
+      )[0];
+
+      setLatestCompletedShift(latestCompleted || null);
+
+      if (currentUser?.id) {
+        // 2. LỌC DANH SÁCH HIỂN THỊ trên bảng (hiện thị TẤT CẢ, sắp xếp theo thời gian)
+        const allShiftsSorted = fullList.sort(
+          (a, b) => new Date(b.thoiGianBatDau) - new Date(a.thoiGianBatDau)
         );
 
-        // Sắp xếp TẤT CẢ các ca đã hoàn thành theo thời gian kết thúc mới nhất
-        const latestCompleted = allCompletedShifts.sort(
-          (a, b) => new Date(b.thoiGianKetThuc) - new Date(a.thoiGianKetThuc)
-        )[0];
-
-        setLatestCompletedShift(latestCompleted || null);
-
-        if (currentUser?.id) {
-          // 2. LỌC DANH SÁCH HIỂN THỊ trên bảng (hiện thị TẤT CẢ, sắp xếp theo thời gian)
-          const allShiftsSorted = fullList.sort(
-            (a, b) => new Date(b.thoiGianBatDau) - new Date(a.thoiGianBatDau)
-          );
-
-          setGiaoCaList(allShiftsSorted);
-        } else {
-          setGiaoCaList([]);
-        }
+        setGiaoCaList(allShiftsSorted);
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        showNotification(
-          "error",
-          errorData.error || "Không tải được danh sách giao ca"
-        );
+        setGiaoCaList([]);
       }
     } catch (error) {
-      showNotification("error", "Lỗi kết nối server: " + error.message);
+      console.error("Lỗi tải danh sách giao ca:", error);
+      showNotification(
+        "error",
+        error.response?.data?.message || "Không tải được danh sách giao ca"
+      );
     } finally {
       setLoading(false);
     }
@@ -293,36 +276,23 @@ export default function GiaoCaManagement() {
 
     setSubmitLoading(true);
     try {
-      const payload = {
-        idNhanVien: currentUser.id,
-        soTienBatDau: parseFloat(startForm.soTienBatDau),
-        ghiChu: startForm.ghiChu || "",
-      };
+      const data = await giaoCaApi.startGiaoCa(
+        currentUser.id,
+        parseFloat(startForm.soTienBatDau),
+        startForm.ghiChu || ""
+      );
 
-      const response = await fetch(`${API_BASE}/giao-ca/start`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        showNotification("success", "Bắt đầu giao ca thành công");
-        setStartForm({ soTienBatDau: null, ghiChu: "" });
-        setIsStartModalVisible(false);
-        fetchGiaoCa();
-        setActiveTab("active"); // Chuyển sang tab Đang hoạt động
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        showNotification(
-          "error",
-          errorData.error || errorData.message || "Bắt đầu giao ca thất bại."
-        );
-      }
+      showNotification("success", "Bắt đầu giao ca thành công");
+      setStartForm({ soTienBatDau: null, ghiChu: "" });
+      setIsStartModalVisible(false);
+      fetchGiaoCa();
+      setActiveTab("active");
     } catch (error) {
-      showNotification("error", "Lỗi kết nối: " + error.message);
+      console.error("Lỗi bắt đầu ca:", error);
+      showNotification(
+        "error",
+        error.response?.data?.message || "Bắt đầu giao ca thất bại."
+      );
     } finally {
       setSubmitLoading(false);
     }
@@ -334,45 +304,50 @@ export default function GiaoCaManagement() {
 
     setSubmitLoading(true);
     try {
-      const payload = {
-        idNhanVien: currentUser.id,
-        ghiChu: endForm.ghiChu || "",
-      };
-
-      const response = await fetch(
-        `${API_BASE}/giao-ca/${selectedGiaoCa.id}/end`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-          },
-          body: JSON.stringify(payload),
-        }
+      const data = await giaoCaApi.endGiaoCa(
+        selectedGiaoCa.id,
+        currentUser.id,
+        endForm.ghiChu || ""
       );
 
-      if (response.ok) {
-        showNotification("success", "Kết thúc giao ca thành công");
-        setEndForm({ ghiChu: "" });
-        setIsEndModalVisible(false);
-        setSelectedGiaoCa(null);
-        autoOpenModalRef.current = false; // Reset ref khi kết thúc ca thành công
-        fetchGiaoCa();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        showNotification(
-          "error",
-          errorData.error || errorData.message || "Kết thúc giao ca thất bại."
-        );
-      }
+      showNotification("success", "Kết thúc giao ca thành công");
+      setEndForm({ ghiChu: "" });
+      setIsEndModalVisible(false);
+      setSelectedGiaoCa(null);
+      autoOpenModalRef.current = false;
+      fetchGiaoCa();
     } catch (error) {
-      showNotification("error", "Lỗi: " + error.message);
+      console.error("Lỗi kết thúc ca:", error);
+      showNotification(
+        "error",
+        error.response?.data?.message || "Kết thúc giao ca thất bại."
+      );
     } finally {
       setSubmitLoading(false);
     }
   };
 
-  // Hàm handleDelete ĐÃ BỊ LOẠI BỎ THEO YÊU CẦU
+  // Hàm export Excel từ API backend (nếu có)
+  const handleExportExcel = async () => {
+    try {
+      const blob = await giaoCaApi.exportGiaoCaToExcel();
+      
+      // Tạo URL tải xuống
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `danh-sach-giao-ca-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      message.success("Xuất file Excel thành công!");
+    } catch (error) {
+      console.error("Lỗi xuất Excel:", error);
+      // Fallback: dùng export CSV cũ nếu API export không tồn tại
+      exportToCSV("danh-sach-giao-ca.csv", getFilteredData());
+    }
+  };
 
   // --- LỌC DỮ LIỆU ---
   const getFilteredData = () => {
@@ -417,7 +392,8 @@ export default function GiaoCaManagement() {
   const activeCount = giaoCaList.filter((gc) => !gc.thoiGianKetThuc).length;
   const completedCount = giaoCaList.filter((gc) => !!gc.thoiGianKetThuc).length;
   const totalCount = giaoCaList.length;
-  // currentActiveShift tìm ca đang hoạt động CỦA NHÂN VIÊN HIỆN TẠI (ĐÚNG LOGIC)
+  
+  // currentActiveShift tìm ca đang hoạt động CỦA NHÂN VIÊN HIỆN TẠI
   const currentActiveShift = giaoCaList.find(
     (gc) => !gc.thoiGianKetThuc && gc.idNhanVien === currentUser?.id
   );
@@ -429,10 +405,6 @@ export default function GiaoCaManagement() {
       setIsEndModalVisible(true);
       setEndForm({ ghiChu: "" });
     }
-  };
-
-  const handleFilterSearch = () => {
-    // Trigger re-render bằng cách gọi getFilteredData()
   };
 
   // Tự động mở modal kết thúc ca khi đến giờ kết thúc
@@ -474,19 +446,18 @@ export default function GiaoCaManagement() {
     scheduledShiftInfo?.gioKetThuc,
   ]);
 
-  // Xử lý logic tự động điền tiền đầu ca (Sử dụng latestCompletedShift đã được sửa)
+  // Xử lý logic tự động điền tiền đầu ca
   const handleOpenStartShiftModal = () => {
     const isFirstShift = !latestCompletedShift;
 
     if (isFirstShift) {
-      // CA ĐẦU TIÊN: Để trống cho nhập tay, mặc định 0 và ghi chú rõ ràng
+      // CA ĐẦU TIÊN
       setStartForm({
         soTienBatDau: 0,
         ghiChu: "Ca đầu tiên trong phiên làm việc, tiền mặt bắt đầu 0 ₫",
       });
     } else {
       // CA SAU: Tự động điền tiền kết thúc của ca trước
-      // Ưu tiên lấy soTienKetThuc (đã được lưu khi ca trước kết thúc)
       const calculatedEndMoney =
         latestCompletedShift.soTienKetThuc !== undefined &&
         latestCompletedShift.soTienKetThuc !== null
@@ -594,7 +565,6 @@ export default function GiaoCaManagement() {
         <span className="text-gray-600 font-medium">{formatMoney(val)}</span>
       ),
     },
-    // CỘT: TIỀN KẾT THÚC CA
     {
       title: (
         <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -610,7 +580,6 @@ export default function GiaoCaManagement() {
             <span className="text-gray-300 text-xs italic">Đang chạy</span>
           );
 
-        // Ưu tiên soTienKetThuc nếu có, nếu không thì tính: Tiền đầu + Doanh thu
         const endMoney =
           record.soTienKetThuc !== undefined && record.soTienKetThuc !== null
             ? record.soTienKetThuc
@@ -669,7 +638,6 @@ export default function GiaoCaManagement() {
       width: 100,
       render: (_, record) => (
         <Space size="small">
-          {/* ICON MẮT (Xem chi tiết) */}
           <Tooltip title="Xem chi tiết">
             <span
               className="cursor-pointer p-1.5 inline-block text-gray-600 hover:text-blue-500 transition-colors"
@@ -742,7 +710,6 @@ export default function GiaoCaManagement() {
               <Eye size={18} color="#000000" weight="regular" />
             </span>
           </Tooltip>
-          {/* Nút XÓA ĐÃ ĐƯỢC BỎ */}
         </Space>
       ),
     },
@@ -858,7 +825,7 @@ export default function GiaoCaManagement() {
                   type="primary"
                   size="large"
                   icon={<SearchOutlined />}
-                  onClick={handleFilterSearch}
+                  onClick={() => {}} // Filter tự động cập nhật
                   className="rounded-lg font-medium !bg-[#ff8c42] !border-[#ff8c42] hover:!bg-amber-800 hover:!text-white transition-all duration-200"
                 >
                   Tìm kiếm
@@ -877,9 +844,7 @@ export default function GiaoCaManagement() {
             <Space>
               <Button
                 icon={<FileExcelOutlined />}
-                onClick={() => {
-                  exportToCSV("danh-sach-giao-ca.csv", filteredData, columns);
-                }}
+                onClick={handleExportExcel}
                 className="rounded-lg font-medium !bg-white !border-white !text-[#ff8c42] hover:!bg-amber-800 hover:!text-white transition-all duration-200"
               >
                 Xuất Excel
@@ -911,7 +876,7 @@ export default function GiaoCaManagement() {
           </div>
 
           <div className="p-4">
-            {/* Tab Segmented cho mobile/gọn gàng */}
+            {/* Tab Segmented */}
             <div className="bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm inline-block mb-4">
               <Segmented
                 options={[
@@ -1022,7 +987,7 @@ export default function GiaoCaManagement() {
                     ).padStart(5, "0")} (NV cũ: ${
                       latestCompletedShift?.hoTenNhanVien || "---"
                     }).`}
-              </div>
+            </div>
             </div>
           </div>
 
@@ -1044,7 +1009,6 @@ export default function GiaoCaManagement() {
               onChange={(val) =>
                 setStartForm({ ...startForm, soTienBatDau: val })
               }
-              // Chỉ cho phép nhập thủ công nếu là ca đầu tiên (latestCompletedShift là null)
               disabled={!!latestCompletedShift}
             />
           </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Form, Input, Select, Radio, message, Spin, Modal, Button } from "antd";
 import { useNavigate } from "react-router-dom";
 import ClientBreadcrumb from "../ClientBreadcrumb";
@@ -61,9 +61,13 @@ export default function CheckOut() {
 
   const lastShippingCalculationRef = useRef({ cartHash: null });
   const idKhachHang = JSON.parse(localStorage.getItem("customer_id") || "null");
-  const [qrCountdown, setQrCountdown] = useState(300); // 5 phút
-  const [qrData, setQrData] = useState(null); // { qrUrl, maDon, noiDung, orderId }
+  const [qrCountdown, setQrCountdown] = useState(300);
+  const [qrData, setQrData] = useState(null);
   const qrTimerRef = useRef(null);
+
+  // THÊM: State để theo dõi thay đổi địa chỉ
+  const [addressChanged, setAddressChanged] = useState(false);
+
   useEffect(() => {
     window.scrollTo(0, 0);
     dispatch(fetchDonViVanChuyen());
@@ -74,6 +78,7 @@ export default function CheckOut() {
     setCartItems(cart);
     fetchProvinces();
   }, [dispatch]);
+
   useEffect(() => {
     if (qrData && qrCountdown > 0) {
       qrTimerRef.current = setTimeout(() => {
@@ -83,20 +88,29 @@ export default function CheckOut() {
       messageApi.warning("QR thanh toán đã hết hạn!");
       setQrData(null);
     }
-    return () => {
-      if (qrTimerRef.current) clearTimeout(qrTimerRef.current);
-    };
+    return () => clearTimeout(qrTimerRef.current);
   }, [qrCountdown, qrData]);
+
   useEffect(() => {
     if (idKhachHang) dispatch(getByIdKhachHang(idKhachHang));
   }, [idKhachHang, dispatch]);
 
+  // Tự động chọn GHN khi có danh sách đơn vị vận chuyển
   useEffect(() => {
     if (shippingProviders.length > 0 && !selectedProvider) {
-      dispatch(setSelectedShipping("GHN"));
+      const ghn = shippingProviders.find((p) =>
+        String(p.code || p.ma || p.tenDonVi || "")
+          .toUpperCase()
+          .includes("GHN")
+      );
+      if (ghn) {
+        const code = ghn.code || ghn.ma || ghn.id || "GHN";
+        dispatch(setSelectedShipping(code));
+      }
     }
   }, [shippingProviders, selectedProvider, dispatch]);
 
+  // Điền thông tin khách hàng nếu đã đăng nhập
   useEffect(() => {
     if (dataKhachHang && idKhachHang) {
       const activeAddress =
@@ -127,7 +141,70 @@ export default function CheckOut() {
   const discountAmount = appliedVoucher?.soTienGiam || 0;
   const total = subtotal + shippingFee - discountAmount;
 
-  // Copy hàm kiểm tra điều kiện từ SellInformation
+  // === ĐOẠN SỬA LẠI: TỰ ĐỘNG TÍNH PHÍ VẬN CHUYỂN ===
+  useEffect(() => {
+    if (!selectedProvider || cartItems.length === 0) {
+      dispatch(resetShippingFee());
+      return;
+    }
+
+    const values = form.getFieldsValue();
+    const { province, district, DiaChi } = values;
+
+    if (!province || !district || !DiaChi?.trim()) {
+      dispatch(resetShippingFee());
+      return;
+    }
+
+    const currentHash = JSON.stringify({
+      province,
+      district,
+      DiaChi: DiaChi.trim(),
+      provider: selectedProvider,
+      items: cartItems.map((i) => ({ id: i.id, qty: i.quantity })),
+    });
+
+    if (lastShippingCalculationRef.current.cartHash === currentHash) return;
+
+    lastShippingCalculationRef.current.cartHash = currentHash;
+
+    const timer = setTimeout(() => {
+      const requestData = {
+        donViVanChuyen: selectedProvider,
+        idTinhGui: 1,
+        idQuanGui: 1442,
+        idTinhNhan: province,
+        idQuanNhan: district,
+        diaChiCuThe: DiaChi.trim(),
+        items: cartItems.map((item) => ({
+          idChiTietSanPham: item.id,
+          soLuong: item.quantity,
+          giaBan: item.giaSauGiam || item.gia || 0,
+          khoiLuong: item.khoiLuong || 250,
+          chieuDai: item.chieuDai || 30,
+          chieuRong: item.chieuRong || 20,
+          chieuCao: item.chieuCao || 10,
+        })),
+      };
+
+      dispatch(tinhPhiVanChuyen(requestData));
+      
+      // THÊM: Reset cờ thay đổi địa chỉ sau khi tính xong
+      setAddressChanged(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [
+    selectedProvider,
+    cartItems,
+    dispatch,
+    addressChanged, // ← THÊM dependency này
+    form.getFieldValue("province"),
+    form.getFieldValue("district"),
+    form.getFieldValue("DiaChi"),
+  ]);
+  // === KẾT THÚC ĐOẠN SỬA ===
+
   const checkBasicDiscountConditions = (discount, totalAmount, customer) => {
     if (!discount)
       return { isValid: false, message: "Mã giảm giá không tồn tại" };
@@ -155,7 +232,6 @@ export default function CheckOut() {
     }
 
     if (discount.kieu === 1) {
-      // Mã cá nhân
       if (!customer) {
         return {
           isValid: false,
@@ -192,7 +268,6 @@ export default function CheckOut() {
       if (discount.mucGiaGiamToiDa && amount > discount.mucGiaGiamToiDa) {
         return Math.min(discount.mucGiaGiamToiDa, total);
       }
-
       return Math.min(amount, total);
     }
   };
@@ -203,7 +278,6 @@ export default function CheckOut() {
     const now = dayjs();
     const customer = dataKhachHang;
 
-    // Mã công khai
     const publicDiscounts = vouchers.filter((discount) => {
       const isActive =
         discount.trangThai === 1 &&
@@ -213,11 +287,9 @@ export default function CheckOut() {
           null,
           "[]"
         );
-
       return isActive && discount.kieu === 0;
     });
 
-    // Mã cá nhân
     let personalDiscounts = [];
     if (customer && Array.isArray(giamGiaKhachHangData)) {
       const personalDiscountIds = giamGiaKhachHangData
@@ -245,7 +317,6 @@ export default function CheckOut() {
 
       const allActiveDiscounts = getAllActiveDiscounts();
       const available = [];
-      const unavailable = [];
 
       for (const discount of allActiveDiscounts) {
         const condition = checkBasicDiscountConditions(
@@ -256,15 +327,7 @@ export default function CheckOut() {
 
         if (condition.isValid) {
           const discountAmount = calculateDiscountAmount(discount, subtotal);
-          available.push({
-            ...discount,
-            discountAmount,
-          });
-        } else {
-          unavailable.push({
-            discount,
-            reason: condition.message,
-          });
+          available.push({ ...discount, discountAmount });
         }
       }
 
@@ -313,7 +376,6 @@ export default function CheckOut() {
     }
   }, [appliedVoucher, vouchers, subtotal, dataKhachHang]);
 
-  // API Tỉnh/Quận
   const fetchProvinces = async () => {
     try {
       const res = await diaChiApi.getAllTinhThanh();
@@ -355,55 +417,33 @@ export default function CheckOut() {
     } catch {
       messageApi.error("Không tải được quận/huyện");
     }
+
+    // SỬA LẠI: Khi thay đổi tỉnh, reset phí và trigger tính lại
     dispatch(resetShippingFee());
+    setAddressChanged(true); // ← THÊM DÒNG NÀY
+    lastShippingCalculationRef.current.cartHash = null;
   };
 
   const handleDistrictChange = (districtId) => {
     const district = districts.find((d) => d.id == districtId);
     if (district) setDistrictName(district.tenQuan);
+
+    // SỬA LẠI: Khi thay đổi quận, reset phí và trigger tính lại
     dispatch(resetShippingFee());
+    setAddressChanged(true); // ← THÊM DÒNG NÀY
+    lastShippingCalculationRef.current.cartHash = null;
   };
 
-  useEffect(() => {
-    if (!selectedProvider || cartItems.length === 0) return;
-
-    const values = form.getFieldsValue();
-    if (!values.province || !values.district || !values.DiaChi) return;
-
-    const currentHash = JSON.stringify({
-      province: values.province,
-      district: values.district,
-      address: values.DiaChi,
-      provider: selectedProvider,
-      items: cartItems.map((i) => ({ id: i.id, qty: i.quantity })),
-    });
-
-    if (lastShippingCalculationRef.current.cartHash === currentHash) return;
-    lastShippingCalculationRef.current.cartHash = currentHash;
-
-    const timer = setTimeout(() => {
-      const requestData = {
-        donViVanChuyen: selectedProvider,
-        idTinhGui: 1,
-        idQuanGui: 1442,
-        idTinhNhan: values.province,
-        idQuanNhan: values.district,
-        diaChiCuThe: values.DiaChi,
-        items: cartItems.map((item) => ({
-          idChiTietSanPham: item.id,
-          soLuong: item.quantity,
-          giaBan: item.giaSauGiam || item.gia || 0,
-          khoiLuong: item.khoiLuong || 250,
-          chieuDai: item.chieuDai || 30,
-          chieuRong: item.chieuRong || 20,
-          chieuCao: item.chieuCao || 10,
-        })),
-      };
-      dispatch(tinhPhiVanChuyen(requestData));
-    }, 800);
-
-    return () => clearTimeout(timer);
-  }, [form, cartItems, selectedProvider, dispatch]);
+  // THÊM: Xử lý thay đổi địa chỉ chi tiết
+  const handleAddressDetailChange = (e) => {
+    const value = e.target.value;
+    if (value?.trim()) {
+      // Khi có thay đổi địa chỉ chi tiết, reset phí và trigger tính lại
+      dispatch(resetShippingFee());
+      setAddressChanged(true);
+      lastShippingCalculationRef.current.cartHash = null;
+    }
+  };
 
   const handleSelectShipping = (provider) => {
     dispatch(setSelectedShipping(provider));
@@ -437,9 +477,7 @@ export default function CheckOut() {
     }
 
     setLoading(true);
-
     try {
-      // Tạo QR với số tiền và thông tin
       const qr = await dispatch(
         taoVietQR({
           amount: total,
@@ -449,10 +487,7 @@ export default function CheckOut() {
         })
       ).unwrap();
 
-      // Lưu tạm thông tin form để dùng sau
       setFormValues(values);
-
-      // Hiển thị QR
       setQrData({
         qrUrl: qr.qrImageUrl || qr.paymentUrl || qr.qrDataURL,
         noiDung:
@@ -460,7 +495,7 @@ export default function CheckOut() {
         amount: total,
       });
       setQrCountdown(300);
-      setConfirmOpen(true); // Mở modal QR
+      setConfirmOpen(true);
     } catch (error) {
       messageApi.error("Không tạo được QR thanh toán!");
     } finally {
@@ -468,14 +503,11 @@ export default function CheckOut() {
     }
   };
 
-  // Sửa trong phần handleConfirmOrder
   const handleConfirmOrder = async () => {
     if (!formValues) return;
 
     setLoading(true);
-
     const fullAddress = `${formValues.DiaChi}, ${districtName}, ${provinceName}`;
-
     const idPhuongThucThanhToan = paymentMethod === "cod" ? 1 : 2;
 
     const orderRequest = {
@@ -502,7 +534,6 @@ export default function CheckOut() {
             }`
           : null,
       trangThai: 0,
-
       chiTietList: cartItems.map((item) => ({
         idChiTietSanPham: item.id,
         soLuong: item.quantity,
@@ -517,14 +548,11 @@ export default function CheckOut() {
       setCartItems([]);
       window.dispatchEvent(new Event("cartUpdated"));
 
-      // Hiển thị thông báo khác nhau tùy phương thức thanh toán
-      if (paymentMethod === "bank") {
-        messageApi.success(
-          "Đặt hàng thành công! Đang chờ xác nhận thanh toán."
-        );
-      } else {
-        messageApi.success("Đặt hàng thành công! Đơn hàng đang chờ xác nhận.");
-      }
+      messageApi.success(
+        paymentMethod === "bank"
+          ? "Đặt hàng thành công! Đang chờ xác nhận thanh toán."
+          : "Đặt hàng thành công! Đơn hàng đang chờ xác nhận."
+      );
 
       navigate(`/orders/success/${hoaDon.id}`);
     } catch (error) {
@@ -537,6 +565,7 @@ export default function CheckOut() {
       setQrCountdown(300);
     }
   };
+
   const onFinish = async (values) => {
     if (!values.province || !values.district) {
       messageApi.error("Vui lòng chọn đầy đủ tỉnh/thành và quận/huyện!");
@@ -551,6 +580,7 @@ export default function CheckOut() {
       setConfirmOpen(true);
     }
   };
+
   const renderVoucherSelector = () => {
     return (
       <div className="mt-4">
@@ -882,7 +912,11 @@ export default function CheckOut() {
                       },
                     ]}
                   >
-                    <Input size="large" placeholder="Ví dụ: 123 Đường Láng" />
+                    <Input 
+                      size="large" 
+                      placeholder="Ví dụ: 123 Đường Láng" 
+                      onChange={handleAddressDetailChange} // ← THÊM onChange
+                    />
                   </Form.Item>
 
                   <Form.Item
@@ -1256,7 +1290,7 @@ export default function CheckOut() {
                   danger
                   loading={loading}
                   className="flex-1 text-lg font-bold"
-                  onClick={handleConfirmOrder} // ← Đổi thành handleConfirmOrder
+                  onClick={handleConfirmOrder}
                 >
                   {loading ? "Đang xử lý..." : "Xác nhận đặt hàng"}
                 </Button>

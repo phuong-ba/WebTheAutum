@@ -92,10 +92,10 @@ export default function AddProduct() {
   const [loadingTaoSanPham, setLoadingTaoSanPham] = useState(false);
   const [formValidation, setFormValidation] = useState({
     errors: {},
-    touched: {}
+    touched: {},
   });
   const navigate = useNavigate();
-
+  const [messageApi, contentMessNew] = message.useMessage();
   const [dropdownData, setDropdownData] = useState({
     nhaSanXuats: [],
     xuatXus: [],
@@ -137,7 +137,7 @@ export default function AddProduct() {
       });
     } catch (error) {
       console.error("💥 Lỗi tải dropdown data:", error);
-      message.error("Lỗi tải danh sách thuộc tính");
+      messageApi.error("Lỗi tải danh sách thuộc tính");
     } finally {
       setLoading(false);
     }
@@ -221,12 +221,12 @@ export default function AddProduct() {
   const handleAddNew = async (values) => {
     try {
       if (!values.ten?.trim()) {
-        message.error(`Vui lòng nhập tên ${getModalTitle()}`);
+        messageApi.error(`Vui lòng nhập tên ${getModalTitle()}`);
         return;
       }
 
       if (!values.ma?.trim()) {
-        message.error(`Vui lòng nhập mã ${getModalTitle()}`);
+        messageApi.error(`Vui lòng nhập mã ${getModalTitle()}`);
         return;
       }
 
@@ -235,13 +235,13 @@ export default function AddProduct() {
 
       const endpoint = API_ENDPOINTS[modalType];
       if (!endpoint) {
-        message.error("Không tìm thấy endpoint API");
+        messageApi.error("Không tìm thấy endpoint API");
         return;
       }
 
       const payloadBuilder = PAYLOAD_MAPPINGS[modalType];
       if (!payloadBuilder) {
-        message.error("Không tìm thấy mapping payload");
+        messageApi.error("Không tìm thấy mapping payload");
         return;
       }
 
@@ -250,11 +250,11 @@ export default function AddProduct() {
       const response = await baseUrl.post(endpoint, payload);
 
       if (response.data) {
-        message.success(`Thêm mới ${getModalTitle()} "${ten}" thành công`);
+        messageApi.success(`Thêm mới ${getModalTitle()} "${ten}" thành công`);
         await fetchDropdownData();
         setOpenModal(false);
       } else {
-        message.error("Thêm mới thất bại");
+        messageApi.error("Thêm mới thất bại");
       }
     } catch (error) {
       console.error(`💥 Lỗi khi thêm mới ${modalType}:`, error);
@@ -267,93 +267,97 @@ export default function AddProduct() {
       const errorData = error.response.data;
 
       if (errorData.message?.includes("UNIQUE KEY constraint")) {
-        message.error(
+        messageApi.error(
           `Mã hoặc tên ${modalTitle} đã tồn tại. Vui lòng chọn giá trị khác.`
         );
       } else if (errorData.errors) {
         Object.values(errorData.errors).forEach((errMsg) => {
-          message.error(errMsg);
+          messageApi.error(errMsg);
         });
       } else if (errorData.message) {
-        message.error(errorData.message);
+        messageApi.error(errorData.message);
       } else {
-        message.error("Lỗi server không xác định");
+        messageApi.error("Lỗi server không xác định");
       }
     } else {
-      message.error("Lỗi kết nối đến server");
+      messageApi.error("Lỗi kết nối đến server");
     }
   };
 
   const validateForm = (formValues) => {
     const errors = {};
-    
+
     if (!formValues.tenSanPham?.trim()) {
-      errors.tenSanPham = 'Vui lòng nhập tên sản phẩm';
+      errors.tenSanPham = "Vui lòng nhập tên sản phẩm";
     } else if (formValues.tenSanPham.trim().length < 2) {
-      errors.tenSanPham = 'Tên sản phẩm phải có ít nhất 2 ký tự';
+      errors.tenSanPham = "Tên sản phẩm phải có ít nhất 2 ký tự";
     }
-    
+
     if (!formValues.idNhaSanXuat) {
-      errors.idNhaSanXuat = 'Vui lòng chọn hãng sản xuất';
+      errors.idNhaSanXuat = "Vui lòng chọn hãng sản xuất";
     }
-    
+
     if (!formValues.idXuatXu) {
-      errors.idXuatXu = 'Vui lòng chọn xuất xứ';
+      errors.idXuatXu = "Vui lòng chọn xuất xứ";
     }
-    
+
     if (!formValues.idChatLieu) {
-      errors.idChatLieu = 'Vui lòng chọn chất liệu';
+      errors.idChatLieu = "Vui lòng chọn chất liệu";
     }
-    
+
     if (!formValues.idKieuDang) {
-      errors.idKieuDang = 'Vui lòng chọn kiểu dáng';
+      errors.idKieuDang = "Vui lòng chọn kiểu dáng";
     }
-    
+
     if (!formValues.idCoAo) {
-      errors.idCoAo = 'Vui lòng chọn cổ áo';
+      errors.idCoAo = "Vui lòng chọn cổ áo";
     }
-    
+
     if (!formValues.idTayAo) {
-      errors.idTayAo = 'Vui lòng chọn tay áo';
+      errors.idTayAo = "Vui lòng chọn tay áo";
     }
-    
+
     if (!formValues.trongLuong?.trim()) {
-      errors.trongLuong = 'Vui lòng nhập trọng lượng';
+      errors.trongLuong = "Vui lòng nhập trọng lượng";
     }
-    
+
     if (!formValues.idMauSacs?.length) {
-      errors.idMauSacs = 'Vui lòng chọn ít nhất một màu sắc';
+      errors.idMauSacs = "Vui lòng chọn ít nhất một màu sắc";
     } else if (formValues.idMauSacs.length > 10) {
-      errors.idMauSacs = 'Chỉ có thể chọn tối đa 10 màu sắc';
+      errors.idMauSacs = "Chỉ có thể chọn tối đa 10 màu sắc";
     }
-    
+
     if (!formValues.idKichThuoc) {
-      errors.idKichThuoc = 'Vui lòng chọn kích thước';
+      errors.idKichThuoc = "Vui lòng chọn kích thước";
     }
-    
+
     return errors;
   };
 
   const handleTaoBienThe = async () => {
     try {
       const formValues = await form.validateFields();
-      
+
       const errors = validateForm(formValues);
       if (Object.keys(errors).length > 0) {
-        setFormValidation(prev => ({ ...prev, errors }));
-        
+        setFormValidation((prev) => ({ ...prev, errors }));
+
         const firstErrorField = Object.keys(errors)[0];
-        const element = document.querySelector(`[data-field="${firstErrorField}"]`);
+        const element = document.querySelector(
+          `[data-field="${firstErrorField}"]`
+        );
         if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
         }
-        
-        message.error('Vui lòng kiểm tra lại thông tin form trước khi tạo biến thể');
+
+        messageApi.error(
+          "Vui lòng kiểm tra lại thông tin form trước khi tạo biến thể"
+        );
         return;
       }
-      
-      setFormValidation(prev => ({ ...prev, errors: {} }));
-      
+
+      setFormValidation((prev) => ({ ...prev, errors: {} }));
+
       setLoadingTaoSanPham(true);
 
       const requestData = {
@@ -379,20 +383,20 @@ export default function AddProduct() {
         });
         setConfirmModalOpen(true);
       } else {
-        message.error(previewResponse.message || "Lỗi khi preview biến thể");
+        messageApi.error(previewResponse.message || "Lỗi khi preview biến thể");
       }
     } catch (error) {
       console.error("❌ Lỗi preview:", error);
-      
+
       if (error.errorFields) {
         const newErrors = {};
-        error.errorFields.forEach(field => {
+        error.errorFields.forEach((field) => {
           newErrors[field.name[0]] = field.errors[0];
         });
-        setFormValidation(prev => ({ ...prev, errors: newErrors }));
+        setFormValidation((prev) => ({ ...prev, errors: newErrors }));
       }
-      
-      message.error(error.message || "Lỗi khi preview biến thể");
+
+      messageApi.error(error.message || "Lỗi khi preview biến thể");
     } finally {
       setLoadingTaoSanPham(false);
     }
@@ -434,7 +438,7 @@ export default function AddProduct() {
           );
 
           setBienTheList(enhancedBienTheData);
-          message.success(
+          messageApi.success(
             `✅ Đã tạo ${enhancedBienTheData.length} biến thể thành công!`
           );
           setConfirmModalOpen(false);
@@ -444,17 +448,28 @@ export default function AddProduct() {
             createResponse.message || "Lỗi không xác định khi tạo biến thể";
           if (createResponse.errors) {
             Object.values(createResponse.errors).forEach((errMsg) => {
-              message.error(errMsg);
+              messageApi.error(errMsg);
             });
           } else {
-            message.error(errorMessage);
+            messageApi.error(errorMessage);
           }
           throw new Error(errorMessage);
         }
       } else {
-        message.success(
+        // Khi tạo sản phẩm thành công từ ProductDetail
+        messageApi.success(
           `✅ Đã tạo thành công sản phẩm với ${confirmModalData.totalVariants} biến thể!`
         );
+
+        // Chuyển về trang quản lý sản phẩm
+        messageApi.success(
+          "Sản phẩm đã được tạo thành công! Đang chuyển về trang quản lý sản phẩm..."
+        );
+
+        setTimeout(() => {
+          navigate("/admin/product");
+        }, 1500);
+
         resetAllToInitialState();
         setConfirmModalOpen(false);
         setConfirmModalData(null);
@@ -469,17 +484,17 @@ export default function AddProduct() {
 
   const handleCreateProductError = (error) => {
     if (error.message.includes("rollback-only")) {
-      message.error(
+      messageApi.error(
         "Lỗi transaction: Dữ liệu không hợp lệ hoặc bị trùng lặp. Vui lòng kiểm tra lại thông tin."
       );
     } else if (error.message.includes("UNIQUE")) {
-      message.error(
+      messageApi.error(
         "Lỗi: Mã sản phẩm hoặc thông tin đã tồn tại trong hệ thống."
       );
     } else if (error.response?.status === 400) {
-      message.error("Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại.");
+      messageApi.error("Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại.");
     } else {
-      message.error(error.message || "Lỗi khi xác nhận tạo sản phẩm");
+      messageApi.error(error.message || "Lỗi khi xác nhận tạo sản phẩm");
     }
   };
 
@@ -491,24 +506,28 @@ export default function AddProduct() {
     setConfirmModalOpen(false);
     setConfirmModalData(null);
     setFormValidation({ errors: {}, touched: {} });
-    message.success("Đã reset toàn bộ dữ liệu");
+    messageApi.success("Đã reset toàn bộ dữ liệu");
   };
 
   const handleShowConfirmModal = (modalData) => {
-    setConfirmModalData(modalData);
+    // Thêm navigate vào modalData để ProductDetail có thể sử dụng
+    setConfirmModalData({
+      ...modalData,
+      navigate: navigate, // Thêm navigate vào modalData
+    });
     setConfirmModalOpen(true);
   };
 
   const FormValidationSummary = () => {
     if (Object.keys(formValidation.errors).length === 0) return null;
-    
+
     return (
       <Alert
         message="Vui lòng sửa các lỗi sau trước khi tạo biến thể:"
         description={
-          <ul style={{ margin: 0, paddingLeft: '20px' }}>
+          <ul style={{ margin: 0, paddingLeft: "20px" }}>
             {Object.entries(formValidation.errors).map(([field, message]) => (
-              <li key={field} style={{ marginBottom: '4px' }}>
+              <li key={field} style={{ marginBottom: "4px" }}>
                 {message}
               </li>
             ))}
@@ -516,24 +535,26 @@ export default function AddProduct() {
         }
         type="error"
         showIcon
-        style={{ marginBottom: '16px' }}
+        style={{ marginBottom: "16px" }}
       />
     );
   };
 
   const FieldError = ({ error }) => {
     if (!error) return null;
-    
+
     return (
-      <div style={{ 
-        color: '#ff4d4f', 
-        fontSize: '12px', 
-        marginTop: '4px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px'
-      }}>
-        <WarningOutlined style={{ fontSize: '12px' }} />
+      <div
+        style={{
+          color: "#ff4d4f",
+          fontSize: "12px",
+          marginTop: "4px",
+          display: "flex",
+          alignItems: "center",
+          gap: "4px",
+        }}
+      >
+        <WarningOutlined style={{ fontSize: "12px" }} />
         {error}
       </div>
     );
@@ -848,12 +869,16 @@ export default function AddProduct() {
                 message: "Tên sản phẩm phải có ít nhất 2 ký tự",
               },
             ]}
-            validateStatus={formValidation.errors.tenSanPham ? 'error' : ''}
-            help={formValidation.errors.tenSanPham ? <FieldError error={formValidation.errors.tenSanPham} /> : null}
+            validateStatus={formValidation.errors.tenSanPham ? "error" : ""}
+            help={
+              formValidation.errors.tenSanPham ? (
+                <FieldError error={formValidation.errors.tenSanPham} />
+              ) : null
+            }
           >
-            <Input 
-              placeholder="Nhập tên sản phẩm" 
-              size="middle" 
+            <Input
+              placeholder="Nhập tên sản phẩm"
+              size="middle"
               data-field="tenSanPham"
             />
           </Form.Item>
@@ -877,8 +902,12 @@ export default function AddProduct() {
                   message: `Vui lòng chọn ${field.label.toLowerCase()}`,
                 },
               ]}
-              validateStatus={formValidation.errors[field.name] ? 'error' : ''}
-              help={formValidation.errors[field.name] ? <FieldError error={formValidation.errors[field.name]} /> : null}
+              validateStatus={formValidation.errors[field.name] ? "error" : ""}
+              help={
+                formValidation.errors[field.name] ? (
+                  <FieldError error={formValidation.errors[field.name]} />
+                ) : null
+              }
             >
               <Select
                 placeholder={`Chọn ${field.label.toLowerCase()}`}
@@ -918,8 +947,12 @@ export default function AddProduct() {
                 message: "Vui lòng chọn cổ áo",
               },
             ]}
-            validateStatus={formValidation.errors.idCoAo ? 'error' : ''}
-            help={formValidation.errors.idCoAo ? <FieldError error={formValidation.errors.idCoAo} /> : null}
+            validateStatus={formValidation.errors.idCoAo ? "error" : ""}
+            help={
+              formValidation.errors.idCoAo ? (
+                <FieldError error={formValidation.errors.idCoAo} />
+              ) : null
+            }
           >
             <Select
               placeholder="Chọn cổ áo"
@@ -948,8 +981,12 @@ export default function AddProduct() {
                 message: "Vui lòng chọn tay áo",
               },
             ]}
-            validateStatus={formValidation.errors.idTayAo ? 'error' : ''}
-            help={formValidation.errors.idTayAo ? <FieldError error={formValidation.errors.idTayAo} /> : null}
+            validateStatus={formValidation.errors.idTayAo ? "error" : ""}
+            help={
+              formValidation.errors.idTayAo ? (
+                <FieldError error={formValidation.errors.idTayAo} />
+              ) : null
+            }
           >
             <Select
               placeholder="Chọn tay áo"
@@ -978,8 +1015,12 @@ export default function AddProduct() {
                 message: "Vui lòng nhập trọng lượng",
               },
             ]}
-            validateStatus={formValidation.errors.trongLuong ? 'error' : ''}
-            help={formValidation.errors.trongLuong ? <FieldError error={formValidation.errors.trongLuong} /> : null}
+            validateStatus={formValidation.errors.trongLuong ? "error" : ""}
+            help={
+              formValidation.errors.trongLuong ? (
+                <FieldError error={formValidation.errors.trongLuong} />
+              ) : null
+            }
           >
             <Input
               placeholder="Nhập trọng lượng (VD: 200g, 0.5kg)"
@@ -1005,8 +1046,12 @@ export default function AddProduct() {
               message: "Vui lòng chọn màu sắc",
             },
           ]}
-          validateStatus={formValidation.errors.idMauSacs ? 'error' : ''}
-          help={formValidation.errors.idMauSacs ? <FieldError error={formValidation.errors.idMauSacs} /> : null}
+          validateStatus={formValidation.errors.idMauSacs ? "error" : ""}
+          help={
+            formValidation.errors.idMauSacs ? (
+              <FieldError error={formValidation.errors.idMauSacs} />
+            ) : null
+          }
         >
           <Select
             mode="multiple"
@@ -1038,8 +1083,12 @@ export default function AddProduct() {
               message: "Vui lòng chọn kích thước",
             },
           ]}
-          validateStatus={formValidation.errors.idKichThuoc ? 'error' : ''}
-          help={formValidation.errors.idKichThuoc ? <FieldError error={formValidation.errors.idKichThuoc} /> : null}
+          validateStatus={formValidation.errors.idKichThuoc ? "error" : ""}
+          help={
+            formValidation.errors.idKichThuoc ? (
+              <FieldError error={formValidation.errors.idKichThuoc} />
+            ) : null
+          }
         >
           <Select
             placeholder="Chọn kích thước"
@@ -1066,80 +1115,85 @@ export default function AddProduct() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
-        <div className="font-bold text-4xl text-[#E67E22]">
-          Quản lý sản phẩm
-        </div>
-        <div className="text-sm text-gray-600">
-          <span
-            className="cursor-pointer hover:text-[#E67E22]"
-            onClick={() => navigate("/")}
-          >
-            Trang chủ
-          </span>
-          <span className="mx-2">/</span>
-          <span
-            className="cursor-pointer hover:text-[#E67E22]"
-            onClick={() => navigate("/admin/product")}
-          >
+    <>
+      {contentMessNew}
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+          <div className="font-bold text-4xl text-[#E67E22]">
             Quản lý sản phẩm
-          </span>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium">Thêm sản phẩm</span>
+          </div>
+          <div className="text-sm text-gray-600">
+            <span
+              className="cursor-pointer hover:text-[#E67E22]"
+              onClick={() => navigate("/")}
+            >
+              Trang chủ
+            </span>
+            <span className="mx-2">/</span>
+            <span
+              className="cursor-pointer hover:text-[#E67E22]"
+              onClick={() => navigate("/admin/product")}
+            >
+              Quản lý sản phẩm
+            </span>
+            <span className="mx-2">/</span>
+            <span className="text-gray-900 font-medium">Thêm sản phẩm</span>
+          </div>
         </div>
-      </div>
 
-      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden mt-6">
-        <div className="bg-[#E67E22] text-white px-6 py-3">
-          <div className="font-bold text-2xl text-white">Thêm sản phẩm mới</div>
-        </div>
-
-        <div className="p-6">
-          <SectionHeaderUI title="Thông tin sản phẩm" />
-          
-          <FormValidationSummary />
-          
-          <Form form={form} layout="vertical" autoComplete="off">
-            {renderProductInfo()}
-
-            <div className="border-t border-gray-200 mt-6 pt-6">
-              <SectionHeaderUI
-                title="Thông tin biến thể"
-                subtitle="Chọn màu sắc để tạo biến thể"
-              />
-              {renderVariantInfo()}
-
-              <VariantCounter form={form} />
+        <div className="bg-white rounded-lg shadow mb-6 overflow-hidden mt-6">
+          <div className="bg-[#E67E22] text-white px-6 py-3">
+            <div className="font-bold text-2xl text-white">
+              Thêm sản phẩm mới
             </div>
-          </Form>
+          </div>
+
+          <div className="p-6">
+            <SectionHeaderUI title="Thông tin sản phẩm" />
+
+            <FormValidationSummary />
+
+            <Form form={form} layout="vertical" autoComplete="off">
+              {renderProductInfo()}
+
+              <div className="border-t border-gray-200 mt-6 pt-6">
+                <SectionHeaderUI
+                  title="Thông tin biến thể"
+                  subtitle="Chọn màu sắc để tạo biến thể"
+                />
+                {renderVariantInfo()}
+
+                <VariantCounter form={form} />
+              </div>
+            </Form>
+          </div>
         </div>
+
+        <AddAttributeModal
+          open={openModal}
+          onCancel={() => setOpenModal(false)}
+          modalType={modalType}
+          getModalTitle={getModalTitle}
+          onFinish={handleAddNew}
+        />
+
+        <ConfirmCreateProductModal />
+
+        <ActionButtons
+          onReset={resetAllToInitialState}
+          onTaoBienThe={handleTaoBienThe}
+          loading={loadingTaoSanPham}
+          hasErrors={Object.keys(formValidation.errors).length > 0}
+        />
+
+        <ProductDetail
+          bienTheList={bienTheList}
+          loading={loadingTaoSanPham}
+          onResetCallback={resetAllToInitialState}
+          onShowConfirmModal={handleShowConfirmModal}
+        />
       </div>
-
-      <AddAttributeModal
-        open={openModal}
-        onCancel={() => setOpenModal(false)}
-        modalType={modalType}
-        getModalTitle={getModalTitle}
-        onFinish={handleAddNew}
-      />
-
-      <ConfirmCreateProductModal />
-
-      <ActionButtons
-        onReset={resetAllToInitialState}
-        onTaoBienThe={handleTaoBienThe}
-        loading={loadingTaoSanPham}
-        hasErrors={Object.keys(formValidation.errors).length > 0}
-      />
-
-      <ProductDetail
-        bienTheList={bienTheList}
-        loading={loadingTaoSanPham}
-        onResetCallback={resetAllToInitialState}
-        onShowConfirmModal={handleShowConfirmModal}
-      />
-    </div>
+    </>
   );
 }
 
@@ -1266,7 +1320,7 @@ const ActionButtons = ({ onReset, onTaoBienThe, loading, hasErrors }) => (
       onClick={onTaoBienThe}
       size="middle"
       className={`bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white font-medium ${
-        hasErrors ? 'opacity-50 cursor-not-allowed' : ''
+        hasErrors ? "opacity-50 cursor-not-allowed" : ""
       }`}
       loading={loading}
       disabled={hasErrors}

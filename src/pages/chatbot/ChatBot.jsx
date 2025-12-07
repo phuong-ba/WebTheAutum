@@ -1,11 +1,11 @@
+import chatApi from "@/api/history";
 import React, { useState, useEffect, useRef } from "react";
 import SockJS from "sockjs-client";
 import { over } from "stompjs";
 
-// Component hiển thị sản phẩm
 function ProductCard({ product }) {
-  const productLink =
-    product.link || `http://localhost:5173/productDetail/${product.id}`;
+  const linkPro = import.meta.env.VITE_LINK_URL;
+  const productLink = product.link || `${linkPro}/productDetail/${product.id}`;
 
   return (
     <div className="flex flex-col border rounded-xl p-2 gap-2 bg-white shadow hover:shadow-lg transition">
@@ -39,14 +39,6 @@ function ProductCard({ product }) {
             Size gợi ý: {product.size_suggestion}
           </div>
         )}
-        {/* <a
-          href={productLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-block bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium px-3 py-1 rounded text-center transition"
-        >
-          Mua Ngay
-        </a> */}
       </div>
     </div>
   );
@@ -60,56 +52,72 @@ export default function AdminChat() {
   const [message, setMessage] = useState("");
   const [typingStatus, setTypingStatus] = useState("");
   const [hasStaffJoined, setHasStaffJoined] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const stompClient = useRef(null);
   const subscriptionRef = useRef(null);
   const bottomRef = useRef();
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
   // Load tất cả phòng chat
   useEffect(() => {
-    fetch("http://localhost:8080/api/chatbot/rooms")
-      .then((res) => res.json())
-      .then((data) => setRooms(data.rooms || []))
-      .catch(console.error);
+    fetchRooms();
   }, []);
+
+  const fetchRooms = async () => {
+    try {
+      const response = await chatApi.getAllRooms();
+      setRooms(response.data?.rooms || []);
+    } catch (error) {
+      console.error("Error fetching rooms:", error);
+    }
+  };
 
   // Khi chọn phòng
   const joinRoom = async (room) => {
-    setCurrentRoom(room);
-    setMessages([]);
+    try {
+      setCurrentRoom(room);
+      setMessages([]);
+      setLoading(true);
 
-    await fetch(
-      `http://localhost:8080/api/chatbot/rooms/join?roomId=${room.roomId}&idNhanVien=1`,
-      { method: "POST" }
-    );
+      // Tham gia phòng
+      await chatApi.joinRoom(room.roomId, 1);
 
-    connectWS(room.roomId);
-    loadHistory(room.roomId);
+      // Kết nối WebSocket
+      connectWS(room.roomId);
+
+      // Tải lịch sử chat
+      await loadHistory(room.roomId);
+    } catch (error) {
+      console.error("Error joining room:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Rời phòng
   const leaveRoom = async () => {
     if (!currentRoom) return;
 
-    await fetch(
-      `http://localhost:8080/api/chatbot/rooms/leave?roomId=${currentRoom.roomId}&idNhanVien=1`,
-      { method: "POST" }
-    );
+    try {
+      await chatApi.leaveRoom(currentRoom.roomId, 1);
 
-    if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
-    if (stompClient.current) stompClient.current.disconnect();
+      if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
+      if (stompClient.current) stompClient.current.disconnect();
 
-    setCurrentRoom(null);
-    setMessages([]);
+      setCurrentRoom(null);
+      setMessages([]);
+      setHasStaffJoined(false);
+    } catch (error) {
+      console.error("Error leaving room:", error);
+    }
   };
 
-  // Load lịch sử chat
-  const loadHistory = async (rid) => {
+  const loadHistory = async (roomId) => {
     try {
-      const res = await fetch(
-        `http://localhost:8080/api/chatbot/history/${rid}`
-      );
-      const data = await res.json();
+      const response = await chatApi.getChatHistory(roomId);
+      const data = response.data;
+
       const messagesParsed = (
         Array.isArray(data) ? data : data?.messages || []
       ).map((m) => {
@@ -136,14 +144,13 @@ export default function AdminChat() {
     }
   };
 
-  // Kết nối WS
   const connectWS = (rid) => {
     if (stompClient.current) {
       if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
       stompClient.current.disconnect();
     }
 
-    const sock = new SockJS("http://localhost:8080/ws");
+    const sock = new SockJS(apiBaseUrl);
     stompClient.current = over(sock);
 
     stompClient.current.connect({}, () => {
@@ -201,15 +208,11 @@ export default function AdminChat() {
       !hasStaffJoined ? "AI: đang trả lời" : "Nhân viên: đang trả lời"
     );
 
-    await fetch("http://localhost:8080/api/chatbot/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        roomId: currentRoom.roomId,
-        message: msg,
-        guiTu: 1,
-      }),
-    });
+    try {
+      await chatApi.sendMessage(currentRoom.roomId, msg, 1);
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
   };
 
   // Scroll xuống cuối chat

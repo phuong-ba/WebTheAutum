@@ -38,6 +38,7 @@ export default function CustomerDisplay() {
   const [status, setStatus] = useState("IDLE");
   const [isConnected, setIsConnected] = useState(false);
   const [countdown, setCountdown] = useState(10);
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
   const normalizeOrderData = (data) => {
     const coreOrder = data.hoaDon || data.order || data;
@@ -67,7 +68,7 @@ export default function CustomerDisplay() {
   };
 
   useEffect(() => {
-    const socketFactory = () => new SockJS("http://192.203.4.118:8080/ws");
+    const socketFactory = () => new SockJS(apiBaseUrl);
     const stompClient = Stomp.over(socketFactory);
 
     stompClient.connect(

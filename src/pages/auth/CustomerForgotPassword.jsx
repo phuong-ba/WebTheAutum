@@ -5,6 +5,7 @@ import {
   LockOutlined,
   CheckCircleOutlined,
 } from "@ant-design/icons";
+import authServiceAPI from "@/api/authAPI";
 
 export default function CustomerForgotPassword({ onBackToLogin }) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -15,22 +16,9 @@ export default function CustomerForgotPassword({ onBackToLogin }) {
   const onRequestReset = async (values) => {
     setLoading(true);
     try {
-      const response = await fetch(
-        "http://localhost:8080/api/customer/auth/forgot-password",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: values.email,
-          }),
-        }
-      );
+      const data = await authServiceAPI.forgotPasswordCustomer(values.email);
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (data.success) {
         setEmail(values.email);
         setCurrentStep(1);
         messageApi.success(
@@ -42,7 +30,7 @@ export default function CustomerForgotPassword({ onBackToLogin }) {
       }
     } catch (error) {
       console.error("❌ Forgot password error:", error);
-      messageApi.error("Không thể kết nối đến máy chủ. Vui lòng thử lại!");
+      messageApi.error(error.message || "Không thể kết nối đến máy chủ. Vui lòng thử lại!");
     } finally {
       setLoading(false);
     }
@@ -51,23 +39,12 @@ export default function CustomerForgotPassword({ onBackToLogin }) {
   const onResetPassword = async (values) => {
     setLoading(true);
     try {
-      const response = await fetch(
-        "http://localhost:8080/api/customer/auth/reset-password",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            token: values.token,
-            newPassword: values.newPassword,
-          }),
-        }
+      const data = await authServiceAPI.resetPasswordCustomer(
+        values.token,
+        values.newPassword
       );
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (data.success) {
         setCurrentStep(2);
         messageApi.success(data.message || "Đặt lại mật khẩu thành công!");
       } else {
@@ -75,7 +52,7 @@ export default function CustomerForgotPassword({ onBackToLogin }) {
       }
     } catch (error) {
       console.error("❌ Reset password error:", error);
-      messageApi.error("Không thể kết nối đến máy chủ. Vui lòng thử lại!");
+      messageApi.error(error.message || "Không thể kết nối đến máy chủ. Vui lòng thử lại!");
     } finally {
       setLoading(false);
     }
@@ -245,7 +222,7 @@ export default function CustomerForgotPassword({ onBackToLogin }) {
   ];
 
   return (
-    <div className="  shadow-xl p-6 w-full max-w-xl flex flex-col gap-5">
+    <div className="shadow-xl p-6 w-full max-w-xl flex flex-col gap-5">
       {contextHolder}
 
       <Steps

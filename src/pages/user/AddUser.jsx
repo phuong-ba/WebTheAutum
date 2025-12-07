@@ -21,6 +21,7 @@ import axios from "axios";
 import UserBreadcrumb from "./UserBreadcrumb";
 import Webcam from "react-webcam";
 import { UserCirclePlusIcon } from "@phosphor-icons/react";
+import baseUrl from "@/api/instance";
 const { Option } = Select;
 
 export default function AddUser() {
@@ -39,7 +40,7 @@ export default function AddUser() {
   const webcamRef = useRef(null);
   const [provinces, setProvinces] = useState([]);
   const [wards, setWards] = useState([]);
-  const OCR_API_URL = "http://localhost:8080/api/cccd/scan";
+  const OCR_API_URL = `${baseUrl}cccd/scan`;
   const API_BASE = "https://provinces.open-api.vn/api/v2";
 
   useEffect(() => {
@@ -241,7 +242,7 @@ export default function AddUser() {
 
                             try {
                               const res = await axios.get(
-                                `http://localhost:8080/api/nhan-vien/check-sdt`,
+                                `${baseUrl}nhan-vien/check-sdt`,
                                 { params: { sdt: value } }
                               );
 
@@ -298,7 +299,7 @@ export default function AddUser() {
 
                             try {
                               const res = await axios.get(
-                                `http://localhost:8080/api/nhan-vien/check-email`,
+                                `${baseUrl}nhan-vien/check-email`,
                                 { params: { email: value } }
                               );
 
@@ -376,9 +377,59 @@ export default function AddUser() {
                     <Form.Item
                       name="NgaySinh"
                       label="Ngày sinh"
-                      rules={[{ required: true, message: "Nhập ngày sinh" }]}
+                      rules={[
+                        { required: true, message: "Vui lòng chọn ngày sinh" },
+                        {
+                          validator: (_, value) => {
+                            if (!value)
+                              return Promise.reject(
+                                new Error("Vui lòng chọn ngày sinh")
+                              );
+
+                            const today = dayjs().startOf("day");
+                            const birthDate = dayjs(value).startOf("day");
+                            const age = today.diff(birthDate, "year");
+
+                            if (birthDate.isAfter(today)) {
+                              return Promise.reject(
+                                new Error(
+                                  "Ngày sinh không được lớn hơn ngày hiện tại"
+                                )
+                              );
+                            }
+
+                            if (age < 16) {
+                              return Promise.reject(
+                                new Error("Nhân viên phải đủ 18 tuổi")
+                              );
+                            }
+                            const exactAge = today.diff(
+                              birthDate,
+                              "year",
+                              true
+                            ); // tuổi chính xác (float)
+                            if (exactAge < 16) {
+                              return Promise.reject(
+                                new Error("Nhân viên phải đủ 16 tuổi")
+                              );
+                            }
+
+                            return Promise.resolve();
+                          },
+                        },
+                      ]}
                     >
-                      <DatePicker className="w-full" placeholder="Ngày sinh" />
+                      <DatePicker
+                        className="w-full"
+                        placeholder="Chọn ngày sinh"
+                        disabledDate={(current) => {
+                          return (
+                            current &&
+                            (current > dayjs().endOf("day") ||
+                              current < dayjs().subtract(100, "year"))
+                          );
+                        }}
+                      />
                     </Form.Item>
                   </Col>
                   <Col flex="1">

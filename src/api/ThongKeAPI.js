@@ -1,6 +1,6 @@
 import baseUrl from "./instance";
 
-const ThongKeApi = {
+const ThongKeAPI = {
   // Lấy tất cả thống kê trong một request (KHUYÊN DÙNG)
   getAllStatistics(period = 'month') {
     return baseUrl.get("thong-ke/all", {
@@ -71,4 +71,4 @@ const ThongKeApi = {
   },
 };
 
-export default ThongKeApi;
+export default ThongKeAPI;
