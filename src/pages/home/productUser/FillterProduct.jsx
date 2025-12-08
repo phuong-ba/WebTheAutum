@@ -23,8 +23,7 @@ export default function FillterProduct() {
         </div>
 
         {activeKey === "1" && <ProductList />}
-        {activeKey === "2" && <div>Đây là nội dung của Tab 2</div>}
-        {activeKey === "3" && <div>Đây là nội dung của Tab 3</div>}
+   
       </div>
     </>
   );

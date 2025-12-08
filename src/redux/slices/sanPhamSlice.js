@@ -31,6 +31,7 @@ const sanPhamSlice = createSlice({
       .addCase(fetchDanhMuc.fulfilled, (state, action) => {
         state.status = "successfully";
         state.dataDanhMuc = action.payload.data || [];
+        console.log("🚀 ~ action.payload:", action.payload)
       })
       .addCase(fetchDanhMuc.rejected, (state, action) => {
         state.status = "failed";
@@ -51,6 +52,7 @@ const sanPhamSlice = createSlice({
       .addCase(fetchBanChay.fulfilled, (state, action) => {
         state.status = "successfully";
         state.dataBanChay = action.payload.data;
+        console.log("🚀 ~ action.payload:", action.payload)
       })
       .addCase(fetchBanChay.rejected, (state, action) => {
         state.status = "failed";

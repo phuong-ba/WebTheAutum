@@ -123,9 +123,9 @@ export default function ViewCart() {
                       className="grid grid-cols-12 gap-4 px-6 py-6 border-b border-gray-300 hover:bg-gray-50 transition"
                     >
                       <div className="col-span-5 flex flex-col gap-1">
-                        <div className="flex items-center gap-4">
-                          <div className="bg-gray-100 min-w-[78px] min-h-[100px] max-w-[78px] max-h-[100px] flex items-center p-2 relative">
-                            {/* Hiển thị badge giảm giá nếu có */}
+                        <div className="flex items-start gap-4">
+                          <div className="bg-gray-100 min-w-[78px] min-h-[100px] max-w-[78px] max-h-[100px] flex items-center justify-center p-2 relative rounded">
+                            {/* Badge giảm giá */}
                             {hasDiscount(item) && (
                               <div className="absolute -top-2 -left-2 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded z-10">
                                 -{calculateDiscountPercentage(item)}%
@@ -134,17 +134,31 @@ export default function ViewCart() {
                             <img
                               src={item.duongDanAnh || item.image}
                               alt={item.tenSanPham}
-                              className="object-cover rounded"
+                              className="object-cover rounded max-w-full max-h-full"
                             />
                           </div>
-                          <div className="flex-1">
+
+                          <div className="flex-1 flex flex-col justify-center">
+                            {/* MÃ VẠCH / MÃ SẢN PHẨM */}
+                            <div className="text-xs text-gray-500 font-mono tracking-wider mb-1">
+                              Mã SP:{" "}
+                              <span className="font-semibold text-gray-700">
+                                {item.maVach || "N/A"}
+                              </span>
+                            </div>
+
+                            {/* Tên sản phẩm */}
                             <div className="font-medium text-gray-900 line-clamp-2">
                               {item.tenSanPham}
                             </div>
-                            <div className="text-sm text-gray-500">
+
+                            {/* Size & Màu */}
+                            <div className="text-sm text-gray-500 mt-1">
                               Size: {item.tenKichThuoc || "N/A"} | Màu:{" "}
                               {item.tenMauSac || item.maHex || "N/A"}
                             </div>
+
+                            {/* Số lượng tồn */}
                             <div className="text-xs text-blue-600 mt-1">
                               Còn lại: {item.soLuongTon || 0} sản phẩm
                             </div>

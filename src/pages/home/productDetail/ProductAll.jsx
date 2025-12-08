@@ -25,7 +25,7 @@ export default function ProductAll() {
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndexes, setCurrentImageIndexes] = useState({});
   const [availableSizes, setAvailableSizes] = useState([]);
-
+  const [filterValues, setFilterValues] = useState({});
   const totalProducts = data.length;
   const start = (currentPage - 1) * pageSize + 1;
   const end = Math.min(currentPage * pageSize, totalProducts);
@@ -113,6 +113,7 @@ export default function ProductAll() {
         id: selectedDetail.id,
         tenSanPham: product.tenSanPham,
         tenKichThuoc: selectedDetail.tenKichThuoc,
+        maVach: selectedDetail.maVach,
         maHex: selectedDetail.maHex,
         tenMauSac: selectedDetail.tenMauSac,
         giaBan: selectedDetail.giaBan,
@@ -134,7 +135,6 @@ export default function ProductAll() {
       (ct) => ct.tenKichThuoc === selectedSize && ct.tenMauSac === selectedColor
     ) || null;
 
-  // Hàm kiểm tra sản phẩm có giảm giá không
   const hasDiscount = (product) => {
     if (!product.chiTietSanPhams || product.chiTietSanPhams.length === 0) {
       return false;
@@ -155,6 +155,7 @@ export default function ProductAll() {
     return Math.round((discount / firstDetail.giaBan) * 100);
   };
 
+
   const filteredData = data
     ?.filter((product) => product.trangThai === true)
     ?.map((product) => ({
@@ -163,8 +164,31 @@ export default function ProductAll() {
         (ct) => ct.trangThai === true
       ),
     }))
-    ?.filter((product) => product.chiTietSanPhams.length > 0);
-
+    ?.filter((product) => product.chiTietSanPhams.length > 0)
+    // ÁP DỤNG BỘ LỌC
+    ?.filter((product) => {
+      if (
+        filterValues.tenNhaSanXuat &&
+        product.tenNhaSanXuat !== filterValues.tenNhaSanXuat
+      )
+        return false;
+      if (
+        filterValues.tenChatLieu &&
+        product.tenChatLieu !== filterValues.tenChatLieu
+      )
+        return false;
+      if (
+        filterValues.tenKieuDang &&
+        product.tenKieuDang !== filterValues.tenKieuDang
+      )
+        return false;
+      if (
+        filterValues.tenXuatXu &&
+        product.tenXuatXu !== filterValues.tenXuatXu
+      )
+        return false;
+      return true;
+    });
   return (
     <>
       {contextHolder}
@@ -188,7 +212,7 @@ export default function ProductAll() {
 
         {showFilter && (
           <div className="transition-all duration-300">
-            <FliterProductAll />
+            <FliterProductAll onFilter={setFilterValues} />
           </div>
         )}
 

@@ -29,7 +29,9 @@ export default function ProductDetail() {
   const dataDetail = useSelector((state) => state.chiTietSanPham.dataDetail);
 
   const { id } = useParams();
-
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   useEffect(() => {
     if (dataDetail && dataDetail.length > 0) {
       const active = dataDetail.filter((item) => item.trangThai === true);
@@ -51,13 +53,11 @@ export default function ProductDetail() {
     if (id) dispatch(getChiTietSanPhamBySanPham(id));
   }, [dispatch, id]);
 
-  // Hàm kiểm tra sản phẩm có giảm giá không
   const hasDiscount = (product) => {
     if (!product) return false;
     return product.giaSauGiam && product.giaSauGiam < product.giaBan;
   };
 
-  // Hàm tính phần trăm giảm giá
   const calculateDiscountPercentage = (product) => {
     if (!hasDiscount(product)) return 0;
 
@@ -69,9 +69,6 @@ export default function ProductDetail() {
 
   const onChange = (key) => console.log(key);
 
-  // -------------------------------------------------
-  // HANDLE CHỌN MÀU
-  // -------------------------------------------------
   const handleSelectColor = (colorValue) => {
     setSelectedColor(colorValue);
     setSelectedSize(null);
@@ -85,9 +82,6 @@ export default function ProductDetail() {
     setSelectedImage(variant?.anhs?.[0]?.duongDanAnh);
   };
 
-  // -------------------------------------------------
-  // HANDLE CHỌN SIZE
-  // -------------------------------------------------
   const handleSelectSize = (size) => {
     if (!selectedColor) {
       messageApi.error("Vui lòng chọn màu trước!");
@@ -110,9 +104,6 @@ export default function ProductDetail() {
     setQuantity(1);
   };
 
-  // -------------------------------------------------
-  // QUANTITY
-  // -------------------------------------------------
   const handleDecrease = () => {
     if (quantity > 1) setQuantity(quantity - 1);
   };
@@ -137,9 +128,6 @@ export default function ProductDetail() {
     setQuantity(value);
   };
 
-  // -------------------------------------------------
-  // ADD TO CART
-  // -------------------------------------------------
   const addToCart = ({ product, selectedDetail, quantity }) => {
     if (!selectedDetail)
       return messageApi.error("Vui lòng chọn biến thể trước!");
@@ -175,6 +163,7 @@ export default function ProductDetail() {
         tenSanPham: product.tenSanPham,
         tenKichThuoc: selectedDetail.tenKichThuoc,
         maHex: selectedDetail.maHex,
+        maVach: selectedDetail.maVach,
         tenMauSac: selectedDetail.tenMauSac,
         giaBan: product.giaBan,
         giaSauGiam: product.giaSauGiam,
