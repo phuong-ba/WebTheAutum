@@ -106,6 +106,7 @@ export default function ProductList() {
         id: selectedDetail.id,
         tenSanPham: product.tenSanPham,
         tenKichThuoc: selectedDetail.tenKichThuoc,
+        maVach: selectedDetail.maVach,
         maHex: selectedDetail.maHex,
         tenMauSac: selectedDetail.tenMauSac,
         giaBan: selectedDetail.giaBan,

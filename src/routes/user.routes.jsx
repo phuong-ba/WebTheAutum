@@ -15,6 +15,7 @@ const YourBill = React.lazy(() => import("@/pages/home/order/YourBill"));
 const OrderSuccess = React.lazy(() =>
   import("@/pages/home/order/OrderSuccess")
 );
+const Profile = React.lazy(() => import("@/pages/home/profile/Profile"));
 const CheckOut = React.lazy(() => import("@/pages/home/cart/CheckOut"));
 const OrderDetail = React.lazy(() => import("@/pages/home/order/OrderDetail"));
 const ViewCart = React.lazy(() => import("@/pages/home/cart/ViewCart"));
@@ -118,6 +119,10 @@ const userRouters = [
       {
         path: "/customer/login",
         element: <CustomerLogin />,
+      },
+      {
+        path: "/customer/profile",
+        element: <Profile />,
       },
     ],
   },

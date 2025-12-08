@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import SockJS from "sockjs-client";
 import { over } from "stompjs";
 import { useNavigate } from "react-router-dom";
+import { chatBotApi } from "@/api/chatBot";
 
 function ProductCard({ product }) {
   const linkPro = import.meta.env.VITE_LINK_URL;
@@ -80,17 +81,13 @@ export default function CustomerChat() {
         let data;
         if (customerId) {
           // Khách đăng nhập
-          const res = await fetch(
-            `http://localhost:8080/api/chatbot/rooms/by-customer/${customerId}`
-          );
-          data = await res.json();
+          const res = await chatBotApi.getRoomByCustomer(customerId);
+          data = res.data;
           setHoTen(localStorage.getItem("customer_name") || "Khách hàng");
         } else {
           // Khách lẻ
-          const res = await fetch(
-            `http://localhost:8080/api/chatbot/rooms/guest`
-          );
-          data = await res.json();
+          const res = await chatBotApi.getGuestRoom();
+          data = res.data;
           setHoTen("Khách lẻ");
         }
 
@@ -98,7 +95,7 @@ export default function CustomerChat() {
         connectWS(data.roomId);
         loadHistory(data.roomId);
       } catch (e) {
-        console.error(e);
+        console.error("Lỗi load room:", e);
       }
     };
 
@@ -113,10 +110,8 @@ export default function CustomerChat() {
   // Load history messages
   const loadHistory = async (rid) => {
     try {
-      const res = await fetch(
-        `http://localhost:8080/api/chatbot/history/${rid}`
-      );
-      const data = await res.json();
+      const res = await chatBotApi.getChatHistory(rid);
+      const data = res.data;
       const messagesParsed = (
         Array.isArray(data) ? data : data?.messages || []
       ).map((m) => {
@@ -139,7 +134,7 @@ export default function CustomerChat() {
       });
       setMessages(messagesParsed);
     } catch (e) {
-      console.error(e);
+      console.error("Lỗi load history:", e);
     }
   };
 

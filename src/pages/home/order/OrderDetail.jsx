@@ -61,9 +61,12 @@ export default function OrderDetailPage() {
   const [copied, setCopied] = useState(false);
   const [qrGenerated, setQrGenerated] = useState(false);
   const [currentQrUrl, setCurrentQrUrl] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   useEffect(() => {
     const storedCustomerId = localStorage.getItem("customer_id");
     setCustomerId(storedCustomerId);
+    setIsLoggedIn(!!storedCustomerId);
 
     if (!id) return;
 
@@ -78,7 +81,6 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     if (isQRModalOpen && id && qrGenerated) {
-      // Kiểm tra tự động mỗi 15 giây
       const interval = setInterval(() => {
         dispatch(checkTrangThaiThanhToan(id)).then((res) => {
           if (
@@ -113,6 +115,13 @@ export default function OrderDetailPage() {
   }
 
   const handleTransferClick = () => {
+    if (!isLoggedIn) {
+      messageApi.warning(
+        "Vui lòng đăng nhập để sử dụng tính năng chuyển khoản!"
+      );
+      return;
+    }
+
     if (!data.soTienCanThanhToan || data.soTienCanThanhToan <= 0) {
       messageApi.info("Đơn hàng đã được thanh toán đủ!");
       return;
@@ -126,15 +135,14 @@ export default function OrderDetailPage() {
     };
 
     dispatch(taoVietQR(qrRequest))
-      .unwrap() // Dùng .unwrap() để dễ xử lý hơn
+      .unwrap()
       .then((result) => {
-        // Sửa ở đây: kiểm tra qrImageUrl hoặc paymentUrl
         const qrUrl = result.qrImageUrl || result.paymentUrl;
 
         if (qrUrl) {
-          setCurrentQrUrl(qrUrl); // ← Thêm dòng này
+          setCurrentQrUrl(qrUrl);
           setQrGenerated(true);
-          setIsQRModalOpen(true); // ← Bây giờ sẽ mở modal
+          setIsQRModalOpen(true);
           messageApi.success("Đã tạo mã QR thanh toán!");
         } else {
           messageApi.error("Không nhận được mã QR từ server!");
@@ -164,14 +172,14 @@ export default function OrderDetailPage() {
   };
 
   const shouldShowTransferButton = () => {
-    // Chỉ hiển thị nút chuyển khoản khi:
-    // 1. Có số tiền cần thanh toán > 0
-    // 2. Đơn hàng chưa bị hủy
-    // 3. Chưa thanh toán đủ
+    const allowedStatusForPayment = [0];
+
     return (
+      isLoggedIn &&
       data.soTienCanThanhToan > 0 &&
       data.trangThai !== 4 &&
-      data.soTienThanhToan < data.tongTienSauGiam
+      data.soTienThanhToan < data.tongTienSauGiam &&
+      allowedStatusForPayment.includes(data.trangThai)
     );
   };
 
@@ -336,6 +344,49 @@ export default function OrderDetailPage() {
               </button>
             )}
 
+            {!isLoggedIn &&
+              data.soTienCanThanhToan > 0 &&
+              data.trangThai === 0 && (
+                <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg flex items-center gap-2">
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span className="text-sm font-medium">
+                    Đăng nhập để thanh toán
+                  </span>
+                </div>
+              )}
+
+            {isLoggedIn &&
+              data.soTienCanThanhToan > 0 &&
+              data.trangThai > 0 &&
+              data.trangThai < 4 && (
+                <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg flex items-center gap-2">
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span className="text-sm font-medium">
+                    Đơn hàng đã xác nhận, liên hệ hỗ trợ nếu cần thanh toán
+                  </span>
+                </div>
+              )}
+
             {shouldShowCancelButton() && (
               <button
                 onClick={handleCancelOrder}
@@ -435,7 +486,6 @@ export default function OrderDetailPage() {
               <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow animate-fadeIn">
                 <h3 className="font-semibold text-lg mb-4">Tóm tắt đơn hàng</h3>
                 <div className="space-y-3 text-gray-600">
-                  {/* Tạm tính từ sản phẩm */}
                   <div className="flex justify-between items-center">
                     <span className="flex items-center gap-2">
                       <Package className="w-4 h-4 text-gray-400" /> Tạm tính
@@ -443,7 +493,6 @@ export default function OrderDetailPage() {
                     <span>{formatVND(data.tongTien || 0)}</span>
                   </div>
 
-                  {/* Phí vận chuyển */}
                   <div className="flex justify-between items-center">
                     <span className="flex items-center gap-2">
                       <Truck className="w-4 h-4 text-gray-400" /> Phí vận chuyển
@@ -455,7 +504,6 @@ export default function OrderDetailPage() {
                     </span>
                   </div>
 
-                  {/* Hiển thị số tiền giảm giá nếu có */}
                   {data.giaTriGiamGia > 0 && (
                     <div className="flex justify-between items-center text-green-600 font-semibold">
                       <span className="flex items-center gap-2">
@@ -466,7 +514,6 @@ export default function OrderDetailPage() {
                     </div>
                   )}
 
-                  {/* Hiển thị phụ phí nếu có */}
                   {(data.phiPhu > 0 || data.phiPhuMoi > 0) && (
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-amber-600 font-semibold">
@@ -492,7 +539,6 @@ export default function OrderDetailPage() {
                         </span>
                       </div>
 
-                      {/* Hiển thị chi tiết phụ phí nếu có */}
                       {data.phiPhuDetails && data.phiPhuDetails.length > 0 && (
                         <div className="ml-6 space-y-1 text-sm">
                           {data.phiPhuDetails.map((detail, index) => (
@@ -513,7 +559,6 @@ export default function OrderDetailPage() {
                     </div>
                   )}
 
-                  {/* Tổng cộng (Tổng tiền sau giảm) */}
                   <div className="border-t pt-3 mt-2">
                     <div className="flex justify-between text-lg font-bold text-gray-900">
                       <span>Tổng cộng</span>
@@ -523,7 +568,6 @@ export default function OrderDetailPage() {
                     </div>
                   </div>
 
-                  {/* Số tiền đã thanh toán */}
                   {data.soTienThanhToan > 0 && (
                     <div className="flex justify-between items-center pt-3 border-t border-dashed">
                       <span className="flex items-center gap-2 text-gray-700 font-medium">
@@ -536,7 +580,6 @@ export default function OrderDetailPage() {
                     </div>
                   )}
 
-                  {/* Số tiền cần thanh toán */}
                   {data.soTienCanThanhToan > 0 && (
                     <div className="flex justify-between items-center pt-3 border-t border-dashed">
                       <span className="flex items-center gap-2 text-gray-700 font-medium">
@@ -559,7 +602,6 @@ export default function OrderDetailPage() {
                     </div>
                   )}
 
-                  {/* Hiển thị ghi chú phụ phí nếu có */}
                   {data.phiPhuDetails && data.phiPhuDetails.length > 0 && (
                     <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="text-sm text-amber-800 font-medium mb-1">
@@ -581,7 +623,6 @@ export default function OrderDetailPage() {
                     </div>
                   )}
 
-                  {/* Tổng kết trạng thái thanh toán */}
                   <div className="mt-4 pt-4 border-t">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-500">
@@ -602,7 +643,6 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
 
-                {/* Phần phương thức thanh toán và các thông tin khác giữ nguyên */}
                 <div className="mt-6 pt-6 border-t">
                   <div className="flex items-center gap-2 text-gray-600 mb-3">
                     <CreditCardIcon className="w-5 h-5" />
@@ -704,7 +744,6 @@ export default function OrderDetailPage() {
         </div>
       </Modal>
 
-      {/* Modal QR Chuyển khoản */}
       <Modal
         open={isQRModalOpen}
         onCancel={() => setIsQRModalOpen(false)}
@@ -724,7 +763,6 @@ export default function OrderDetailPage() {
             Quét mã QR hoặc chuyển khoản theo thông tin bên dưới
           </p>
 
-          {/* Hiển thị số tiền cần thanh toán */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
             <div className="flex justify-between items-center">
               <span className="text-gray-700 font-medium">
@@ -762,7 +800,6 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* Thông tin ngân hàng (nếu có từ API) */}
           {qrData?.bankInfo && (
             <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left space-y-3">
               <h3 className="font-semibold text-gray-900 mb-2">
@@ -789,7 +826,6 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* Nội dung chuyển khoản - có thể copy */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-gray-500">
@@ -808,7 +844,6 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Hướng dẫn */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-left">
             <h4 className="font-semibold text-yellow-800 mb-2">
               📌 Hướng dẫn:
@@ -832,13 +867,12 @@ export default function OrderDetailPage() {
               onClick={() => {
                 const thanhToanRequest = {
                   idHoaDon: data.id,
-                  soTienThanhToan: data.soTienCanThanhToan, // Thanh toán đủ số tiền còn lại
-                  idPhuongThucThanhToan: 2, // 2 = Chuyển khoản (thường là ID cố định, bạn check DB)
+                  soTienThanhToan: data.soTienCanThanhToan,
+                  idPhuongThucThanhToan: 2,
                   ghiChu: `Thanh toán chuyển khoản QR - Khách xác nhận tự động lúc ${new Date().toLocaleString(
                     "vi-VN"
                   )}`,
-                  maGiaoDich: `TTDH${data.maHoaDon}`, // Nội dung chuyển khoản
-                  // idNhanVienThucHien: null hoặc để trống nếu không cần
+                  maGiaoDich: `TTDH${data.maHoaDon}`,
                 };
 
                 dispatch(updateThanhToan(thanhToanRequest))
@@ -850,7 +884,7 @@ export default function OrderDetailPage() {
                         duration: 5,
                       });
                       setIsQRModalOpen(false);
-                      dispatch(orderDetail(id)); // Cập nhật lại đơn hàng
+                      dispatch(orderDetail(id));
                     } else {
                       messageApi.error(
                         result.message || "Thanh toán không thành công!"

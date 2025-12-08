@@ -1,43 +1,40 @@
+// src/components/client/FliterProductAll.jsx
 import React, { useEffect, useState } from "react";
-import { Form, Input, Select, Row, Col, Button } from "antd";
+import { Form, Select, Row, Col, Button, Space } from "antd";
 import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import baseUrl from "@/api/instance";
-import { useNavigate } from "react-router";
 
 const { Option } = Select;
 
-export default function FliterProductAll({}) {
+export default function FliterProductAll({ onFilter }) {
   const [form] = Form.useForm();
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
   const [dropdownData, setDropdownData] = useState({
     nhaSanXuats: [],
     chatLieus: [],
     kieuDangs: [],
     xuatXus: [],
   });
-  const [loading, setLoading] = useState(false);
 
+  // Lấy dữ liệu cho dropdown
   const fetchDropdownData = async () => {
     setLoading(true);
     try {
-      console.log("🔄 Đang tải danh sách dropdown...");
-
-      const [nhaSanXuatsRes, chatLieusRes, kieuDangsRes, xuatXusRes] =
-        await Promise.all([
-          baseUrl.get("nha-san-xuat/playlist"),
-          baseUrl.get("chat-lieu/playlist"),
-          baseUrl.get("kieu-dang/playlist"),
-          baseUrl.get("xuat-xu/playlist"),
-        ]);
+      const [nsxRes, clRes, kdRes, xxRes] = await Promise.all([
+        baseUrl.get("nha-san-xuat/playlist"),
+        baseUrl.get("chat-lieu/playlist"),
+        baseUrl.get("kieu-dang/playlist"),
+        baseUrl.get("xuat-xu/playlist"),
+      ]);
 
       setDropdownData({
-        nhaSanXuats: nhaSanXuatsRes.data?.data || nhaSanXuatsRes.data || [],
-        chatLieus: chatLieusRes.data?.data || chatLieusRes.data || [],
-        kieuDangs: kieuDangsRes.data?.data || kieuDangsRes.data || [],
-        xuatXus: xuatXusRes.data?.data || xuatXusRes.data || [],
+        nhaSanXuats: nsxRes.data?.data || nsxRes.data || [],
+        chatLieus: clRes.data?.data || clRes.data || [],
+        kieuDangs: kdRes.data?.data || kdRes.data || [],
+        xuatXus: xxRes.data?.data || xxRes.data || [],
       });
     } catch (error) {
-      console.error("💥 Lỗi tải dropdown data:", error);
+      console.error("Lỗi tải bộ lọc:", error);
     } finally {
       setLoading(false);
     }
@@ -47,22 +44,38 @@ export default function FliterProductAll({}) {
     fetchDropdownData();
   }, []);
 
+  // Khi người dùng bấm Tìm kiếm hoặc thay đổi filter
+  const handleFilter = (values) => {
+    onFilter(values); // Gửi dữ liệu lọc lên component cha (ProductAll)
+  };
+
+  // Reset form + gọi lại filter với object rỗng
+  const handleReset = () => {
+    form.resetFields();
+    onFilter({});
+  };
+
   return (
-    <div className="p-6 bg-gray-100 rounded-2xl">
-      <Form form={form} layout="vertical" autoComplete="off">
+    <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-200">
+      <h3 className="text-lg font-bold text-gray-800 mb- mb-6 flex items-center gap-2">
+        Bộ lọc sản phẩm
+      </h3>
+
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleFilter}
+        onValuesChange={(_, allValues) => handleFilter(allValues)} // Lọc ngay khi thay đổi
+      >
         <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={8}>
-            <Form.Item name="tenNhaSanXuat" label="Hãng">
+          <Col xs={24} sm={12} lg={6}>
+            <Form.Item name="tenNhaSanXuat" label="Hãng sản xuất">
               <Select
                 placeholder="Chọn hãng"
+                allowClear
                 loading={loading}
                 showSearch
                 optionFilterProp="children"
-                filterOption={(input, option) =>
-                  option.children.toLowerCase().includes(input.toLowerCase())
-                }
-                allowClear
-                size="middle"
               >
                 {dropdownData.nhaSanXuats.map((item) => (
                   <Option key={item.id} value={item.tenNhaSanXuat}>
@@ -73,15 +86,13 @@ export default function FliterProductAll({}) {
             </Form.Item>
           </Col>
 
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={24} sm={12} lg={6}>
             <Form.Item name="tenChatLieu" label="Chất liệu">
               <Select
                 placeholder="Chọn chất liệu"
+                allowClear
                 loading={loading}
                 showSearch
-                optionFilterProp="children"
-                allowClear
-                size="middle"
               >
                 {dropdownData.chatLieus.map((item) => (
                   <Option key={item.id} value={item.tenChatLieu}>
@@ -91,18 +102,14 @@ export default function FliterProductAll({}) {
               </Select>
             </Form.Item>
           </Col>
-        </Row>
 
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={24} sm={12} lg={6}>
             <Form.Item name="tenKieuDang" label="Kiểu dáng">
               <Select
                 placeholder="Chọn kiểu dáng"
+                allowClear
                 loading={loading}
                 showSearch
-                optionFilterProp="children"
-                allowClear
-                size="middle"
               >
                 {dropdownData.kieuDangs.map((item) => (
                   <Option key={item.id} value={item.tenKieuDang}>
@@ -112,15 +119,14 @@ export default function FliterProductAll({}) {
               </Select>
             </Form.Item>
           </Col>
-          <Col xs={24} sm={12} md={8}>
+
+          <Col xs={24} sm={12} lg={6}>
             <Form.Item name="tenXuatXu" label="Xuất xứ">
               <Select
                 placeholder="Chọn xuất xứ"
+                allowClear
                 loading={loading}
                 showSearch
-                optionFilterProp="children"
-                allowClear
-                size="middle"
               >
                 {dropdownData.xuatXus.map((item) => (
                   <Option key={item.id} value={item.tenXuatXu}>
@@ -130,18 +136,25 @@ export default function FliterProductAll({}) {
               </Select>
             </Form.Item>
           </Col>
-
-          <Col xs={24} sm={12} md={8}></Col>
         </Row>
 
-        <div className="flex justify-end gap-4 pr-3">
-          <div
-            onClick={() => form.submit()}
-            className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
-            type="submit"
+        <div className="flex justify-end gap-3 mt-4">
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={handleReset}
+            className="flex items-center"
+          >
+            Xóa bộ lọc
+          </Button>
+
+          <Button
+            type="primary"
+            htmlType="submit"
+            icon={<SearchOutlined />}
+            className="bg-orange-600 hover:bg-orange-700 border-none flex items-center"
           >
             Tìm kiếm
-          </div>
+          </Button>
         </div>
       </Form>
     </div>
