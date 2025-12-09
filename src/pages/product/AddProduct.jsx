@@ -90,10 +90,8 @@ export default function AddProduct() {
   const [loading, setLoading] = useState(false);
   const [bienTheList, setBienTheList] = useState([]);
   const [loadingTaoSanPham, setLoadingTaoSanPham] = useState(false);
-  const [formValidation, setFormValidation] = useState({
-    errors: {},
-    touched: {},
-  });
+  const [formErrors, setFormErrors] = useState({});
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   const navigate = useNavigate();
   const [messageApi, contentMessNew] = message.useMessage();
   const [dropdownData, setDropdownData] = useState({
@@ -336,12 +334,22 @@ export default function AddProduct() {
 
   const handleTaoBienThe = async () => {
     try {
-      const formValues = await form.validateFields();
+      // Reset lỗi cũ
+      setFormErrors({});
 
+      // Lấy giá trị form
+      const formValues = form.getFieldsValue();
+
+      // Validate manual
       const errors = validateForm(formValues);
-      if (Object.keys(errors).length > 0) {
-        setFormValidation((prev) => ({ ...prev, errors }));
 
+      if (Object.keys(errors).length > 0) {
+        // Lưu lỗi vào state
+        setFormErrors(errors);
+        // Hiển thị thông báo lỗi
+        setShowValidationErrors(true);
+
+        // Scroll tới field đầu tiên có lỗi
         const firstErrorField = Object.keys(errors)[0];
         const element = document.querySelector(
           `[data-field="${firstErrorField}"]`
@@ -356,8 +364,8 @@ export default function AddProduct() {
         return;
       }
 
-      setFormValidation((prev) => ({ ...prev, errors: {} }));
-
+      // Nếu không có lỗi, ẩn thông báo lỗi và tiếp tục tạo biến thể
+      setShowValidationErrors(false);
       setLoadingTaoSanPham(true);
 
       const requestData = {
@@ -387,15 +395,6 @@ export default function AddProduct() {
       }
     } catch (error) {
       console.error("❌ Lỗi preview:", error);
-
-      if (error.errorFields) {
-        const newErrors = {};
-        error.errorFields.forEach((field) => {
-          newErrors[field.name[0]] = field.errors[0];
-        });
-        setFormValidation((prev) => ({ ...prev, errors: newErrors }));
-      }
-
       messageApi.error(error.message || "Lỗi khi preview biến thể");
     } finally {
       setLoadingTaoSanPham(false);
@@ -505,28 +504,29 @@ export default function AddProduct() {
     setOpenModal(false);
     setConfirmModalOpen(false);
     setConfirmModalData(null);
-    setFormValidation({ errors: {}, touched: {} });
+    setFormErrors({});
+    setShowValidationErrors(false);
     messageApi.success("Đã reset toàn bộ dữ liệu");
   };
 
   const handleShowConfirmModal = (modalData) => {
-    // Thêm navigate vào modalData để ProductDetail có thể sử dụng
     setConfirmModalData({
       ...modalData,
-      navigate: navigate, // Thêm navigate vào modalData
+      navigate: navigate,
     });
     setConfirmModalOpen(true);
   };
 
   const FormValidationSummary = () => {
-    if (Object.keys(formValidation.errors).length === 0) return null;
+    if (!showValidationErrors || Object.keys(formErrors).length === 0)
+      return null;
 
     return (
       <Alert
         message="Vui lòng sửa các lỗi sau trước khi tạo biến thể:"
         description={
           <ul style={{ margin: 0, paddingLeft: "20px" }}>
-            {Object.entries(formValidation.errors).map(([field, message]) => (
+            {Object.entries(formErrors).map(([field, message]) => (
               <li key={field} style={{ marginBottom: "4px" }}>
                 {message}
               </li>
@@ -558,6 +558,15 @@ export default function AddProduct() {
         {error}
       </div>
     );
+  };
+
+  // Xóa lỗi của field khi người dùng bắt đầu sửa
+  const handleFieldChange = (fieldName) => {
+    if (formErrors[fieldName]) {
+      const newErrors = { ...formErrors };
+      delete newErrors[fieldName];
+      setFormErrors(newErrors);
+    }
   };
 
   const tagRender = (props) => {
@@ -859,20 +868,11 @@ export default function AddProduct() {
           <Form.Item
             name="tenSanPham"
             label="Tên sản phẩm"
-            rules={[
-              {
-                required: true,
-                message: "Vui lòng nhập tên sản phẩm",
-              },
-              {
-                min: 2,
-                message: "Tên sản phẩm phải có ít nhất 2 ký tự",
-              },
-            ]}
-            validateStatus={formValidation.errors.tenSanPham ? "error" : ""}
+            // KHÔNG có rules ở đây
+            validateStatus={formErrors.tenSanPham ? "error" : ""}
             help={
-              formValidation.errors.tenSanPham ? (
-                <FieldError error={formValidation.errors.tenSanPham} />
+              formErrors.tenSanPham ? (
+                <FieldError error={formErrors.tenSanPham} />
               ) : null
             }
           >
@@ -880,6 +880,7 @@ export default function AddProduct() {
               placeholder="Nhập tên sản phẩm"
               size="middle"
               data-field="tenSanPham"
+              onChange={() => handleFieldChange("tenSanPham")}
             />
           </Form.Item>
         </Col>
@@ -896,16 +897,11 @@ export default function AddProduct() {
             <Form.Item
               name={field.name}
               label={field.label}
-              rules={[
-                {
-                  required: true,
-                  message: `Vui lòng chọn ${field.label.toLowerCase()}`,
-                },
-              ]}
-              validateStatus={formValidation.errors[field.name] ? "error" : ""}
+              // KHÔNG có rules ở đây
+              validateStatus={formErrors[field.name] ? "error" : ""}
               help={
-                formValidation.errors[field.name] ? (
-                  <FieldError error={formValidation.errors[field.name]} />
+                formErrors[field.name] ? (
+                  <FieldError error={formErrors[field.name]} />
                 ) : null
               }
             >
@@ -917,6 +913,7 @@ export default function AddProduct() {
                 suffixIcon={renderDropdownSuffix(field.type)}
                 size="middle"
                 data-field={field.name}
+                onChange={() => handleFieldChange(field.name)}
               >
                 {dropdownData[`${field.type}s`]?.map((item) => (
                   <Option key={item.id} value={item.id}>
@@ -941,16 +938,11 @@ export default function AddProduct() {
           <Form.Item
             name="idCoAo"
             label="Cổ áo"
-            rules={[
-              {
-                required: true,
-                message: "Vui lòng chọn cổ áo",
-              },
-            ]}
-            validateStatus={formValidation.errors.idCoAo ? "error" : ""}
+            // KHÔNG có rules ở đây
+            validateStatus={formErrors.idCoAo ? "error" : ""}
             help={
-              formValidation.errors.idCoAo ? (
-                <FieldError error={formValidation.errors.idCoAo} />
+              formErrors.idCoAo ? (
+                <FieldError error={formErrors.idCoAo} />
               ) : null
             }
           >
@@ -962,6 +954,7 @@ export default function AddProduct() {
               suffixIcon={renderDropdownSuffix("coAo")}
               size="middle"
               data-field="idCoAo"
+              onChange={() => handleFieldChange("idCoAo")}
             >
               {dropdownData.coAos?.map((item) => (
                 <Option key={item.id} value={item.id}>
@@ -975,16 +968,11 @@ export default function AddProduct() {
           <Form.Item
             name="idTayAo"
             label="Tay áo"
-            rules={[
-              {
-                required: true,
-                message: "Vui lòng chọn tay áo",
-              },
-            ]}
-            validateStatus={formValidation.errors.idTayAo ? "error" : ""}
+            // KHÔNG có rules ở đây
+            validateStatus={formErrors.idTayAo ? "error" : ""}
             help={
-              formValidation.errors.idTayAo ? (
-                <FieldError error={formValidation.errors.idTayAo} />
+              formErrors.idTayAo ? (
+                <FieldError error={formErrors.idTayAo} />
               ) : null
             }
           >
@@ -996,6 +984,7 @@ export default function AddProduct() {
               suffixIcon={renderDropdownSuffix("tayAo")}
               size="middle"
               data-field="idTayAo"
+              onChange={() => handleFieldChange("idTayAo")}
             >
               {dropdownData.tayAos?.map((item) => (
                 <Option key={item.id} value={item.id}>
@@ -1009,16 +998,11 @@ export default function AddProduct() {
           <Form.Item
             name="trongLuong"
             label="Trọng lượng"
-            rules={[
-              {
-                required: true,
-                message: "Vui lòng nhập trọng lượng",
-              },
-            ]}
-            validateStatus={formValidation.errors.trongLuong ? "error" : ""}
+            // KHÔNG có rules ở đây
+            validateStatus={formErrors.trongLuong ? "error" : ""}
             help={
-              formValidation.errors.trongLuong ? (
-                <FieldError error={formValidation.errors.trongLuong} />
+              formErrors.trongLuong ? (
+                <FieldError error={formErrors.trongLuong} />
               ) : null
             }
           >
@@ -1027,6 +1011,7 @@ export default function AddProduct() {
               suffix={<span className="text-gray-400 text-xs">g/kg</span>}
               size="middle"
               data-field="trongLuong"
+              onChange={() => handleFieldChange("trongLuong")}
             />
           </Form.Item>
         </Col>
@@ -1040,16 +1025,11 @@ export default function AddProduct() {
         <Form.Item
           name="idMauSacs"
           label="Màu sắc"
-          rules={[
-            {
-              required: true,
-              message: "Vui lòng chọn màu sắc",
-            },
-          ]}
-          validateStatus={formValidation.errors.idMauSacs ? "error" : ""}
+          // KHÔNG có rules ở đây
+          validateStatus={formErrors.idMauSacs ? "error" : ""}
           help={
-            formValidation.errors.idMauSacs ? (
-              <FieldError error={formValidation.errors.idMauSacs} />
+            formErrors.idMauSacs ? (
+              <FieldError error={formErrors.idMauSacs} />
             ) : null
           }
         >
@@ -1063,6 +1043,7 @@ export default function AddProduct() {
             optionFilterProp="children"
             size="middle"
             data-field="idMauSacs"
+            onChange={() => handleFieldChange("idMauSacs")}
           >
             {dropdownData.mauSacs?.map((item) => (
               <Option key={item.id} value={item.id}>
@@ -1077,16 +1058,11 @@ export default function AddProduct() {
         <Form.Item
           name="idKichThuoc"
           label="Kích thước"
-          rules={[
-            {
-              required: true,
-              message: "Vui lòng chọn kích thước",
-            },
-          ]}
-          validateStatus={formValidation.errors.idKichThuoc ? "error" : ""}
+          // KHÔNG có rules ở đây
+          validateStatus={formErrors.idKichThuoc ? "error" : ""}
           help={
-            formValidation.errors.idKichThuoc ? (
-              <FieldError error={formValidation.errors.idKichThuoc} />
+            formErrors.idKichThuoc ? (
+              <FieldError error={formErrors.idKichThuoc} />
             ) : null
           }
         >
@@ -1098,6 +1074,7 @@ export default function AddProduct() {
             optionFilterProp="children"
             size="middle"
             data-field="idKichThuoc"
+            onChange={() => handleFieldChange("idKichThuoc")}
           >
             {dropdownData.kichThuocs?.map((item) => (
               <Option key={item.id} value={item.id}>
@@ -1117,7 +1094,7 @@ export default function AddProduct() {
   return (
     <>
       {contentMessNew}
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className=" bg-gray-50 p-6">
         <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
           <div className="font-bold text-4xl text-[#E67E22]">
             Quản lý sản phẩm
@@ -1183,7 +1160,6 @@ export default function AddProduct() {
           onReset={resetAllToInitialState}
           onTaoBienThe={handleTaoBienThe}
           loading={loadingTaoSanPham}
-          hasErrors={Object.keys(formValidation.errors).length > 0}
         />
 
         <ProductDetail
@@ -1304,7 +1280,7 @@ const AddAttributeModal = ({
   </Modal>
 );
 
-const ActionButtons = ({ onReset, onTaoBienThe, loading, hasErrors }) => (
+const ActionButtons = ({ onReset, onTaoBienThe, loading }) => (
   <div className="flex justify-end gap-3 mb-6">
     <Button
       type="default"
@@ -1319,11 +1295,8 @@ const ActionButtons = ({ onReset, onTaoBienThe, loading, hasErrors }) => (
       type="default"
       onClick={onTaoBienThe}
       size="middle"
-      className={`bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white font-medium ${
-        hasErrors ? "opacity-50 cursor-not-allowed" : ""
-      }`}
+      className="bg-green-500 border-green-500 hover:bg-green-600 hover:border-green-600 text-white font-medium"
       loading={loading}
-      disabled={hasErrors}
     >
       Tạo biến thể
     </Button>

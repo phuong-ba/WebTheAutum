@@ -10,7 +10,6 @@ import { formatVND } from "@/api/formatVND";
 export default function ProductList() {
   const dispatch = useDispatch();
   const { data } = useSelector((state) => state.sanPham);
-  console.log("🚀 ~ ProductList ~ data:", data);
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -22,6 +21,7 @@ export default function ProductList() {
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndexes, setCurrentImageIndexes] = useState({});
   const [availableSizes, setAvailableSizes] = useState([]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndexes((prev) => {
@@ -36,6 +36,7 @@ export default function ProductList() {
     }, 3000);
     return () => clearInterval(interval);
   }, [data]);
+
   useEffect(() => {
     dispatch(fetchSanPham());
   }, [dispatch]);
@@ -105,6 +106,7 @@ export default function ProductList() {
         id: selectedDetail.id,
         tenSanPham: product.tenSanPham,
         tenKichThuoc: selectedDetail.tenKichThuoc,
+        maVach: selectedDetail.maVach,
         maHex: selectedDetail.maHex,
         tenMauSac: selectedDetail.tenMauSac,
         giaBan: selectedDetail.giaBan,
@@ -120,8 +122,30 @@ export default function ProductList() {
     setModalVisible(false);
     window.dispatchEvent(new Event("cartUpdated"));
   };
+
+  // Hàm kiểm tra sản phẩm có giảm giá không
+  const hasDiscount = (product) => {
+    if (!product.chiTietSanPhams || product.chiTietSanPhams.length === 0) {
+      return false;
+    }
+
+    const firstDetail = product.chiTietSanPhams[0];
+    return (
+      firstDetail.giaSauGiam && firstDetail.giaSauGiam < firstDetail.giaBan
+    );
+  };
+
+  // Hàm tính phần trăm giảm giá
+  const calculateDiscountPercentage = (product) => {
+    if (!hasDiscount(product)) return 0;
+
+    const firstDetail = product.chiTietSanPhams[0];
+    const discount = firstDetail.giaBan - firstDetail.giaSauGiam;
+    return Math.round((discount / firstDetail.giaBan) * 100);
+  };
+
   const filteredData = data
-    ?.filter((product) => product.trangThai === true) // chỉ lấy sản phẩm active
+    ?.filter((product) => product.trangThai === true)
     ?.map((product) => ({
       ...product,
       chiTietSanPhams: product.chiTietSanPhams.filter(
@@ -129,6 +153,7 @@ export default function ProductList() {
       ),
     }))
     ?.filter((product) => product.chiTietSanPhams.length > 0);
+
   return (
     <>
       {contextHolder}
@@ -136,6 +161,13 @@ export default function ProductList() {
         {filteredData.map((product) => (
           <div key={product.id} className="flex flex-col gap-4">
             <div className="p-12 bg-gray-100 min-w-[306px] max-w-[306px] min-h-[325px] max-h-[325px] flex items-center justify-center rounded-2xl relative group cursor-pointer">
+              {/* Hiển thị badge giảm giá nếu có */}
+              {hasDiscount(product) && (
+                <div className="absolute top-3 right-3 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded z-10">
+                  -{calculateDiscountPercentage(product)}%
+                </div>
+              )}
+
               <img
                 src={
                   product.hinhAnhSanPham?.[
@@ -180,13 +212,23 @@ export default function ProductList() {
               >
                 {product.tenSanPham}
               </NavLink>
-              <div className="flex gap-2 items-center">
-                <div className="font-semibold text-orange-800">
-                  {formatVND(product.chiTietSanPhams[0].giaSauGiam)}
-                </div>
-                <div className="text-sm line-through text-gray-500">
-                  {formatVND(product.chiTietSanPhams[0].giaBan)}
-                </div>
+              <div className="flex gap-2 items-center flex-wrap">
+                {hasDiscount(product) ? (
+                  // Hiển thị khi có giảm giá
+                  <>
+                    <div className="font-semibold text-orange-800 text-lg">
+                      {formatVND(product.chiTietSanPhams[0].giaSauGiam)}
+                    </div>
+                    <div className="text-sm line-through text-gray-500">
+                      {formatVND(product.chiTietSanPhams[0].giaBan)}
+                    </div>
+                  </>
+                ) : (
+                  // Hiển thị khi không có giảm giá
+                  <div className="font-semibold text-orange-800 text-lg">
+                    {formatVND(product.chiTietSanPhams[0]?.giaBan)}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -279,11 +321,47 @@ export default function ProductList() {
               </div>
             )}
 
+            {/* THÔNG TIN GIÁ */}
+            {selectedDetail && (
+              <div className="mb-4">
+                <div className="mb-2 font-semibold">Giá:</div>
+                <div className="flex gap-2 items-center flex-wrap">
+                  {selectedDetail.giaSauGiam &&
+                  selectedDetail.giaSauGiam < selectedDetail.giaBan ? (
+                    // Hiển thị khi có giảm giá
+                    <>
+                      <div className="font-bold text-lg text-orange-800">
+                        {formatVND(selectedDetail.giaSauGiam)}
+                      </div>
+                      <div className="text-sm line-through text-gray-500">
+                        {formatVND(selectedDetail.giaBan)}
+                      </div>
+                      <div className="text-sm text-red-600 font-semibold">
+                        (Giảm{" "}
+                        {Math.round(
+                          ((selectedDetail.giaBan - selectedDetail.giaSauGiam) /
+                            selectedDetail.giaBan) *
+                            100
+                        )}
+                        %)
+                      </div>
+                    </>
+                  ) : (
+                    // Hiển thị khi không có giảm giá
+                    <div className="font-bold text-lg text-orange-800">
+                      {formatVND(selectedDetail.giaBan)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* SỐ LƯỢNG */}
             <div className="mb-4">
               <div className="mb-2 font-semibold">Số lượng:</div>
               <InputNumber
                 min={1}
+                max={selectedDetail?.soLuongTon || 1}
                 value={quantity}
                 onChange={(value) => {
                   if (!value || value < 1) value = 1;

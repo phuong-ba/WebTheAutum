@@ -17,7 +17,7 @@ import {
   getShiftRemainingTime,
 } from "@/services/giaoCaService";
 
-const API_BASE = "http://localhost:8080/api";
+const API_BASE = "http://192.203.4.110:8080/api";
 
 // Polling interval in milliseconds (check every 5 seconds)
 const SHIFT_CHECK_INTERVAL = 5000;

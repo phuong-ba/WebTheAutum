@@ -13,9 +13,11 @@ export default function ViewCart() {
   const [messageApi, messageContextHolder] = message.useMessage();
 
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
   useEffect(() => {
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
     setItems(cart);
@@ -33,9 +35,7 @@ export default function ViewCart() {
 
   const handleOk = () => {
     setItems((prev) => prev.filter((item) => item.id !== deleteId));
-
     setIsModalOpen(false);
-
     messageApi.success("Xóa sản phẩm thành công");
   };
 
@@ -65,10 +65,27 @@ export default function ViewCart() {
       })
     );
   };
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.giaSauGiam * item.quantity,
-    0
-  );
+
+  // Hàm kiểm tra sản phẩm có giảm giá không
+  const hasDiscount = (item) => {
+    return item.giaSauGiam && item.giaSauGiam < item.giaBan;
+  };
+
+  // Hàm tính phần trăm giảm giá
+  const calculateDiscountPercentage = (item) => {
+    if (!hasDiscount(item)) return 0;
+    const discount = item.giaBan - item.giaSauGiam;
+    return Math.round((discount / item.giaBan) * 100);
+  };
+
+  // Tính tổng tiền (sử dụng giá sau giảm nếu có, nếu không dùng giá gốc)
+  const subtotal = items.reduce((sum, item) => {
+    const price =
+      item.giaSauGiam && item.giaSauGiam < item.giaBan
+        ? item.giaSauGiam
+        : item.giaBan;
+    return sum + price * item.quantity;
+  }, 0);
 
   return (
     <>
@@ -106,40 +123,77 @@ export default function ViewCart() {
                       className="grid grid-cols-12 gap-4 px-6 py-6 border-b border-gray-300 hover:bg-gray-50 transition"
                     >
                       <div className="col-span-5 flex flex-col gap-1">
-                        <div className="flex items-center gap-4">
-                          <div className="bg-gray-100 min-w-[78px] min-h-[100px] max-w-[78px] max-h-[100px] flex items-center p-2">
+                        <div className="flex items-start gap-4">
+                          <div className="bg-gray-100 min-w-[78px] min-h-[100px] max-w-[78px] max-h-[100px] flex items-center justify-center p-2 relative rounded">
+                            {/* Badge giảm giá */}
+                            {hasDiscount(item) && (
+                              <div className="absolute -top-2 -left-2 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded z-10">
+                                -{calculateDiscountPercentage(item)}%
+                              </div>
+                            )}
                             <img
                               src={item.duongDanAnh || item.image}
                               alt={item.tenSanPham}
-                              className="object-cover rounded"
+                              className="object-cover rounded max-w-full max-h-full"
                             />
                           </div>
-                          <div>
+
+                          <div className="flex-1 flex flex-col justify-center">
+                            {/* MÃ VẠCH / MÃ SẢN PHẨM */}
+                            <div className="text-xs text-gray-500 font-mono tracking-wider mb-1">
+                              Mã SP:{" "}
+                              <span className="font-semibold text-gray-700">
+                                {item.maVach || "N/A"}
+                              </span>
+                            </div>
+
+                            {/* Tên sản phẩm */}
                             <div className="font-medium text-gray-900 line-clamp-2">
                               {item.tenSanPham}
                             </div>
 
-                            <div className="text-sm text-gray-500">
-                              Size: {item.tenKichThuoc || "N/A"}
+                            {/* Size & Màu */}
+                            <div className="text-sm text-gray-500 mt-1">
+                              Size: {item.tenKichThuoc || "N/A"} | Màu:{" "}
+                              {item.tenMauSac || item.maHex || "N/A"}
+                            </div>
+
+                            {/* Số lượng tồn */}
+                            <div className="text-xs text-blue-600 mt-1">
+                              Còn lại: {item.soLuongTon || 0} sản phẩm
                             </div>
                           </div>
                         </div>
                       </div>
 
                       <div className="col-span-2 flex flex-col items-center justify-center">
-                        <span className="font-bold text-sm text-orange-600">
-                          {formatVND(item.giaSauGiam)}
-                        </span>
-                        <span className="font-bold text-xs text-gray-500 line-through">
-                          {formatVND(item.giaBan)}
-                        </span>
+                        {hasDiscount(item) ? (
+                          // Hiển thị khi có giảm giá
+                          <>
+                            <span className="font-bold text-sm text-orange-600">
+                              {formatVND(item.giaSauGiam)}
+                            </span>
+                            <span className="font-bold text-xs text-gray-500 line-through">
+                              {formatVND(item.giaBan)}
+                            </span>
+                            <div className="text-xs text-red-600 font-semibold mt-1">
+                              Tiết kiệm:{" "}
+                              {formatVND(item.giaBan - item.giaSauGiam)}
+                            </div>
+                          </>
+                        ) : (
+                          // Hiển thị khi không có giảm giá
+                          <span className="font-bold text-sm text-orange-600">
+                            {formatVND(item.giaBan)}
+                          </span>
+                        )}
                       </div>
 
                       <div className="col-span-3 flex items-center justify-center">
                         <div className="flex items-center border border-gray-300 rounded-lg">
                           <div
                             onClick={() => updateQuantity(item.id, -1)}
-                            className="p-2 transition cursor-pointer select-none"
+                            className="p-2 transition cursor-pointer select-none hover:bg-gray-100"
                           >
                             <Minus className="w-4 h-4" />
                           </div>
@@ -148,6 +202,7 @@ export default function ViewCart() {
                             type="number"
                             value={item.quantity}
                             min={1}
+                            max={item.soLuongTon}
                             onChange={(e) => {
                               let value = Number(e.target.value);
 
@@ -174,7 +229,7 @@ export default function ViewCart() {
 
                           <div
                             onClick={() => updateQuantity(item.id, 1)}
-                            className="p-2 transition cursor-pointer select-none"
+                            className="p-2 transition cursor-pointer select-none hover:bg-gray-100"
                           >
                             <Plus className="w-4 h-4" />
                           </div>
@@ -184,7 +239,7 @@ export default function ViewCart() {
                       <div className="col-span-2 flex items-center justify-end">
                         <div
                           onClick={() => showDeleteModal(item.id)}
-                          className="text-gray-400 hover:text-red-600 transition cursor-pointer select-none"
+                          className="text-gray-400 hover:text-red-600 transition cursor-pointer select-none p-2 hover:bg-red-50 rounded-full"
                         >
                           <X className="w-5 h-5" />
                         </div>
@@ -194,6 +249,7 @@ export default function ViewCart() {
                 )}
               </div>
             </div>
+
             <div className="lg:col-span-1">
               <div className="bg-white rounded-lg shadow-sm p-6 sticky top-6">
                 <h2 className="text-xl font-bold mb-4">Tổng giỏ hàng</h2>
@@ -203,6 +259,27 @@ export default function ViewCart() {
                     <p className="font-medium mb-3">Tổng sản phẩm</p>
                     <span className="font-medium">{totalQuantity}</span>
                   </div>
+
+                  {/* Tính tổng tiền tiết kiệm nếu có */}
+                  {items.some((item) => hasDiscount(item)) && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Tiết kiệm được</span>
+                      <span className="font-medium">
+                        {formatVND(
+                          items.reduce((sum, item) => {
+                            if (hasDiscount(item)) {
+                              return (
+                                sum +
+                                (item.giaBan - item.giaSauGiam) * item.quantity
+                              );
+                            }
+                            return sum;
+                          }, 0)
+                        )}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between">
                     <span>Tạm tính</span>
                     <span className="font-medium">{formatVND(subtotal)}</span>

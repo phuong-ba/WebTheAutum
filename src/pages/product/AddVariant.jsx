@@ -325,7 +325,7 @@ export default function AddVariant() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className=" bg-gray-50 p-6">
       <div className="flex justify-between items-center mb-6">
         <div className="text-sm text-gray-600">
           <span

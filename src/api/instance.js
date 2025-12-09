@@ -15,12 +15,12 @@ const baseUrl = axios.create({
 //   headers: {
 //     "Content-Type": "application/json",
 //   },
-//   timeout: 10000, 
+//   timeout: 10000,
 // });
 
 baseUrl.interceptors.request.use(
   (config) => {
-    const token = JSON.parse(Cookies.get("token") || "null");
+    const token = localStorage.getItem("auth_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -40,21 +40,21 @@ baseUrl.interceptors.response.use(
       Cookies.remove("token");
       localStorage.removeItem("user_type");
       localStorage.removeItem("user_name");
-      
+
       if (!window.location.pathname.includes('/login')) {
         message.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
         window.location.href = '/login';
       }
     }
-    
+
     if (error.response?.status === 500) {
       message.error("Lỗi máy chủ. Vui lòng thử lại sau!");
     }
-    
+
     if (error.code === 'ECONNABORTED') {
       message.error("Kết nối quá thời gian. Vui lòng thử lại!");
     }
-    
+
     return Promise.reject(error);
   }
 );
