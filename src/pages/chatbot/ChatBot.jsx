@@ -204,9 +204,9 @@ export default function AdminChat() {
     const msg = message;
     setMessage("");
 
-    setTypingStatus(
-      !hasStaffJoined ? "AI: đang trả lời" : "Nhân viên: đang trả lời"
-    );
+    // setTypingStatus(
+    //   !hasStaffJoined ? "AI: đang trả lời" : "Nhân viên: đang trả lời"
+    // );
 
     try {
       await chatApi.sendMessage(currentRoom.roomId, msg, 1);

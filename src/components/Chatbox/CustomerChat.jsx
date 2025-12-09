@@ -182,8 +182,7 @@ export default function CustomerChat() {
           setMessages((prev) => [...prev, { ...body, parsed }]);
 
           // Reset typing status
-          if (body.guiTu === 1 || body.guiTu === 2)
-            setTimeout(() => setTypingStatus(""), 1500);
+          if (body.guiTu === 1 || body.guiTu === 2) setTypingStatus("");
 
           // Cập nhật trạng thái nhân viên
           if (
@@ -192,13 +191,13 @@ export default function CustomerChat() {
             )
           ) {
             setHasStaffJoined(true);
-            setTimeout(() => setTypingStatus(""), 1500);
+            // setTypingStatus("");
           }
           if (
             body.noiDung.includes("Nhân viên đã rời, AI sẽ tiếp tục hỗ trợ bạn")
           ) {
             setHasStaffJoined(false);
-            setTimeout(() => setTypingStatus(""), 1500);
+            // setTypingStatus("");
           }
         }
       );
