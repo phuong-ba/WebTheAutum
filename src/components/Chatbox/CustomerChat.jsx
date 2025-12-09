@@ -161,7 +161,7 @@ export default function CustomerChat() {
     );
   };
 
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   const connectWS = (rid) => {
     const sock = new SockJS(apiBaseUrl);
     stompClient.current = over(sock);

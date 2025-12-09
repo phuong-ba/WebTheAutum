@@ -5,7 +5,7 @@ import { over } from "stompjs";
 
 function ProductCard({ product }) {
   const linkPro = import.meta.env.VITE_LINK_URL;
-  const productLink = product.link || `${linkPro}/productDetail/${product.id}`;
+  const productLink = `${linkPro}/productDetail/${product.id}`;
 
   return (
     <div className="flex flex-col border rounded-xl p-2 gap-2 bg-white shadow hover:shadow-lg transition">
