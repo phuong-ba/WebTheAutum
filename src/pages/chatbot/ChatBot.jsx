@@ -5,7 +5,7 @@ import { over } from "stompjs";
 
 function ProductCard({ product }) {
   const linkPro = import.meta.env.VITE_LINK_URL;
-  const productLink = product.link || `${linkPro}/productDetail/${product.id}`;
+  const productLink = `${linkPro}/productDetail/${product.id}`;
 
   return (
     <div className="flex flex-col border rounded-xl  p-2 gap-2 bg-white shadow hover:shadow-lg transition ">
@@ -204,9 +204,9 @@ export default function AdminChat() {
     const msg = message;
     setMessage("");
 
-    setTypingStatus(
-      !hasStaffJoined ? "AI: đang trả lời" : "Nhân viên: đang trả lời"
-    );
+    // setTypingStatus(
+    //   !hasStaffJoined ? "AI: đang trả lời" : "Nhân viên: đang trả lời"
+    // );
 
     try {
       await chatApi.sendMessage(currentRoom.roomId, msg, 1);

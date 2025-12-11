@@ -125,14 +125,26 @@ export default function CustomerChat() {
 
           setMessages((prev) => [...prev, { ...body, parsed }]);
 
-          // Typing & staff status
-          if (body.guiTu === 1 || body.guiTu === 2) {
-            setTypingStatus("");
+
+          // Reset typing status
+          if (body.guiTu === 1 || body.guiTu === 2) setTypingStatus("");
+
+          // Cập nhật trạng thái nhân viên
+          if (
+            body.noiDung.includes(
+              "Nhân viên đã tham gia chat, AI sẽ tạm dừng trả lời"
+            )
+          ) {
+            setHasStaffJoined(true);
+            // setTypingStatus("");
           }
           if (body.noiDung.includes("Nhân viên đã tham gia"))
             setHasStaffJoined(true);
           if (body.noiDung.includes("Nhân viên đã rời"))
             setHasStaffJoined(false);
+
+            // setTypingStatus("");
+          }
         }
       );
     });
