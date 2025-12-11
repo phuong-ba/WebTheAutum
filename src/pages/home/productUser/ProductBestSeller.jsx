@@ -201,45 +201,30 @@ export default function ProductBestSeller() {
   return (
     <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
       {/* LEFT - Banner */}
-      <div className="lg:min-w-[360px] bg-amber-100 max-h-[575px] flex flex-col gap-8 lg:gap-20 items-center justify-between py-8 lg:py-16 rounded-2xl">
-        <div className="flex flex-col gap-4 lg:gap-5 items-center px-4">
-          <div className="text-lg lg:text-xl font-mono text-orange-600">
-            Sản phẩm
-          </div>
-          <div className="max-w-[280px] text-xl lg:text-2xl text-center font-bold">
-            Bán chạy nhất
-          </div>
-
-          {/* Radio chọn thời gian */}
-          <div className="flex flex-col gap-2 mt-2 lg:mt-4">
-            <div className="font-medium text-sm">Thời gian:</div>
-            <Radio.Group
-              value={timeRange}
-              onChange={handleTimeRangeChange}
-              buttonStyle="solid"
-              size="small"
-              className="flex flex-wrap justify-center gap-2"
-            >
-              <Radio.Button value="day">Hôm nay</Radio.Button>
-              <Radio.Button value="week">Tuần này</Radio.Button>
-              <Radio.Button value="month">Tháng này</Radio.Button>
-              <Radio.Button value="year">Năm nay</Radio.Button>
-            </Radio.Group>
-          </div>
-        </div>
-
-        <img
-          src={logo}
-          alt="Logo"
-          className="w-[280px] lg:w-[320px] px-4 lg:px-0"
-          loading="lazy"
-        />
-      </div>
 
       {/* RIGHT - Best Seller */}
       <div className="flex-1 flex flex-col gap-6 lg:gap-8">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <div className="text-xl lg:text-2xl font-bold">Sản phẩm bán chạy</div>
+          <div className="flex flex-col ">
+            <div className="text-xl lg:text-2xl font-bold">
+              Sản phẩm bán chạy
+            </div>
+            <div className="flex items-center gap-2 mt-2 lg:mt-4">
+              <div className="font-medium text-sm">Thời gian:</div>
+              <Radio.Group
+                value={timeRange}
+                onChange={handleTimeRangeChange}
+                buttonStyle="solid"
+                size="small"
+                className="flex flex-wrap justify-center gap-2"
+              >
+                <Radio.Button value="day">Hôm nay</Radio.Button>
+                <Radio.Button value="week">Tuần này</Radio.Button>
+                <Radio.Button value="month">Tháng này</Radio.Button>
+                <Radio.Button value="year">Năm nay</Radio.Button>
+              </Radio.Group>
+            </div>
+          </div>
           <div className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
             {getTimeRangeLabel()}
           </div>

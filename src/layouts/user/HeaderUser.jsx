@@ -16,7 +16,15 @@ export default function HeaderUser() {
   const [cartCount, setCartCount] = useState(0);
   const [customerName, setCustomerName] = useState(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const navigate = useNavigate();
 
+const onSearch = (value) => {
+  if (value.trim() !== "") {
+    navigate(`/product?search=${encodeURIComponent(value)}`);
+  } else {
+    navigate(`/product`);
+  }
+};
   useEffect(() => {
     const updateCart = () => {
       console.log(">>> Cart Updated");
@@ -59,7 +67,6 @@ export default function HeaderUser() {
     navigate("/");
   };
 
-  const navigate = useNavigate();
   const items = [
     {
       key: "1",
@@ -152,7 +159,6 @@ export default function HeaderUser() {
                   </div>
                 </div>
               )}
-
             </div>
 
             <div className="flex gap-6 items-center relative">
@@ -176,7 +182,6 @@ export default function HeaderUser() {
                     {cartCount}
                   </span>
                 )}
-
               </div>
             </div>
           </div>

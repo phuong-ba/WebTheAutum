@@ -8,7 +8,6 @@ import { useNavigate } from "react-router";
 export default function ListCategory() {
   const dispatch = useDispatch();
   const { data } = useSelector((state) => state.sanPham);
-  console.log("🚀 ~ ProductAll ~ data:", data);
   const navigate = useNavigate();
   useEffect(() => {
     dispatch(fetchSanPham());
@@ -16,17 +15,6 @@ export default function ListCategory() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-  const categories = [
-    { id: 1, title: "TitleSSSSSSSSSSSSSSSSSssssss", count: 11, image: logo },
-    {
-      id: 2,
-      title: "Áo khoác mùa thu siêu đẹp dài vô tận nè nè nè",
-      count: 8,
-      image: logo,
-    },
-    { id: 3, title: "Thời trang công sở", count: 14, image: logo },
-    { id: 4, title: "Quần jean phong cách", count: 7, image: logo },
-  ];
 
   const colors = [
     { bg: "bg-blue-100", text: "text-blue-900" },
@@ -81,9 +69,9 @@ export default function ListCategory() {
                     </div>
                   </div>
                   <img
-                    src={item.hinhAnhSanPham[0]}
+                    src={item.hinhAnhSanPham[0] || logo}
                     alt=""
-                    className="w-[60px] rounded-2xl object-center transform transition-transform duration-500 ease-in-out group-hover:scale-110"
+                    className="w-[60px]  rounded-2xl object-center transform transition-transform duration-500 ease-in-out group-hover:scale-110"
                   />
                 </div>
               </div>

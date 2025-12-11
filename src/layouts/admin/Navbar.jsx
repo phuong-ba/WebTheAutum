@@ -102,7 +102,6 @@ export default function Navbar() {
     },
   ];
 
-  // Menu items cho STAFF (Quyền hạn chế)
   const staffMenuItems = [
     { key: "/admin/sell", icon: <IconBook />, label: "Quản lý bán hàng" },
     { key: "/admin/bill", icon: <IconAlign />, label: "Quản lý hóa đơn" },
@@ -110,28 +109,23 @@ export default function Navbar() {
       key: "sub1",
       label: "Quản lý sản phẩm",
       icon: <IconProduct />,
-      children: [
-        { key: "/admin/product", label: "Danh mục sản phẩm" },
-        { key: "/admin/category", label: "Danh mục" },
-        { key: "/admin/collection", label: "Bộ sưu tập" },
-        { key: "/admin/warehouse", label: "Kho hàng" },
-      ],
+      key: "/admin/product",
+      label: "Danh mục sản phẩm",
     },
     {
       key: "/admin/customer",
-      icon: <AppstoreOutlined />,
+      icon: <UsersThreeIcon size={24} />,
       label: "Quản lý khách hàng",
     },
     {
       key: "/admin/changeShifts",
-      icon: <AppstoreOutlined />,
+      icon: <ClockUserIcon size={24} />,
       label: "Giao Ca",
     },
   ];
 
-  // Chọn menu items dựa trên role - SỬA CHỖ NÀY
   const getMenuItems = () => {
-    // Role "Quản lý" hoặc "ADMIN" đều có full quyền
+
     if (userRole === "ADMIN" || userRole === "Quản lý" || contextIsAdmin) {
       return adminMenuItems;
     } else {
@@ -154,7 +148,6 @@ export default function Navbar() {
 
   const [collapsed, setCollapsed] = useState(false);
   const toggleCollapsed = () => setCollapsed(!collapsed);
-
   return (
     <div
       className={`min-h-screen transition-all duration-300 flex flex-col items-center
@@ -171,7 +164,6 @@ export default function Navbar() {
         inlineCollapsed={collapsed}
         items={getMenuItems()}
         onClick={({ key }) => {
-          // Always allow navigating to changeShifts itself
           if (String(key).startsWith("/admin/changeShifts")) {
             navigate(key);
             return;
@@ -193,7 +185,6 @@ export default function Navbar() {
             return;
           }
 
-          // For staff: prevent navigation if checking, no active shift, or shift time expired
           if (isCheckingShift || !isShiftActive || shiftTimeExpired) {
             // Do nothing - prevent navigation
             return;

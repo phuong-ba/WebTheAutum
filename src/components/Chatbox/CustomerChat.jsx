@@ -1,65 +1,49 @@
 import React, { useState, useEffect, useRef } from "react";
 import SockJS from "sockjs-client";
 import { over } from "stompjs";
-import { useNavigate } from "react-router-dom";
 import { chatBotApi } from "@/api/chatBot";
 
 function ProductCard({ product }) {
   const linkPro = import.meta.env.VITE_LINK_URL;
   const productLink = `${linkPro}/productDetail/${product.id}`;
+
   return (
-    <div className="flex flex-col border rounded-xl p-2 gap-2 bg-white shadow hover:shadow-lg transition">
-      <a href={productLink} target="_blank" rel="noopener noreferrer">
-        <div className="flex gap-1">
-          {(product.hinhAnhSanPham?.length
-            ? product.hinhAnhSanPham
-            : ["/placeholder.png"]
-          ).map((img, idx) => (
-            <img
-              key={idx}
-              src={img || "/placeholder.png"}
-              alt={product.tenSanPham || product.name}
-              className="w-16 h-16 object-cover rounded"
-            />
-          ))}
+    <a
+      href={productLink}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
+    >
+      <div className="flex p-3 gap-3">
+        <img
+          src={
+            product.hinhAnhSanPham?.[0] || product.image || "/placeholder.png"
+          }
+          alt={product.tenSanPham}
+          className="w-20 h-20 object-cover rounded-lg"
+        />
+        <div className="flex-1 min-w-0">
+          <h4 className="font-semibold text-sm text-gray-800 line-clamp-2">
+            {product.tenSanPham || product.name}
+          </h4>
+          <p className="text-orange-600 font-bold text-lg mt-1">
+            {(product.price || 0).toLocaleString()}₫
+          </p>
+          {product.color && (
+            <p className="text-xs text-gray-500 mt-1">Màu: {product.color}</p>
+          )}
         </div>
-      </a>
-      <div className="flex flex-col justify-between">
-        <div className="font-semibold text-sm text-gray-600">
-          {product.tenSanPham || product.name}
-        </div>
-        <div className="text-yellow-600 font-bold">
-          {(product.price || 0).toLocaleString()}₫
-        </div>
-        {product.color && (
-          <div className="text-gray-500 text-xs">Màu: {product.color}</div>
-        )}
-        {product.size_suggestion && (
-          <div className="text-gray-500 text-xs">
-            Size gợi ý: {product.size_suggestion}
-          </div>
-        )}
-        <a
-          href={productLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-block bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium px-3 py-1 rounded text-center transition"
-        >
-          Mua Ngay
-        </a>
       </div>
-    </div>
+      <div className="bg-orange-500 text-white text-center py-2 text-sm font-medium hover:bg-orange-600 transition">
+        Xem & Mua ngay
+      </div>
+    </a>
   );
 }
 
-// Main chat component
 export default function CustomerChat() {
-  const [customerId, setCustomerId] = useState(
-    localStorage.getItem("customer_id")
-  );
-  const [hoTen, setHoTen] = useState(
-    localStorage.getItem("customer_name") || "Khách hàng"
-  );
+  const [customerId] = useState(localStorage.getItem("customer_id"));
+  const [hoTen] = useState(localStorage.getItem("customer_name") || "Khách");
   const [roomId, setRoomId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
@@ -70,36 +54,27 @@ export default function CustomerChat() {
   const stompClient = useRef(null);
   const subscriptionRef = useRef(null);
   const bottomRef = useRef();
-  const navigate = useNavigate();
 
-  // Load room + connect WS
+  // Connect khi mở chat
   useEffect(() => {
     if (!open) return;
 
-    const loadRoom = async () => {
+    const initChat = async () => {
       try {
-        let data;
-        if (customerId) {
-          // Khách đăng nhập
-          const res = await chatBotApi.getRoomByCustomer(customerId);
-          data = res.data;
-          setHoTen(localStorage.getItem("customer_name") || "Khách hàng");
-        } else {
-          // Khách lẻ
-          const res = await chatBotApi.getGuestRoom();
-          data = res.data;
-          setHoTen("Khách lẻ");
-        }
+        const res = customerId
+          ? await chatBotApi.getRoomByCustomer(customerId)
+          : await chatBotApi.getGuestRoom();
 
-        setRoomId(data.roomId);
-        connectWS(data.roomId);
-        loadHistory(data.roomId);
-      } catch (e) {
-        console.error("Lỗi load room:", e);
+        const { roomId } = res.data;
+        setRoomId(roomId);
+        connectWS(roomId);
+        loadHistory(roomId);
+      } catch (err) {
+        console.error("Không thể khởi tạo chat:", err);
       }
     };
 
-    loadRoom();
+    initChat();
 
     return () => {
       subscriptionRef.current?.unsubscribe();
@@ -107,57 +82,30 @@ export default function CustomerChat() {
     };
   }, [open, customerId]);
 
-  // Load history messages
   const loadHistory = async (rid) => {
     try {
       const res = await chatBotApi.getChatHistory(rid);
-      const data = res.data;
-      const messagesParsed = (
-        Array.isArray(data) ? data : data?.messages || []
+      const msgs = (
+        Array.isArray(res.data) ? res.data : res.data?.messages || []
       ).map((m) => {
         if (m.guiTu === 2) {
           try {
             return { ...m, parsed: JSON.parse(m.noiDung) };
           } catch {
-            return {
-              ...m,
-              parsed: {
-                message: m.noiDung,
-                products: [],
-                follow_up_question: "",
-                need_human_support: false,
-              },
-            };
+            return { ...m, parsed: { message: m.noiDung, products: [] } };
           }
         }
         return m;
       });
-      setMessages(messagesParsed);
+      setMessages(msgs);
     } catch (e) {
-      console.error("Lỗi load history:", e);
+      console.error(e);
     }
-  };
-
-  // Send message
-  const sendMessage = () => {
-    if (!message.trim() || !roomId) return;
-    const msg = message;
-    setMessage("");
-
-    setTypingStatus(
-      !hasStaffJoined ? "AI: đang trả lời" : "Nhân viên: đang trả lời"
-    );
-
-    stompClient.current.send(
-      "/app/chat.send",
-      {},
-      JSON.stringify({ roomId, guiTu: 0, noiDung: msg })
-    );
   };
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   const connectWS = (rid) => {
-    const sock = new SockJS(apiBaseUrl);
+    const sock = new SockJS(`${apiBaseUrl}`);
     stompClient.current = over(sock);
 
     stompClient.current.connect({}, () => {
@@ -166,20 +114,17 @@ export default function CustomerChat() {
         (msg) => {
           const body = JSON.parse(msg.body);
           let parsed = {};
+
           if (body.guiTu === 2) {
             try {
               parsed = JSON.parse(body.noiDung);
             } catch {
-              parsed = {
-                message: body.noiDung,
-                products: [],
-                follow_up_question: "",
-                need_human_support: false,
-              };
+              parsed = { message: body.noiDung, products: [] };
             }
           }
 
           setMessages((prev) => [...prev, { ...body, parsed }]);
+
 
           // Reset typing status
           if (body.guiTu === 1 || body.guiTu === 2) setTypingStatus("");
@@ -193,10 +138,11 @@ export default function CustomerChat() {
             setHasStaffJoined(true);
             // setTypingStatus("");
           }
-          if (
-            body.noiDung.includes("Nhân viên đã rời, AI sẽ tiếp tục hỗ trợ bạn")
-          ) {
+          if (body.noiDung.includes("Nhân viên đã tham gia"))
+            setHasStaffJoined(true);
+          if (body.noiDung.includes("Nhân viên đã rời"))
             setHasStaffJoined(false);
+
             // setTypingStatus("");
           }
         }
@@ -204,138 +150,169 @@ export default function CustomerChat() {
     });
   };
 
-  // Scroll xuống cuối chat
+  const sendMessage = () => {
+    if (!message.trim() || !roomId) return;
+
+    const msg = message.trim();
+    setMessage("");
+    setTypingStatus(
+      hasStaffJoined ? "Nhân viên đang trả lời" : "AI đang trả lời..."
+    );
+
+    stompClient.current.send(
+      "/app/chat.send",
+      {},
+      JSON.stringify({ roomId, guiTu: 0, noiDung: msg })
+    );
+  };
+
+  // Auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   return (
     <>
+      {/* Nút mở chat - đẹp lung linh */}
       {!open && (
-        <button
-          className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-yellow-500 text-white shadow-xl flex items-center justify-center text-3xl hover:bg-yellow-600 transition"
-          onClick={() => {
-            const id = localStorage.getItem("customer_id");
-            const name = localStorage.getItem("customer_name");
-            setCustomerId(id); // id có thể null
-            setHoTen(name || "Khách lẻ");
-            setOpen(true);
-            // if (!id) navigate("/customer/login"); // hoặc cho phép khách lẻ chat
-          }}
+        <div
+          onClick={() => setOpen(true)}
+          className="fixed bottom-20 cursor-pointer right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 text-white shadow-2xl flex items-center justify-center text-3xl hover:scale-110 transform transition-all duration-300 animate-pulse-slow"
         >
-          💬
-        </button>
+          <svg
+            className="w-8 h-8"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            />
+          </svg>
+        </div>
       )}
 
+      {/* Chat box */}
       {open && (
-        <div
-          className="fixed bottom-6 right-6 w-96 max-w-[90%] flex flex-col rounded-2xl shadow-2xl overflow-hidden bg-white border border-gray-200"
-          style={{ height: "550px" }}
-        >
+        <div className="fixed bottom-20 right-6 w-96 max-w-[92vw] h-[580px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden z-50 animate-in slide-in-from-bottom duration-300">
           {/* Header */}
-          <div className="bg-yellow-500 text-white font-bold px-4 py-3 flex justify-between items-center text-[17px]">
-            Chat hỗ trợ - {hoTen}
+          <div className="bg-gradient-to-r from-orange-500 to-pink-500 text-white p-3 flex justify-between items-start shadow-md">
+            <div className="flex items-center gap-2">
+              <div className="py-2 flex flex-col gap-2">
+                <div className="font-bold text-lg">Hỗ trợ khách hàng</div>
+                <div className="text-xs opacity-90">Xin chào {hoTen}!</div>
+              </div>
+            </div>
             <button
               onClick={() => setOpen(false)}
-              className="ml-2 text-white font-bold text-xl"
+              className="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition cursor-pointer"
             >
-              ✕
+              ×
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 p-4 bg-gray-100 overflow-y-auto flex flex-col gap-3">
+          <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white p-4 space-y-4">
             {messages.map((m, i) => (
               <div
                 key={i}
                 className={`flex ${
                   m.guiTu === 0 ? "justify-end" : "justify-start"
-                } items-end`}
+                } items-end gap-2`}
               >
                 {m.guiTu !== 0 && (
-                  <div className="w-7 h-7 rounded-full bg-gray-300 text-xs flex items-center justify-center mr-2">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold shadow-lg">
                     {m.guiTu === 1 ? "NV" : "AI"}
                   </div>
                 )}
+
                 <div
-                  className={`max-w-[75%] px-3 py-2 rounded-2xl shadow-sm break-words ${
-                    m.guiTu === 0
-                      ? "bg-yellow-500 text-white text-right"
-                      : m.guiTu === 1
-                      ? "bg-green-400 text-white"
-                      : "bg-blue-400 text-white"
-                  }`}
+                  className={`max-w-[80%] ${m.guiTu === 0 ? "order-2" : ""}`}
                 >
-                  {m.guiTu === 0 ? (
-                    <span className="text-[14px] font-semibold">
-                      {m.noiDung}
-                    </span>
-                  ) : (
-                    <>
-                      <span className="text-[13px] font-semibold">
-                        {m.guiTu === 1 ? "Nhân viên" : "AI"}:{" "}
-                      </span>
-                      <span className="text-sm font-normal">
-                        {m.parsed?.message || m.noiDung}
-                      </span>
-                      {m.parsed?.products?.length > 0 && (
-                        <div className="flex flex-col gap-2 mt-2">
-                          {m.parsed.products.map((p) => (
-                            <ProductCard
-                              key={p.id}
-                              product={{
-                                id: p.id,
-                                tenSanPham:
-                                  p.tenSanPham || p.name || "Sản phẩm",
-                                hinhAnhSanPham:
-                                  p.hinhAnhSanPham ||
-                                  (p.image ? [p.image] : []),
-                                price: p.price || 0,
-                                color: p.color || "",
-                                size_suggestion: p.size_suggestion || "",
-                                link: p.link || `/productDetail/${p.id}`,
-                              }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      {m.parsed?.follow_up_question && (
-                        <div className="mt-2 text-white-700 text-sm font-medium">
-                          {m.parsed.follow_up_question}
-                        </div>
-                      )}
-                    </>
-                  )}
+                  <div
+                    className={`px-4 py-3 rounded-2xl shadow-md ${
+                      m.guiTu === 0
+                        ? "bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-br-none"
+                        : m.guiTu === 1
+                        ? "bg-green-500 text-white rounded-bl-none"
+                        : "bg-gray-700 text-white rounded-tl-none"
+                    }`}
+                  >
+                    {m.guiTu !== 0 && (
+                      <div className="text-xs font-medium opacity-80 mb-1">
+                        {m.guiTu === 1 ? "Nhân viên hỗ trợ" : "AI Assistant"}
+                      </div>
+                    )}
+                    <div className="text-sm leading-relaxed">
+                      {m.parsed?.message || m.noiDung}
+                    </div>
+
+                    {/* Sản phẩm gợi ý */}
+                    {m.parsed?.products?.length > 0 && (
+                      <div className="mt-3 space-y-3">
+                        {m.parsed.products.map((p) => (
+                          <ProductCard key={p.id} product={p} />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Câu hỏi gợi ý */}
+                    {m.parsed?.follow_up_question && (
+                      <div className="mt-3 text-sm italic opacity-90 border-l-4 border-white/30 pl-3">
+                        {m.parsed.follow_up_question}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
 
+            {/* Typing indicator đẹp */}
             {typingStatus && (
-              <div className="text-gray-500 italic text-sm mt-1 ml-2 flex items-center gap-1">
-                <span>{typingStatus}</span>
-                <span className="animate-pulse">...</span>
+              <div className="flex items-center gap-2 text-gray-500">
+                <div className="flex space-x-1">
+                  <span
+                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  ></span>
+                  <span
+                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  ></span>
+                  <span
+                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "300ms" }}
+                  ></span>
+                </div>
+                <span className="text-sm italic">{typingStatus}</span>
               </div>
             )}
 
-            <div ref={bottomRef}></div>
+            <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
-          <div className="flex p-3 border-t border-gray-300 bg-white gap-2">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder="Nhập tin nhắn..."
-              className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
-            />
-            <button
-              onClick={sendMessage}
-              className="bg-yellow-500 text-white px-5 py-2 rounded-full font-semibold hover:bg-yellow-600 transition"
-            >
-              Gửi
-            </button>
+          {/* Input Area */}
+          <div className="p-4 bg-white border-t border-gray-200">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && !e.shiftKey && sendMessage()
+                }
+                placeholder="Aa..."
+                className="flex-1 px-5 py-3 bg-gray-100 rounded-full focus:outline-none focus:ring-4 focus:ring-orange-300 text-sm transition-all"
+              />
+              <button
+                onClick={sendMessage}
+                className="bg-gradient-to-r from-orange-500 to-pink-500 text-white px-6 py-3 rounded-full font-semibold hover:from-orange-600 hover:to-pink-600 transform hover:scale-105 transition-all shadow-lg"
+              >
+                Gửi
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import logo from "/src/assets/login/logo.png";
 import { IconFillter, IconShoping, IconView } from "@/assets/svg/externalIcon";
 import { Pagination, Tooltip, Modal, Button, InputNumber, message } from "antd";
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useNavigate, useSearchParams } from "react-router";
 import ClientBreadcrumb from "../ClientBreadcrumb";
 import FliterProductAll from "./FliterProductAll";
 import { useDispatch, useSelector } from "react-redux";
@@ -20,16 +20,14 @@ export default function ProductAll() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSize, setSelectedSize] = useState(null);
-  const [availableColors, setAvailableColors] = useState([]);
   const [selectedColor, setSelectedColor] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndexes, setCurrentImageIndexes] = useState({});
   const [availableSizes, setAvailableSizes] = useState([]);
   const [filterValues, setFilterValues] = useState({});
-  const totalProducts = data.length;
-  const start = (currentPage - 1) * pageSize + 1;
-  const end = Math.min(currentPage * pageSize, totalProducts);
 
+  const [searchParams] = useSearchParams();
+  const keyword = searchParams.get("search");
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -57,11 +55,11 @@ export default function ProductAll() {
     navigate(`/productDetail/${id}`);
   };
 
+  // 1. Khi mở modal, reset lại
   const onAddToCartClick = (product) => {
     const isOutOfStock = product.chiTietSanPhams.every(
       (ct) => ct.soLuongTon === 0
     );
-
     if (isOutOfStock) {
       messageApi.warning("Sản phẩm đã hết hàng!");
       return;
@@ -69,71 +67,126 @@ export default function ProductAll() {
 
     setSelectedProduct(product);
     setModalVisible(true);
-    setSelectedSize(null);
     setSelectedColor(null);
-    setAvailableColors([]);
+    setSelectedSize(null);
     setQuantity(1);
+    setAvailableSizes([]); // reset
   };
 
-  const addToCart = ({ product, selectedDetail }) => {
+  // 2. Lấy danh sách màu duy nhất (có hàng)
+  const availableColorList = Array.from(
+    new Map(
+      selectedProduct?.chiTietSanPhams
+        .filter((ct) => ct.soLuongTon > 0) // chỉ lấy cái còn hàng
+        .map((ct) => [ct.tenMauSac, ct])
+    ).values()
+  ).map((ct) => ({
+    tenMauSac: ct.tenMauSac,
+    maHex: ct.maHex,
+  }));
+
+  // 3. Khi chọn màu → lọc size có hàng của màu đó
+  const handleColorClick = (color) => {
+    setSelectedColor(color);
+    setSelectedSize(null);
+    setQuantity(1);
+
+    const sizesOfColor = selectedProduct.chiTietSanPhams
+      .filter((ct) => ct.tenMauSac === color && ct.soLuongTon > 0)
+      .map((ct) => ct.tenKichThuoc);
+
+    setAvailableSizes([...new Set(sizesOfColor)]);
+  };
+
+  // 4. Lấy chính xác chi tiết sản phẩm (ưu tiên cái còn hàng nhiều nhất)
+  // THAY TOÀN BỘ ĐOẠN NÀY TRONG ProductAll
+  const selectedDetail = useMemo(() => {
+    if (!selectedProduct || !selectedColor || !selectedSize) return null;
+
+    // Lấy tất cả các variant trùng màu + size
+    const candidates = selectedProduct.chiTietSanPhams.filter(
+      (ct) =>
+        ct.tenMauSac === selectedColor &&
+        ct.tenKichThuoc === selectedSize &&
+        ct.trangThai === true
+    );
+
+    if (candidates.length === 0) return null;
+
+    // ƯU TIÊN: còn hàng + giá rẻ nhất (giaSauGiam)
+    const inStock = candidates
+      .filter((c) => c.soLuongTon > 0)
+      .sort((a, b) => {
+        const priceA = a.giaSauGiam ?? a.giaBan;
+        const priceB = b.giaSauGiam ?? b.giaBan;
+        return priceA - priceB; // giá rẻ lên trước
+      });
+
+    // Nếu có hàng → lấy cái rẻ nhất còn hàng
+    if (inStock.length > 0) {
+      return inStock[0];
+    }
+
+    // Nếu hết hàng → vẫn trả về cái rẻ nhất để hiển thị giá (không cho mua)
+    const cheapest = candidates.reduce((best, curr) => {
+      const pBest = best.giaSauGiam ?? best.giaBan;
+      const pCurr = curr.giaSauGiam ?? curr.giaBan;
+      return pCurr < pBest ? curr : best;
+    });
+
+    return cheapest;
+  }, [selectedProduct, selectedColor, selectedSize]);
+
+  const addToCart = () => {
     if (!selectedDetail) {
-      messageApi.error("Vui lòng chọn size và màu trước khi thêm vào giỏ hàng");
+      messageApi.error("Vui lòng chọn màu và size!");
+      return;
+    }
+
+    if (selectedDetail.soLuongTon === 0) {
+      messageApi.error("Sản phẩm này đã hết hàng!");
       return;
     }
 
     const CART_KEY = "cart";
     const cart = JSON.parse(localStorage.getItem(CART_KEY)) || [];
+    const img = selectedDetail.anhs?.[0]?.duongDanAnh || "";
 
+    // Dùng ID chi tiết để phân biệt chính xác các lô hàng khác nhau
     const existingIndex = cart.findIndex(
-      (item) =>
-        item.id === selectedDetail.id &&
-        item.tenKichThuoc === selectedDetail.tenKichThuoc &&
-        item.tenMauSac === selectedDetail.tenMauSac
+      (item) => item.id === selectedDetail.id
     );
 
-    const duongDanAnh = selectedDetail.anhs?.[0]?.duongDanAnh;
-
     if (existingIndex >= 0) {
-      if (cart[existingIndex].quantity >= selectedDetail.soLuongTon) {
-        messageApi.warning("Đã thêm đủ số lượng sản phẩm này trong giỏ hàng");
-        setQuantity(selectedDetail.soLuongTon);
-        return;
+      const newQty = cart[existingIndex].quantity + quantity;
+      if (newQty > selectedDetail.soLuongTon) {
+        messageApi.warning("Đã đạt tối đa số lượng tồn kho!");
+        cart[existingIndex].quantity = selectedDetail.soLuongTon;
+      } else {
+        cart[existingIndex].quantity = newQty;
+        messageApi.success("Cộng dồn số lượng thành công!");
       }
-
-      const totalQuantity = cart[existingIndex].quantity + quantity;
-      cart[existingIndex].quantity =
-        totalQuantity > selectedDetail.soLuongTon
-          ? selectedDetail.soLuongTon
-          : totalQuantity;
-
-      messageApi.success("Đã cộng dồn số lượng sản phẩm trong giỏ hàng!");
     } else {
-      const finalQuantity = Math.min(quantity, selectedDetail.soLuongTon);
       cart.push({
         id: selectedDetail.id,
-        tenSanPham: product.tenSanPham,
+        tenSanPham: selectedProduct.tenSanPham,
+        tenMauSac: selectedDetail.tenMauSac,
+        maHex: selectedDetail.maHex,
         tenKichThuoc: selectedDetail.tenKichThuoc,
         maVach: selectedDetail.maVach,
-        maHex: selectedDetail.maHex,
-        tenMauSac: selectedDetail.tenMauSac,
         giaBan: selectedDetail.giaBan,
         giaSauGiam: selectedDetail.giaSauGiam || selectedDetail.giaBan,
         soLuongTon: selectedDetail.soLuongTon,
-        quantity: finalQuantity,
-        duongDanAnh,
+        quantity: Math.min(quantity, selectedDetail.soLuongTon),
+        duongDanAnh: img,
       });
-      messageApi.success("Đã thêm sản phẩm vào giỏ hàng!");
+      messageApi.success("Đã thêm vào giỏ hàng!");
     }
 
     localStorage.setItem(CART_KEY, JSON.stringify(cart));
     setModalVisible(false);
     window.dispatchEvent(new Event("cartUpdated"));
   };
-
-  const selectedDetail =
-    selectedProduct?.chiTietSanPhams.find(
-      (ct) => ct.tenKichThuoc === selectedSize && ct.tenMauSac === selectedColor
-    ) || null;
 
   const hasDiscount = (product) => {
     if (!product.chiTietSanPhams || product.chiTietSanPhams.length === 0) {
@@ -154,7 +207,6 @@ export default function ProductAll() {
     const discount = firstDetail.giaBan - firstDetail.giaSauGiam;
     return Math.round((discount / firstDetail.giaBan) * 100);
   };
-
 
   const filteredData = data
     ?.filter((product) => product.trangThai === true)
@@ -189,6 +241,14 @@ export default function ProductAll() {
         return false;
       return true;
     });
+  const filteredKeywordData = filteredData.filter((product) =>
+    keyword
+      ? product.tenSanPham.toLowerCase().includes(keyword.toLowerCase())
+      : true
+  );
+  const totalProducts = filteredKeywordData.length;
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(currentPage * pageSize, totalProducts);
   return (
     <>
       {contextHolder}
@@ -217,7 +277,7 @@ export default function ProductAll() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {filteredData.map((product) => (
+          {filteredKeywordData.map((product) => (
             <div key={product.id} className="flex flex-col gap-4">
               <div className="p-12 bg-gray-100 min-w-[306px] max-w-[306px] min-h-[325px] max-h-[325px] flex items-center justify-center rounded-2xl relative group cursor-pointer">
                 {/* Hiển thị badge giảm giá nếu có */}
@@ -256,12 +316,15 @@ export default function ProductAll() {
                   </Tooltip>
                 </div>
               </div>
-              <div className="flex gap-2 text-sm ">
-                <div className="border px-2 rounded-md">
+              <div className="flex gap-2 text-xs ">
+                <div className="bg-orange-200 hover:text-orange-600  px-3 py-1  rounded-md">
                   {product.tenChatLieu}
                 </div>
-                <div className="border px-2 rounded-md">
+                <div className="bg-orange-200 hover:text-orange-600  px-3 py-1  rounded-md">
                   {product.tenKieuDang}
+                </div>
+                <div className="bg-orange-200 hover:text-orange-600  px-3 py-1  rounded-md">
+                  {product.tenXuatXu}
                 </div>
               </div>
               <div className="flex flex-col gap-2">
@@ -317,15 +380,8 @@ export default function ProductAll() {
           <Button
             key="confirm"
             type="primary"
-            disabled={
-              !selectedColor ||
-              !selectedSize ||
-              quantity < 1 ||
-              selectedDetail?.soLuongTon === 0
-            }
-            onClick={() =>
-              addToCart({ product: selectedProduct, selectedDetail })
-            }
+            disabled={!selectedDetail || selectedDetail.soLuongTon === 0}
+            onClick={addToCart}
           >
             {selectedDetail?.soLuongTon === 0
               ? "Hết hàng"
@@ -338,52 +394,49 @@ export default function ProductAll() {
             {/* CHỌN MÀU TRƯỚC */}
             <div className="mb-4">
               <div className="mb-2 font-semibold">Chọn màu:</div>
-              <div className="flex gap-2 flex-wrap">
-                {Array.from(
-                  new Set(
-                    selectedProduct.chiTietSanPhams.map((ct) => ct.tenMauSac)
-                  )
-                ).map((color) => (
+              <div className="flex gap-3 flex-wrap">
+                {availableColorList.map((item) => (
                   <div
-                    key={color}
-                    className={`px-4 py-2 border rounded cursor-pointer ${
-                      selectedColor === color
-                        ? "bg-orange-600 text-white border-black"
-                        : "bg-white"
+                    key={item.tenMauSac}
+                    onClick={() => handleColorClick(item.tenMauSac)}
+                    className={`relative cursor-pointer border-2 rounded-lg overflow-hidden ${
+                      selectedColor === item.tenMauSac
+                        ? "border-orange-600 shadow-lg"
+                        : "border-gray-300"
                     }`}
-                    onClick={() => {
-                      setSelectedColor(color);
-                      // LỌC SIZE THEO MÀU
-                      const sizes = selectedProduct.chiTietSanPhams
-                        .filter((ct) => ct.tenMauSac === color)
-                        .map((ct) => ct.tenKichThuoc);
-                      setAvailableColors([]);
-                      setAvailableSizes(sizes);
-                      setSelectedSize(null);
-                    }}
                   >
-                    {color}
+                    <div
+                      className="w-16 h-16"
+                      style={{ backgroundColor: item.maHex || "#ccc" }}
+                      title={item.tenMauSac}
+                    />
+                    <div className="text-xs text-center mt-1">
+                      {item.tenMauSac}
+                    </div>
+                    {selectedColor === item.tenMauSac && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-white text-xl font-bold">✓</div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* SAU KHI CHỌN MÀU MỚI CHO CHỌN SIZE */}
-            {availableSizes?.length > 0 && (
+            {/* CHỌN SIZE */}
+            {availableSizes.length > 0 && (
               <div className="mb-4">
                 <div className="mb-2 font-semibold">Chọn size:</div>
                 <div className="flex gap-2 flex-wrap">
                   {availableSizes.map((size) => (
                     <div
                       key={size}
-                      className={`px-4 py-2 border rounded cursor-pointer ${
+                      onClick={() => setSelectedSize(size)}
+                      className={`px-5 py-3 border rounded-lg cursor-pointer text-center min-w-12 ${
                         selectedSize === size
-                          ? "bg-orange-600 text-white border-black"
-                          : "bg-white"
+                          ? "bg-orange-600 text-white border-orange-600"
+                          : "border-gray-400 hover:border-gray-600"
                       }`}
-                      onClick={() => {
-                        setSelectedSize(size);
-                      }}
                     >
                       {size}
                     </div>
@@ -391,15 +444,12 @@ export default function ProductAll() {
                 </div>
               </div>
             )}
-
-            {/* THÔNG TIN GIÁ */}
             {selectedDetail && (
               <div className="mb-4">
                 <div className="mb-2 font-semibold">Giá:</div>
                 <div className="flex gap-2 items-center">
                   {selectedDetail.giaSauGiam &&
                   selectedDetail.giaSauGiam < selectedDetail.giaBan ? (
-                    // Hiển thị khi có giảm giá
                     <>
                       <div className="font-bold text-lg text-orange-800">
                         {formatVND(selectedDetail.giaSauGiam)}
@@ -418,7 +468,6 @@ export default function ProductAll() {
                       </div>
                     </>
                   ) : (
-                    // Hiển thị khi không có giảm giá
                     <div className="font-bold text-lg text-orange-800">
                       {formatVND(selectedDetail.giaBan)}
                     </div>
@@ -426,8 +475,6 @@ export default function ProductAll() {
                 </div>
               </div>
             )}
-
-            {/* SỐ LƯỢNG */}
             <div className="mb-4">
               <div className="mb-2 font-semibold">Số lượng:</div>
               <InputNumber
