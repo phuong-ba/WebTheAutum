@@ -8,7 +8,7 @@ function ProductCard({ product }) {
   const productLink = product.link || `${linkPro}/productDetail/${product.id}`;
 
   return (
-    <div className="flex flex-col border rounded-xl p-2 gap-2 bg-white shadow hover:shadow-lg transition">
+    <div className="flex flex-col border rounded-xl  p-2 gap-2 bg-white shadow hover:shadow-lg transition ">
       <a href={productLink} target="_blank" rel="noopener noreferrer">
         <div className="flex gap-1">
           {(product.hinhAnhSanPham?.length
@@ -215,131 +215,158 @@ export default function AdminChat() {
     }
   };
 
-  // Scroll xuống cuối chat
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   return (
     <div className="flex h-screen gap-4 p-4 bg-gray-100">
-      {/* Sidebar phòng */}
-      <div className="w-64 bg-white shadow rounded-lg overflow-y-auto">
+      {/* Danh sách phòng - cố định chiều rộng */}
+      <div className="w-64 bg-white shadow rounded-lg flex flex-col">
         <h3 className="font-bold text-lg p-4 border-b">Phòng Chat</h3>
-        {rooms.map((r) => (
-          <div
-            key={r.roomId}
-            className="p-3 m-2 cursor-pointer border rounded hover:bg-yellow-100 transition"
-            onClick={() => joinRoom(r)}
-          >
-            <span className="font-semibold">{r.khachHang}</span> (
-            {r.loai === 0 ? "AI" : "Nhân viên"})
-          </div>
-        ))}
+        <div className="flex-1 overflow-y-auto">
+          {rooms.map((r) => (
+            <div
+              key={r.roomId}
+              className={`p-3 mx-2 my-1 cursor-pointer border rounded transition ${
+                currentRoom?.roomId === r.roomId
+                  ? "bg-orange-100 border-orange-400"
+                  : "hover:bg-blue-100"
+              }`}
+              onClick={() => joinRoom(r)}
+            >
+              <span className="font-semibold">{r.khachHang}</span>
+              <span className="text-xs text-gray-500 ml-2">
+                ({r.loai === 0 ? "AI" : "Nhân viên"})
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Khu chat */}
-      <div className="flex-1 flex flex-col bg-white shadow rounded-lg">
-        <div className="bg-yellow-500 text-white font-bold px-4 py-2 flex justify-between items-center rounded-t-lg">
-          Chat với {currentRoom?.khachHang || "Chọn phòng"}
+      {/* Khu vực chat chính */}
+      <div className="flex-1 bg-white shadow rounded-lg flex flex-col min-h-0">
+        {/* Header */}
+        <div className="bg-orange-600 text-white font-bold px-6 py-4 flex justify-between items-center rounded-t-lg shrink-0">
+          <span>Chat với {currentRoom?.khachHang || "Chọn phòng chat"}</span>
           {currentRoom && (
-            <button
+            <div
               onClick={leaveRoom}
-              className="bg-red-500 px-2 py-1 rounded hover:bg-red-600 transition"
+              className="bg-blue-950 hover:bg-blue-800 px-4 py-2 rounded text-xs transition cursor-pointer"
             >
               Rời phòng
-            </button>
+            </div>
           )}
         </div>
 
-        <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-2">
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={`flex ${
-                m.guiTu === 1 ? "justify-end" : "justify-start"
-              } items-end`}
-            >
-              {m.guiTu !== 1 && (
-                <div className="w-6 h-6 rounded-full bg-gray-300 text-xs flex items-center justify-center mr-2">
-                  {m.guiTu === 0 ? "KH" : "AI"}
+        {/* Tin nhắn - chiếm toàn bộ không gian còn lại */}
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-3 min-h-0">
+          {loading ? (
+            <div className="text-center text-gray-500">
+              Đang tải tin nhắn...
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="text-center text-gray-400">Chưa có tin nhắn</div>
+          ) : (
+            <>
+              {messages.map((m, i) => (
+                <div
+                  key={i}
+                  className={`flex items-end gap-2 ${
+                    m.guiTu === 1 ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  {m.guiTu !== 1 && (
+                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs font-bold shrink-0">
+                      {m.guiTu === 0 ? "KH" : "AI"}
+                    </div>
+                  )}
+
+                  <div
+                    className={`max-w-[70%] px-4 py-3 rounded-2xl break-words ${
+                      m.guiTu === 1
+                        ? "bg-green-500 text-white"
+                        : m.guiTu === 0
+                        ? "bg-yellow-500 text-white"
+                        : "bg-blue-500 text-white"
+                    }`}
+                  >
+                    {m.guiTu === 1 ? (
+                      <div className="text-sm">{m.noiDung}</div>
+                    ) : (
+                      <>
+                        <div className="text-sm">
+                          {m.parsed?.message || m.noiDung}
+                        </div>
+
+                        {/* Hiển thị sản phẩm */}
+                        {m.parsed?.products?.length > 0 && (
+                          <div className="grid grid-cols-2 gap-3 mt-3">
+                            {m.parsed.products.map((p) => (
+                              <ProductCard
+                                key={p.id}
+                                product={{
+                                  id: p.id,
+                                  tenSanPham: p.tenSanPham || p.name,
+                                  hinhAnhSanPham:
+                                    p.hinhAnhSanPham ||
+                                    (p.image ? [p.image] : []),
+                                  price: p.price || 0,
+                                  color: p.color || "",
+                                  size_suggestion: p.size_suggestion || "",
+                                  link: p.link || `/productDetail/${p.id}`,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Câu hỏi gợi ý */}
+                        {m.parsed?.follow_up_question && (
+                          <div className="mt-3 text-sm italic opacity-90">
+                            {m.parsed.follow_up_question}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Typing indicator */}
+              {typingStatus && (
+                <div className="flex items-center gap-2 text-gray-500 text-sm italic">
+                  <span>{typingStatus}</span>
+                  <span className="animate-pulse">...</span>
                 </div>
               )}
 
-              <div
-                className={`max-w-[70%] px-3 py-2 rounded-2xl break-words ${
-                  m.guiTu === 1
-                    ? "bg-green-400 text-white text-right"
-                    : m.guiTu === 0
-                    ? "bg-yellow-500 text-white"
-                    : "bg-blue-400 text-white"
-                }`}
-              >
-                {m.guiTu === 1 ? (
-                  <span className="text-sm">{m.noiDung}</span>
-                ) : (
-                  <>
-                    <span className="text-[10px] font-semibold">
-                      {m.guiTu === 0 ? "Khách" : "AI"}:
-                    </span>{" "}
-                    <span className="text-sm">
-                      {m.parsed?.message || m.noiDung}
-                    </span>
-                    {m.parsed?.products?.length > 0 && (
-                      <div className="flex flex-col gap-2 mt-2">
-                        {m.parsed.products.map((p) => (
-                          <ProductCard
-                            key={p.id}
-                            product={{
-                              id: p.id,
-                              tenSanPham: p.tenSanPham || p.name || "Sản phẩm",
-                              hinhAnhSanPham:
-                                p.hinhAnhSanPham || (p.image ? [p.image] : []),
-                              price: p.price || 0,
-                              color: p.color || "",
-                              size_suggestion: p.size_suggestion || "",
-                              link: p.link || `/productDetail/${p.id}`,
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {m.parsed?.follow_up_question && (
-                      <div className="mt-2 text-white-700 text-sm font-medium">
-                        {m.parsed.follow_up_question}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {typingStatus && (
-            <div className="text-gray-500 italic text-sm mt-1 ml-2 flex items-center gap-1">
-              <span>{typingStatus}</span>
-              <span className="animate-pulse">...</span>
-            </div>
+              <div ref={bottomRef} />
+            </>
           )}
-
-          <div ref={bottomRef}></div>
         </div>
 
+        {/* Ô nhập tin nhắn - cố định dưới cùng */}
         {currentRoom && (
-          <div className="flex p-2 border-t border-gray-300 gap-2 bg-white rounded-b-lg">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder="Nhập tin nhắn..."
-              className="flex-1 border border-gray-300 rounded-full px-3 py-1 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-            <button
-              onClick={sendMessage}
-              className="bg-yellow-500 text-white px-4 py-1 rounded-full hover:bg-yellow-600 transition-colors"
-            >
-              Gửi
-            </button>
+          <div className="border-t border-gray-200 p-4 shrink-0">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && !e.shiftKey && sendMessage()
+                }
+                placeholder="Nhập tin nhắn... (Enter để gửi)"
+                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+              <button
+                onClick={sendMessage}
+                className="bg-orange-600 text-white px-8 py-3 rounded-xl hover:bg-orange-700 transition font-semibold"
+              >
+                Gửi
+              </button>
+            </div>
           </div>
         )}
       </div>

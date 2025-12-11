@@ -27,26 +27,68 @@ export default function ProductDetail() {
   const [activeDetails, setActiveDetails] = useState([]);
   const dispatch = useDispatch();
   const dataDetail = useSelector((state) => state.chiTietSanPham.dataDetail);
-
+  const [variantGroups, setVariantGroups] = useState(new Map());
   const { id } = useParams();
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
   useEffect(() => {
-    if (dataDetail && dataDetail.length > 0) {
-      const active = dataDetail.filter((item) => item.trangThai === true);
-      setActiveDetails(active);
+    if (!dataDetail || dataDetail.length === 0) return;
 
-      if (active.length > 0) {
-        const defaultColor = active[0].maHex || active[0].tenMauSac || null;
-        setSelectedColor(defaultColor);
-        setSelectedDetail(active[0]);
-        setSelectedImage(active[0]?.anhs?.[0]?.duongDanAnh);
-      } else {
-        setSelectedColor(null);
-        setSelectedDetail(null);
+    const active = dataDetail.filter((item) => item.trangThai === true);
+
+    // Tạo map: key = "màu-size" → value = danh sách các variant trùng
+    const variantGroups = new Map();
+
+    active.forEach((item) => {
+      const colorKey = item.maHex?.trim() || item.tenMauSac?.trim();
+      const sizeKey = item.tenKichThuoc?.trim();
+      const key = `${colorKey}-${sizeKey}`;
+
+      if (!variantGroups.has(key)) {
+        variantGroups.set(key, []);
       }
+      variantGroups.get(key).push(item);
+    });
+
+    const bestVariants = [];
+
+    variantGroups.forEach((variants) => {
+      // Sắp xếp ưu tiên: còn hàng > giá rẻ nhất > mới tạo nhất
+      const sorted = variants.sort((a, b) => {
+        // 1. Ưu tiên có hàng
+        if (a.soLuongTon > 0 && b.soLuongTon === 0) return -1;
+        if (b.soLuongTon > 0 && a.soLuongTon === 0) return 1;
+
+        // 2. Giá sau giảm rẻ hơn
+        const priceA = a.giaSauGiam ?? a.giaBan;
+        const priceB = b.giaSauGiam ?? b.giaBan;
+        if (priceA !== priceB) return priceA - priceB;
+
+        // 3. Tồn kho nhiều hơn
+        if (a.soLuongTon !== b.soLuongTon) return b.soLuongTon - a.soLuongTon;
+
+        // 4. Mới tạo nhất
+        return new Date(b.ngayTao) - new Date(a.ngayTao);
+      });
+
+      // Lấy bản tốt nhất
+      bestVariants.push(sorted[0]);
+    });
+
+    setActiveDetails(bestVariants);
+
+    if (bestVariants.length > 0) {
+      const inStock =
+        bestVariants.find((v) => v.soLuongTon > 0) || bestVariants[0];
+      const colorValue = inStock.maHex || inStock.tenMauSac;
+
+      setSelectedColor(colorValue);
+      setSelectedSize(inStock.tenKichThuoc);
+      setSelectedDetail(inStock);
+      setSelectedImage(inStock.anhs?.[0]?.duongDanAnh || "");
     }
+    setVariantGroups(variantGroups);
   }, [dataDetail]);
 
   useEffect(() => {
@@ -74,12 +116,15 @@ export default function ProductDetail() {
     setSelectedSize(null);
     setQuantity(1);
 
+    // Tìm variant đầu tiên có màu đó (đã được gộp)
     const variant = activeDetails.find(
       (d) => (d.maHex || d.tenMauSac) === colorValue
     );
 
-    setSelectedDetail(variant);
-    setSelectedImage(variant?.anhs?.[0]?.duongDanAnh);
+    if (variant) {
+      setSelectedDetail(variant);
+      setSelectedImage(variant.anhs?.[0]?.duongDanAnh);
+    }
   };
 
   const handleSelectSize = (size) => {
@@ -88,19 +133,47 @@ export default function ProductDetail() {
       return;
     }
 
-    const found = activeDetails.find(
-      (d) =>
-        d.tenKichThuoc === size && (d.maHex || d.tenMauSac) === selectedColor
-    );
+    const colorKey = `${selectedColor}-${size}`;
+    const group = Array.from(variantGroups?.values?.() || [])
+      .flat()
+      .filter(
+        (item) =>
+          (item.maHex || item.tenMauSac) === selectedColor &&
+          item.tenKichThuoc === size &&
+          item.trangThai === true
+        // chỉ lấy còn hoạt động
+      );
 
-    if (!found) return messageApi.warning("Size không có cho màu này");
+    if (group.length === 0) {
+      messageApi.warning("Size này không tồn tại cho màu đã chọn");
+      return;
+    }
 
-    if (found.soLuongTon === 0)
-      return messageApi.warning("Size này đã hết hàng");
+    // Tìm bản CÓ HÀNG
+    let available = group.find((item) => item.soLuongTon > 0);
+
+    // Nếu không có bản nào còn hàng → lấy bản rẻ nhất còn tồn tại (để hiển thị giá)
+    if (!available) {
+      available = group.reduce((best, curr) => {
+        const pBest = best.giaSauGiam ?? best.giaBan;
+        const pCurr = curr.giaSauGiam ?? curr.giaBan;
+        return pCurr < pBest ? curr : best;
+      });
+      messageApi.warning(`Size ${size} đã hết hàng cho màu này`);
+    } else {
+      // Có hàng → thông báo nếu chuyển sang lô khác
+      const currentDisplayed = activeDetails.find(
+        (d) =>
+          (d.maHex || d.tenMauSac) === selectedColor && d.tenKichThuoc === size
+      );
+      if (currentDisplayed && currentDisplayed.id !== available.id) {
+        messageApi.info(`Đã chuyển sang lô hàng mới cho size ${size}`);
+      }
+    }
 
     setSelectedSize(size);
-    setSelectedDetail(found);
-    setSelectedImage(found?.anhs?.[0]?.duongDanAnh);
+    setSelectedDetail(available);
+    setSelectedImage(available.anhs?.[0]?.duongDanAnh || "");
     setQuantity(1);
   };
 
@@ -243,21 +316,21 @@ export default function ProductDetail() {
               <div className="flex flex-col gap-2 items-start">
                 <div className="text-3xl font-bold">{detail.tenSanPham}</div>
 
-                {/* Hiển thị badge giảm giá nếu có */}
-                {hasDiscount(detail) && (
-                  <div className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
-                    -{calculateDiscountPercentage(detail)}%
+                <div className="flex gap-3">
+                  <div
+                    className={`text-xs font-bold px-3 py-1 rounded-md ${
+                      detail.soLuongTon > 0
+                        ? "text-blue-800 bg-blue-200"
+                        : "text-red-800 bg-red-200"
+                    }`}
+                  >
+                    {detail.soLuongTon > 0 ? "Còn hàng" : "Hết hàng"}
                   </div>
-                )}
-
-                <div
-                  className={`text-xs font-bold px-3 py-1 rounded-md ${
-                    detail.soLuongTon > 0
-                      ? "text-blue-800 bg-blue-200"
-                      : "text-red-800 bg-red-200"
-                  }`}
-                >
-                  {detail.soLuongTon > 0 ? "Còn hàng" : "Hết hàng"}
+                  {hasDiscount(detail) && (
+                    <div className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
+                      - {calculateDiscountPercentage(detail)}%
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -287,7 +360,6 @@ export default function ProductDetail() {
                     </div>
                   </>
                 ) : (
-                  // Hiển thị khi không có giảm giá
                   <div className="font-semibold text-orange-800 text-2xl">
                     {formatVND(detail.giaBan)}
                   </div>
@@ -297,35 +369,39 @@ export default function ProductDetail() {
               {/* MÀU SẮC */}
               <div className="flex gap-2 items-center">
                 <div className="text-sm font-bold">Màu sắc:</div>
-
                 <div className="flex gap-3 flex-wrap">
-                  {activeDetails.map((item) => {
-                    const colorValue = item.maHex || item.tenMauSac;
+                  {[
+                    ...new Set(
+                      activeDetails.map((item) => item.maHex || item.tenMauSac)
+                    ),
+                  ].map((colorValue) => {
+                    const item = activeDetails.find(
+                      (d) => (d.maHex || d.tenMauSac) === colorValue
+                    );
 
                     return item.maHex ? (
-                      // Nếu có maHex → hiển thị vòng tròn màu
                       <div
-                        key={item.id}
-                        className={`w-6 h-6 rounded-full border-2 cursor-pointer 
-                          ${
-                            selectedColor === colorValue
-                              ? "border-black scale-110"
-                              : "border-gray-300"
-                          }`}
+                        key={colorValue}
+                        onClick={() => handleSelectColor(colorValue)}
+                        className={`w-6 h-6 rounded-full border-2 cursor-pointer transition-all
+            ${
+              selectedColor === colorValue
+                ? "border-black scale-110 shadow-lg"
+                : "border-gray-300 hover:border-gray-400 hover:scale-105"
+            }`}
                         style={{ backgroundColor: item.maHex }}
-                        onClick={() => handleSelectColor(colorValue)}
-                      ></div>
+                        title={item.tenMauSac}
+                      />
                     ) : (
-                      // Nếu không có maHex → hiển thị tên màu
                       <div
-                        key={item.id}
+                        key={colorValue}
                         onClick={() => handleSelectColor(colorValue)}
-                        className={`px-3 py-1 border rounded text-sm cursor-pointer 
-                          ${
-                            selectedColor === colorValue
-                              ? "border-black font-semibold"
-                              : "border-gray-400 text-gray-600"
-                          }`}
+                        className={`px-4 py-2 border-2 rounded-lg text-sm font-medium cursor-pointer transition-all
+            ${
+              selectedColor === colorValue
+                ? "border-black bg-black text-white"
+                : "border-gray-300 hover:border-black"
+            }`}
                       >
                         {item.tenMauSac}
                       </div>
