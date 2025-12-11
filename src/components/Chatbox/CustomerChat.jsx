@@ -50,12 +50,10 @@ export default function CustomerChat() {
   const [typingStatus, setTypingStatus] = useState("");
   const [hasStaffJoined, setHasStaffJoined] = useState(false);
   const [open, setOpen] = useState(false);
-
   const stompClient = useRef(null);
   const subscriptionRef = useRef(null);
   const bottomRef = useRef();
 
-  // Connect khi mở chat
   useEffect(() => {
     if (!open) return;
 
@@ -125,11 +123,8 @@ export default function CustomerChat() {
 
           setMessages((prev) => [...prev, { ...body, parsed }]);
 
-
-          // Reset typing status
           if (body.guiTu === 1 || body.guiTu === 2) setTypingStatus("");
 
-          // Cập nhật trạng thái nhân viên
           if (
             body.noiDung.includes(
               "Nhân viên đã tham gia chat, AI sẽ tạm dừng trả lời"
@@ -143,8 +138,7 @@ export default function CustomerChat() {
           if (body.noiDung.includes("Nhân viên đã rời"))
             setHasStaffJoined(false);
 
-            // setTypingStatus("");
-          }
+          // setTypingStatus("");
         }
       );
     });
@@ -197,7 +191,7 @@ export default function CustomerChat() {
 
       {/* Chat box */}
       {open && (
-        <div className="fixed bottom-20 right-6 w-96 max-w-[92vw] h-[580px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden z-50 animate-in slide-in-from-bottom duration-300">
+        <div className="fixed bottom-20 right-6 w-96 min-w-[30vw] h-[580px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden z-50 animate-in slide-in-from-bottom duration-300">
           {/* Header */}
           <div className="bg-gradient-to-r from-orange-500 to-pink-500 text-white p-3 flex justify-between items-start shadow-md">
             <div className="flex items-center gap-2">
