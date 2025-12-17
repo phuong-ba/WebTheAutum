@@ -43,7 +43,7 @@ const safeFormatDate = (dateString) => {
   if (!dateString) return "";
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return "";
-  return format(date, "dd/MM/yyyy HH:mm", { locale: vi });
+  return format(date, "dd/MM/yyyy", { locale: vi });
 };
 
 export default function OrderDetailPage() {
@@ -514,7 +514,7 @@ export default function OrderDetailPage() {
                     </div>
                   )}
 
-                  {(data.phiPhu > 0 || data.phiPhuMoi > 0) && (
+                  {/* {(data.phiPhu > 0 || data.phiPhuMoi > 0) && (
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-amber-600 font-semibold">
                         <span className="flex items-center gap-2">
@@ -557,7 +557,7 @@ export default function OrderDetailPage() {
                         </div>
                       )}
                     </div>
-                  )}
+                  )} */}
 
                   <div className="border-t pt-3 mt-2">
                     <div className="flex justify-between text-lg font-bold text-gray-900">
@@ -602,7 +602,7 @@ export default function OrderDetailPage() {
                     </div>
                   )}
 
-                  {data.phiPhuDetails && data.phiPhuDetails.length > 0 && (
+                  {/* {data.phiPhuDetails && data.phiPhuDetails.length > 0 && (
                     <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="text-sm text-amber-800 font-medium mb-1">
                         📝 Ghi chú phụ phí:
@@ -621,7 +621,7 @@ export default function OrderDetailPage() {
                         ))}
                       </ul>
                     </div>
-                  )}
+                  )} */}
 
                   <div className="mt-4 pt-4 border-t">
                     <div className="flex justify-between items-center">

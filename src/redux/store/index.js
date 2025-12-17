@@ -12,6 +12,7 @@ import giamGiaKhachHangSlice from "../slices/giamGiaKhachHangSlice";
 import phuongThucThanhToanSlice from "../slices/phuongThucThanhToanSlice";
 import giaoCaSlice from "../slices/giaoCaSlice";
 import orderSlice from "../slices/orderSlice";
+import mauSacSlice from "../slices/mauSacSlice";
 
 const store = configureStore({
   reducer: {
@@ -27,6 +28,7 @@ const store = configureStore({
     phuongThucThanhToan: phuongThucThanhToanSlice,
     giaoCa: giaoCaSlice,
     vanChuyen: vanChuyenReducer,
+    mausac: mauSacSlice,
   },
 });
 

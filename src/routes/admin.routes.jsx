@@ -32,6 +32,9 @@ import ChatBot from "@/pages/chatbot/ChatBot";
 import ChangeShifts from "@/pages/changeShifts/ChangeShifts";
 import ShiftManagement from "@/pages/shift/ShiftManagement";
 import GiaoCaManagement from "@/pages/shift/GiaoCaManagement";
+import Color from "@/pages/color/Color";
+import AddColor from "@/pages/color/AddColor";
+import UpdateColor from "@/pages/color/UpdateColor";
 
 const contentStyle = {
   padding: 50,
@@ -173,6 +176,30 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <AddDiscount />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "color",
+        element: (
+          <LazyLoad>
+            <Color />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "add-color",
+        element: (
+          <LazyLoad>
+            <AddColor />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "update-color",
+        element: (
+          <LazyLoad>
+            <UpdateColor />
           </LazyLoad>
         ),
       },
