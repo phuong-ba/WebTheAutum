@@ -18,13 +18,13 @@ import { useNavigate } from "react-router";
 import UploadAvartar from "../../components/UploadAvartar";
 import dayjs from "dayjs";
 import axios from "axios";
-import UserBreadcrumb from "./UserBreadcrumb";
+import UserBreadcrumb from "./ColorBreadcrumb";
 import Webcam from "react-webcam";
 import { UserCirclePlusIcon } from "@phosphor-icons/react";
 import baseUrl from "@/api/instance";
 const { Option } = Select;
 
-export default function AddUser() {
+export default function AddColor() {
   const dispatch = useDispatch();
   const [form] = Form.useForm();
   const navigate = useNavigate();
@@ -138,6 +138,7 @@ export default function AddUser() {
         GioiTinh: data.sex === "NAM" ? "Nam" : "Nữ",
         DiaChi: shortAddress || "",
         province: provinceCode,
+        cccd: data.id,
         ward: wardCode,
       });
 
@@ -177,6 +178,7 @@ export default function AddUser() {
       email: values.Email,
       chucVuId: values.ChucVu,
       ngaySinh: values.NgaySinh,
+      cccd: values.cccd,
       hinhAnh: imageUrl,
       matKhau: values.MatKhau || "123456",
       trangThai: true,
@@ -276,6 +278,15 @@ export default function AddUser() {
                 </Row>
 
                 <Row gutter={16} wrap className="gap-10">
+                  <Col flex="1">
+                    <Form.Item
+                      name="cccd"
+                      label="Căn cước công dân"
+                      rules={[{ required: true, message: "Nhập CCCD" }]}
+                    >
+                      <Input placeholder="Nhập căn cước công dân" />
+                    </Form.Item>
+                  </Col>
                   <Col flex="1">
                     <Form.Item
                       name="Email"

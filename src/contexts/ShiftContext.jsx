@@ -17,15 +17,12 @@ import {
   getShiftRemainingTime,
 } from "@/services/giaoCaService";
 
-const API_BASE = "http://192.203.4.110:8080/api";
+const API_BASE = import.meta.env.VITE_API_BASE;
 
-// Polling interval in milliseconds (check every 5 seconds)
 const SHIFT_CHECK_INTERVAL = 5000;
 
-// Check shift time every minute
 const SHIFT_TIME_CHECK_INTERVAL = 60000;
 
-// Warning threshold in minutes (warn when 5 minutes remaining)
 const SHIFT_END_WARNING_MINUTES = 5;
 
 const ShiftContext = createContext(null);
@@ -426,7 +423,6 @@ export const ShiftProvider = ({ children }) => {
     clearShift,
     setActiveShift,
     checkShiftStatus,
-    // Scheduled shift info
     scheduledShiftInfo,
     shiftTimeExpired,
     fetchScheduledShiftInfo,

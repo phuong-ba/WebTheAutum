@@ -24,6 +24,7 @@ import {
   Statistic,
   Collapse,
   Progress,
+  Tooltip,
 } from "antd";
 import {
   EditOutlined,
@@ -569,8 +570,10 @@ const DetailHoaDon = () => {
 
   useEffect(() => {
     if (invoice) {
-      checkEditPermissions(invoice.trangThai);
-      setCanEdit(invoice.trangThai === 0);
+      checkEditPermissions(invoice.trangThai, invoice.idPhuongThucThanhToan);
+      setCanEdit(
+        invoice.trangThai === 0 && invoice.idPhuongThucThanhToan !== 2
+      );
     }
   }, [invoice]);
 
@@ -584,15 +587,26 @@ const DetailHoaDon = () => {
     }
   };
 
-  const checkEditPermissions = (status) => {
-    const editable = status === 0;
+  const checkEditPermissions = (status, idPhuongThucThanhToan) => {
+    // Kiểm tra phương thức thanh toán
+    const daThanhToanBangChuyenKhoan = idPhuongThucThanhToan === 2;
+
+    // Chỉ cho phép chỉnh sửa khi:
+    // - Trạng thái hóa đơn là 0 (Chờ xác nhận)
+    // - VÀ phương thức thanh toán KHÔNG phải là chuyển khoản (id=2)
+    const editable = status === 0 && !daThanhToanBangChuyenKhoan;
+
     setCanEdit(editable);
     setCanEditCustomerInfo(editable);
     setCanEditProducts(editable);
 
     if (!editable && isEditing) {
       setIsEditing(false);
-      message.info("Đơn hàng đã chuyển trạng thái, không thể chỉnh sửa");
+      message.info(
+        daThanhToanBangChuyenKhoan
+          ? "Đơn hàng thanh toán bằng chuyển khoản, không thể chỉnh sửa"
+          : "Đơn hàng đã chuyển trạng thái, không thể chỉnh sửa"
+      );
     }
   };
 
@@ -679,6 +693,10 @@ const DetailHoaDon = () => {
   };
 
   const handleEditToggle = () => {
+    if (invoice?.trangThaiThanhToan) {
+      message.warning("Đơn hàng đã thanh toán, không thể chỉnh sửa!");
+      return;
+    }
     setIsEditing(true);
     setTempStatus(invoice?.trangThai || 0);
     setTempLoaiHoaDon(invoice?.loaiHoaDon || false);
@@ -1145,7 +1163,10 @@ const DetailHoaDon = () => {
       setInvoiceProducts(invoiceData.chiTietSanPhams || []);
       setTempStatus(invoiceData.trangThai || 0);
       setTempLoaiHoaDon(invoiceData.loaiHoaDon || false);
-
+      checkEditPermissions(
+        invoiceData.trangThai || 0,
+        invoiceData.idPhuongThucThanhToan
+      );
       const total = (invoiceData.chiTietSanPhams || []).reduce(
         (sum, item) =>
           sum + (item.giaSauGiam || item.giaBan || 0) * (item.soLuong || 1),
@@ -1500,8 +1521,6 @@ const DetailHoaDon = () => {
   const finalTotal = {
     tongTienSanPham: tongTien || invoice.tongTien || 0,
     phiVanChuyen: invoice.phiVanChuyen || 0,
-    phiPhu: phiPhu || 0,
-    phiPhuMoi: phiPhuMoi || 0,
     tienGiamGia: (() => {
       const hasDiscountInfo =
         invoice.giaTriGiamGia !== undefined && invoice.giaTriGiamGia !== null;
@@ -1552,10 +1571,7 @@ const DetailHoaDon = () => {
 
       // 3. Cộng các loại phí (vận chuyển, phụ phí)
       const tongTienCuoiCung =
-        Math.max(0, tongTienSauGiam) +
-        (invoice.phiVanChuyen || 0) +
-        (phiPhu || 0) +
-        (phiPhuMoi || 0);
+        Math.max(0, tongTienSauGiam) + (invoice.phiVanChuyen || 0);
 
       return tongTienCuoiCung;
     },
@@ -1627,9 +1643,21 @@ const DetailHoaDon = () => {
                     Chỉnh sửa
                   </Button>
                 ) : (
-                  <Button icon={<LockOutlined />} disabled>
-                    Không thể sửa
-                  </Button>
+                  <Tooltip
+                    title={
+                      invoice?.idPhuongThucThanhToan === 2
+                        ? "Đơn hàng thanh toán bằng chuyển khoản, không thể chỉnh sửa"
+                        : invoice?.trangThai !== 0
+                        ? "Chỉ có thể chỉnh sửa đơn hàng ở trạng thái 'Chờ xác nhận'"
+                        : "Không thể sửa"
+                    }
+                  >
+                    <Button icon={<LockOutlined />} disabled>
+                      {invoice?.idPhuongThucThanhToan === 2
+                        ? "Đã thanh toán chuyển khoản"
+                        : "Không thể sửa"}
+                    </Button>
+                  </Tooltip>
                 )}
 
                 {invoice?.trangThai === 4 && (
@@ -1990,7 +2018,7 @@ const DetailHoaDon = () => {
                       </div>
                     )}
 
-                    {(finalTotal.phiPhu > 0 || finalTotal.phiPhuMoi > 0) && (
+                    {/* {(finalTotal.phiPhu > 0 || finalTotal.phiPhuMoi > 0) && (
                       <div
                         style={{
                           display: "flex",
@@ -2010,9 +2038,9 @@ const DetailHoaDon = () => {
                           )}
                         </Text>
                       </div>
-                    )}
+                    )} */}
 
-                    {showPhiPhuDetails && phiPhuDetails.length > 0 && (
+                    {/* {showPhiPhuDetails && phiPhuDetails.length > 0 && (
                       <div
                         style={{
                           padding: "8px",
@@ -2037,7 +2065,7 @@ const DetailHoaDon = () => {
                           </div>
                         ))}
                       </div>
-                    )}
+                    )} */}
 
                     {finalTotal.tienGiamGia > 0 && (
                       <div
@@ -2066,7 +2094,7 @@ const DetailHoaDon = () => {
                     >
                       <Text>Tổng tiền sau giảm giá:</Text>
                       <Text strong>
-                        {formatMoney(paymentSummary.tongTienSauGiam)}
+                        {formatMoney(finalTotal.tongTienCuoiCung())}
                       </Text>
                     </div>
 
@@ -2083,27 +2111,6 @@ const DetailHoaDon = () => {
                       </Text>
                     </div>
 
-                    {/* Còn lại cần thanh toán */}
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Text>Còn lại cần thanh toán:</Text>
-                      <Text
-                        strong
-                        style={{
-                          color:
-                            paymentSummary.soTienCanThanhToan > 0
-                              ? "#faad14"
-                              : "#52c41a",
-                        }}
-                      >
-                        {formatMoney(paymentSummary.soTienCanThanhToan)}
-                      </Text>
-                    </div>
-
                     {/* Thanh toán đủ hay chưa */}
                     {paymentSummary.soTienCanThanhToan === 0 ? (
                       <Alert
@@ -2115,7 +2122,7 @@ const DetailHoaDon = () => {
                     ) : (
                       <Alert
                         message={`Còn phải thanh toán: ${formatMoney(
-                          paymentSummary.soTienCanThanhToan
+                          finalTotal.tongTienCuoiCung()
                         )}`}
                         type="warning"
                         showIcon

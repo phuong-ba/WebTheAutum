@@ -22,6 +22,7 @@ import { Button, Menu } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useShift } from "@/contexts/ShiftContext";
 import {
+  ArticleIcon,
   CalendarIcon,
   ChatCircleDotsIcon,
   ClockUserIcon,
@@ -61,9 +62,32 @@ export default function Navbar() {
     {
       label: "Quản lý sản phẩm",
       icon: <IconProduct />,
-
-      key: "/admin/product",
-      label: "Danh mục sản phẩm",
+      children: [
+        {
+          type: "group",
+          children: [
+            {
+              label: "Danh mục sản phẩm",
+              icon: <IconProduct />,
+              key: "/admin/product",
+            },
+            {
+              label: "Thuộc tính sản phẩm",
+              icon: <ArticleIcon size={24} />,
+              key: "/admin/color",
+              children: [
+                { label: "Màu sắc", key: "/admin/color" },
+                { label: "Chất liệu", key: "/admin/material" },
+                { label: "Xuất xứ", key: "/admin/origin" },
+                { label: "Hãng", key: "/admin/company" },
+                { label: "Kiểu dáng", key: "/admin/style" },
+                { label: "Cổ áo", key: "/admin/collar" },
+                { label: "Tay áo", key: "/admin/sleeve" },
+              ],
+            },
+          ],
+        },
+      ],
     },
     {
       key: "/admin/discount",
@@ -118,6 +142,11 @@ export default function Navbar() {
       label: "Quản lý khách hàng",
     },
     {
+      key: "/admin/chatbot",
+      icon: <ChatCircleDotsIcon size={24} />,
+      label: "Quản lý chat",
+    },
+    {
       key: "/admin/changeShifts",
       icon: <ClockUserIcon size={24} />,
       label: "Giao Ca",
@@ -125,7 +154,6 @@ export default function Navbar() {
   ];
 
   const getMenuItems = () => {
-
     if (userRole === "ADMIN" || userRole === "Quản lý" || contextIsAdmin) {
       return adminMenuItems;
     } else {

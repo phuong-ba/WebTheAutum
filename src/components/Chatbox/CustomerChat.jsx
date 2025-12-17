@@ -171,7 +171,7 @@ export default function CustomerChat() {
       {!open && (
         <div
           onClick={() => setOpen(true)}
-          className="fixed bottom-20 cursor-pointer right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 text-white shadow-2xl flex items-center justify-center text-3xl hover:scale-110 transform transition-all duration-300 animate-pulse-slow"
+          className="fixed bottom-10 cursor-pointer right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 text-white shadow-2xl flex items-center justify-center text-3xl hover:scale-110 transform transition-all duration-300 animate-pulse-slow"
         >
           <svg
             className="w-8 h-8"
