@@ -35,6 +35,12 @@ import GiaoCaManagement from "@/pages/shift/GiaoCaManagement";
 import Color from "@/pages/color/Color";
 import AddColor from "@/pages/color/AddColor";
 import UpdateColor from "@/pages/color/UpdateColor";
+import Material from "@/pages/material/Material";
+import Origin from "@/pages/origin/Origin";
+import Company from "@/pages/company/Company";
+import Style from "@/pages/style/Style";
+import Sleeve from "@/pages/sleeve/Sleeve";
+import Collar from "@/pages/collar/Collar";
 
 const contentStyle = {
   padding: 50,
@@ -184,6 +190,54 @@ const adminRouters = [
         element: (
           <LazyLoad>
             <Color />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "material",
+        element: (
+          <LazyLoad>
+            <Material />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "origin",
+        element: (
+          <LazyLoad>
+            <Origin />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "sleeve",
+        element: (
+          <LazyLoad>
+            <Sleeve />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "collar",
+        element: (
+          <LazyLoad>
+            <Collar />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "style",
+        element: (
+          <LazyLoad>
+            <Style />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "company",
+        element: (
+          <LazyLoad>
+            <Company />
           </LazyLoad>
         ),
       },
