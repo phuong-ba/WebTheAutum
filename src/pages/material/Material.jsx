@@ -8,35 +8,36 @@ import {
   Button,
   Form,
   Input,
-  ColorPicker,
   Spin,
+  Badge,
 } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  filterMauSac,
-  addMauSac,
-  changeStatusMauSac,
-} from "@/services/mauSacService";
-import { useNavigate } from "react-router";
+  fetchFilterChatLieu,
+  fetchAddChatLieu,
+  fetchUpdateTrangThai,
+} from "@/redux/slices/chatLieuSlice";
+import { useNavigate } from "react-router-dom";
 
-// ✅ IMPORT ICONS GIỐNG PRODUCT
+// Icons
 import {
   ToggleLeftIcon,
   ToggleRightIcon,
   PencilLineIcon,
 } from "@phosphor-icons/react";
-
-import ColorBreadcrumb from "./ColorBreadcrumb";
-import FliterColor from "./FliterColor";
-
-// Import sync actions từ slice
+// Actions từ slice
 import {
   updatePagination,
   updateAdvancedFilters,
-  resetMauSacState
-} from "@/redux/slices/mauSacSlice";
+  resetChatLieuState,
+} from "@/redux/slices/chatLieuSlice";
 
-export default function Color() {
+// Components
+import MaterialBreadcrumb from "./MaterialBreadcrumb";
+import dayjs from "dayjs";
+import FilterMaterial from "./FliterMaterial";
+
+export default function Material() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [messageApi, messageContextHolder] = message.useMessage();
@@ -48,25 +49,29 @@ export default function Color() {
     status,
     error,
     pagination: reduxPagination,
-    advancedFilters: reduxAdvancedFilters
-  } = useSelector((state) => state.mausac);
+    advancedFilters: reduxAdvancedFilters,
+  } = useSelector((state) => state.chatlieu);
 
   // Modal states
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
-  const [isAddConfirmModalVisible, setIsAddConfirmModalVisible] = useState(false);
+  const [isAddConfirmModalVisible, setIsAddConfirmModalVisible] =
+    useState(false);
   const [addForm] = Form.useForm();
   const [addFormValues, setAddFormValues] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const [statusLoading, setStatusLoading] = useState(null);
 
-  // Transform data để đảm bảo luôn là array
+  // Transform data
   const tableData = useMemo(() => {
     if (!rawData) return [];
     if (Array.isArray(rawData)) return rawData;
     if (rawData.data && Array.isArray(rawData.data)) return rawData.data;
-    if (rawData.content && Array.isArray(rawData.content)) return rawData.content;
-    if (typeof rawData === 'object' && rawData !== null) {
-      const arrayKeys = Object.keys(rawData).filter(key => Array.isArray(rawData[key]));
+    if (rawData.content && Array.isArray(rawData.content))
+      return rawData.content;
+    if (typeof rawData === "object" && rawData !== null) {
+      const arrayKeys = Object.keys(rawData).filter((key) =>
+        Array.isArray(rawData[key])
+      );
       if (arrayKeys.length > 0) return rawData[arrayKeys[0]];
     }
     return [];
@@ -74,33 +79,42 @@ export default function Color() {
 
   // Thống kê
   const stats = useMemo(() => {
-    const activeCount = tableData.filter(item => item.trangThai === true).length;
-    const inactiveCount = tableData.filter(item => item.trangThai === false).length;
+    const activeCount = tableData.filter(
+      (item) => item.trangThai === true
+    ).length;
+    const inactiveCount = tableData.filter(
+      (item) => item.trangThai === false
+    ).length;
 
     return {
       total: tableData.length,
       active: activeCount,
       inactive: inactiveCount,
-      activePercent: tableData.length > 0 ? Math.round((activeCount / tableData.length) * 100) : 0
+      activePercent:
+        tableData.length > 0
+          ? Math.round((activeCount / tableData.length) * 100)
+          : 0,
     };
   }, [tableData]);
 
   // Fetch initial data
   useEffect(() => {
-    dispatch(filterMauSac({
-      pageNo: 0,
-      pageSize: reduxPagination.pageSize || 10,
-      searchText: "",
-      maMauSac: "",
-      tenMauSac: "",
-      trangThai: undefined,
-    }));
+    dispatch(
+      fetchFilterChatLieu({
+        pageNo: 0,
+        pageSize: reduxPagination.pageSize || 10,
+        searchText: "",
+        maChatLieu: "",
+        tenChatLieu: "",
+        trangThai: undefined,
+      })
+    );
   }, [dispatch, reduxPagination.pageSize]);
 
-  // ✅ XỬ LÝ THAY ĐỔI TRẠNG THÁI - GIỐNG PRODUCT
+  // Xử lý thay đổi trạng thái
   const handleChangeStatus = (record) => {
     if (!record?.id) {
-      return messageApi.error("Thông tin màu sắc không hợp lệ");
+      return messageApi.error("Thông tin chất liệu không hợp lệ");
     }
 
     const action = record.trangThai ? "Kết thúc" : "Kích hoạt";
@@ -108,15 +122,17 @@ export default function Color() {
 
     modal.confirm({
       title: `Xác nhận ${action}`,
-      content: `Bạn có chắc muốn ${action.toLowerCase()} màu sắc "${record.tenMauSac}"?`,
+      content: `Bạn có chắc muốn ${action.toLowerCase()} chất liệu "${
+        record.tenChatLieu
+      }"?`,
       okText: action,
       cancelText: "Hủy",
       async onOk() {
         setStatusLoading(record.id);
-        
+
         try {
           await dispatch(
-            changeStatusMauSac({
+            fetchUpdateTrangThai({
               id: record.id,
               trangThai: newStatus,
             })
@@ -124,7 +140,6 @@ export default function Color() {
 
           messageApi.success(`${action} thành công!`);
           handleRefreshCurrentPage();
-          
         } catch (err) {
           console.error("🔴 Lỗi API:", err);
           messageApi.error(err.response?.data?.message || "Có lỗi xảy ra");
@@ -135,7 +150,7 @@ export default function Color() {
     });
   };
 
-  // === Xử lý thêm màu sắc ===
+  // Xử lý thêm chất liệu
   const showAddModal = () => {
     addForm.resetFields();
     setIsAddModalVisible(true);
@@ -157,29 +172,18 @@ export default function Color() {
     setIsAdding(true);
 
     try {
-      let maHex = "";
-      if (typeof addFormValues.maHex === "object" && addFormValues.maHex?.toHexString) {
-        maHex = addFormValues.maHex.toHexString().toUpperCase();
-      } else if (typeof addFormValues.maHex === "string") {
-        maHex = addFormValues.maHex.toUpperCase();
-      }
+      const maChatLieu = addFormValues.maChatLieu?.trim().toUpperCase();
+      const tenChatLieu = addFormValues.tenChatLieu?.trim();
 
-      const tenMauSac = addFormValues.tenMauSac?.trim();
-
-      if (!maHex || !tenMauSac) {
+      if (!maChatLieu || !tenChatLieu) {
         messageApi.error("Vui lòng nhập đầy đủ thông tin!");
         return;
       }
 
-      if (!/^#[0-9A-F]{6}$/i.test(maHex)) {
-        messageApi.error("Mã HEX không hợp lệ!");
-        return;
-      }
-
       await dispatch(
-        addMauSac({
-          maHex,
-          tenMauSac,
+        fetchAddChatLieu({
+          maChatLieu,
+          tenChatLieu,
           trangThai: true,
         })
       ).unwrap();
@@ -189,16 +193,15 @@ export default function Color() {
       addForm.resetFields();
 
       messageApi.success({
-        content: `Đã thêm màu sắc "${tenMauSac}" thành công!`,
+        content: `Đã thêm chất liệu "${tenChatLieu}" thành công!`,
         duration: 3,
       });
 
       handleRefreshCurrentPage();
-
     } catch (error) {
-      console.error("Add color error:", error);
+      console.error("Add material error:", error);
       messageApi.error({
-        content: error?.message || "Thêm màu sắc thất bại!",
+        content: error?.message || "Thêm chất liệu thất bại!",
         duration: 3,
       });
     } finally {
@@ -207,66 +210,84 @@ export default function Color() {
     }
   };
 
-  // === Xử lý phân trang ===
+  // Xử lý phân trang
   const handleTableChange = (newPagination) => {
-    dispatch(updatePagination({
-      current: newPagination.current,
-      pageSize: newPagination.pageSize,
-    }));
+    dispatch(
+      updatePagination({
+        current: newPagination.current,
+        pageSize: newPagination.pageSize,
+      })
+    );
 
     const pageNo = newPagination.current - 1;
 
-    dispatch(filterMauSac({
-      pageNo,
-      pageSize: newPagination.pageSize,
-      searchText: reduxAdvancedFilters.searchText || "",
-      maMauSac: reduxAdvancedFilters.maMauSac || "",
-      tenMauSac: reduxAdvancedFilters.tenMauSac || "",
-      trangThai: reduxAdvancedFilters.trangThai,
-      ngayTao: reduxAdvancedFilters.ngayTao,
-    }));
+    dispatch(
+      fetchFilterChatLieu({
+        pageNo,
+        pageSize: newPagination.pageSize,
+        searchText: reduxAdvancedFilters.searchText || "",
+        maChatLieu: reduxAdvancedFilters.maChatLieu || "",
+        tenChatLieu: reduxAdvancedFilters.tenChatLieu || "",
+        trangThai: reduxAdvancedFilters.trangThai,
+        ngayTao: reduxAdvancedFilters.ngayTao,
+      })
+    );
   };
 
   // Refresh trang hiện tại
   const handleRefreshCurrentPage = () => {
-    dispatch(filterMauSac({
-      pageNo: reduxPagination.pageNo || 0,
-      pageSize: reduxPagination.pageSize || 10,
-      searchText: reduxAdvancedFilters.searchText || "",
-      maMauSac: reduxAdvancedFilters.maMauSac || "",
-      tenMauSac: reduxAdvancedFilters.tenMauSac || "",
-      trangThai: reduxAdvancedFilters.trangThai,
-      ngayTao: reduxAdvancedFilters.ngayTao,
-    }));
+    dispatch(
+      fetchFilterChatLieu({
+        pageNo: reduxPagination.pageNo || 0,
+        pageSize: reduxPagination.pageSize || 10,
+        searchText: reduxAdvancedFilters.searchText || "",
+        maChatLieu: reduxAdvancedFilters.maChatLieu || "",
+        tenChatLieu: reduxAdvancedFilters.tenChatLieu || "",
+        trangThai: reduxAdvancedFilters.trangThai,
+        ngayTao: reduxAdvancedFilters.ngayTao,
+      })
+    );
   };
 
-  // === Xem tất cả (reset filters) ===
+  // Xem tất cả (reset filters)
   const handleShowAll = () => {
-    dispatch(updateAdvancedFilters({
-      searchText: "",
-      maMauSac: "",
-      tenMauSac: "",
-      ngayTao: null,
-      trangThai: undefined,
-    }));
+    dispatch(
+      updateAdvancedFilters({
+        searchText: "",
+        maChatLieu: "",
+        tenChatLieu: "",
+        ngayTao: null,
+        trangThai: undefined,
+      })
+    );
 
-    dispatch(updatePagination({
-      current: 1,
-      pageNo: 0,
-      pageSize: 10,
-    }));
+    dispatch(
+      updatePagination({
+        current: 1,
+        pageNo: 0,
+        pageSize: 10,
+      })
+    );
 
-    dispatch(filterMauSac({
-      pageNo: 0,
-      pageSize: 10,
-      searchText: "",
-      maMauSac: "",
-      tenMauSac: "",
-      trangThai: undefined,
-    }));
+    dispatch(
+      fetchFilterChatLieu({
+        pageNo: 0,
+        pageSize: 10,
+        searchText: "",
+        maChatLieu: "",
+        tenChatLieu: "",
+        trangThai: undefined,
+      })
+    );
   };
 
-  // ✅ CỘT BẢNG - ĐỒNG NHẤT VỚI PRODUCT
+  // Định dạng ngày tháng
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return dayjs(dateString).format("DD/MM/YYYY HH:mm");
+  };
+
+  // Cột bảng
   const columns = [
     {
       title: "STT",
@@ -288,47 +309,36 @@ export default function Color() {
       align: "center",
     },
     {
-      title: "MÃ MÀU SẮC",
-      dataIndex: "maMauSac",
-      key: "maMauSac",
-      width: 130,
-      render: (text) => <Tag color="blue">{text || "N/A"}</Tag>,
-    },
-    {
-      title: "MÃ HEX",
-      dataIndex: "maHex",
-      key: "maHex",
+      title: "MÃ CHẤT LIỆU",
+      dataIndex: "maChatLieu",
+      key: "maChatLieu",
+      width: 150,
       align: "center",
-      width: 180,
-      render: (hex, record) => (
-        <div className="flex items-center justify-center gap-2">
-          {hex ? (
-            <>
-              <div
-                className="w-6 h-6 rounded border shadow-sm"
-                style={{
-                  backgroundColor: hex,
-                  borderColor: '#d9d9d9'
-                }}
-                title={`Màu: ${record.tenMauSac} (${hex})`}
-              />
-              <span className="font-mono text-sm font-medium">{hex.toUpperCase()}</span>
-            </>
-          ) : (
-            <span className="text-gray-400">N/A</span>
-          )}
-        </div>
+      render: (text) => (
+        <Tag color="blue" className="font-semibold">
+          {text || "N/A"}
+        </Tag>
       ),
     },
     {
-      title: "TÊN MÀU SẮC",
-      dataIndex: "tenMauSac",
-      key: "tenMauSac",
-      width: 200,
+      title: "TÊN CHẤT LIỆU",
+      dataIndex: "tenChatLieu",
+      key: "tenChatLieu",
+      width: 250,
+      align: "center",
       render: (text) => (
         <span className="font-medium text-gray-900">{text || "N/A"}</span>
       ),
     },
+    // {
+    //   title: "NGÀY TẠO",
+    //   dataIndex: "ngayTao",
+    //   key: "ngayTao",
+    //   width: 180,
+    //   render: (date) => (
+    //     <span className="text-gray-600">{formatDate(date)}</span>
+    //   ),
+    // },
     {
       title: "TRẠNG THÁI",
       dataIndex: "trangThai",
@@ -351,31 +361,30 @@ export default function Color() {
       width: 120,
       render: (_, record) => (
         <Space>
-          {/* ✅ TOGGLE BUTTON - GIỐNG PRODUCT */}
-          <a
+          {/* Toggle button */}
+          <Button
+            type="link"
             onClick={(e) => {
               e.preventDefault();
               handleChangeStatus(record);
             }}
-            style={{
-              cursor: statusLoading === record.id ? "not-allowed" : "pointer",
-              opacity: statusLoading === record.id ? 0.6 : 1,
-            }}
-          >
-            {statusLoading === record.id ? (
-              <span>...</span>
-            ) : record.trangThai ? (
-              <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
-            ) : (
-              <ToggleLeftIcon weight="fill" size={30} color="#c5c5c5" />
-            )}
-          </a>
-          
-          {/* ✅ EDIT BUTTON - GIỐNG PRODUCT */}
+            disabled={statusLoading === record.id}
+            icon={
+              statusLoading === record.id ? (
+                <Spin size="small" />
+              ) : record.trangThai ? (
+                <ToggleRightIcon weight="fill" size={30} color="#00A96C" />
+              ) : (
+                <ToggleLeftIcon weight="fill" size={30} color="#c5c5c5" />
+              )
+            }
+          />
+
+          {/* Edit button */}
           <Button
             type="link"
             icon={<PencilLineIcon size={24} weight="fill" color="#E67E22" />}
-            onClick={() => navigate(`/admin/update-color/${record.id}`)}
+            onClick={() => navigate(`/admin/update-material/${record.id}`)}
           />
         </Space>
       ),
@@ -397,12 +406,14 @@ export default function Color() {
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="text-red-700 font-medium mb-2">Đã xảy ra lỗi</div>
-          <div className="text-red-600 mb-4">{error || "Không thể tải dữ liệu"}</div>
+          <div className="text-red-600 mb-4">
+            {error?.message || "Không thể tải dữ liệu"}
+          </div>
           <div className="flex gap-3">
             <Button type="primary" danger onClick={handleShowAll}>
               Thử lại
             </Button>
-            <Button onClick={() => dispatch(resetMauSacState())}>
+            <Button onClick={() => dispatch(resetChatLieuState())}>
               Reset state
             </Button>
           </div>
@@ -415,41 +426,27 @@ export default function Color() {
     <div className="min-h-screen bg-gray-50 p-6">
       {messageContextHolder}
       {contextHolder}
-      
-      {/* ✅ HEADER - GIỐNG PRODUCT */}
+
       <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
         <div className="font-bold text-4xl text-[#E67E22]">
-          Quản lý màu sắc
+          Quản lý chất liệu
         </div>
-        <div className="flex justify-between items-center mb-2">
-          <div className="text-sm text-gray-600">
-            <span
-              className="cursor-pointer hover:text-[#E67E22]"
-              onClick={() => navigate("/")}
-            >
-              Trang chủ
-            </span>
-            <span className="mx-2">/</span>
-            <span className="text-gray-900 font-medium">Quản lý màu sắc</span>
-          </div>
-        </div>
+        <MaterialBreadcrumb />
       </div>
 
-      {/* ✅ FILTER SECTION - GIỐNG PRODUCT */}
       <div className="bg-white rounded-lg shadow mb-6 overflow-hidden mt-6">
         <div className="bg-[#E67E22] text-white px-6 py-3">
-          <div className="font-bold text-2xl text-white">Bộ lọc màu sắc</div>
+          <div className="font-bold text-2xl text-white">Bộ lọc chất liệu</div>
         </div>
         <div className="p-4">
-          <FliterColor showAddModal={showAddModal} />
+          <FilterMaterial showAddModal={showAddModal} />
         </div>
       </div>
 
-      {/* ✅ TABLE SECTION - GIỐNG PRODUCT */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="bg-[#E67E22] text-white px-6 py-3 flex justify-between items-center">
           <div className="font-bold text-2xl text-white">
-            Danh sách màu sắc ({stats.total} màu)
+            Danh sách chất liệu 
           </div>
         </div>
 
@@ -462,10 +459,14 @@ export default function Color() {
             current: reduxPagination.current,
             pageSize: reduxPagination.pageSize,
             total: reduxPagination.totalElements || tableData.length,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} của ${total} chất liệu`,
           }}
           onChange={handleTableChange}
-          locale={{ 
-            emptyText: "Không có dữ liệu màu sắc" 
+          locale={{
+            emptyText: "Không có dữ liệu chất liệu",
           }}
           className="custom-table"
         />
@@ -473,9 +474,9 @@ export default function Color() {
 
       {/* ========== MODALS ========== */}
 
-      {/* Modal thêm màu sắc */}
+      {/* Modal thêm chất liệu */}
       <Modal
-        title={<span className="text-xl font-bold">Thêm màu sắc mới</span>}
+        title={<span className="text-xl font-bold">Thêm chất liệu mới</span>}
         open={isAddModalVisible}
         onCancel={() => {
           if (!isAdding) {
@@ -490,38 +491,25 @@ export default function Color() {
       >
         <Form form={addForm} layout="vertical" className="mt-6">
           <Form.Item
-            name="maHex"
-            label="Mã HEX"
-            rules={[{ required: true, message: "Vui lòng chọn màu sắc!" }]}
-            getValueFromEvent={(color) => color?.toHexString ? color.toHexString() : color}
-            normalize={(value) => typeof value === "string" ? value.toUpperCase() : value}
-          >
-            <ColorPicker
-              format="hex"
-              showText={(color) => color?.toHexString ? color.toHexString().toUpperCase() : ""}
-              size="large"
-              allowClear={false}
-              disabled={isAdding}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="tenMauSac"
-            label="Tên màu sắc"
+            name="tenChatLieu"
+            label="Tên chất liệu"
             rules={[
-              { required: true, message: "Vui lòng nhập tên màu sắc!" },
-              { min: 2, message: "Tên màu sắc phải có ít nhất 2 ký tự!" },
-              { max: 100, message: "Tên màu sắc không quá 100 ký tự!" },
+              { required: true, message: "Vui lòng nhập tên chất liệu!" },
+              { min: 2, message: "Tên chất liệu phải có ít nhất 2 ký tự!" },
+              { max: 255, message: "Tên chất liệu không quá 255 ký tự!" },
             ]}
           >
             <Input
-              placeholder="VD: Đỏ tươi, Xanh dương, Vàng cam..."
+              placeholder="VD: Cotton, Polyester, Da thật..."
               disabled={isAdding}
             />
           </Form.Item>
 
           <div className="flex justify-end gap-4 mt-8">
-            <Button onClick={() => setIsAddModalVisible(false)} disabled={isAdding}>
+            <Button
+              onClick={() => setIsAddModalVisible(false)}
+              disabled={isAdding}
+            >
               Hủy
             </Button>
             <Button type="primary" onClick={handleAddSubmit} loading={isAdding}>
@@ -531,7 +519,7 @@ export default function Color() {
         </Form>
       </Modal>
 
-      {/* Modal xác nhận thêm màu sắc */}
+      {/* Modal xác nhận thêm chất liệu */}
       <Modal
         open={isAddConfirmModalVisible}
         onCancel={() => {
@@ -546,33 +534,14 @@ export default function Color() {
         destroyOnClose
       >
         <div className="flex flex-col items-center gap-4 p-4">
-          <h2 className="text-xl font-bold text-center">Xác nhận thêm màu sắc</h2>
+          <h2 className="text-xl font-bold text-center">Xác nhận thêm chất liệu</h2>
           
           {addFormValues && (
             <div className="w-full bg-gray-50 rounded-lg p-4">
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="font-medium text-gray-700 w-32">Mã HEX:</div>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-6 h-6 rounded border"
-                      style={{
-                        backgroundColor: typeof addFormValues.maHex === 'object'
-                          ? addFormValues.maHex.toHexString?.()
-                          : addFormValues.maHex
-                      }}
-                    />
-                    <span className="font-semibold font-mono">
-                      {typeof addFormValues.maHex === 'object'
-                        ? addFormValues.maHex.toHexString?.().toUpperCase()
-                        : addFormValues.maHex?.toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-                
                 <div className="flex items-start gap-3">
-                  <div className="font-medium text-gray-700 w-32">Tên màu:</div>
-                  <div className="font-semibold text-gray-900">{addFormValues.tenMauSac}</div>
+                  <div className="font-medium text-gray-700 w-32">Tên chất liệu:</div>
+                  <div className="font-semibold text-gray-900">{addFormValues.tenChatLieu}</div>
                 </div>
                 
                 <div className="flex items-center gap-3">
@@ -586,7 +555,7 @@ export default function Color() {
           )}
           
           <p className="text-gray-600 text-center mt-2">
-            Bạn có chắc muốn thêm màu sắc này vào hệ thống?
+            Bạn có chắc muốn thêm chất liệu này vào hệ thống?
           </p>
 
           <div className="flex justify-center gap-6 mt-6 w-full">
