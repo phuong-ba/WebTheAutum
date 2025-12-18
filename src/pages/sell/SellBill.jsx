@@ -391,11 +391,6 @@ export default function SellBill({ onSelectBill }) {
         <p>
           Bạn có chắc muốn xóa hóa đơn <strong>"{billToDelete?.name}"</strong>?
         </p>
-        {billToDelete?.createdAt && (
-          <p className="mt-2">
-            <strong>Ngày tạo:</strong> {formatDate(billToDelete.createdAt)}
-          </p>
-        )}
       </Modal>
 
       <div className="bg-white py-5 px-4 flex flex-col gap-3 rounded-lg shadow overflow-hidden h-full">
