@@ -132,7 +132,24 @@ const hoaDonApi = {
     return baseUrl.get("hoa-don/co-the-hoan-tien", {
       params: { page, size }
     });
-  }
+  },
+
+  createHoaDonRong(hoaDon) {
+    return baseUrl.post("hoa-don/tao-hoa-don-rong", hoaDon);
+  },
+
+  getHoaDonCho () {
+  return baseUrl.get("hoa-don/hoa-don-cho?trangThai=5");
+  },
+
+  deleteHoaDon (id) {
+  return baseUrl.delete(`hoa-don/${id}`);
+  },
+
+  updateHoaDonRong: (id, data) => {
+    return baseUrl.put(`hoa-don/update-hoa-don/${id}`, data);
+  },
+
 };
 
 export default hoaDonApi;

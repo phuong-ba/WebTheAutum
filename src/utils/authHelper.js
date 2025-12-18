@@ -12,6 +12,10 @@ export const getCurrentUserId = () => {
   return userId ? parseInt(userId) : null;
 };
 
+export const getCurrentUserName = () => {
+  return localStorage.getItem("user_name") || "";
+};
+
 export const isAuthenticated = () => {
   return !!localStorage.getItem("auth_token");
 };

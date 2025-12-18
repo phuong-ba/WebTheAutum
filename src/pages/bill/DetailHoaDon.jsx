@@ -1962,7 +1962,7 @@ const DetailHoaDon = () => {
                   )}
                 </Card>
 
-                <Card title="Ghi chú của khách" style={{ marginBottom: 16 }}>
+                <Card title="Ghi chú" style={{ marginBottom: 16 }}>
                   <div>
                     <Text type="secondary">Ghi chú:</Text>
                     {isEditing && canEditCustomerInfo ? (
