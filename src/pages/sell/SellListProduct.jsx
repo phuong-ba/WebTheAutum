@@ -18,7 +18,6 @@ export default function SellListProduct({ selectedBillId }) {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [colorFilter, setColorFilter] = useState([]);
   const [priceFilter, setPriceFilter] = useState(null);
-
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 5,
@@ -71,7 +70,7 @@ export default function SellListProduct({ selectedBillId }) {
       }
     });
 
-  // ====================== ADD TO BILL ==========================
+  /* ================= THÊM VÀO GIỎ HÀNG ================= */
   const handleAddToCart = async (product) => {
     console.log("Đã thêm sản phẩm ID thực tế (ChiTietSanPham):", product.id);
 
@@ -91,87 +90,125 @@ export default function SellListProduct({ selectedBillId }) {
       // Giảm tồn kho
       await dispatch(giamSoLuong({ id: product.id, soLuong: 1 })).unwrap();
 
+      // Lấy danh sách hóa đơn từ localStorage
       const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-      const currentBill = bills.find((bill) => bill.id === selectedBillId);
-
-      if (!currentBill) {
-        messageApi.error("Không tìm thấy hóa đơn!");
-        return;
-      }
-
-      const cart = currentBill.cart || [];
-      const index = cart.findIndex((p) => p.idChiTietSanPham === product.id);
-
-      const unitPrice = product.giaSauGiam ?? product.giaBan ?? 0;
-      const originalPrice = product.giaBan ?? 0;
-      const hasDiscount =
-        product.giaSauGiam && product.giaSauGiam < product.giaBan;
-
-      let updatedCart;
-
-      if (index !== -1) {
-        updatedCart = cart.map((item, i) =>
-          i === index
-            ? {
-                ...item,
-                quantity: item.quantity + 1,
-                totalPrice: (item.quantity + 1) * unitPrice,
-              }
-            : item
-        );
-      } else {
-        updatedCart = [
-          ...cart,
-          {
-            idChiTietSanPham: product.id,
-            name: product.tenSanPham,
-            color: product.tenMauSac,
-            size: product.tenKichThuoc,
-            weight: product.tenTrongLuong,
-            quantity: 1,
-            unitPrice: unitPrice,
-            originalPrice: originalPrice,
-            totalPrice: unitPrice,
-            hasDiscount: hasDiscount,
-            imageUrl: product.anhs?.[0]?.duongDanAnh || "",
-          },
-        ];
-      }
-
-      const updatedBills = bills.map((bill) => {
-        if (bill.id === selectedBillId) {
-          const totalAmount = updatedCart.reduce(
-            (sum, p) => sum + p.totalPrice,
-            0
-          );
-          return {
-            ...bill,
-            cart: updatedCart,
-            productCount: updatedCart.length,
-            totalAmount,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return bill;
-      });
-
-      localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
-      window.dispatchEvent(new Event("cartUpdated"));
-
-      messageApi.success(
-        hasDiscount
-          ? "Đã thêm sản phẩm vào hóa đơn với giá khuyến mãi!"
-          : "Đã thêm sản phẩm vào hóa đơn!"
+      const currentBillIndex = bills.findIndex(
+        (bill) => bill.id === selectedBillId
       );
 
+      if (currentBillIndex === -1) {
+        // Nếu chưa có trong localStorage, tạo mới
+        const newBill = {
+          id: selectedBillId,
+          cart: [],
+          totalAmount: 0,
+          productCount: 0,
+        };
+
+        // Thêm sản phẩm vào giỏ
+        const unitPrice = product.giaSauGiam ?? product.giaBan ?? 0;
+        const originalPrice = product.giaBan ?? 0;
+        const hasDiscount =
+          product.giaSauGiam && product.giaSauGiam < product.giaBan;
+
+        newBill.cart.push({
+          idChiTietSanPham: product.id,
+          name: product.tenSanPham,
+          color: product.tenMauSac,
+          size: product.tenKichThuoc,
+          weight: product.tenTrongLuong,
+          quantity: 1,
+          unitPrice: unitPrice,
+          originalPrice: originalPrice,
+          totalPrice: unitPrice,
+          hasDiscount: hasDiscount,
+          imageUrl: product.anhs?.[0]?.duongDanAnh || "",
+          maVach: product.maVach || "",
+        });
+
+        newBill.totalAmount = unitPrice;
+        newBill.productCount = 1;
+
+        bills.push(newBill);
+      } else {
+        // Cập nhật hóa đơn có sẵn
+        const currentBill = bills[currentBillIndex];
+        const cart = currentBill.cart || [];
+        const existingProductIndex = cart.findIndex(
+          (p) => p.idChiTietSanPham === product.id
+        );
+
+        const unitPrice = product.giaSauGiam ?? product.giaBan ?? 0;
+        const originalPrice = product.giaBan ?? 0;
+        const hasDiscount =
+          product.giaSauGiam && product.giaSauGiam < product.giaBan;
+
+        let updatedCart;
+
+        if (existingProductIndex !== -1) {
+          // Tăng số lượng sản phẩm có sẵn
+          updatedCart = cart.map((item, i) =>
+            i === existingProductIndex
+              ? {
+                  ...item,
+                  quantity: item.quantity + 1,
+                  totalPrice: (item.quantity + 1) * item.unitPrice,
+                }
+              : item
+          );
+        } else {
+          // Thêm sản phẩm mới
+          updatedCart = [
+            ...cart,
+            {
+              idChiTietSanPham: product.id,
+              name: product.tenSanPham,
+              color: product.tenMauSac,
+              size: product.tenKichThuoc,
+              weight: product.tenTrongLuong,
+              quantity: 1,
+              unitPrice: unitPrice,
+              originalPrice: originalPrice,
+              totalPrice: unitPrice,
+              hasDiscount: hasDiscount,
+              imageUrl: product.anhs?.[0]?.duongDanAnh || "",
+              maVach: product.maVach || "",
+            },
+          ];
+        }
+
+        // Tính tổng tiền
+        const totalAmount = updatedCart.reduce(
+          (sum, p) => sum + p.totalPrice,
+          0
+        );
+
+        // Cập nhật hóa đơn
+        bills[currentBillIndex] = {
+          ...currentBill,
+          cart: updatedCart,
+          productCount: updatedCart.length,
+          totalAmount,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      // Lưu lại vào localStorage
+      localStorage.setItem("pendingBills", JSON.stringify(bills));
+
+      // Gửi sự kiện để các component khác cập nhật
+      window.dispatchEvent(new Event("cartUpdated"));
+
+      // Cập nhật danh sách sản phẩm
       dispatch(fetchChiTietSanPham());
+
+      messageApi.success("Đã thêm sản phẩm vào giỏ hàng!");
     } catch (error) {
       console.error(error);
       messageApi.error("Thêm sản phẩm thất bại!");
     }
   };
 
-  // ====================== TABLE COLUMNS ==========================
   const columns = [
     {
       title: "STT",
@@ -261,7 +298,6 @@ export default function SellListProduct({ selectedBillId }) {
     },
   ];
 
-  // ====================== RENDER ==========================
   return (
     <>
       {contextHolder}

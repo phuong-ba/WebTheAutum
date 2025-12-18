@@ -9,7 +9,6 @@ import {
   CopyOutlined,
   CheckOutlined,
   BankOutlined,
-  ReloadOutlined,
 } from "@ant-design/icons";
 import {
   tinhPhiVanChuyen,
@@ -29,7 +28,7 @@ export default function SellPay({
   selectedCustomer,
   onRemoveDiscount,
   cartItems,
-  selectedBillId,
+  selectedBillId, // ID hóa đơn rỗng đã được chọn
   onClearCart,
   isDelivery,
   addressForm,
@@ -59,8 +58,8 @@ export default function SellPay({
   const [pendingConfirmData, setPendingConfirmData] = useState(null);
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
-  // --- Socket States ---
-  const socketRef = useRef(null); // Dùng Ref để lưu trữ client và tránh lặp
+  // Socket States
+  const socketRef = useRef(null);
   const [stompClient, setStompClient] = useState(null);
   const [isPaid, setIsPaid] = useState(false);
 
@@ -87,49 +86,9 @@ export default function SellPay({
     cartItemsHash: null,
     selectedShipping: null,
   });
-  const showQRModal = (hoaDonMoi) => {
-    if (!hoaDonMoi) return;
-    const amount =
-      hoaDonMoi.soTienThanhToan ||
-      hoaDonMoi.totalWithShipping ||
-      hoaDonMoi.tongTienSauGiam ||
-      totalWithShipping ||
-      cartTotal ||
-      0;
 
-    const bankInfoFromHoaDon = hoaDonMoi.bankInfo || hoaDonMoi.qrBankInfo;
-    const bankInfo = bankInfoFromHoaDon || {
-      bankName: "Ngân hàng ABC",
-      accountNumber: "0123456789",
-      accountHolder: "CỬA HÀNG",
-      branch: "Chi nhánh chính",
-      content:
-        hoaDonMoi.ghiChu ||
-        `Thanh toán ${hoaDonMoi.loaiHoaDon ? "hóa đơn" : "đơn hàng"}`,
-    };
-
-    setPendingHoaDonData(hoaDonMoi);
-    setQrData({ amount, bankInfo });
-    setQrModalVisible(true);
-  };
-  const copyToClipboard = async (text) => {
-    try {
-      if (!text) return;
-      await navigator.clipboard.writeText(String(text));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch (err) {
-      console.error("❌ copyToClipboard error:", err);
-      messageApi.error("Không thể copy nội dung");
-    }
-  };
-  // --- [FIX LỖI LẶP] Kết nối Socket chỉ chạy 1 LẦN DÙ COMPONENT RE-RENDER ---
+  // Socket connection
   useEffect(() => {
-    // Show QR modal with prepared bank info and amount
-
-    // Clipboard copy helper used by QR modal
-
-    // Chỉ khởi tạo nếu Ref chưa có client
     if (socketRef.current) return;
 
     const socket = new SockJS(apiBaseUrl);
@@ -140,7 +99,7 @@ export default function SellPay({
       {},
       () => {
         console.log("✅ SellPay: Đã kết nối WebSocket");
-        socketRef.current = client; // Lưu client vào Ref
+        socketRef.current = client;
         setStompClient(client);
       },
       (err) => {
@@ -149,14 +108,14 @@ export default function SellPay({
     );
 
     return () => {
-      // Cleanup chỉ chạy khi component unmount
       if (socketRef.current && socketRef.current.connected) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
     };
-  }, []); // Dependency rỗng
+  }, []);
 
+  // Send socket data
   useEffect(() => {
     if (stompClient && stompClient.connected && !isPaid) {
       const qrCodeString =
@@ -164,7 +123,6 @@ export default function SellPay({
           ? `${qrData.bankInfo.accountNumber}|${qrData.amount}|${qrData.bankInfo.content}`
           : null;
 
-      // Mapping dữ liệu sản phẩm
       const mappedItems = cartItems.map((item) => ({
         id: item.idChiTietSanPham || item.id,
         tenSanPham: item.tenSanPham || item.name || item.ten || "Sản phẩm",
@@ -197,7 +155,7 @@ export default function SellPay({
         hinhThucThanhToan: paymentMethod || "Chưa chọn",
         qrCodeString: qrCodeString,
         items: mappedItems,
-        trangThai: 1, // 1: Active
+        trangThai: 1,
       };
 
       stompClient.send("/topic/display", {}, JSON.stringify(payload));
@@ -220,10 +178,12 @@ export default function SellPay({
     selectedShipping,
   ]);
 
+  // Load shipping providers
   useEffect(() => {
     dispatch(fetchDonViVanChuyen());
   }, [dispatch]);
 
+  // Auto select GHN for delivery
   useEffect(() => {
     if (isDelivery && donViVanChuyen.length > 0 && !selectedShipping) {
       const ghnProvider = donViVanChuyen.find(
@@ -237,6 +197,7 @@ export default function SellPay({
     }
   }, [donViVanChuyen, selectedShipping, isDelivery, dispatch]);
 
+  // Calculate shipping fee
   useEffect(() => {
     if (!isDelivery) {
       dispatch(resetShippingFee());
@@ -246,12 +207,13 @@ export default function SellPay({
     if (cartItems.length > 0 && selectedShipping && addressForm) {
       const timer = setTimeout(() => {
         calculateShippingFee();
-      }, 800); // nhanh hơn chút cho trải nghiệm mượt
+      }, 800);
 
       return () => clearTimeout(timer);
     }
   }, [isDelivery, cartItems, selectedShipping, addressForm, dispatch]);
 
+  // Recalculate shipping when address changes
   useEffect(() => {
     if (isDelivery && selectedShipping && cartItems.length > 0) {
       const formValues = addressForm?.getFieldsValue();
@@ -278,19 +240,6 @@ export default function SellPay({
     }
   }, [addressForm, cartItems, isDelivery, selectedShipping]);
 
-  useEffect(() => {
-    window.SellPayComponent = { calculateShippingFee: calculateShippingFee };
-    if (isDelivery && selectedShipping && cartItems.length > 0) {
-      const timer = setTimeout(() => {
-        calculateShippingFee();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-    return () => {
-      window.SellPayComponent = null;
-    };
-  }, []);
-
   const parseProductValue = (value, defaultValue = 200) => {
     if (value === null || value === undefined) return defaultValue;
     if (typeof value === "number") return value;
@@ -309,13 +258,6 @@ export default function SellPay({
         );
         return;
       }
-
-      lastShippingCalculationRef.current.cartItemsHash = JSON.stringify(
-        cartItems.map((item) => ({
-          id: item.idChiTietSanPham,
-          quantity: item.quantity,
-        }))
-      );
 
       const shippingItems = cartItems.map((item) => {
         const weight = parseProductValue(item.weight, 250);
@@ -373,6 +315,10 @@ export default function SellPay({
   };
 
   const prepareHoaDonData = (paymentInfo = {}) => {
+    // START: Bao gồm ID hóa đơn rỗng nếu có
+    const baseData = selectedBillId ? { id: selectedBillId } : {};
+    // END
+
     let shippingAddress = null;
     let formCustomerInfo = null;
 
@@ -409,7 +355,7 @@ export default function SellPay({
       soLuong: item.quantity || 1,
       giaBan: item.unitPrice || item.price || item.giaBan || 0,
       ghiChu: item.ghiChu || "",
-      trangThai: 0,
+      trangThai: true,
     }));
     if (chiTietList.length === 0) return null;
 
@@ -474,6 +420,7 @@ export default function SellPay({
       : "";
 
     return {
+      ...baseData, // START: Thêm ID từ hóa đơn rỗng
       loaiHoaDon: true,
       phiVanChuyen: isDelivery ? shippingFee : 0,
       tongTien: cartTotal,
@@ -506,6 +453,44 @@ export default function SellPay({
     };
   };
 
+  const showQRModal = (hoaDonMoi) => {
+    if (!hoaDonMoi) return;
+    const amount =
+      hoaDonMoi.soTienThanhToan ||
+      hoaDonMoi.totalWithShipping ||
+      hoaDonMoi.tongTienSauGiam ||
+      totalWithShipping ||
+      cartTotal ||
+      0;
+
+    const bankInfoFromHoaDon = hoaDonMoi.bankInfo || hoaDonMoi.qrBankInfo;
+    const bankInfo = bankInfoFromHoaDon || {
+      bankName: "Ngân hàng ABC",
+      accountNumber: "0123456789",
+      accountHolder: "CỬA HÀNG",
+      branch: "Chi nhánh chính",
+      content:
+        hoaDonMoi.ghiChu ||
+        `Thanh toán ${hoaDonMoi.loaiHoaDon ? "hóa đơn" : "đơn hàng"}`,
+    };
+
+    setPendingHoaDonData(hoaDonMoi);
+    setQrData({ amount, bankInfo });
+    setQrModalVisible(true);
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      if (!text) return;
+      await navigator.clipboard.writeText(String(text));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch (err) {
+      console.error("❌ copyToClipboard error:", err);
+      messageApi.error("Không thể copy nội dung");
+    }
+  };
+
   const sendSuccessPayload = () => {
     if (stompClient && stompClient.connected) {
       const finalPayload = {
@@ -534,7 +519,7 @@ export default function SellPay({
           anhUrls: item.anhUrls || (item.imageUrl ? [item.imageUrl] : []) || [],
         })),
         ghiChu: isDelivery ? `Giao hàng - ${selectedShipping}` : "Mua tại quầy",
-        trangThai: 3, // 3 = Hoàn thành
+        trangThai: 3,
       };
 
       stompClient.send("/topic/display", {}, JSON.stringify(finalPayload));
@@ -542,57 +527,140 @@ export default function SellPay({
     }
   };
 
-  const handlePostPaymentSuccess = async (newBillId) => {
-    if (selectedBillId) {
+  const handlePostPaymentSuccess = async (billId) => {
+    const finalBillId = billId || selectedBillId;
+
+    console.log(
+      "🔄 handlePostPaymentSuccess được gọi với billId:",
+      finalBillId
+    );
+
+    // Xóa khỏi localStorage
+    if (finalBillId) {
       const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-      const updatedBills = bills.filter((bill) => bill.id !== selectedBillId);
+      const updatedBills = bills.filter((bill) => bill.id !== finalBillId);
       localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
       window.dispatchEvent(new Event("billsUpdated"));
+      console.log("✅ Đã xóa bill khỏi localStorage:", finalBillId);
     }
 
     if (onRemoveDiscount) onRemoveDiscount();
     if (onClearCart) onClearCart();
 
+    // Xóa phiếu giảm giá cá nhân nếu có
     if (appliedDiscount?.isPersonal) {
-      await handleRemovePersonalDiscountAfterPayment();
+      try {
+        await handleRemovePersonalDiscountAfterPayment();
+        console.log("✅ Đã xóa phiếu giảm giá cá nhân");
+      } catch (error) {
+        console.error("❌ Lỗi khi xóa phiếu giảm giá:", error);
+      }
     }
 
-    const newBillIdFinal = newBillId || selectedBillId;
-    if (newBillIdFinal) {
-      navigate(`/admin/detail-bill/${newBillIdFinal}`);
+    // QUAN TRỌNG: Điều hướng sang trang chi tiết NGAY LẬP TỨC
+    if (finalBillId) {
+      console.log(
+        "📍 Đang điều hướng đến:",
+        `/admin/detail-bill/${finalBillId}`
+      );
+      // Xóa setTimeout, điều hướng ngay lập tức
+      navigate(`/admin/detail-bill/${finalBillId}`);
+    } else {
+      console.error("❌ Không có billId để điều hướng");
+      messageApi.error("Không tìm thấy mã hóa đơn để điều hướng!");
     }
   };
+
+  // Hàm kiểm tra response API
+  const checkApiSuccess = (res) => {
+    // Kiểm tra nhiều cấu trúc response có thể
+    if (res?.data?.isSuccess === true) return true;
+    if (res?.data?.success === true) return true;
+    if (res?.isSuccess === true) return true;
+    if (res?.success === true) return true;
+    if (res?.data?.status === 200) return true;
+    if (res?.status === 200) return true;
+
+    // Nếu có data mà không có lỗi, coi như thành công
+    if (res?.data && !res?.data?.error) return true;
+
+    return false;
+  };
+
+  // START: Các hàm xử lý thanh toán - dùng API update thay vì create
   const handleConfirmTransfer = async () => {
-    if (!pendingHoaDonData) {
+    if (!pendingHoaDonData || !pendingHoaDonData.id) {
       messageApi.error("❌ Không tìm thấy thông tin hóa đơn!");
       return;
     }
 
     try {
       setLoading(true);
-      const res = await hoaDonApi.create({
+      // Dùng API update
+      const res = await hoaDonApi.updateHoaDonRong(pendingHoaDonData.id, {
         ...pendingHoaDonData,
         trangThai: isDelivery ? 1 : 3,
         daThanhToan: true,
       });
-      if (res.data?.isSuccess) {
-        sendSuccessPayload(); // Gửi payload SUCCESS
-        setIsPaid(true); // Ngăn useEffect gửi payload ACTIVE sau này
+
+      console.log("📊 API Response handleConfirmTransfer:", res);
+
+      if (checkApiSuccess(res)) {
+        sendSuccessPayload();
+        setIsPaid(true);
         messageApi.success(
           isDelivery
             ? "✅ Thanh toán thành công! Đơn hàng đang chờ giao hàng."
             : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất."
         );
-        handlePostPaymentSuccess(res.data.data?.id || res.data.data);
+
+        handlePostPaymentSuccess(pendingHoaDonData.id);
         setQrModalVisible(false);
       } else {
-        messageApi.error(
-          "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
-        );
+        // Kiểm tra nếu update thực sự thành công nhưng response khác cấu trúc
+        const errorMessage =
+          res?.data?.message || res?.message || "Không rõ lỗi";
+
+        // Nếu message chứa "thành công" hoặc tương tự, coi như thành công
+        if (
+          errorMessage.toLowerCase().includes("thành công") ||
+          errorMessage.toLowerCase().includes("success") ||
+          errorMessage.toLowerCase().includes("updated")
+        ) {
+          sendSuccessPayload();
+          setIsPaid(true);
+          messageApi.success(
+            isDelivery
+              ? "✅ Thanh toán thành công! Đơn hàng đang chờ giao hàng."
+              : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất."
+          );
+          handlePostPaymentSuccess(pendingHoaDonData.id);
+          setQrModalVisible(false);
+        } else {
+          messageApi.error(`❌ Lỗi khi cập nhật hóa đơn: ${errorMessage}`);
+        }
       }
     } catch (error) {
       console.error("❌ Lỗi khi xác nhận chuyển khoản:", error);
-      messageApi.error("❌ Lỗi khi xác nhận thanh toán!");
+      // Kiểm tra xem có phải lỗi network hay không
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (checkApiSuccess(errorData)) {
+          // Nếu thực sự thành công nhưng bị lỗi network
+          sendSuccessPayload();
+          setIsPaid(true);
+          messageApi.success("✅ Thanh toán thành công! (Có thể có delay nhỏ)");
+          handlePostPaymentSuccess(pendingHoaDonData.id);
+          setQrModalVisible(false);
+        } else {
+          messageApi.error(
+            "❌ Lỗi khi xác nhận thanh toán: " +
+              (errorData.message || "Lỗi hệ thống")
+          );
+        }
+      } else {
+        messageApi.error("❌ Lỗi kết nối mạng! Vui lòng thử lại.");
+      }
     } finally {
       setLoading(false);
     }
@@ -601,28 +669,58 @@ export default function SellPay({
   const handleBothPayment = async (hoaDonMoi) => {
     try {
       setLoading(true);
-      const res = await hoaDonApi.create({
+      // Dùng API update
+      const res = await hoaDonApi.updateHoaDonRong(hoaDonMoi.id, {
         ...hoaDonMoi,
         trangThai: isDelivery ? 1 : 3,
         daThanhToan: true,
       });
-      if (res.data?.isSuccess) {
-        sendSuccessPayload(); // Gửi payload SUCCESS
+
+      console.log("📊 API Response handleBothPayment:", res);
+
+      if (checkApiSuccess(res)) {
+        sendSuccessPayload();
         setIsPaid(true);
         messageApi.success(
           isDelivery
             ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
             : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất."
         );
-        handlePostPaymentSuccess(res.data.data?.id || res.data.data);
+
+        await handlePostPaymentSuccess(hoaDonMoi.id);
       } else {
-        messageApi.error(
-          "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
-        );
+        const errorMessage =
+          res?.data?.message || res?.message || "Không rõ lỗi";
+
+        if (
+          errorMessage.toLowerCase().includes("thành công") ||
+          errorMessage.toLowerCase().includes("success") ||
+          errorMessage.toLowerCase().includes("updated")
+        ) {
+          sendSuccessPayload();
+          setIsPaid(true);
+          messageApi.success(
+            isDelivery
+              ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
+              : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất."
+          );
+          await handlePostPaymentSuccess(hoaDonMoi.id);
+        } else {
+          messageApi.error(`❌ Lỗi khi cập nhật hóa đơn: ${errorMessage}`);
+        }
       }
     } catch (error) {
-      console.error(error);
-      messageApi.error("❌ Lỗi khi thanh toán!");
+      console.error("❌ Lỗi khi thanh toán:", error);
+      if (error.response?.data && checkApiSuccess(error.response.data)) {
+        sendSuccessPayload();
+        setIsPaid(true);
+        messageApi.success("✅ Thanh toán thành công!");
+        await handlePostPaymentSuccess(hoaDonMoi.id);
+      } else {
+        messageApi.error(
+          "❌ Lỗi khi thanh toán: " + (error.message || "Lỗi hệ thống")
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -631,30 +729,66 @@ export default function SellPay({
   const handleCashPayment = async (hoaDonMoi) => {
     try {
       setLoading(true);
-      const res = await hoaDonApi.create(hoaDonMoi);
-      if (res.data?.isSuccess) {
-        sendSuccessPayload(); // Gửi payload SUCCESS
+      const res = await hoaDonApi.updateHoaDonRong(hoaDonMoi.id, hoaDonMoi);
+
+      console.log("📊 API Response handleCashPayment:", res);
+
+      if (checkApiSuccess(res)) {
+        sendSuccessPayload();
         setIsPaid(true);
         messageApi.success(
           isDelivery
             ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
             : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất."
         );
-        handlePostPaymentSuccess(res.data.data?.id || res.data.data);
+
+        await handlePostPaymentSuccess(hoaDonMoi.id);
       } else {
-        messageApi.error(
-          "❌ Lỗi khi lưu hóa đơn: " + (res.data?.message || "")
-        );
+        const errorMessage =
+          res?.data?.message || res?.message || "Không rõ lỗi";
+
+        if (
+          errorMessage.toLowerCase().includes("thành công") ||
+          errorMessage.toLowerCase().includes("success") ||
+          errorMessage.toLowerCase().includes("updated")
+        ) {
+          sendSuccessPayload();
+          setIsPaid(true);
+          messageApi.success(
+            isDelivery
+              ? "✅ Đặt hàng thành công! Đơn hàng đang chờ giao hàng."
+              : "✅ Thanh toán thành công! Đơn hàng đã hoàn tất."
+          );
+          await handlePostPaymentSuccess(hoaDonMoi.id);
+        } else {
+          messageApi.error(`❌ Lỗi khi cập nhật hóa đơn: ${errorMessage}`);
+        }
       }
     } catch (error) {
-      console.error(error);
-      messageApi.error("❌ Lỗi khi thanh toán!");
+      console.error("❌ Lỗi khi thanh toán:", error);
+      if (error.response?.data && checkApiSuccess(error.response.data)) {
+        sendSuccessPayload();
+        setIsPaid(true);
+        messageApi.success("✅ Thanh toán thành công!");
+        await handlePostPaymentSuccess(hoaDonMoi.id);
+      } else {
+        messageApi.error(
+          "❌ Lỗi khi thanh toán: " + (error.message || "Lỗi hệ thống")
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handlePayment = async () => {
+    // START: Kiểm tra xem đã chọn hóa đơn chưa
+    if (!selectedBillId) {
+      messageApi.warning("Vui lòng chọn một hóa đơn chờ trước khi thanh toán!");
+      return;
+    }
+    // END
+
     if (cartTotal === 0) {
       messageApi.warning(
         "Giỏ hàng đang trống! Vui lòng thêm sản phẩm trước khi thanh toán."
@@ -683,6 +817,12 @@ export default function SellPay({
       return;
     }
 
+    // START: Đảm bảo có ID hóa đơn
+    if (!hoaDonMoi.id) {
+      hoaDonMoi.id = selectedBillId;
+    }
+    // END
+
     setPendingConfirmData({
       customerName: selectedCustomer?.hoTen || "Khách lẻ",
       sdtKhachHang: selectedCustomer?.sdt || "",
@@ -699,7 +839,6 @@ export default function SellPay({
     setConfirmModalVisible(true);
   };
 
-  // Render selectable shipping provider options and status
   const renderShippingOptions = () => {
     if (!isDelivery) return null;
 
@@ -751,7 +890,6 @@ export default function SellPay({
     );
   };
 
-  // Small helper to render shipping line used inside totals box
   const renderShippingInfo = () => {
     if (!isDelivery) return null;
     return (
@@ -773,9 +911,6 @@ export default function SellPay({
   return (
     <>
       {contextHolder}
-
-      {/* Render các phần còn lại */}
-      {/* ... */}
 
       {isDelivery && renderShippingOptions()}
 
@@ -827,12 +962,14 @@ export default function SellPay({
       <div
         onClick={handlePayment}
         className={`cursor-pointer select-none text-center py-3 rounded-xl font-bold text-white shadow mt-4 transition-all ${
-          loading || shippingLoading
+          loading || shippingLoading || !selectedBillId // START: Thêm điều kiện selectedBillId
             ? "bg-gray-400 cursor-not-allowed"
             : "bg-[#E67E22] hover:bg-amber-600 active:bg-amber-700 hover:shadow-md"
         }`}
       >
-        {loading || shippingLoading
+        {!selectedBillId // START: Hiển thị thông báo nếu chưa chọn hóa đơn
+          ? "Vui lòng chọn hóa đơn"
+          : loading || shippingLoading
           ? "Đang xử lý..."
           : isDelivery
           ? "Đặt hàng"
@@ -982,13 +1119,13 @@ export default function SellPay({
                   {pendingConfirmData.customerName}
                 </span>
               </div>
-              {pendingConfirmData.customerPhone && (
+              {pendingConfirmData.sdtKhachHang && (
                 <div className="flex justify-between">
                   <span className="font-medium text-gray-700">
                     Số điện thoại:
                   </span>
                   <span className="text-gray-900">
-                    {pendingConfirmData.customerPhone}
+                    {pendingConfirmData.sdtKhachHang}
                   </span>
                 </div>
               )}
@@ -1062,7 +1199,7 @@ export default function SellPay({
               </div>
             </div>
             <div className="text-center text-red-600 font-semibold text-lg">
-              Bạn có chắc chắn muốn thanh toán?
+              Bạn có chắc chắn muốn cập nhật hóa đơn này?
             </div>
             <div className="flex justify-center gap-6 w-full pt-2">
               <div

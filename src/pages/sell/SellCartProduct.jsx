@@ -16,7 +16,6 @@ const { Option } = Select;
 export default function SellCartProduct({ selectedBillId }) {
   const dispatch = useDispatch();
   const { data: productList } = useSelector((state) => state.chiTietSanPham);
-  console.log("🚀 ~ SellCartProduct ~ productList:", productList);
   const [cartProducts, setCartProducts] = useState([]);
   const [filteredCartProducts, setFilteredCartProducts] = useState([]);
   const [messageApi, contextHolder] = message.useMessage();
@@ -34,57 +33,8 @@ export default function SellCartProduct({ selectedBillId }) {
     dispatch(fetchChiTietSanPham());
   }, [dispatch]);
 
-  const removeInactiveProductsFromCart = async () => {
-    if (!cartProducts.length || !productList.length) return;
-
-    const inactiveItems = cartProducts.filter((cartItem) => {
-      const product = productList.find(
-        (p) => p.id === cartItem.idChiTietSanPham
-      );
-      return product && !product.trangThai;
-    });
-
-    if (inactiveItems.length === 0) return;
-
-    // Hoàn tồn kho
-    for (const item of inactiveItems) {
-      try {
-        await dispatch(
-          tangSoLuong({
-            id: item.idChiTietSanPham,
-            soLuong: item.quantity,
-          })
-        ).unwrap();
-      } catch (err) {
-        console.error("Hoàn kho thất bại:", err);
-      }
-    }
-
-    // Xóa khỏi giỏ
-    const activeCart = cartProducts.filter((cartItem) => {
-      const product = productList.find(
-        (p) => p.id === cartItem.idChiTietSanPham
-      );
-      return product && product.trangThai;
-    });
-
-    setCartProducts(activeCart);
-    saveCartToBill(activeCart);
-
-    messageApi.warning(
-      <>
-        <strong>{inactiveItems.length} sản phẩm đã ngừng kinh doanh</strong>
-        <br />
-        Đã tự động xóa khỏi giỏ hàng và hoàn tồn kho.
-      </>
-    );
-
-    window.dispatchEvent(new Event("cartUpdated"));
-  };
-
-  const loadCartFromBill = () => {
-    inactiveProductsHandled.current = false;
-
+  /* ================= TẢI GIỎ HÀNG TỪ LOCALSTORAGE ================= */
+  const loadCartFromLocalStorage = () => {
     if (!selectedBillId) {
       setCartProducts([]);
       setFilteredCartProducts([]);
@@ -97,8 +47,6 @@ export default function SellCartProduct({ selectedBillId }) {
     if (currentBill && currentBill.cart) {
       setCartProducts(currentBill.cart);
       setFilteredCartProducts(currentBill.cart);
-
-      setTimeout(removeInactiveProductsFromCart, 0);
     } else {
       setCartProducts([]);
       setFilteredCartProducts([]);
@@ -106,38 +54,31 @@ export default function SellCartProduct({ selectedBillId }) {
   };
 
   useEffect(() => {
-    loadCartFromBill();
+    loadCartFromLocalStorage();
   }, [selectedBillId]);
 
+  /* ================= THEO DÕI THAY ĐỔI LOCALSTORAGE ================= */
   useEffect(() => {
+    const handleCartUpdated = () => {
+      loadCartFromLocalStorage();
+    };
+
     const handleStorageChange = (e) => {
       if (e.key === "pendingBills") {
-        // Có thay đổi ở localStorage.pendingBills từ tab khác
-        inactiveProductsHandled.current = false; // Reset để kiểm tra lại sản phẩm ngừng kinh doanh
-        loadCartFromBill(); // Tải lại giỏ hàng từ localStorage mới nhất
+        loadCartFromLocalStorage();
       }
     };
 
-    // Lắng nghe thay đổi localStorage từ các tab khác
+    window.addEventListener("cartUpdated", handleCartUpdated);
     window.addEventListener("storage", handleStorageChange);
 
-    // Vẫn giữ lại các event nội bộ trong cùng tab (tăng giảm số lượng nhanh, xóa, v.v.)
-    const handleLocalUpdate = () => {
-      inactiveProductsHandled.current = false;
-      loadCartFromBill();
-    };
-
-    window.addEventListener("cartUpdated", handleLocalUpdate);
-    window.addEventListener("billsUpdated", handleLocalUpdate);
-
     return () => {
+      window.removeEventListener("cartUpdated", handleCartUpdated);
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("cartUpdated", handleLocalUpdate);
-      window.removeEventListener("billsUpdated", handleLocalUpdate);
     };
   }, [selectedBillId]);
 
-  // Lọc & sắp xếp
+  /* ================= LỌC VÀ SẮP XẾP ================= */
   const filterCartProducts = () => {
     let result = [...cartProducts];
 
@@ -181,7 +122,7 @@ export default function SellCartProduct({ selectedBillId }) {
       });
     }
 
-    // Sort
+    // Sắp xếp
     result.sort((a, b) => {
       switch (sortBy) {
         case "name_asc":
@@ -220,67 +161,38 @@ export default function SellCartProduct({ selectedBillId }) {
     ...new Set(cartProducts.map((p) => p.color).filter(Boolean)),
   ];
 
-  const updateCartPrices = () => {
-    if (!productList?.length || !cartProducts.length) return;
-
-    const updated = cartProducts.map((item) => {
-      const fresh = productList.find((p) => p.id === item.idChiTietSanPham);
-      if (fresh) {
-        const newPrice = fresh.giaSauGiam ?? fresh.giaBan ?? 0;
-        return {
-          ...item,
-          unitPrice: newPrice,
-          totalPrice: item.quantity * newPrice,
-          // Cập nhật mã vạch nếu có
-          maVach: fresh.maVach || item.maVach,
-        };
-      }
-      return item;
-    });
-
-    setCartProducts(updated);
-    saveCartToBill(updated);
-
-    removeInactiveProductsFromCart();
-  };
-
-  // THEO DÕI productList THAY ĐỔI → TỰ ĐỘNG DỌN SẢN PHẨM NGỪNG KINH DOANH
-  useEffect(() => {
-    if (productList.length > 0) {
-      // 1. Cập nhật giá mới (nếu có)
-      if (cartProducts.length > 0) {
-        updateCartPrices();
-      }
-
-      // 2. QUAN TRỌNG: Luôn kiểm tra và xóa sản phẩm ngừng kinh doanh
-      // → Dù giỏ hàng đang trống hay đầy, đều phải dọn!
-      removeInactiveProductsFromCart();
-    }
-  }, [productList]); // Chỉ cần theo dõi productList là đủ
-
-  const saveCartToBill = (cart) => {
+  /* ================= LƯU GIỎ HÀNG VÀO LOCALSTORAGE ================= */
+  const saveCartToLocalStorage = (cart) => {
     if (!selectedBillId) return;
 
     const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
-    const updatedBills = bills.map((bill) =>
-      bill.id === selectedBillId
-        ? {
-            ...bill,
-            cart,
-            productCount: cart.length,
-            totalAmount: cart.reduce((sum, p) => sum + p.totalPrice, 0),
-            updatedAt: new Date().toISOString(),
-          }
-        : bill
-    );
+    const billIndex = bills.findIndex((bill) => bill.id === selectedBillId);
 
-    localStorage.setItem("pendingBills", JSON.stringify(updatedBills));
+    if (billIndex === -1) {
+      // Tạo hóa đơn mới trong localStorage
+      bills.push({
+        id: selectedBillId,
+        cart: cart,
+        productCount: cart.length,
+        totalAmount: cart.reduce((sum, p) => sum + p.totalPrice, 0),
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      // Cập nhật hóa đơn có sẵn
+      bills[billIndex] = {
+        ...bills[billIndex],
+        cart,
+        productCount: cart.length,
+        totalAmount: cart.reduce((sum, p) => sum + p.totalPrice, 0),
+        updatedAt: new Date().toISOString(),
+      };
+    }
 
-    // Đẩy event thông báo cập nhật bills
-    window.dispatchEvent(new Event("billsUpdated"));
+    localStorage.setItem("pendingBills", JSON.stringify(bills));
+    window.dispatchEvent(new Event("cartUpdated"));
   };
 
-  // XÓA SẢN PHẨM
+  /* ================= XÓA SẢN PHẨM ================= */
   const handleDeleteProduct = async (idChiTietSanPham) => {
     const product = cartProducts.find(
       (p) => p.idChiTietSanPham === idChiTietSanPham
@@ -288,45 +200,57 @@ export default function SellCartProduct({ selectedBillId }) {
     if (!product) return;
 
     try {
+      // Hoàn tồn kho
       await dispatch(
         tangSoLuong({ id: idChiTietSanPham, soLuong: product.quantity })
       ).unwrap();
-      await dispatch(fetchChiTietSanPham());
 
+      // Xóa khỏi giỏ hàng
       const newCart = cartProducts.filter(
         (p) => p.idChiTietSanPham !== idChiTietSanPham
       );
-      saveCartToBill(newCart);
 
+      // Cập nhật state
+      setCartProducts(newCart);
+      saveCartToLocalStorage(newCart);
+
+      // Xóa số lượng đang chỉnh sửa
       setEditingQuantities((prev) => {
         const copy = { ...prev };
         delete copy[idChiTietSanPham];
         return copy;
       });
 
+      // Cập nhật danh sách sản phẩm
+      dispatch(fetchChiTietSanPham());
+
       messageApi.success("Đã xóa sản phẩm và hoàn tồn kho!");
-      window.dispatchEvent(new Event("cartUpdated"));
     } catch (err) {
       messageApi.error("Lỗi xóa sản phẩm!");
     }
   };
 
-  // TĂNG / GIẢM SỐ LƯỢNG
+  /* ================= TĂNG/GIẢM SỐ LƯỢNG ================= */
   const handleIncreaseQuantity = async (idChiTietSanPham) => {
     const item = cartProducts.find(
       (p) => p.idChiTietSanPham === idChiTietSanPham
     );
     const stockItem = productList.find((p) => p.id === idChiTietSanPham);
-    if (stockItem && stockItem.soLuongTon <= 0) {
+
+    if (!item || !stockItem) return;
+
+    if (stockItem.soLuongTon <= 0) {
       messageApi.warning("Hết hàng!");
       return;
     }
 
     try {
+      // Giảm tồn kho
       await dispatch(
         giamSoLuong({ id: idChiTietSanPham, soLuong: 1 })
       ).unwrap();
 
+      // Cập nhật giỏ hàng
       const updated = cartProducts.map((p) =>
         p.idChiTietSanPham === idChiTietSanPham
           ? {
@@ -336,13 +260,21 @@ export default function SellCartProduct({ selectedBillId }) {
             }
           : p
       );
-      saveCartToBill(updated);
+
+      // Cập nhật state và localStorage
+      setCartProducts(updated);
+      saveCartToLocalStorage(updated);
+
+      // Cập nhật số lượng đang chỉnh sửa
       setEditingQuantities((prev) => ({
         ...prev,
         [idChiTietSanPham]: item.quantity + 1,
       }));
+
+      // Cập nhật danh sách sản phẩm
       dispatch(fetchChiTietSanPham());
-      window.dispatchEvent(new Event("cartUpdated"));
+
+      messageApi.success("Đã tăng số lượng!");
     } catch (err) {
       messageApi.error("Không thể tăng số lượng!");
     }
@@ -352,13 +284,15 @@ export default function SellCartProduct({ selectedBillId }) {
     const item = cartProducts.find(
       (p) => p.idChiTietSanPham === idChiTietSanPham
     );
-    if (item.quantity <= 1) return;
+    if (!item || item.quantity <= 1) return;
 
     try {
+      // Hoàn tồn kho
       await dispatch(
         tangSoLuong({ id: idChiTietSanPham, soLuong: 1 })
       ).unwrap();
 
+      // Cập nhật giỏ hàng
       const updated = cartProducts.map((p) =>
         p.idChiTietSanPham === idChiTietSanPham
           ? {
@@ -368,40 +302,43 @@ export default function SellCartProduct({ selectedBillId }) {
             }
           : p
       );
-      saveCartToBill(updated);
+
+      // Cập nhật state và localStorage
+      setCartProducts(updated);
+      saveCartToLocalStorage(updated);
+
+      // Cập nhật số lượng đang chỉnh sửa
       setEditingQuantities((prev) => ({
         ...prev,
         [idChiTietSanPham]: item.quantity - 1,
       }));
+
+      // Cập nhật danh sách sản phẩm
       dispatch(fetchChiTietSanPham());
-      window.dispatchEvent(new Event("cartUpdated"));
+
+      messageApi.success("Đã giảm số lượng!");
     } catch (err) {
       messageApi.error("Không thể giảm số lượng!");
     }
   };
 
-  // THAY ĐỔI SỐ LƯỢNG BẰNG INPUT - ĐÃ SỬA
+  /* ================= THAY ĐỔI SỐ LƯỢNG BẰNG INPUT ================= */
   const handleQuantityChange = (idChiTietSanPham, value) => {
-    // Nếu value là null, undefined hoặc nhỏ hơn 1, set về 1 và cập nhật ngay lập tức
     if (!value || value < 1) {
       const finalValue = 1;
       setEditingQuantities((prev) => ({
         ...prev,
         [idChiTietSanPham]: finalValue,
       }));
-
-      // Tự động áp dụng thay đổi ngay lập tức
       setTimeout(() => {
         handleApplyQuantity(idChiTietSanPham, finalValue);
       }, 0);
       return;
     }
 
-    // Nếu value hợp lệ, chỉ cập nhật state tạm thời
     setEditingQuantities((prev) => ({ ...prev, [idChiTietSanPham]: value }));
   };
 
-  // HÀM ÁP DỤNG SỐ LƯỢNG - ĐÃ SỬA
   const handleApplyQuantity = async (
     idChiTietSanPham,
     immediateValue = null
@@ -410,6 +347,7 @@ export default function SellCartProduct({ selectedBillId }) {
       immediateValue !== null
         ? immediateValue
         : editingQuantities[idChiTietSanPham];
+
     const item = cartProducts.find(
       (p) => p.idChiTietSanPham === idChiTietSanPham
     );
@@ -429,26 +367,32 @@ export default function SellCartProduct({ selectedBillId }) {
     try {
       const diff = newQty - item.quantity;
       if (diff > 0) {
+        // Giảm tồn kho
         await dispatch(
           giamSoLuong({ id: idChiTietSanPham, soLuong: diff })
         ).unwrap();
       } else {
+        // Hoàn tồn kho
         await dispatch(
           tangSoLuong({ id: idChiTietSanPham, soLuong: Math.abs(diff) })
         ).unwrap();
       }
 
+      // Cập nhật giỏ hàng
       const updated = cartProducts.map((p) =>
         p.idChiTietSanPham === idChiTietSanPham
           ? { ...p, quantity: newQty, totalPrice: newQty * p.unitPrice }
           : p
       );
 
+      // Cập nhật state và localStorage
       setCartProducts(updated);
-      saveCartToBill(updated);
+      saveCartToLocalStorage(updated);
+
+      // Cập nhật danh sách sản phẩm
       dispatch(fetchChiTietSanPham());
+
       messageApi.success(`Cập nhật số lượng: ${newQty}`);
-      window.dispatchEvent(new Event("cartUpdated"));
     } catch (err) {
       messageApi.error("Cập nhật thất bại!");
       setEditingQuantities((prev) => ({
@@ -458,7 +402,6 @@ export default function SellCartProduct({ selectedBillId }) {
     }
   };
 
-  // XỬ LÝ KHI NHẬP SỐ ÂM HOẶC GIÁ TRỊ KHÔNG HỢP LỆ
   const handleInputNumberBlur = (idChiTietSanPham) => {
     const currentValue = editingQuantities[idChiTietSanPham];
     if (!currentValue || currentValue < 1) {
@@ -482,7 +425,7 @@ export default function SellCartProduct({ selectedBillId }) {
         <div className="p-4 font-bold text-2xl bg-amber-600 opacity-75 rounded-t-lg text-white flex gap-2">
           <BagIcon size={32} />
           {selectedBillId
-            ? "Sản phẩm trong giỏ hàng"
+            ? `Sản phẩm trong giỏ hàng (${cartProducts.length} sản phẩm)`
             : "Tạo hóa đơn để thêm sản phẩm"}
         </div>
 
