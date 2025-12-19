@@ -175,7 +175,7 @@ export default function Material() {
       const maChatLieu = addFormValues.maChatLieu?.trim().toUpperCase();
       const tenChatLieu = addFormValues.tenChatLieu?.trim();
 
-      if (!maChatLieu || !tenChatLieu) {
+      if (!tenChatLieu) {
         messageApi.error("Vui lòng nhập đầy đủ thông tin!");
         return;
       }
