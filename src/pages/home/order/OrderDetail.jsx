@@ -71,14 +71,25 @@ export default function OrderDetailPage() {
     if (!id) return;
 
     dispatch(orderDetail(id));
+  }, [id, dispatch]);
+
+  useEffect(() => {
+    const storedCustomerId = localStorage.getItem("customer_id");
+    setCustomerId(storedCustomerId);
+    setIsLoggedIn(!!storedCustomerId);
+
+    if (!id) return;
+
+    if (data?.trangThai === 4 ||data?.trangThai === 3 ) {
+      return;
+    }
 
     const interval = setInterval(() => {
       dispatch(orderDetail(id));
-    }, 15000);
+    }, 5000);
 
     return () => clearInterval(interval);
-  }, [id, dispatch]);
-
+  }, [id, data?.trangThai, dispatch]);
   useEffect(() => {
     if (isQRModalOpen && id && qrGenerated) {
       const interval = setInterval(() => {
@@ -329,7 +340,7 @@ export default function OrderDetailPage() {
             </div>
           </div>
           <div className="flex gap-4">
-            {shouldShowTransferButton() && (
+            {/* {shouldShowTransferButton() && (
               <button
                 onClick={handleTransferClick}
                 disabled={qrLoading}
@@ -342,7 +353,7 @@ export default function OrderDetailPage() {
                 <QrCode size={16} />
                 {qrLoading ? "Đang tạo QR..." : "Chuyển khoản"}
               </button>
-            )}
+            )} */}
 
             {!isLoggedIn &&
               data.soTienCanThanhToan > 0 &&
@@ -510,7 +521,7 @@ export default function OrderDetailPage() {
                         <CheckCircle className="w-4 h-4" />
                         Giảm giá {data.maGiamGia ? `(${data.maGiamGia})` : ""}
                       </span>
-                      <span>-{formatVND(data.giaTriGiamGia)}</span>
+                      <span>-{formatVND(data.mucGiaGiamToiDa)}</span>
                     </div>
                   )}
 

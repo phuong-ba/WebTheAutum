@@ -119,7 +119,9 @@ const HoanTienModal = ({ visible, onCancel, onSuccess, hoaDonId, invoice }) => {
       currency: "VND",
     }).format(amount);
   };
-
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   return (
     <Modal
       title={

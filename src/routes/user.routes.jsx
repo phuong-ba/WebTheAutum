@@ -4,12 +4,14 @@ import React, { Suspense } from "react";
 
 const UserLayout = React.lazy(() => import("@/layouts/user/UserLayout"));
 const MainHome = React.lazy(() => import("@/pages/home/main/MainHome"));
-
 const ProductAll = React.lazy(() =>
   import("@/pages/home/productDetail/ProductAll")
 );
 const ProductDetail = React.lazy(() =>
   import("@/pages/home/productDetail/ProductDetail")
+);
+const Regulations = React.lazy(() =>
+  import("@/pages/home/regulations/Regulations")
 );
 const YourBill = React.lazy(() => import("@/pages/home/order/YourBill"));
 const OrderSuccess = React.lazy(() =>
@@ -57,6 +59,14 @@ const userRouters = [
         element: (
           <LazyLoad>
             <ProductAll />
+          </LazyLoad>
+        ),
+      },
+      {
+        path: "regulations",
+        element: (
+          <LazyLoad>
+            <Regulations />
           </LazyLoad>
         ),
       },

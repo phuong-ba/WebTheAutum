@@ -933,12 +933,12 @@ export default function ProductDetail({
           <div className="flex gap-3">
             {selectedRowKeys.length > 0 && (
               <>
-                <button
+                <div
                   onClick={() => setQuickInputModal(true)}
                   className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm"
                 >
                   Nhập nhanh ({selectedRowKeys.length})
-                </button>
+                </div>
                 <Popconfirm
                   title="Xác nhận xóa"
                   description={`Bạn có chắc muốn xóa ${selectedRowKeys.length} biến thể đã chọn?`}
@@ -946,9 +946,9 @@ export default function ProductDetail({
                   okText="Có"
                   cancelText="Không"
                 >
-                  <button className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm">
+                  <div className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm">
                     Xóa đã chọn ({selectedRowKeys.length})
-                  </button>
+                  </div>
                 </Popconfirm>
               </>
             )}

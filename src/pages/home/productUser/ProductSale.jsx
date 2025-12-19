@@ -87,7 +87,6 @@ export default function ProductSale() {
   return (
     <>
       <div className="flex gap-10">
-        {/* LEFT - Banner */}
         {data && data.length > 0 && data[0]?.trangThai === 1 && (
           <div className="min-w-[360px] bg-amber-100 max-h-[575px] flex flex-col gap-20 items-center justify-between py-16 rounded-2xl">
             <div className="flex flex-col gap-5 items-center">

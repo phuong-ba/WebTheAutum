@@ -36,7 +36,10 @@ export default function User() {
   useEffect(() => {
     dispatch(fetchNhanVien());
   }, [dispatch]);
-
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  
   const handleConfirmStatusChange = async () => {
     if (!selectedRecord) return;
     try {
@@ -280,7 +283,10 @@ export default function User() {
           </a>
           <a
             onClick={() => {
-              if (currentRole === "Quản lý" && record.chucVuName === "Quản lý") {
+              if (
+                currentRole === "Quản lý" &&
+                record.chucVuName === "Quản lý"
+              ) {
                 messageApi.warning(
                   "Bạn không được chỉnh sửa nhân viên có cùng chức vụ!"
                 );

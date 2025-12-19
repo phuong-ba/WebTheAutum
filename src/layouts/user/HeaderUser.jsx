@@ -18,13 +18,13 @@ export default function HeaderUser() {
   const [messageApi, contextHolder] = message.useMessage();
   const navigate = useNavigate();
 
-const onSearch = (value) => {
-  if (value.trim() !== "") {
-    navigate(`/product?search=${encodeURIComponent(value)}`);
-  } else {
-    navigate(`/product`);
-  }
-};
+  const onSearch = (value) => {
+    if (value.trim() !== "") {
+      navigate(`/product?search=${encodeURIComponent(value)}`);
+    } else {
+      navigate(`/product`);
+    }
+  };
   useEffect(() => {
     const updateCart = () => {
       console.log(">>> Cart Updated");
@@ -107,11 +107,13 @@ const onSearch = (value) => {
           <NavLink to={"/coupons"} className="hover:text-orange-600 transition">
             Ưu đãi
           </NavLink>
-          <NavLink className="hover:text-orange-600 transition">
-            Liên hệ
+          <NavLink
+            to={"/regulations"}
+            className="hover:text-orange-600 transition"
+          >
+            Quy định cửa hàng
           </NavLink>
         </div>
-
         <div className="flex items-center gap-10">
           <div className="xl:min-w-[400px] lg:min-w-[200px]">
             <Search

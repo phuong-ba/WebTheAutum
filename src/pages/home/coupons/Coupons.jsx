@@ -3,7 +3,18 @@ import ClientBreadcrumb from "../ClientBreadcrumb";
 import logo from "/src/assets/login/logo.png";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPhieuGiamGia } from "@/services/phieuGiamGiaService";
+const formatDateVN = (dateString) => {
+  if (!dateString) return "N/A";
 
+  const date = new Date(dateString);
+  if (isNaN(date)) return "N/A";
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
+};
 export default function Coupons() {
   const dispatch = useDispatch();
   const { data } = useSelector((state) => state.phieuGiamGia);
@@ -23,6 +34,7 @@ export default function Coupons() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {data
           .filter((item) => item.trangThai !== 2)
+            .filter((item) => item.kieu == 0)
           .map((item) => (
             <div
               key={item.id}
@@ -42,10 +54,11 @@ export default function Coupons() {
 
                   <div className="flex flex-col gap-1 text-xs text-gray-500">
                     <div>
-                      Ngày bắt đầu: <span>{item.ngayBatDau}</span>
+                      Ngày bắt đầu: <span>{formatDateVN(item.ngayBatDau)}</span>
                     </div>
                     <div>
-                      Ngày kết thúc: <span>{item.ngayKetThuc}</span>
+                      Ngày kết thúc:{" "}
+                      <span>{formatDateVN(item.ngayKetThuc)}</span>
                     </div>
                   </div>
                 </div>

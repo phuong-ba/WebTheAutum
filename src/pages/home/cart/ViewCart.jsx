@@ -4,7 +4,7 @@ import ClientBreadcrumb from "../ClientBreadcrumb";
 import { NavLink, useNavigate } from "react-router";
 import { message, Modal } from "antd";
 import { formatVND } from "@/api/formatVND";
-
+import logo from "/src/assets/login/logo.png";
 export default function ViewCart() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
@@ -132,8 +132,12 @@ export default function ViewCart() {
                               </div>
                             )}
                             <img
-                              src={item.duongDanAnh || item.image}
+                              src={item.duongDanAnh || item.image || logo}
                               alt={item.tenSanPham}
+                              onError={(e) => {
+                                e.target.onerror = null; // tránh loop
+                                e.target.src = logo;
+                              }}
                               className="object-cover rounded max-w-full max-h-full"
                             />
                           </div>
