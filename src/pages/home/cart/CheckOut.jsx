@@ -1,5 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Form, Input, Select, Radio, message, Spin, Modal, Button } from "antd";
+import {
+  Form,
+  Input,
+  Select,
+  Radio,
+  message,
+  Spin,
+  Modal,
+  Button,
+  Tag,
+} from "antd";
 import { useNavigate } from "react-router-dom";
 import ClientBreadcrumb from "../ClientBreadcrumb";
 import { formatVND } from "@/api/formatVND";
@@ -15,13 +25,20 @@ import {
 import {
   setSelectedShipping,
   resetShippingFee,
+  setShippingFees,
 } from "@/redux/slices/vanChuyenSlice";
 import { diaChiApi } from "@/api/diaChiApi";
-import { CheckCircleIcon } from "@phosphor-icons/react";
+import {
+  CheckCircleIcon,
+  TruckIcon,
+  RocketIcon,
+  ClockIcon,
+} from "@phosphor-icons/react";
 
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import { fetchAllGGKH } from "@/services/giamGiaKhachHangService";
+import { DollarSignIcon } from "lucide-react";
 
 dayjs.extend(isBetween);
 
@@ -41,6 +58,7 @@ export default function CheckOut() {
     donViVanChuyen: shippingProviders = [],
     selectedShipping: selectedProvider,
     loading: shippingLoading,
+    shippingFees: allShippingFees = [],
   } = useSelector((state) => state.vanChuyen);
   const { data: giamGiaKhachHangData } = useSelector(
     (state) => state.giamGiaKhachHang
@@ -58,6 +76,7 @@ export default function CheckOut() {
   const [districtName, setDistrictName] = useState("");
   const [availableVouchers, setAvailableVouchers] = useState([]);
   const [voucherModalVisible, setVoucherModalVisible] = useState(false);
+  const [comparingShipping, setComparingShipping] = useState(false);
 
   const lastShippingCalculationRef = useRef({ cartHash: null });
   const idKhachHang = JSON.parse(localStorage.getItem("customer_id") || "null");
@@ -95,20 +114,25 @@ export default function CheckOut() {
     if (idKhachHang) dispatch(getByIdKhachHang(idKhachHang));
   }, [idKhachHang, dispatch]);
 
-  // Tự động chọn GHN khi có danh sách đơn vị vận chuyển
+  // Tự động chọn phí giao hàng rẻ nhất khi có danh sách phí
   useEffect(() => {
-    if (shippingProviders.length > 0 && !selectedProvider) {
-      const ghn = shippingProviders.find((p) =>
-        String(p.code || p.ma || p.tenDonVi || "")
-          .toUpperCase()
-          .includes("GHN")
+    if (allShippingFees.length > 0 && !selectedProvider) {
+      const sortedByPrice = [...allShippingFees].sort(
+        (a, b) => a.phiVanChuyen - b.phiVanChuyen
       );
-      if (ghn) {
-        const code = ghn.code || ghn.ma || ghn.id || "GHN";
+      const cheapest = sortedByPrice[0];
+      if (cheapest) {
+        const code =
+          cheapest.code || cheapest.ma || cheapest.id || cheapest.provider;
         dispatch(setSelectedShipping(code));
+        messageApi.success(
+          `Đã chọn ${
+            cheapest.tenDonVi || "đơn vị vận chuyển"
+          } có phí thấp nhất: ${formatVND(cheapest.phiVanChuyen)}`
+        );
       }
     }
-  }, [shippingProviders, selectedProvider, dispatch]);
+  }, [allShippingFees, selectedProvider, dispatch]);
 
   // Điền thông tin khách hàng nếu đã đăng nhập
   useEffect(() => {
@@ -141,9 +165,9 @@ export default function CheckOut() {
   const discountAmount = appliedVoucher?.soTienGiam || 0;
   const total = subtotal + shippingFee - discountAmount;
 
-  // === ĐOẠN SỬA LẠI: TỰ ĐỘNG TÍNH PHÍ VẬN CHUYỂN ===
+  // === TỰ ĐỘNG TÍNH PHÍ VẬN CHUYỂN CHO TẤT CẢ ĐƠN VỊ ===
   useEffect(() => {
-    if (!selectedProvider || cartItems.length === 0) {
+    if (cartItems.length === 0) {
       dispatch(resetShippingFee());
       return;
     }
@@ -160,7 +184,6 @@ export default function CheckOut() {
       province,
       district,
       DiaChi: DiaChi.trim(),
-      provider: selectedProvider,
       items: cartItems.map((i) => ({ id: i.id, qty: i.quantity })),
     });
 
@@ -168,42 +191,76 @@ export default function CheckOut() {
 
     lastShippingCalculationRef.current.cartHash = currentHash;
 
-    const timer = setTimeout(() => {
-      const requestData = {
-        donViVanChuyen: selectedProvider,
-        idTinhGui: 1,
-        idQuanGui: 1442,
-        idTinhNhan: province,
-        idQuanNhan: district,
-        diaChiCuThe: DiaChi.trim(),
-        items: cartItems.map((item) => ({
-          idChiTietSanPham: item.id,
-          soLuong: item.quantity,
-          giaBan: item.giaSauGiam || item.gia || 0,
-          khoiLuong: item.khoiLuong || 250,
-          chieuDai: item.chieuDai || 30,
-          chieuRong: item.chieuRong || 20,
-          chieuCao: item.chieuCao || 10,
-        })),
-      };
+    const calculateAllShippingFees = async () => {
+      setComparingShipping(true);
+      const fees = [];
 
-      dispatch(tinhPhiVanChuyen(requestData));
-      
-      // THÊM: Reset cờ thay đổi địa chỉ sau khi tính xong
+      for (const provider of shippingProviders) {
+        const providerCode = provider.code || provider.ma || provider;
+
+        const requestData = {
+          donViVanChuyen: providerCode,
+          idTinhGui: 1,
+          idQuanGui: 1442,
+          idTinhNhan: province,
+          idQuanNhan: district,
+          diaChiCuThe: DiaChi.trim(),
+          items: cartItems.map((item) => ({
+            idChiTietSanPham: item.id,
+            soLuong: item.quantity,
+            giaBan: item.giaSauGiam || item.gia || 0,
+            khoiLuong: item.khoiLuong || 250,
+            chieuDai: item.chieuDai || 30,
+            chieuRong: item.chieuRong || 20,
+            chieuCao: item.chieuCao || 10,
+          })),
+        };
+
+        try {
+          const result = await dispatch(tinhPhiVanChuyen(requestData));
+          if (result.payload?.phiVanChuyen !== undefined) {
+            fees.push({
+              ...provider,
+              code: providerCode,
+              phiVanChuyen: result.payload.phiVanChuyen,
+              thoiGianDuKien: result.payload.thoiGianDuKien || "3-5 ngày",
+            });
+          }
+        } catch (error) {
+          console.error(`Lỗi tính phí cho ${providerCode}:`, error);
+        }
+      }
+
+      // Lưu tất cả phí vào Redux
+      dispatch(setShippingFees(fees));
+
+      // Tự động chọn phí rẻ nhất
+      if (fees.length > 0) {
+        const sortedFees = [...fees].sort(
+          (a, b) => a.phiVanChuyen - b.phiVanChuyen
+        );
+        const cheapest = sortedFees[0];
+        dispatch(setSelectedShipping(cheapest.code));
+      }
+
+      setComparingShipping(false);
       setAddressChanged(false);
+    };
+
+    const timer = setTimeout(() => {
+      calculateAllShippingFees();
     }, 800);
 
     return () => clearTimeout(timer);
   }, [
-    selectedProvider,
+    shippingProviders,
     cartItems,
     dispatch,
-    addressChanged, // ← THÊM dependency này
+    addressChanged,
     form.getFieldValue("province"),
     form.getFieldValue("district"),
     form.getFieldValue("DiaChi"),
   ]);
-  // === KẾT THÚC ĐOẠN SỬA ===
 
   const checkBasicDiscountConditions = (discount, totalAmount, customer) => {
     if (!discount)
@@ -418,9 +475,8 @@ export default function CheckOut() {
       messageApi.error("Không tải được quận/huyện");
     }
 
-    // SỬA LẠI: Khi thay đổi tỉnh, reset phí và trigger tính lại
     dispatch(resetShippingFee());
-    setAddressChanged(true); // ← THÊM DÒNG NÀY
+    setAddressChanged(true);
     lastShippingCalculationRef.current.cartHash = null;
   };
 
@@ -428,17 +484,14 @@ export default function CheckOut() {
     const district = districts.find((d) => d.id == districtId);
     if (district) setDistrictName(district.tenQuan);
 
-    // SỬA LẠI: Khi thay đổi quận, reset phí và trigger tính lại
     dispatch(resetShippingFee());
-    setAddressChanged(true); // ← THÊM DÒNG NÀY
+    setAddressChanged(true);
     lastShippingCalculationRef.current.cartHash = null;
   };
 
-  // THÊM: Xử lý thay đổi địa chỉ chi tiết
   const handleAddressDetailChange = (e) => {
     const value = e.target.value;
     if (value?.trim()) {
-      // Khi có thay đổi địa chỉ chi tiết, reset phí và trigger tính lại
       dispatch(resetShippingFee());
       setAddressChanged(true);
       lastShippingCalculationRef.current.cartHash = null;
@@ -589,7 +642,7 @@ export default function CheckOut() {
           <button
             type="button"
             onClick={() => setVoucherModalVisible(true)}
-            className="text-orange-600 hover:text-orange-800 font-medium"
+            className="text-orange-600 hover:text-orange-800 font-medium cursor-pointer"
           >
             {appliedVoucher ? "Đổi mã" : "Chọn mã giảm giá"}
           </button>
@@ -626,7 +679,7 @@ export default function CheckOut() {
               </div>
               <button
                 onClick={handleRemoveVoucher}
-                className="text-red-500 hover:text-red-700 text-sm"
+                className="text-red-500 hover:text-red-700 text-sm cursor-pointer"
               >
                 Hủy
               </button>
@@ -634,7 +687,6 @@ export default function CheckOut() {
           </div>
         )}
 
-        {/* Modal chọn voucher */}
         <Modal
           title="Chọn mã giảm giá"
           open={voucherModalVisible}
@@ -652,7 +704,6 @@ export default function CheckOut() {
             ) : (
               <div className="space-y-3">
                 {availableVouchers.map((voucher) => {
-                  // Tính giá trị giảm thực tế để hiển thị
                   const actualDiscount = calculateDiscountAmount(
                     voucher,
                     subtotal
@@ -708,7 +759,6 @@ export default function CheckOut() {
                             </div>
                           )}
 
-                          {/* Hiển thị giá trị giảm thực tế */}
                           <div className="text-xs text-blue-600 mt-1">
                             Giảm thực tế: {formatVND(actualDiscount)}
                             {voucher.loaiGiamGia === false &&
@@ -763,44 +813,140 @@ export default function CheckOut() {
     );
   };
 
-  const renderShippingProviderOptions = () => (
-    <div className="mt-6 bg-gray-50 p-6 rounded-xl">
-      <h4 className="font-semibold mb-4 text-lg">Đơn vị vận chuyển</h4>
-      <div className="flex gap-3 flex-wrap mb-4">
-        {shippingProviders.length > 0 ? (
-          shippingProviders.map((provider) => {
-            const value = provider.code || provider.ma || provider;
-            const label =
-              provider.tenDonVi || provider.name || provider.ten || value;
-            return (
-              <div
-                key={value}
-                onClick={() => handleSelectShipping(value)}
-                className={`cursor-pointer px-4 py-3 rounded-lg border font-semibold transition-all ${
-                  selectedProvider === value
-                    ? "bg-orange-600 text-white border-orange-600"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-orange-50"
-                }`}
-              >
-                {label}
+  const renderShippingProviderOptions = () => {
+    // Sắp xếp phí vận chuyển từ thấp đến cao
+    const sortedShippingFees = [...allShippingFees].sort(
+      (a, b) => a.phiVanChuyen - b.phiVanChuyen
+    );
+
+    const getProviderIcon = (providerName) => {
+      const name = String(providerName || "").toLowerCase();
+      if (name.includes("nhanh") || name.includes("fast"))
+        return <RocketIcon size={20} />;
+      if (name.includes("tiết kiệm") || name.includes("economy"))
+        return <DollarSignIcon size={20} />;
+      if (name.includes("tiêu chuẩn") || name.includes("standard"))
+        return <TruckIcon size={20} />;
+      return <TruckIcon size={20} />;
+    };
+
+    const getDeliveryTimeColor = (time) => {
+      if (time?.includes("1-2") || time?.includes("nhanh"))
+        return "text-green-600";
+      if (time?.includes("3-5") || time?.includes("tiêu chuẩn"))
+        return "text-blue-600";
+      return "text-gray-600";
+    };
+
+    return (
+      <div className="mt-6 bg-gray-50 p-6 rounded-xl">
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="font-semibold text-lg">Đơn vị vận chuyển</h4>
+          {comparingShipping && (
+            <Tag color="processing">
+              <div className="flex items-center gap-2">
+                <ClockIcon /> Đang so sánh phí...
               </div>
-            );
-          })
-        ) : (
-          <div className="text-sm text-gray-500">
-            Đang tải đơn vị vận chuyển...
-          </div>
-        )}
+            </Tag>
+          )}
+        </div>
+
+        <div className="space-y-3 mb-4">
+          {sortedShippingFees.length > 0 ? (
+            sortedShippingFees.map((provider) => {
+              const isCheapest = sortedShippingFees[0]?.code === provider.code;
+              const isSelected = selectedProvider === provider.code;
+
+              return (
+                <div
+                  key={provider.code}
+                  onClick={() => handleSelectShipping(provider.code)}
+                  className={`cursor-pointer p-4 rounded-lg border transition-all ${
+                    isSelected
+                      ? "bg-orange-50 border-orange-500 ring-2 ring-orange-200"
+                      : "bg-white border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`p-2 rounded-lg ${
+                          isSelected ? "bg-orange-100" : "bg-gray-100"
+                        }`}
+                      >
+                        {getProviderIcon(provider.tenDonVi)}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900 flex items-center gap-2">
+                          {provider.tenDonVi ||
+                            provider.name ||
+                            provider.ten ||
+                            provider.code}
+                          {isCheapest && (
+                            <Tag color="green" className="text-xs">
+                              Rẻ nhất
+                            </Tag>
+                          )}
+                        </div>
+                        <div
+                          className={`text-sm ${getDeliveryTimeColor(
+                            provider.thoiGianDuKien
+                          )} flex items-center`}
+                        >
+                          <ClockIcon size={12} className="inline mr-1" />
+                          {provider.thoiGianDuKien || "3-5 ngày"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div
+                        className={`text-lg font-bold ${
+                          isCheapest ? "text-green-600" : "text-gray-900"
+                        }`}
+                      >
+                        {provider.phiVanChuyen === 0
+                          ? "Miễn phí"
+                          : formatVND(provider.phiVanChuyen)}
+                      </div>
+                      {isSelected && (
+                        <div className="text-xs text-orange-600 mt-1 flex items-center">
+                          <CheckCircleIcon size={12} className="inline mr-1" />
+                          Đã chọn
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : comparingShipping ? (
+            <div className="text-center py-6">
+              <Spin size="small" />
+              <p className="text-gray-500 mt-2">
+                Đang tính toán phí vận chuyển...
+              </p>
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-500">
+              {!form.getFieldValue("province") ||
+              !form.getFieldValue("district") ||
+              !form.getFieldValue("DiaChi")
+                ? "Vui lòng nhập đầy đủ địa chỉ để tính phí"
+                : "Không có đơn vị vận chuyển khả dụng"}
+            </div>
+          )}
+        </div>
+
+        <div className="text-sm font-medium border-t pt-4">
+          {shippingLoading
+            ? "Đang tính phí vận chuyển..."
+            : shippingFee !== undefined
+            ? `Phí vận chuyển đã chọn: ${formatVND(shippingFee)}`
+            : "Vui lòng nhập địa chỉ để tính phí"}
+        </div>
       </div>
-      <div className="text-sm font-medium">
-        {shippingLoading
-          ? "Đang tính phí vận chuyển..."
-          : shippingFee !== undefined
-          ? `Phí vận chuyển: ${formatVND(shippingFee)}`
-          : "Vui lòng nhập địa chỉ để tính phí"}
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -912,10 +1058,10 @@ export default function CheckOut() {
                       },
                     ]}
                   >
-                    <Input 
-                      size="large" 
-                      placeholder="Ví dụ: 123 Đường Láng" 
-                      onChange={handleAddressDetailChange} // ← THÊM onChange
+                    <Input
+                      size="large"
+                      placeholder="Ví dụ: 123 Đường Láng"
+                      onChange={handleAddressDetailChange}
                     />
                   </Form.Item>
 
@@ -959,10 +1105,14 @@ export default function CheckOut() {
 
                   <button
                     type="submit"
-                    disabled={loading || cartItems.length === 0}
-                    className="w-full mt-10 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xl py-5 rounded-lg transition disabled:opacity-50"
+                    disabled={
+                      loading || cartItems.length === 0 || comparingShipping
+                    }
+                    className="w-full mt-10 bg-orange-600 text-white font-bold text-xl py-5 rounded-lg transition disabled:opacity-50 cursor-pointer"
                   >
-                    {loading
+                    {comparingShipping
+                      ? "Đang tính phí vận chuyển..."
+                      : loading
                       ? "Đang xử lý..."
                       : paymentMethod === "bank"
                       ? "Tạo QR thanh toán"
@@ -1019,7 +1169,7 @@ export default function CheckOut() {
                           : "font-medium"
                       }
                     >
-                      {shippingLoading
+                      {comparingShipping
                         ? "Đang tính..."
                         : shippingFee === 0
                         ? "Miễn phí"
@@ -1063,237 +1213,281 @@ export default function CheckOut() {
           setQrCountdown(300);
         }}
         footer={null}
-        width={qrData ? 750 : 600}
+        width={1000}
+        centered
         maskClosable={false}
         destroyOnClose={true}
         closeIcon={null}
+        className="checkout-confirm-modal"
       >
-        <div className="p-6">
+        <div className="p-6 md:p-8">
           {qrData ? (
-            <div className="text-center">
-              {/* Logo + Tiêu đề */}
-              <div className="mb-6">
-                <CheckCircleIcon
-                  size={70}
-                  className="text-green-600 mx-auto mb-4"
-                />
-                <h2 className="text-3xl font-bold text-gray-800">
-                  Quét QR để thanh toán
-                </h2>
-                <p className="text-lg text-gray-600 mt-2">
-                  Vui lòng hoàn tất chuyển khoản trong thời gian còn lại
-                </p>
-              </div>
-
-              {/* QR Code lớn */}
-              <div className="inline-block p-8 bg-white rounded-3xl shadow-2xl border-8 border-gray-100 mb-8">
-                <img
-                  src={qrData.qrUrl}
-                  alt="VietQR"
-                  className="w-80 h-80 object-contain"
-                />
-              </div>
-
-              {/* Đếm ngược lớn */}
-              <div className="text-6xl font-bold text-orange-600 mb-8 font-mono tracking-wider">
-                {Math.floor(qrCountdown / 60)
-                  .toString()
-                  .padStart(2, "0")}
-                :{(qrCountdown % 60).toString().padStart(2, "0")}
-              </div>
-
-              {/* Thông tin chuyển khoản */}
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-2xl space-y-6 mb-8 border">
-                <div>
-                  <div className="text-gray-600 text-lg">
-                    Số tiền cần chuyển:
-                  </div>
-                  <div className="text-4xl font-bold text-orange-600">
-                    {formatVND(total)}
-                  </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-xl shadow-md">
-                  <div className="text-gray-600 mb-3 text-lg">
-                    Nội dung chuyển khoản:
-                  </div>
-                  <div className="font-mono text-xl text-blue-700 break-all bg-gray-50 p-4 rounded-lg">
-                    {qrData.noiDung}
-                  </div>
-                </div>
-
-                <div className="text-amber-700 font-bold text-lg bg-amber-50 p-4 rounded-lg">
-                  Ghi đúng nội dung để hệ thống tự động xác nhận đơn hàng!
-                </div>
-              </div>
-
-              {/* Cảnh báo chống bấm nhầm */}
-              <div className="bg-red-50 border-2 border-red-300 text-red-700 p-6 rounded-xl mb-6">
-                <p className="font-bold text-xl">
-                  CHỈ bấm nút bên dưới khi bạn đã chuyển khoản thành công
-                </p>
-                <p className="text-sm mt-3">
-                  Nếu bấm nhầm mà chưa chuyển tiền → đơn hàng sẽ bị hủy sau 5
-                  phút và bạn phải đặt lại.
-                </p>
-              </div>
-
-              {qrCountdown <= 290 ? (
-                <Button
-                  type="primary"
-                  danger
-                  size="large"
-                  loading={loading}
-                  className="w-full h-16 text-xl font-bold"
-                  onClick={handleConfirmOrder}
-                >
-                  Tôi đã chuyển khoản thành công → Xem đơn hàng
-                </Button>
-              ) : (
-                <div className="space-y-4">
-                  <Button
-                    disabled
-                    size="large"
-                    className="w-full h-16 text-xl opacity-70"
-                  >
-                    Chưa thể bấm • Vui lòng chuyển khoản trước
-                  </Button>
-                  <p className="text-gray-500">
-                    Nút sẽ mở sau 10 giây để tránh bấm nhầm
+            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              <div>
+                <div className="text-center md:text-left flex flex-col items-center">
+                  <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+                    Quét QR để thanh toán
+                  </h2>
+                  <p className="text-gray-600 mt-2">
+                    Hoàn tất chuyển khoản trong thời gian còn lại
                   </p>
                 </div>
-              )}
 
-              {/* Nút hủy */}
-              <div className="mt-6">
-                <Button
-                  size="large"
-                  className="w-full"
-                  onClick={() => {
-                    setConfirmOpen(false);
-                    setQrData(null);
-                    setQrCountdown(300);
-                    messageApi.info(
-                      "Đã hủy thanh toán QR. Bạn có thể đặt lại đơn hàng."
-                    );
-                  }}
-                >
-                  Hủy thanh toán QR
-                </Button>
+                <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200">
+                  <div className="text-center">
+                    <img
+                      src={qrData.qrUrl}
+                      alt="VietQR"
+                      className="w-64 h-64 md:w-80 md:h-80 mx-auto object-contain"
+                    />
+                    <div className="mt-6 text-5xl font-bold text-orange-600 font-mono">
+                      {Math.floor(qrCountdown / 60)
+                        .toString()
+                        .padStart(2, "0")}
+                      :{(qrCountdown % 60).toString().padStart(2, "0")}
+                    </div>
+                    <p className="text-gray-500 mt-2">Thời gian còn lại</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">
+                    Thông tin chuyển khoản
+                  </h3>
+
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
+                    <div className="mb-6">
+                      <p className="text-gray-700 font-medium">Số tiền</p>
+                      <p className="text-4xl font-bold text-orange-600 mt-1">
+                        {formatVND(total)}
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-5 shadow">
+                      <p className="text-gray-700 font-medium mb-3">
+                        Nội dung chuyển khoản
+                      </p>
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-300 font-mono text-blue-800 break-all">
+                        {qrData.noiDung}
+                      </div>
+                      <div className="mt-4 bg-amber-50 px-2 py-3 rounded-lg text-amber-800 font-semibold text-xs">
+                        ⚠️ Ghi đúng nội dung để tự động xác nhận đơn!
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5  text-center">
+                  <div className="font-bold text-red-700 text-md">
+                    Chỉ bấm khi đã chuyển khoản thành công!
+                  </div>
+                  <div className="text-red-600 text-sm mt-2">
+                    Bấm nhầm → đơn hàng sẽ bị hủy sau 5 phút.
+                  </div>
+                </div>
+
+                <div className="space-y-3 flex flex-col gap-3">
+                  {qrCountdown <= 290 ? (
+                    <Button
+                      type="primary"
+                      danger
+                      size="large"
+                      loading={loading}
+                      onClick={handleConfirmOrder}
+                      className="w-full h-14 text-lg font-bold rounded-xl"
+                    >
+                      Đã chuyển khoản → Xác nhận đơn hàng
+                    </Button>
+                  ) : (
+                    <Button
+                      disabled
+                      size="large"
+                      className="w-full h-14 text-lg rounded-xl"
+                    >
+                      Chưa thể xác nhận • Vui lòng chuyển khoản trước
+                    </Button>
+                  )}
+
+                  <Button
+                    size="large"
+                    onClick={() => {
+                      setConfirmOpen(false);
+                      setQrData(null);
+                      setQrCountdown(300);
+                      messageApi.info("Đã hủy thanh toán QR");
+                    }}
+                    className="w-full rounded-xl"
+                  >
+                    Hủy thanh toán QR
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="space-y-8">
-              <div className="text-center">
-                <CheckCircleIcon
-                  size={70}
-                  className="text-orange-600 mx-auto mb-4"
-                />
-                <h2 className="text-3xl font-bold text-gray-800">
+            <div>
+              <div className="text-center md:text-left">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
                   Xác nhận đơn hàng
                 </h2>
-                <p className="text-lg text-gray-600 mt-2">
-                  Vui lòng kiểm tra lại thông tin trước khi đặt hàng
+                <p className="text-gray-600 mt-2 text-lg">
+                  Vui lòng kiểm tra kỹ thông tin trước khi đặt hàng
                 </p>
               </div>
-
-              {/* Thông tin người nhận */}
-              <div>
-                <h3 className="font-semibold text-lg mb-3">Người nhận</h3>
-                <div className="bg-gray-50 p-5 rounded-lg space-y-2 text-base">
-                  <p>
-                    <strong>Họ tên:</strong> {formValues?.HoTen}
-                  </p>
-                  <p>
-                    <strong>SĐT:</strong> {formValues?.SoDienThoai}
-                  </p>
-                  {formValues?.Email && (
-                    <p>
-                      <strong>Email:</strong> {formValues.Email}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Địa chỉ giao hàng */}
-              <div>
-                <h3 className="font-semibold text-lg mb-3">
-                  Địa chỉ giao hàng
-                </h3>
-                <div className="bg-gray-50 p-5 rounded-lg text-base">
-                  <p className="font-medium">{formValues?.DiaChi}</p>
-                  <p className="text-gray-600">
-                    {districtName}, {provinceName}
-                  </p>
-                </div>
-              </div>
-
-              {/* Mã giảm giá */}
-              {appliedVoucher && (
-                <div>
-                  <h3 className="font-semibold text-lg mb-3">
-                    Mã giảm giá đã áp dụng
-                  </h3>
-                  <div className="bg-green-50 border border-green-300 p-5 rounded-lg">
-                    <p className="font-bold text-green-700">
-                      {appliedVoucher.tenChuongTrinh}
-                    </p>
-                    <p className="text-green-600">
-                      Mã: {appliedVoucher.maGiamGia}
-                    </p>
-                    <p className="font-semibold">
-                      Giảm: {formatVND(appliedVoucher.soTienGiam)}
-                    </p>
+              <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                <div className="space-y-6">
+                  <div className="bg-white rounded-2xl shadow-md border border-orange-200 overflow-hidden">
+                    <div className="bg-orange-50 px-6 py-4 border-b border-orange-200">
+                      <div className="font-bold text-orange-800 text-xl">
+                        Tóm tắt thanh toán
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <div className="flex justify-between text-lg">
+                        <span className="text-gray-600">Tạm tính</span>
+                        <span className="font-semibold">
+                          {formatVND(subtotal)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-lg">
+                        <span className="text-gray-600">Phí vận chuyển</span>
+                        <span className="font-semibold">
+                          {shippingFee === 0
+                            ? "Miễn phí"
+                            : formatVND(shippingFee)}
+                        </span>
+                      </div>
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between text-lg text-green-600 font-bold">
+                          <span>Giảm giá</span>
+                          <span>-{formatVND(discountAmount)}</span>
+                        </div>
+                      )}
+                      <div className="pt-4 border-t-2 border-orange-400 flex justify-between items-center">
+                        <span className="text-xl font-bold text-gray-800">
+                          Tổng cộng
+                        </span>
+                        <span className="text-xl font-bold text-orange-600">
+                          {formatVND(total)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-6">
+                    <div className="bg-white rounded-2xl shadow-md border border-blue-200 overflow-hidden">
+                      <div className="bg-blue-50 px-5 py-3 border-b border-blue-200">
+                        <div className="font-bold text-blue-800">
+                          Người nhận
+                        </div>
+                      </div>
+                      <div className="p-5 space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Họ tên:</span>
+                          <strong className="text-gray-900">
+                            {formValues?.HoTen}
+                          </strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">SĐT:</span>
+                          <span className="text-gray-900">
+                            {formValues?.SoDienThoai}
+                          </span>
+                        </div>
+                        {formValues?.Email && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Email:</span>
+                            <span className="text-gray-900">
+                              {formValues.Email}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
-
-              <div>
-                <h3 className="font-semibold text-lg mb-3">
-                  Tóm tắt thanh toán
-                </h3>
-                <div className="bg-gray-50 p-5 rounded-lg space-y-3 text-base">
-                  <div className="flex justify-between">
-                    <span>Tạm tính:</span>
-                    <span>{formatVND(subtotal)}</span>
+                <div className="space-y-8">
+                  <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+                    <div className="bg-orange-50 px-6 py-4 border-b border-orange-200">
+                      <div className="font-bold text-xl text-orange-800">
+                        Sản phẩm
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4 max-h-96 overflow-y-auto">
+                      {cartItems.map((item, index) => (
+                        <div
+                          key={item.id}
+                          className={`flex justify-between items-start pb-4 ${
+                            index !== cartItems.length - 1
+                              ? "border-b border-gray-200"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900 text-lg">
+                              {item.tenSanPham || item.ten}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {item.tenKichThuoc && (
+                                <span className="font-medium">
+                                  {item.tenKichThuoc} ×{" "}
+                                </span>
+                              )}
+                              Số lượng: <strong>{item.quantity}</strong>
+                            </div>
+                          </div>
+                          <div className="font-bold text-gray-900 text-lg ml-4">
+                            {formatVND(
+                              (item.giaSauGiam || item.gia || 0) * item.quantity
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Phí vận chuyển:</span>
-                    <span>
-                      {shippingFee === 0 ? "Miễn phí" : formatVND(shippingFee)}
-                    </span>
+                  <div className="bg-white rounded-2xl shadow-md border border-green-200 overflow-hidden">
+                    <div className="bg-green-50 px-5 py-3 border-b border-green-200">
+                      <div className="font-bold text-green-800">Giao đến</div>
+                    </div>
+                    <div className="p-5">
+                      <p className="font-medium text-gray-900 text-base">
+                        {formValues?.DiaChi}
+                      </p>
+                      <p className="text-gray-700 mt-2">
+                        {districtName}, {provinceName}
+                      </p>
+                    </div>
                   </div>
-                  {discountAmount > 0 && (
-                    <div className="flex justify-between text-green-600 font-medium">
-                      <span>Giảm giá:</span>
-                      <span>-{formatVND(discountAmount)}</span>
+                  {formValues?.note && (
+                    <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5">
+                      <div className="font-semibold text-amber-800 mb-2">
+                        Ghi chú của bạn
+                      </div>
+                      <div className="text-amber-900 italic">
+                        "{formValues.note}"
+                      </div>
                     </div>
                   )}
-                  <div className="flex justify-between text-xl font-bold pt-3 border-t-2 border-orange-500">
-                    <span>Tổng cộng:</span>
-                    <span className="text-orange-600">{formatVND(total)}</span>
+                  <div className="space-y-4 flex flex-col gap-3">
+                    <Button
+                      type="primary"
+                      danger
+                      size="large"
+                      loading={loading}
+                      onClick={handleConfirmOrder}
+                      className="w-full h-16 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-shadow"
+                    >
+                      {loading ? "Đang xử lý..." : "Xác nhận đặt hàng (COD)"}
+                    </Button>
+
+                    <Button
+                      size="large"
+                      onClick={() => setConfirmOpen(false)}
+                      className="w-full h-12 rounded-2xl border-2 border-gray-300"
+                    >
+                      Quay lại chỉnh sửa
+                    </Button>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex gap-4 pt-6">
-                <Button
-                  size="large"
-                  className="flex-1"
-                  onClick={() => setConfirmOpen(false)}
-                >
-                  Quay lại chỉnh sửa
-                </Button>
-                <Button
-                  type="primary"
-                  size="large"
-                  danger
-                  loading={loading}
-                  className="flex-1 text-lg font-bold"
-                  onClick={handleConfirmOrder}
-                >
-                  {loading ? "Đang xử lý..." : "Xác nhận đặt hàng"}
-                </Button>
               </div>
             </div>
           )}

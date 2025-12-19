@@ -3,6 +3,7 @@ import payment from "/src/assets/img/footer-pay.png";
 import { NavLink, useNavigate, useParams } from "react-router";
 import ClientBreadcrumb from "../ClientBreadcrumb";
 import { MinusIcon, PlusIcon, SealCheckIcon } from "@phosphor-icons/react";
+import logo from "/src/assets/login/logo.png";
 import {
   IconFaceBook,
   IconLinkerIn,
@@ -86,7 +87,7 @@ export default function ProductDetail() {
       setSelectedColor(colorValue);
       setSelectedSize(inStock.tenKichThuoc);
       setSelectedDetail(inStock);
-      setSelectedImage(inStock.anhs?.[0]?.duongDanAnh || "");
+      setSelectedImage(inStock.anhs?.[0]?.duongDanAnh || logo);
     }
     setVariantGroups(variantGroups);
   }, [dataDetail]);
@@ -123,7 +124,7 @@ export default function ProductDetail() {
 
     if (variant) {
       setSelectedDetail(variant);
-      setSelectedImage(variant.anhs?.[0]?.duongDanAnh);
+      setSelectedImage(variant.anhs?.[0]?.duongDanAnh || logo);
     }
   };
 
@@ -173,7 +174,7 @@ export default function ProductDetail() {
 
     setSelectedSize(size);
     setSelectedDetail(available);
-    setSelectedImage(available.anhs?.[0]?.duongDanAnh || "");
+    setSelectedImage(available.anhs?.[0]?.duongDanAnh || logo);
     setQuantity(1);
   };
 
@@ -267,9 +268,6 @@ export default function ProductDetail() {
     setTimeout(() => navigate("/cart"), 1000);
   };
 
-  // -------------------------------------------------
-  // UI DATA
-  // -------------------------------------------------
   const items = [
     {
       key: "1",
@@ -291,7 +289,6 @@ export default function ProductDetail() {
 
         {detail && (
           <div className="flex justify-between gap-40">
-            {/* LEFT IMAGE */}
             <div className="flex gap-3">
               <div className="flex flex-col gap-3">
                 {detail.anhs?.map((img, index) => (
@@ -307,7 +304,11 @@ export default function ProductDetail() {
               </div>
 
               <div className="min-w-[580px] max-w-[580px] min-h-[670px] bg-gray-100 flex items-center justify-center">
-                <img src={selectedImage} className="w-full" />
+                <img
+                  src={selectedImage || logo}
+                  onError={(e) => (e.target.src = logo)}
+                  className="w-full"
+                />
               </div>
             </div>
 
@@ -334,20 +335,16 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* STOCK INFO */}
               <div className="text-blue-800 text-xs font-bold">
                 Số lượng còn: <span>{detail.soLuongTon}</span>
               </div>
 
-              {/* DESCRIPTION */}
               <div className="text-base max-w-[600px] text-gray-600">
                 {detail.moTa}
               </div>
 
-              {/* PRICE - Hiển thị theo điều kiện có giảm giá */}
               <div className="flex gap-1 items-center flex-wrap">
                 {hasDiscount(detail) ? (
-                  // Hiển thị khi có giảm giá
                   <>
                     <div className="text-sm line-through text-gray-500">
                       {formatVND(detail.giaBan)}
@@ -366,7 +363,6 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              {/* MÀU SẮC */}
               <div className="flex gap-2 items-center">
                 <div className="text-sm font-bold">Màu sắc:</div>
                 <div className="flex gap-3 flex-wrap">
@@ -410,7 +406,6 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* SIZE */}
               <div className="flex gap-2 items-center">
                 <div className="text-sm font-bold">Size:</div>
 
@@ -434,7 +429,6 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* QUANTITY */}
               <div className="flex gap-5">
                 <div className="flex items-center">
                   <div className="text-sm font-bold">Số lượng:</div>
@@ -486,7 +480,6 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* BUY NOW */}
               <div
                 className="flex items-center justify-center bg-amber-800 text-white px-6 py-4 font-bold cursor-pointer hover:bg-amber-700"
                 onClick={handleAddToCart}
@@ -494,7 +487,6 @@ export default function ProductDetail() {
                 Mua Ngay
               </div>
 
-              {/* SKU */}
               <div className="flex gap-2 items-center">
                 <div className="text-sm font-bold">SKU:</div>
                 <div className="text-base text-gray-600">
@@ -502,7 +494,6 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* WEIGHT */}
               <div className="flex gap-2 items-center">
                 <div className="text-sm font-bold">Trọng lượng:</div>
                 <div className="border border-amber-600 text-sm px-4 font-bold rounded">
@@ -510,7 +501,6 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* SHARE */}
               <div className="flex gap-2 items-center">
                 <div className="text-sm font-bold">Share:</div>
                 <div className="flex gap-2">

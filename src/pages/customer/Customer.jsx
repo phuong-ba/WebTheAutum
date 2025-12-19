@@ -11,6 +11,12 @@ import {
 import CustomerForm from "./CustomerForm";
 import ConfirmModal from "./ConfirmModal";
 import CustomerBreadcrumb from "./CustomerBreadcrumb";
+import {
+  ExportOutlined,
+  ImportOutlined,
+  PlusSquareOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 
 export default function Customer() {
   const [customers, setCustomers] = useState([]);
@@ -28,7 +34,9 @@ export default function Customer() {
   });
   const [messageApi, messageContextHolder] = message.useMessage();
   const pageSize = 5;
-
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   // 🔹 Cấu hình message
   useEffect(() => {
     message.config({ top: "45%", duration: 2, maxCount: 3 });
@@ -258,7 +266,7 @@ export default function Customer() {
               Bộ lọc khách hàng
             </div>
 
-            <div className="p-6 flex flex-col gap-4">
+            <div className="p-6 flex flex-col gap-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <input
                   placeholder="Nhập mã, tên, email, số điện thoại..."
@@ -277,36 +285,35 @@ export default function Customer() {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 mt-4 flex-wrap">
+              <div className="flex justify-end gap-4 pr-3 text-sm">
                 <div
                   onClick={() => {
                     setSearchKeyword("");
                     setFilterTrangThai("all");
                   }}
-                  className="bg-gray-400 text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-700"
+                  className="border  text-white rounded-md px-6 py-2 cursor-pointer bg-gray-400 font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
                 >
-                  Nhập lại
+                  <ReloadOutlined /> Nhập lại
                 </div>
-
                 <div
                   onClick={() => openConfirmModal("add")}
-                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
                 >
-                  Thêm mới
+                  <PlusSquareOutlined /> Thêm mới
                 </div>
 
                 <div
                   onClick={() => exportToExcel(customers)}
-                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
                 >
-                  Xuất Excel
+                  <ExportOutlined /> Xuất Excel
                 </div>
 
                 <div
                   onClick={downloadTemplate}
-                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
+                  className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-800 hover:text-white active:bg-cyan-800 select-none"
                 >
-                  Tải mẫu Excel
+                  <ExportOutlined /> Tải mẫu Excel
                 </div>
 
                 <input
@@ -330,7 +337,7 @@ export default function Customer() {
                   }
                   className="bg-[#E67E22] text-white rounded-md px-6 py-2 font-bold cursor-pointer hover:bg-amber-800"
                 >
-                  Thêm từ Excel
+                  <ImportOutlined /> Thêm từ Excel
                 </div>
               </div>
             </div>

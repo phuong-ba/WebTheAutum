@@ -146,15 +146,6 @@ export default function FliterProductAll({ onFilter }) {
           >
             Xóa bộ lọc
           </Button>
-
-          <Button
-            type="primary"
-            htmlType="submit"
-            icon={<SearchOutlined />}
-            className="bg-orange-600 hover:bg-orange-700 border-none flex items-center"
-          >
-            Tìm kiếm
-          </Button>
         </div>
       </Form>
     </div>

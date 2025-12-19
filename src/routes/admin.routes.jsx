@@ -7,8 +7,6 @@ import Statistical from "@/pages/statistical/Statistical";
 import Sell from "@/pages/sell/Sell";
 import Product from "@/pages/product/Product";
 import Bill from "@/pages/bill/Bill";
-import Category from "@/pages/category/Category";
-import Collection from "@/pages/collection/Collection";
 import Warehouse from "@/pages/warehouse/Warehouse";
 import Discount from "@/pages/discount/Discount";
 import User from "@/pages/user/User";
@@ -129,22 +127,7 @@ const adminRouters = [
           </LazyLoad>
         ),
       },
-      {
-        path: "category",
-        element: (
-          <LazyLoad>
-            <Category />
-          </LazyLoad>
-        ),
-      },
-      {
-        path: "collection",
-        element: (
-          <LazyLoad>
-            <Collection />
-          </LazyLoad>
-        ),
-      },
+
       {
         path: "warehouse",
         element: (

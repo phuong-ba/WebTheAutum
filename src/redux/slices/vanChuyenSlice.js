@@ -13,14 +13,30 @@ const vanChuyenSlice = createSlice({
   reducers: {
     setSelectedShipping: (state, action) => {
       state.selectedShipping = action.payload;
+      // Tìm phí tương ứng với đơn vị được chọn
+      const selectedFee = state.shippingFees.find(
+        fee => (fee.code || fee.ma || fee.id) === action.payload
+      );
+      if (selectedFee) {
+        state.phiVanChuyen = selectedFee.phiVanChuyen || 0;
+      }
     },
     resetShippingFee: (state) => {
       state.phiVanChuyen = 0;
-      state.error = null;
+      state.shippingFees = []; // Reset danh sách phí
     },
-    clearError: (state) => {
-      state.error = null;
-    }
+    setShippingFees: (state, action) => {
+      state.shippingFees = action.payload; // THÊM REDUCER MỚI
+      // Cập nhật phí vận chuyển nếu đã có đơn vị được chọn
+      if (state.selectedShipping) {
+        const selectedFee = action.payload.find(
+          fee => (fee.code || fee.ma || fee.id) === state.selectedShipping
+        );
+        if (selectedFee) {
+          state.phiVanChuyen = selectedFee.phiVanChuyen || 0;
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -55,5 +71,5 @@ const vanChuyenSlice = createSlice({
   }
 });
 
-export const { setSelectedShipping, resetShippingFee, clearError } = vanChuyenSlice.actions;
+export const { setSelectedShipping, resetShippingFee, setShippingFees } = vanChuyenSlice.actions;
 export default vanChuyenSlice.reducer;
