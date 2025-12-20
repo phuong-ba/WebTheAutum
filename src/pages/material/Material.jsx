@@ -381,11 +381,11 @@ export default function Material() {
           />
 
           {/* Edit button */}
-          <Button
+          {/* <Button
             type="link"
             icon={<PencilLineIcon size={24} weight="fill" color="#E67E22" />}
             onClick={() => navigate(`/admin/update-material/${record.id}`)}
-          />
+          /> */}
         </Space>
       ),
     },
@@ -446,7 +446,7 @@ export default function Material() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="bg-[#E67E22] text-white px-6 py-3 flex justify-between items-center">
           <div className="font-bold text-2xl text-white">
-            Danh sách chất liệu 
+            Danh sách chất liệu
           </div>
         </div>
 
@@ -534,18 +534,26 @@ export default function Material() {
         destroyOnClose
       >
         <div className="flex flex-col items-center gap-4 p-4">
-          <h2 className="text-xl font-bold text-center">Xác nhận thêm chất liệu</h2>
-          
+          <h2 className="text-xl font-bold text-center">
+            Xác nhận thêm chất liệu
+          </h2>
+
           {addFormValues && (
             <div className="w-full bg-gray-50 rounded-lg p-4">
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <div className="font-medium text-gray-700 w-32">Tên chất liệu:</div>
-                  <div className="font-semibold text-gray-900">{addFormValues.tenChatLieu}</div>
+                  <div className="font-medium text-gray-700 w-32">
+                    Tên chất liệu:
+                  </div>
+                  <div className="font-semibold text-gray-900">
+                    {addFormValues.tenChatLieu}
+                  </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
-                  <div className="font-medium text-gray-700 w-32">Trạng thái:</div>
+                  <div className="font-medium text-gray-700 w-32">
+                    Trạng thái:
+                  </div>
                   <Tag color="#E9FBF4" style={{ border: "1px solid #00A96C" }}>
                     <div className="text-[#00A96C]">Đang hoạt động</div>
                   </Tag>
@@ -553,16 +561,16 @@ export default function Material() {
               </div>
             </div>
           )}
-          
+
           <p className="text-gray-600 text-center mt-2">
             Bạn có chắc muốn thêm chất liệu này vào hệ thống?
           </p>
 
           <div className="flex justify-center gap-6 mt-6 w-full">
-            <Button 
-              size="large" 
-              className="w-40" 
-              onClick={() => setIsAddConfirmModalVisible(false)} 
+            <Button
+              size="large"
+              className="w-40"
+              onClick={() => setIsAddConfirmModalVisible(false)}
               disabled={isAdding}
             >
               Hủy
@@ -573,9 +581,9 @@ export default function Material() {
               className="w-40"
               onClick={handleConfirmAdd}
               loading={isAdding}
-              style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+              style={{ backgroundColor: "#52c41a", borderColor: "#52c41a" }}
             >
-              {isAdding ? 'Đang thêm...' : 'Xác nhận thêm'}
+              {isAdding ? "Đang thêm..." : "Xác nhận thêm"}
             </Button>
           </div>
         </div>

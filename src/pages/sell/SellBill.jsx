@@ -1,6 +1,6 @@
 import { InvoiceIcon, TrashIcon } from "@phosphor-icons/react";
 import Search from "antd/es/input/Search";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { message, Modal, Spin } from "antd";
 import { useDispatch } from "react-redux";
 import SockJS from "sockjs-client";
@@ -25,6 +25,10 @@ export default function SellBill({ onSelectBill }) {
   const [updatingBills, setUpdatingBills] = useState({});
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const lastCleanupDateRef = useRef(
+    localStorage.getItem("lastCleanupDate") || ""
+  );
+  const cleanupCheckedRef = useRef(false);
 
   // Lấy thông tin người dùng hiện tại
   useEffect(() => {
@@ -42,6 +46,129 @@ export default function SellBill({ onSelectBill }) {
     return () => client?.connected && client.disconnect();
   }, []);
 
+  /* ================= KIỂM TRA VÀ XÓA HÓA ĐƠN CŨ TỰ ĐỘNG ================= */
+  useEffect(() => {
+    const performAutoCleanup = async () => {
+      // Chỉ kiểm tra một lần khi component mount
+      if (cleanupCheckedRef.current) return;
+
+      const today = new Date().toDateString();
+      const lastCleanup = lastCleanupDateRef.current;
+
+      // Nếu đã kiểm tra hôm nay rồi thì bỏ qua
+      if (lastCleanup === today) {
+        cleanupCheckedRef.current = true;
+        return;
+      }
+
+      try {
+        console.log("Kiểm tra và xóa hóa đơn chờ từ ngày trước...");
+
+        // Lấy tất cả hóa đơn chờ từ API
+        const res = await hoaDonApi.getHoaDonCho();
+        const apiBills = res.data.data || [];
+
+        // Lấy hóa đơn từ localStorage
+        const localBills =
+          JSON.parse(localStorage.getItem("pendingBills")) || [];
+
+        const billsToDelete = [];
+        const todayBills = [];
+
+        // Phân loại hóa đơn: cũ vs mới (hôm nay)
+        for (const apiBill of apiBills) {
+          const billDate = new Date(apiBill.ngayTao).toDateString();
+
+          if (billDate === today) {
+            todayBills.push(apiBill);
+          } else {
+            billsToDelete.push(apiBill);
+          }
+        }
+
+        // Xóa các hóa đơn cũ
+        let deletedCount = 0;
+        for (const bill of billsToDelete) {
+          try {
+            // Hoàn kho trước khi xóa
+            const localBill = localBills.find((b) => b.id === bill.id);
+            if (localBill?.cart?.length) {
+              await Promise.all(
+                localBill.cart.map((p) =>
+                  dispatch(
+                    tangSoLuong({
+                      id: p.idChiTietSanPham,
+                      soLuong: p.quantity,
+                    })
+                  ).unwrap()
+                )
+              );
+            }
+
+            // Xóa từ API
+            await hoaDonApi.deleteHoaDon(bill.id);
+            deletedCount++;
+
+            // Gửi thông báo websocket nếu cần
+            if (stompClient?.connected) {
+              stompClient.send(
+                "/topic/display",
+                {},
+                JSON.stringify({
+                  maHoaDon: bill.maHoaDon || `HD_${bill.id}`,
+                  tongTien: localBill?.totalAmount || 0,
+                  items: localBill?.cart || [],
+                  trangThai: 4,
+                })
+              );
+            }
+
+            console.log(`Đã xóa hóa đơn cũ: ${bill.maHoaDon || bill.id}`);
+          } catch (error) {
+            console.error(`Lỗi xóa hóa đơn ${bill.id}:`, error);
+          }
+        }
+
+        // Cập nhật localStorage - chỉ giữ lại hóa đơn của ngày hôm nay
+        const updatedLocalBills = localBills.filter((localBill) => {
+          if (!localBill.createdAt) return false;
+          const billDate = new Date(localBill.createdAt).toDateString();
+          return billDate === today;
+        });
+        localStorage.setItem("pendingBills", JSON.stringify(updatedLocalBills));
+
+        // Lưu ngày kiểm tra cuối cùng
+        localStorage.setItem("lastCleanupDate", today);
+        lastCleanupDateRef.current = today;
+        cleanupCheckedRef.current = true;
+
+        // Tải lại danh sách hóa đơn (chỉ hóa đơn của hôm nay)
+        if (deletedCount > 0) {
+          console.log(
+            `Đã tự động xóa ${deletedCount} hóa đơn chờ từ ngày trước`
+          );
+
+          // Tải lại danh sách hóa đơn hiện tại
+          await loadBills();
+
+          // Hiển thị thông báo
+          messageApi.info({
+            content: `Đã tự động xóa ${deletedCount} hóa đơn chờ từ ngày trước`,
+            duration: 5,
+          });
+        }
+      } catch (error) {
+        console.error("Lỗi kiểm tra hóa đơn cũ:", error);
+        cleanupCheckedRef.current = true;
+      }
+    };
+
+    // Thực hiện kiểm tra khi component mount
+    if (currentUserId && stompClient) {
+      performAutoCleanup();
+    }
+  }, [currentUserId, stompClient, dispatch, messageApi]);
+
   /* ================= TẢI DANH SÁCH HÓA ĐƠN ================= */
   const loadBills = async () => {
     try {
@@ -50,8 +177,15 @@ export default function SellBill({ onSelectBill }) {
 
       // Lấy thông tin từ localStorage
       const localBills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+      const today = new Date().toDateString();
 
-      const mapped = list.map((hd) => {
+      // Lọc chỉ lấy hóa đơn của ngày hôm nay
+      const todayBills = list.filter((hd) => {
+        const billDate = new Date(hd.ngayTao).toDateString();
+        return billDate === today;
+      });
+
+      const mapped = todayBills.map((hd) => {
         const localBill = localBills.find((bill) => bill.id === hd.id);
 
         return {
@@ -61,7 +195,7 @@ export default function SellBill({ onSelectBill }) {
           productCount: localBill?.cart?.length || 0,
           totalAmount: localBill?.totalAmount || 0,
           cart: localBill?.cart || [],
-          createdAt: hd.ngayTao, // Lưu ngày tạo
+          createdAt: hd.ngayTao,
           nhanVienId: hd.nhanVien?.id,
           nhanVienName:
             hd.nhanVien?.tenNhanVien || getCurrentUserName() || "Nhân viên",
@@ -74,6 +208,9 @@ export default function SellBill({ onSelectBill }) {
       if (mapped.length > 0 && !selectedBillId) {
         setSelectedBillId(mapped[0].id);
         onSelectBill(mapped[0].id);
+      } else if (mapped.length === 0) {
+        setSelectedBillId(null);
+        onSelectBill(null);
       }
     } catch (error) {
       console.error("Lỗi tải danh sách hóa đơn:", error);
@@ -85,6 +222,7 @@ export default function SellBill({ onSelectBill }) {
   useEffect(() => {
     const updateBillsFromLocalStorage = () => {
       const localBills = JSON.parse(localStorage.getItem("pendingBills")) || [];
+      const today = new Date().toDateString();
 
       setBills((prevBills) => {
         return prevBills.map((bill) => {
@@ -124,7 +262,7 @@ export default function SellBill({ onSelectBill }) {
   /* ================= KHỞI TẠO ================= */
   useEffect(() => {
     loadBills();
-  }, []);
+  }, [currentUserId]);
 
   const onSearch = (value) => console.log(value);
 
@@ -153,16 +291,16 @@ export default function SellBill({ onSelectBill }) {
       // Tạo bill object với thông tin từ response
       const newBill = {
         id: hd.id,
-        name: hd.maHoaDon || `HD_${hd.id}`, // Nếu có mã thì dùng, không thì dùng tạm
-        originalMaHoaDon: hd.maHoaDon, // Lưu mã gốc từ response
+        name: hd.maHoaDon || `HD_${hd.id}`,
+        originalMaHoaDon: hd.maHoaDon,
         status: "Chờ xử lý",
         productCount: 0,
         totalAmount: 0,
         cart: [],
-        createdAt: hd.ngayTao, // Lưu ngày tạo từ response
+        createdAt: hd.ngayTao,
         nhanVienId: currentUserId,
         nhanVienName: getCurrentUserName() || "Nhân viên",
-        isNew: true, // Đánh dấu là hóa đơn mới
+        isNew: true,
       };
 
       // Lưu vào localStorage
@@ -334,44 +472,31 @@ export default function SellBill({ onSelectBill }) {
     onSelectBill(billId);
   };
 
-  /* ================= HÀM ĐỊNH DẠNG NGÀY ================= */
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-
-    try {
-      const date = new Date(dateString);
-
-      // Format: HH:mm dd/MM/yyyy
-      const hours = date.getHours().toString().padStart(2, "0");
-      const minutes = date.getMinutes().toString().padStart(2, "0");
-      const day = date.getDate().toString().padStart(2, "0");
-      const month = (date.getMonth() + 1).toString().padStart(2, "0");
-      const year = date.getFullYear();
-
-      return `${hours}:${minutes} ${day}/${month}/${year}`;
-    } catch (error) {
-      console.error("Lỗi định dạng ngày:", error);
-      return dateString;
-    }
-  };
-
-  /* ================= HÀM ĐỊNH DẠNG NGÀY NGẮN (chỉ ngày/tháng) ================= */
-  const formatShortDate = (dateString) => {
-    if (!dateString) return "";
-
-    try {
-      const date = new Date(dateString);
-      const day = date.getDate().toString().padStart(2, "0");
-      const month = (date.getMonth() + 1).toString().padStart(2, "0");
-
-      return `${day}/${month}`;
-    } catch (error) {
-      console.error("Lỗi định dạng ngày ngắn:", error);
-      return "";
-    }
-  };
-
   const selectedBill = bills.find((b) => b.id === selectedBillId);
+
+  /* ================= KIỂM TRA NGÀY MỚI KHI TAB ĐƯỢC FOCUS ================= */
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Khi tab trở lại focus, kiểm tra ngày mới
+        const today = new Date().toDateString();
+        const lastCleanup = localStorage.getItem("lastCleanupDate") || "";
+
+        if (lastCleanup !== today) {
+          // Reset flag để thực hiện cleanup lại
+          cleanupCheckedRef.current = false;
+          lastCleanupDateRef.current = "";
+          loadBills();
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   /* ================= RENDER ================= */
   return (
@@ -391,6 +516,11 @@ export default function SellBill({ onSelectBill }) {
         <p>
           Bạn có chắc muốn xóa hóa đơn <strong>"{billToDelete?.name}"</strong>?
         </p>
+        {billToDelete?.cart?.length > 0 && (
+          <p className="text-red-600 mt-2">
+            ⚠️ {billToDelete.cart.length} sản phẩm sẽ được hoàn trả về kho
+          </p>
+        )}
       </Modal>
 
       <div className="bg-white py-5 px-4 flex flex-col gap-3 rounded-lg shadow overflow-hidden h-full">
