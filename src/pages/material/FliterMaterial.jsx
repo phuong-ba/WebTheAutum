@@ -163,7 +163,7 @@ export default function FilterMaterial({ showAddModal }) {
             onClick={showAddModal}
             className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
           >
-            Thêm màu sắc
+            Thêm chất liệu
           </div>
         </div>
       </Form>
