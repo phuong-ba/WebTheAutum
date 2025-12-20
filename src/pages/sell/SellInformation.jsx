@@ -64,18 +64,18 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   const [localQuanList, setLocalQuanList] = useState([]);
   const [addressForm] = Form.useForm();
 
-  // --- SỬA: Thêm state để lưu quận theo tỉnh ---
+  // Thêm state để lưu quận theo tỉnh
   const [quanMap, setQuanMap] = useState({});
 
-  // --- SỬA: Thêm ref để theo dõi lần tính phí cuối ---
-  const lastShippingCalculationRef = useRef({
-    tinh: null,
+  // Thêm ref để theo dõi thay đổi địa chỉ
+  const addressChangeTimeout = useRef(null);
+  const lastAddressValues = useRef({
+    thanhPho: null,
     quan: null,
     diaChiCuThe: null,
-    cartItemsHash: null,
   });
 
-  // --- SỬA: Tính toán lại discountAmount mỗi khi cartTotal thay đổi ---
+  // Tính toán lại discountAmount mỗi khi cartTotal thay đổi
   const calculatedDiscount = useMemo(() => {
     if (!appliedDiscount || cartTotal === 0) {
       return {
@@ -113,7 +113,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     };
   }, [appliedDiscount, cartTotal]);
 
-  // --- SỬA: Cập nhật localStorage khi calculatedDiscount thay đổi ---
+  // Cập nhật localStorage khi calculatedDiscount thay đổi
   useEffect(() => {
     if (appliedDiscount && selectedBillId) {
       const bills = JSON.parse(localStorage.getItem("pendingBills")) || [];
@@ -121,7 +121,6 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
       if (!currentBill) return;
 
-      // Chỉ cập nhật nếu có sự thay đổi thực sự
       const currentDiscountAmount =
         currentBill.appliedDiscount?.discountAmount || 0;
       const currentFinalAmount =
@@ -162,7 +161,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     calculatedDiscount.discountAmount,
     calculatedDiscount.finalAmount,
     selectedBillId,
-  ]); // Chỉ theo dõi giá trị cụ thể
+  ]);
 
   const getPersonalDiscountsForCustomer = () => {
     if (!selectedCustomer || !Array.isArray(giamGiaKhachHangData)) return [];
@@ -179,7 +178,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     );
   };
 
-  // --- SỬA: openAddressModal - Load quận cho TẤT CẢ tỉnh ---
+  // openAddressModal - Load quận cho TẤT CẢ tỉnh
   const openAddressModal = async () => {
     if (!selectedCustomer) {
       messageApi.warning("Vui lòng chọn khách hàng trước!");
@@ -270,10 +269,8 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       addressForm.setFieldsValue(formValues);
       messageApi.success("Đã chọn địa chỉ thành công!");
 
-      // --- SỬA: Gọi tính phí ngay sau khi chọn địa chỉ ---
-      setTimeout(() => {
-        triggerShippingCalculation();
-      }, 500);
+      // Gọi tính phí ngay sau khi chọn địa chỉ
+      triggerShippingCalculation();
     } catch (err) {
       console.error("Lỗi khi chọn địa chỉ:", err);
       messageApi.error("Không thể cập nhật quận/huyện");
@@ -621,10 +618,10 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
               await handleTinhChange(idTinh);
               addressForm.setFieldsValue({ quan: idQuan });
 
-              // --- SỬA: Gọi tính phí sau khi setup địa chỉ mặc định ---
+              // Gọi tính phí sau khi setup địa chỉ mặc định
               setTimeout(() => {
                 triggerShippingCalculation();
-              }, 1000);
+              }, 1500);
             } catch (err) {
               console.error("Lỗi load quận mặc định:", err);
             }
@@ -672,17 +669,76 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     }
   }, [quanMap, addressForm]);
 
-  // --- SỬA: Thêm hàm triggerShippingCalculation ---
+  // Hàm triggerShippingCalculation - đơn giản hóa
   const triggerShippingCalculation = () => {
+    console.log("🔄 Trigger shipping calculation from SellInformation");
+
+    // Kiểm tra xem địa chỉ đã đầy đủ chưa
+    const values = addressForm.getFieldsValue();
+    const { thanhPho, quan, diaChiCuThe } = values;
+
+    console.log("📦 Address values:", { thanhPho, quan, diaChiCuThe });
+
+    if (!thanhPho || !quan || !diaChiCuThe?.trim()) {
+      console.log("❌ Address not complete, skipping shipping calculation");
+      return;
+    }
+
+    // Kiểm tra xem địa chỉ có thay đổi không
+    const currentAddress = { thanhPho, quan, diaChiCuThe: diaChiCuThe.trim() };
+    const hasChanged =
+      lastAddressValues.current.thanhPho !== currentAddress.thanhPho ||
+      lastAddressValues.current.quan !== currentAddress.quan ||
+      lastAddressValues.current.diaChiCuThe !== currentAddress.diaChiCuThe;
+
+    if (!hasChanged) {
+      console.log("✅ Address unchanged, skipping calculation");
+      return;
+    }
+
+    lastAddressValues.current = currentAddress;
+
+    // Gọi SellPay component để tính phí
     if (
       window.SellPayComponent &&
       typeof window.SellPayComponent.calculateShippingFee === "function"
     ) {
+      console.log("🚀 Calling SellPayComponent.calculateShippingFee");
       window.SellPayComponent.calculateShippingFee();
+    } else {
+      console.warn("❌ SellPayComponent not available yet");
+      // Thử lại sau 500ms
+      setTimeout(() => {
+        if (
+          window.SellPayComponent &&
+          typeof window.SellPayComponent.calculateShippingFee === "function"
+        ) {
+          window.SellPayComponent.calculateShippingFee();
+        }
+      }, 500);
     }
   };
 
-  // --- SỬA: Đơn giản hóa việc theo dõi thay đổi bill ---
+  // Tự động tính phí khi địa chỉ đầy đủ
+  useEffect(() => {
+    const checkAndCalculateShipping = () => {
+      if (isDelivery && addressForm) {
+        const values = addressForm.getFieldsValue();
+        const { thanhPho, quan, diaChiCuThe } = values;
+
+        if (thanhPho && quan && diaChiCuThe?.trim()) {
+          console.log("✅ Address complete, triggering shipping calculation");
+          triggerShippingCalculation();
+        }
+      }
+    };
+
+    // Kiểm tra sau 2 giây khi component mount
+    const timer = setTimeout(checkAndCalculateShipping, 2000);
+
+    return () => clearTimeout(timer);
+  }, [isDelivery, addressForm]);
+
   useEffect(() => {
     const updateCartData = () => {
       if (selectedBillId) {
@@ -831,10 +887,10 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
       console.log("Dùng cache quận:", quanMap[idTinh]);
       setLocalQuanList(quanMap[idTinh]);
 
-      // --- SỬA: Gọi tính phí sau khi chọn tỉnh ---
+      // Gọi tính phí sau khi chọn tỉnh
       setTimeout(() => {
         triggerShippingCalculation();
-      }, 300);
+      }, 500);
 
       return quanMap[idTinh];
     }
@@ -850,10 +906,10 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
 
       setLocalQuanList(res);
 
-      // --- SỬA: Gọi tính phí sau khi load quận xong ---
+      // Gọi tính phí sau khi load quận xong
       setTimeout(() => {
         triggerShippingCalculation();
-      }, 300);
+      }, 500);
 
       return res;
     } catch (err) {
@@ -864,16 +920,30 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
   };
 
   const handleQuanChange = (idQuan) => {
-    // --- SỬA: Gọi tính phí sau khi chọn quận ---
-    setTimeout(() => {
+    console.log("Quận thay đổi:", idQuan);
+
+    // Gọi tính phí sau khi chọn quận
+    if (addressChangeTimeout.current) {
+      clearTimeout(addressChangeTimeout.current);
+    }
+
+    addressChangeTimeout.current = setTimeout(() => {
       triggerShippingCalculation();
-    }, 300);
+    }, 500);
   };
 
-  const handleDiaChiCuTheChange = () => {
-    // --- SỬA: Gọi tính phí sau khi nhập địa chỉ cụ thể ---
-    setTimeout(() => {
-      triggerShippingCalculation();
+  const handleDiaChiCuTheChange = (e) => {
+    const value = e.target.value;
+    console.log("Địa chỉ cụ thể thay đổi:", value);
+
+    if (addressChangeTimeout.current) {
+      clearTimeout(addressChangeTimeout.current);
+    }
+
+    addressChangeTimeout.current = setTimeout(() => {
+      if (value?.trim()) {
+        triggerShippingCalculation();
+      }
     }, 800);
   };
 
@@ -902,7 +972,7 @@ export default function SellInformation({ selectedBillId, onDiscountApplied }) {
     }
   };
 
-  // --- SỬA: Hàm applyDiscount - Thêm maxDiscountAmount ---
+  // Hàm applyDiscount
   const applyDiscount = async (discount) => {
     if (!selectedBillId || cartTotal === 0) return;
 
