@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Input, Select, DatePicker, Button, Checkbox } from 'antd';
-import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from "react";
+import { Card, Input, Select, DatePicker, Button, Checkbox } from "antd";
+import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
 
 const { Option } = Select;
 
@@ -10,19 +11,32 @@ export default function BillSearchFilter({
   filterParams,
   setFilterParams,
   onSearch,
-  onReset
+  onReset,
 }) {
   const [selectedValues, setSelectedValues] = useState(
     filterParams.loaiHoaDon || []
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
-useEffect(() => {
-  setSelectedValues(filterParams.loaiHoaDon || []);
-}, [filterParams.loaiHoaDon]);
+
+  // Khởi tạo ngày tạo mặc định là ngày hiện tại
+  useEffect(() => {
+    // Chỉ set ngày hiện tại nếu filterParams.ngayTao chưa có giá trị
+    if (!filterParams.ngayTao) {
+      setFilterParams({
+        ...filterParams,
+        ngayTao: dayjs(),
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    setSelectedValues(filterParams.loaiHoaDon || []);
+  }, [filterParams.loaiHoaDon]);
+
   const getDisplayText = () => {
-     const map = { true : 'Tại quầy', false: 'Online' }; 
+    const map = { true: "Tại quầy", false: "Online" };
     if (selectedValues.length === 0) return undefined;
-    return selectedValues.map((v) => map[v]).join(', ');
+    return selectedValues.map((v) => map[v]).join(", ");
   };
 
   const handleSelectChange = (values) => {
@@ -32,6 +46,39 @@ useEffect(() => {
 
   const handleDropdownVisibleChange = (open) => {
     setDropdownOpen(open);
+  };
+
+  // Hàm reset với ngày mặc định là ngày hiện tại
+  const handleReset = () => {
+    if (onReset) {
+      onReset();
+    } else {
+      // Nếu không có hàm onReset từ props, thực hiện reset mặc định
+      setSearchParams({ searchText: "" });
+      setFilterParams({
+        ...filterParams,
+        loaiHoaDon: [],
+        hinhThucThanhToan: undefined,
+        trangThai: undefined,
+        ngayTao: dayjs(), // Đặt lại thành ngày hiện tại khi reset
+      });
+      setSelectedValues([]);
+    }
+  };
+
+  // Hàm tìm kiếm với ngày mặc định là ngày hiện tại nếu chưa chọn
+  const handleSearch = () => {
+    // Đảm bảo ngày tạo luôn có giá trị (mặc định là ngày hiện tại)
+    const finalFilterParams = {
+      ...filterParams,
+      ngayTao: filterParams.ngayTao || dayjs(),
+    };
+
+    setFilterParams(finalFilterParams);
+
+    if (onSearch) {
+      onSearch(finalFilterParams);
+    }
   };
 
   return (
@@ -47,60 +94,60 @@ useEffect(() => {
       <Card
         style={{
           marginBottom: 16,
-          backgroundColor: '#fff',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          backgroundColor: "#fff",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
           borderTopLeftRadius: 0,
-          borderTopRightRadius: 0
+          borderTopRightRadius: 0,
         }}
-        bodyStyle={{ padding: '20px' }}
+        bodyStyle={{ padding: "20px" }}
       >
         {/* --- Hàng trên: 3 ô --- */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
             gap: 12,
-            marginBottom: 12
+            marginBottom: 12,
           }}
         >
           {/* Từ khóa tìm kiếm */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label className="font-medium text-gray-600">Từ khóa tìm kiếm</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label className="font-medium text-gray-600">
+              Từ khóa tìm kiếm
+            </label>
             <Input
               placeholder="Nhập mã HĐ, tên khách hàng hoặc tên nhân viên..."
               value={searchParams.searchText}
               onChange={(e) =>
                 setSearchParams({ ...searchParams, searchText: e.target.value })
               }
-              onPressEnter={onSearch}
+              onPressEnter={handleSearch}
               style={{ height: 40 }}
             />
           </div>
 
-
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label className="font-medium text-gray-600"> Dịch vụ</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label className="font-medium text-gray-600">Dịch vụ</label>
             <Select
               placeholder="Chọn hình thức"
               open={dropdownOpen}
               onDropdownVisibleChange={handleDropdownVisibleChange}
               value={getDisplayText()}
               style={{
-                width: '100%',
+                width: "100%",
                 height: 40,
-                borderRadius: 6
+                borderRadius: 6,
               }}
               dropdownRender={() => (
                 <div style={{ padding: 8 }}>
                   <Checkbox.Group
                     options={[
-                      { label: 'Tại quầy', value: true },
-                      { label: 'Online', value: false }
+                      { label: "Tại quầy", value: true },
+                      { label: "Online", value: false },
                     ]}
                     value={selectedValues}
                     onChange={(vals) => handleSelectChange(vals)}
-                    style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+                    style={{ display: "flex", flexDirection: "column", gap: 6 }}
                   />
                 </div>
               )}
@@ -109,8 +156,10 @@ useEffect(() => {
           </div>
 
           {/* Hình thức thanh toán */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label className="font-medium text-gray-600">Hình thức thanh toán</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label className="font-medium text-gray-600">
+              Hình thức thanh toán
+            </label>
             <Select
               placeholder="Chọn hình thức thanh toán"
               value={filterParams.hinhThucThanhToan}
@@ -130,13 +179,13 @@ useEffect(() => {
         {/* --- Hàng dưới: 2 ô --- */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 12
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 12,
           }}
         >
           {/* Ngày tạo */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <label className="font-medium text-gray-600">Ngày tạo</label>
             <DatePicker
               placeholder="Chọn ngày tạo"
@@ -144,12 +193,13 @@ useEffect(() => {
               onChange={(date) =>
                 setFilterParams({ ...filterParams, ngayTao: date })
               }
-              style={{ width: '100%', height: 40 }}
+              format="DD/MM/YYYY"
+              style={{ width: "100%", height: 40 }}
             />
           </div>
 
           {/* Trạng thái */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <label className="font-medium text-gray-600">Trạng thái</label>
             <Select
               placeholder="Chọn trạng thái"
@@ -158,7 +208,7 @@ useEffect(() => {
                 setFilterParams({ ...filterParams, trangThai: value })
               }
               allowClear
-              style={{ width: '100%', height: 40 }}
+              style={{ width: "100%", height: 40 }}
             >
               <Option value={0}>Chờ xác nhận</Option>
               <Option value={1}>Chờ giao hàng</Option>
@@ -172,15 +222,15 @@ useEffect(() => {
         {/* --- Nút hành động --- */}
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
+            display: "flex",
+            justifyContent: "flex-end",
             gap: 12,
-            marginTop: 20
+            marginTop: 20,
           }}
         >
           <Button
             icon={<ReloadOutlined />}
-            onClick={onReset}
+            onClick={handleReset}
             className="!bg-white !text-[#ff8c42] hover:!bg-amber-800 hover:!text-white font-medium transition-all duration-200"
           >
             Nhập lại
@@ -189,7 +239,7 @@ useEffect(() => {
           <Button
             type="primary"
             icon={<SearchOutlined />}
-            onClick={onSearch}
+            onClick={handleSearch}
             className="!bg-[#ff8c42] !border-[#ff8c42] hover:!bg-amber-800 hover:!text-white font-medium transition-all duration-200"
           >
             Tìm kiếm
