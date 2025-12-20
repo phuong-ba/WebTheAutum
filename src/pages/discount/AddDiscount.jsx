@@ -227,7 +227,7 @@ export default function AddDiscount() {
     form.__submitValues = values;
   };
 
-  // --- SỬA: Validation cho giá trị giảm ---
+  // Validation cho giá trị giảm
   const validateGiaTriGiamGia = (_, value) => {
     if (!value || value === "") {
       return Promise.reject(new Error("Vui lòng nhập giá trị giảm"));
@@ -250,10 +250,9 @@ export default function AddDiscount() {
           new Error("Giảm phần trăm không được vượt quá 100%")
         );
       }
-      const mucGiaGiamToiDa = form.getFieldValue("mucGiaGiamToiDa");
-      if (mucGiaGiamToiDa && Number(mucGiaGiamToiDa) < 1000) {
+      if (numValue < 0) {
         return Promise.reject(
-          new Error("Mức giảm tối đa phải lớn hơn hoặc bằng 1,000đ")
+          new Error("Giảm phần trăm không được nhỏ hơn 0%")
         );
       }
     } else if (loaiGiamGiaCurrent === "Tiền mặt") {
@@ -267,24 +266,39 @@ export default function AddDiscount() {
     return Promise.resolve();
   };
 
+  // Validation cho mức giảm tối đa
   const validateMucGiaGiamToiDa = (_, value) => {
-    if (!value || value === "") {
-      if (form.getFieldValue("loaiGiamGia") === "Phần trăm") {
-        return Promise.reject(new Error("Vui lòng nhập mức giảm tối đa"));
-      }
+    const loaiGiamGiaCurrent = form.getFieldValue("loaiGiamGia");
+
+    // Nếu là loại giảm giá "Tiền mặt", không cần validate (field đã bị disabled)
+    if (loaiGiamGiaCurrent === "Tiền mặt") {
       return Promise.resolve();
     }
 
-    if (isNaN(value) || Number(value) < 0) {
-      return Promise.reject(new Error("Mức giảm tối đa phải là số không âm"));
+    // Nếu là loại giảm giá "Phần trăm", mức giảm tối đa là bắt buộc
+    if (loaiGiamGiaCurrent === "Phần trăm") {
+      if (!value || value === "") {
+        return Promise.reject(new Error("Vui lòng nhập mức giảm tối đa"));
+      }
+
+      if (isNaN(value)) {
+        return Promise.reject(new Error("Mức giảm tối đa phải là số"));
+      }
+
+      const numValue = Number(value);
+
+      if (numValue < 1000) {
+        return Promise.reject(
+          new Error("Mức giảm tối đa phải lớn hơn hoặc bằng 1,000đ")
+        );
+      }
+
+      return Promise.resolve();
     }
 
-    const loaiGiamGiaCurrent = form.getFieldValue("loaiGiamGia");
-
-    if (loaiGiamGiaCurrent === "Phần trăm" && Number(value) < 1000) {
-      return Promise.reject(
-        new Error("Mức giảm tối đa phải lớn hơn hoặc bằng 1,000đ")
-      );
+    // Đối với các trường hợp khác (nếu có)
+    if (value && value !== "" && (isNaN(value) || Number(value) < 0)) {
+      return Promise.reject(new Error("Mức giảm tối đa không hợp lệ"));
     }
 
     return Promise.resolve();
@@ -292,12 +306,19 @@ export default function AddDiscount() {
 
   const validateGiaTriDonHangToiThieu = (_, value) => {
     if (!value || value === "") {
-      return Promise.reject(new Error("Vui lòng nhập mức giảm tối đa"));
+      return Promise.reject(
+        new Error("Vui lòng nhập giá trị đơn hàng tối thiểu")
+      );
     }
 
-    if (isNaN(value) || Number(value) < 0) {
+    if (isNaN(value)) {
+      return Promise.reject(new Error("Giá trị đơn hàng tối thiểu phải là số"));
+    }
+
+    const numValue = Number(value);
+    if (numValue < 0) {
       return Promise.reject(
-        new Error("Giá trị đơn hàng tối thiểu không hợp lệ")
+        new Error("Giá trị đơn hàng tối thiểu không được âm")
       );
     }
 
@@ -305,21 +326,31 @@ export default function AddDiscount() {
   };
 
   const validateSoLuongDung = (_, value) => {
-    if (!value || value === "") {
-      if (kieu === 0) {
+    const currentKieu = form.getFieldValue("kieu");
+
+    // Nếu là kiểu công khai (kieu = 0), số lượng phiếu là bắt buộc
+    if (currentKieu === 0) {
+      if (!value || value === "") {
         return Promise.reject(new Error("Vui lòng nhập số lượng phiếu"));
       }
+
+      if (isNaN(value)) {
+        return Promise.reject(new Error("Số lượng phiếu phải là số"));
+      }
+
+      const numValue = Number(value);
+      if (numValue <= 0) {
+        return Promise.reject(new Error("Số lượng phiếu phải lớn hơn 0"));
+      }
+
+      if (!Number.isInteger(numValue)) {
+        return Promise.reject(new Error("Số lượng phiếu phải là số nguyên"));
+      }
+
       return Promise.resolve();
     }
 
-    if (isNaN(value) || Number(value) < 0) {
-      return Promise.reject(new Error("Số lượng phải là số không âm"));
-    }
-
-    if (kieu === 0 && Number(value) === 0) {
-      return Promise.reject(new Error("Số lượng phiếu phải lớn hơn 0"));
-    }
-
+    // Nếu là kiểu cá nhân (kieu = 1), số lượng tự động tính từ số khách hàng đã chọn
     return Promise.resolve();
   };
 
@@ -481,7 +512,11 @@ export default function AddDiscount() {
                     rules={[{ validator: validateMucGiaGiamToiDa }]}
                   >
                     <Input
-                      placeholder="Nhập mức giảm tối đa"
+                      placeholder={
+                        loaiGiamGia === "Phần trăm"
+                          ? "Nhập mức giảm tối đa (tối thiểu 1,000đ)"
+                          : "Tự động điền từ giá trị giảm"
+                      }
                       type="number"
                       disabled={loaiGiamGia === "Tiền mặt"}
                     />
@@ -499,7 +534,7 @@ export default function AddDiscount() {
                     ]}
                   >
                     <Input
-                      placeholder="Nhập giá trị đơn hàng tối thiểu (có thể để 0)"
+                      placeholder="Nhập giá trị đơn hàng tối thiểu"
                       type="number"
                     />
                   </Form.Item>
@@ -516,7 +551,11 @@ export default function AddDiscount() {
                     ]}
                   >
                     <Input
-                      placeholder="Nhập số lượng phiếu giảm giá"
+                      placeholder={
+                        kieu === 1
+                          ? "Tự động tính từ số khách hàng"
+                          : "Nhập số lượng phiếu giảm giá"
+                      }
                       readOnly={kieu === 1}
                       value={kieu === 1 ? selectedCustomers.length : undefined}
                       type="number"
