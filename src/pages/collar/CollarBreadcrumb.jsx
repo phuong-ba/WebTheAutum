@@ -8,22 +8,22 @@ export default function CollarBreadcrumb() {
 
   let items = [];
 
-  if (path === "/admin/color") {
+  if (path === "/admin/collar") {
     items = [
       { title: <Link to="/admin/">Trang chủ</Link> },
-      { title: "Quản lý màu sắc" },
+      { title: "Quản lý cổ áo" },
     ];
-  } else if (path === "/admin/add-color") {
+  } else if (path === "/admin/add-collar") {
     items = [
       { title: <Link to="/admin/#">Trang chủ</Link> },
-      { title: <Link to="/admin/color">Quản lý màu sắc</Link> },
-      { title: "Thêm màu sắc" },
+      { title: <Link to="/admin/collar">Quản lý cổ áo</Link> },
+      { title: "Thêm cổ áo" },
     ];
-  } else if (path === "/admin/update-color") {
+  } else if (path === "/admin/update-collar") {
     items = [
       { title: <Link to="/admin/#">Trang chủ</Link> },
-      { title: <Link to="/admin/color">Quản lý màu sắc</Link> },
-      { title: "Cập nhật màu sắc" },
+      { title: <Link to="/admin/collar">Quản lý cổ áo</Link> },
+      { title: "Cập nhật cổ áo" },
     ];
   }
 

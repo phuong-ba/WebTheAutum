@@ -1,13 +1,13 @@
 import React from "react";
 import { Form, Input, Select, Row, Col, DatePicker } from "antd";
 import { useDispatch } from "react-redux";
-import { fetchFilterHang } from "@/redux/slices/hangSlice";
-import { updateAdvancedFilters } from "@/redux/slices/hangSlice";
+import { fetchFilterTayAo } from "@/redux/slices/tayAoSlice";
+import { updateAdvancedFilters } from "@/redux/slices/tayAoSlice";
 import dayjs from "dayjs";
 
 const { Option } = Select;
 
-export default function FilterCompany({ showAddModal }) {
+export default function FilterSleeve({ showAddModal }) {
   const [form] = Form.useForm();
   const dispatch = useDispatch();
 
@@ -15,32 +15,32 @@ export default function FilterCompany({ showAddModal }) {
     form.resetFields();
     dispatch(updateAdvancedFilters({
       searchText: "",
-      maNhaSanXuat: "",
-      tenNhaSanXuat: "",
+      maTayAo: "",
+      tenTayAo: "",
       ngayTao: null,
       trangThai: undefined,
     }));
-    dispatch(fetchFilterHang({ pageNo: 0, pageSize: 10 }));
+    dispatch(fetchFilterTayAo({ pageNo: 0, pageSize: 10 }));
   };
 
   const handleSearch = (values) => {
     const filterParams = { pageNo: 0, pageSize: 10 };
     
     if (values.searchText?.trim()) filterParams.searchText = values.searchText.trim();
-    if (values.maNhaSanXuat?.trim()) filterParams.maNhaSanXuat = values.maNhaSanXuat.trim().toUpperCase();
-    if (values.tenNhaSanXuat?.trim()) filterParams.tenNhaSanXuat = values.tenNhaSanXuat.trim();
+    if (values.maTayAo?.trim()) filterParams.maTayAo = values.maTayAo.trim().toUpperCase();
+    if (values.tenTayAo?.trim()) filterParams.tenTayAo = values.tenTayAo.trim();
     if (values.trangThai !== undefined) filterParams.trangThai = values.trangThai;
     if (values.ngayTao) filterParams.ngayTao = values.ngayTao.toDate();
     
     dispatch(updateAdvancedFilters({
       searchText: filterParams.searchText || "",
-      maNhaSanXuat: filterParams.maNhaSanXuat || "",
-      tenNhaSanXuat: filterParams.tenNhaSanXuat || "",
+      maTayAo: filterParams.maTayAo || "",
+      tenTayAo: filterParams.tenTayAo || "",
       ngayTao: filterParams.ngayTao || null,
       trangThai: filterParams.trangThai,
     }));
     
-    dispatch(fetchFilterHang(filterParams));
+    dispatch(fetchFilterTayAo(filterParams));
   };
 
   return (
@@ -48,18 +48,18 @@ export default function FilterCompany({ showAddModal }) {
       <Form form={form} layout="vertical" autoComplete="off" onFinish={handleSearch}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={8}>
-            <Form.Item name="searchText" label="Tìm kiếm hãng">
-              <Input placeholder="Nhập mã hoặc tên hãng..." allowClear maxLength={100} />
+            <Form.Item name="searchText" label="Tìm kiếm tay áo">
+              <Input placeholder="Nhập mã hoặc tên tay áo..." allowClear maxLength={100} />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12} md={8}>
-            <Form.Item name="maNhaSanXuat" label="Mã hãng">
-              <Input placeholder="VD: NSX001, NIKE..." allowClear maxLength={50} style={{ textTransform: "uppercase" }} />
+            <Form.Item name="maTayAo" label="Mã tay áo">
+              <Input placeholder="VD: TA001, TAY_DAI..." allowClear maxLength={50} style={{ textTransform: "uppercase" }} />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12} md={8}>
-            <Form.Item name="tenNhaSanXuat" label="Tên hãng">
-              <Input placeholder="VD: Nike, Adidas, Gucci..." allowClear maxLength={255} />
+            <Form.Item name="tenTayAo" label="Tên tay áo">
+              <Input placeholder="VD: Tay dài, Tay ngắn, Tay lỡ..." allowClear maxLength={255} />
             </Form.Item>
           </Col>
         </Row>
@@ -103,7 +103,7 @@ export default function FilterCompany({ showAddModal }) {
             onClick={showAddModal}
             className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 select-none"
           >
-            Thêm hãng
+            Thêm tay áo
           </div>
         </div>
       </Form>

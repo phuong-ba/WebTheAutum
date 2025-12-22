@@ -8,22 +8,22 @@ export default function SleeveBreadcrumb() {
 
   let items = [];
 
-  if (path === "/admin/color") {
+  if (path === "/admin/sleeve") {
     items = [
       { title: <Link to="/admin/">Trang chủ</Link> },
-      { title: "Quản lý màu sắc" },
+      { title: "Quản lý tay áo" },
     ];
-  } else if (path === "/admin/add-color") {
+  } else if (path === "/admin/add-sleeve") {
     items = [
       { title: <Link to="/admin/#">Trang chủ</Link> },
-      { title: <Link to="/admin/color">Quản lý màu sắc</Link> },
-      { title: "Thêm màu sắc" },
+      { title: <Link to="/admin/sleeve">Quản lý tay áo</Link> },
+      { title: "Thêm tay áo" },
     ];
-  } else if (path === "/admin/update-color") {
+  } else if (path === "/admin/update-sleeve") {
     items = [
       { title: <Link to="/admin/#">Trang chủ</Link> },
-      { title: <Link to="/admin/color">Quản lý màu sắc</Link> },
-      { title: "Cập nhật màu sắc" },
+      { title: <Link to="/admin/sleeve">Quản lý tay áo</Link> },
+      { title: "Cập nhật tay áo" },
     ];
   }
 

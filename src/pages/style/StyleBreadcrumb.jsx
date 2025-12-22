@@ -11,19 +11,19 @@ export default function StyleBreadcrumb() {
   if (path === "/admin/style") {
     items = [
       { title: <Link to="/admin/">Trang chủ</Link> },
-      { title: "Quản lý màu sắc" },
+      { title: "Quản lý kiểu dáng" },
     ];
   } else if (path === "/admin/add-style") {
     items = [
       { title: <Link to="/admin/#">Trang chủ</Link> },
-      { title: <Link to="/admin/style">Quản lý màu sắc</Link> },
-      { title: "Thêm màu sắc" },
+      { title: <Link to="/admin/style">Quản lý kiểu dáng</Link> },
+      { title: "Thêm kiểu dáng" },
     ];
   } else if (path === "/admin/update-style") {
     items = [
       { title: <Link to="/admin/#">Trang chủ</Link> },
-      { title: <Link to="/admin/style">Quản lý màu sắc</Link> },
-      { title: "Cập nhật màu sắc" },
+      { title: <Link to="/admin/style">Quản lý kiểu dáng</Link> },
+      { title: "Cập nhật kiểu dáng" },
     ];
   }
 

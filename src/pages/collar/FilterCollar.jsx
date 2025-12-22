@@ -1,13 +1,13 @@
 import React from "react";
 import { Form, Input, Select, Row, Col, DatePicker } from "antd";
 import { useDispatch } from "react-redux";
-import { fetchFilterHang } from "@/redux/slices/hangSlice";
-import { updateAdvancedFilters } from "@/redux/slices/hangSlice";
+import { fetchFilterCoAo } from "@/redux/slices/coAoSlice";
+import { updateAdvancedFilters } from "@/redux/slices/coAoSlice";
 import dayjs from "dayjs";
 
 const { Option } = Select;
 
-export default function FilterCompany({ showAddModal }) {
+export default function FilterCollar({ showAddModal }) {
   const [form] = Form.useForm();
   const dispatch = useDispatch();
 
@@ -15,32 +15,32 @@ export default function FilterCompany({ showAddModal }) {
     form.resetFields();
     dispatch(updateAdvancedFilters({
       searchText: "",
-      maNhaSanXuat: "",
-      tenNhaSanXuat: "",
+      maCoAo: "",
+      tenCoAo: "",
       ngayTao: null,
       trangThai: undefined,
     }));
-    dispatch(fetchFilterHang({ pageNo: 0, pageSize: 10 }));
+    dispatch(fetchFilterCoAo({ pageNo: 0, pageSize: 10 }));
   };
 
   const handleSearch = (values) => {
     const filterParams = { pageNo: 0, pageSize: 10 };
     
     if (values.searchText?.trim()) filterParams.searchText = values.searchText.trim();
-    if (values.maNhaSanXuat?.trim()) filterParams.maNhaSanXuat = values.maNhaSanXuat.trim().toUpperCase();
-    if (values.tenNhaSanXuat?.trim()) filterParams.tenNhaSanXuat = values.tenNhaSanXuat.trim();
+    if (values.maCoAo?.trim()) filterParams.maCoAo = values.maCoAo.trim().toUpperCase();
+    if (values.tenCoAo?.trim()) filterParams.tenCoAo = values.tenCoAo.trim();
     if (values.trangThai !== undefined) filterParams.trangThai = values.trangThai;
     if (values.ngayTao) filterParams.ngayTao = values.ngayTao.toDate();
     
     dispatch(updateAdvancedFilters({
       searchText: filterParams.searchText || "",
-      maNhaSanXuat: filterParams.maNhaSanXuat || "",
-      tenNhaSanXuat: filterParams.tenNhaSanXuat || "",
+      maCoAo: filterParams.maCoAo || "",
+      tenCoAo: filterParams.tenCoAo || "",
       ngayTao: filterParams.ngayTao || null,
       trangThai: filterParams.trangThai,
     }));
     
-    dispatch(fetchFilterHang(filterParams));
+    dispatch(fetchFilterCoAo(filterParams));
   };
 
   return (
@@ -48,18 +48,18 @@ export default function FilterCompany({ showAddModal }) {
       <Form form={form} layout="vertical" autoComplete="off" onFinish={handleSearch}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={8}>
-            <Form.Item name="searchText" label="Tìm kiếm hãng">
-              <Input placeholder="Nhập mã hoặc tên hãng..." allowClear maxLength={100} />
+            <Form.Item name="searchText" label="Tìm kiếm cổ áo">
+              <Input placeholder="Nhập mã hoặc tên cổ áo..." allowClear maxLength={100} />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12} md={8}>
-            <Form.Item name="maNhaSanXuat" label="Mã hãng">
-              <Input placeholder="VD: NSX001, NIKE..." allowClear maxLength={50} style={{ textTransform: "uppercase" }} />
+            <Form.Item name="maCoAo" label="Mã cổ áo">
+              <Input placeholder="VD: CA001, CO_TRON..." allowClear maxLength={50} style={{ textTransform: "uppercase" }} />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12} md={8}>
-            <Form.Item name="tenNhaSanXuat" label="Tên hãng">
-              <Input placeholder="VD: Nike, Adidas, Gucci..." allowClear maxLength={255} />
+            <Form.Item name="tenCoAo" label="Tên cổ áo">
+              <Input placeholder="VD: Cổ tròn, Cổ tim, Cổ V..." allowClear maxLength={255} />
             </Form.Item>
           </Col>
         </Row>
@@ -103,7 +103,7 @@ export default function FilterCompany({ showAddModal }) {
             onClick={showAddModal}
             className="bg-[#E67E22] text-white rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 select-none"
           >
-            Thêm hãng
+            Thêm cổ áo
           </div>
         </div>
       </Form>

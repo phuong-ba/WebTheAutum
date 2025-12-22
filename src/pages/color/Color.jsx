@@ -421,18 +421,7 @@ export default function Color() {
         <div className="font-bold text-4xl text-[#E67E22]">
           Quản lý màu sắc
         </div>
-        <div className="flex justify-between items-center mb-2">
-          <div className="text-sm text-gray-600">
-            <span
-              className="cursor-pointer hover:text-[#E67E22]"
-              onClick={() => navigate("/")}
-            >
-              Trang chủ
-            </span>
-            <span className="mx-2">/</span>
-            <span className="text-gray-900 font-medium">Quản lý màu sắc</span>
-          </div>
-        </div>
+        <ColorBreadcrumb />
       </div>
 
       {/* ✅ FILTER SECTION - GIỐNG PRODUCT */}
