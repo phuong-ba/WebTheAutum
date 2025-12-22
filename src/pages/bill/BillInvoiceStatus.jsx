@@ -42,8 +42,6 @@ export default function BillInvoiceStatus({
 
   // ================ KIỂM TRA CÓ THỂ HỦY ĐƠN HAY KHÔNG ================
   const canCancelInvoice = () => {
-    // Chỉ cho phép hủy khi trạng thái là "Chờ xác nhận" (0)
-    // Không cho phép hủy khi đã ở trạng thái "Chờ giao hàng" (1) trở lên
     return currentStatus === 0;
   };
 
@@ -333,17 +331,19 @@ export default function BillInvoiceStatus({
 
           <div
             className={`px-5 py-10 ${
-              isFinalStatus || isFalseStatus
-                ? "flex justify-center"
-                : "flex justify-between items-center"
+              isFalseStatus
+                ? "flex justify-center" // Chỉ hiển thị trạng thái hủy
+                : "flex justify-between items-center" // Hiển thị tất cả
             }`}
           >
             {steps.map((step, index) => {
               const Icon = step.icon;
               const isCurrent = index === statusStep;
               const isDone = index <= statusStep;
+              const isCanceled = statusStep === 4;
 
-              if ((isFinalStatus || isFalseStatus) && index !== statusStep) {
+              // Nếu là trạng thái hủy và không phải bước hiện tại, ẩn đi
+              if (isFalseStatus && index !== statusStep) {
                 return null;
               }
 
@@ -352,10 +352,10 @@ export default function BillInvoiceStatus({
                   <div className="flex flex-col items-center gap-2">
                     <div
                       className={`rounded-full p-3 transition-colors duration-300 ${
-                        isFalseStatus ? "bg-orange-600" : getStatusColor(index)
+                        isCanceled ? "bg-orange-600" : getStatusColor(index)
                       }`}
                     >
-                      {isFalseStatus ? (
+                      {isCanceled ? (
                         <XCircleIcon
                           size={24}
                           className="text-white"
@@ -372,9 +372,7 @@ export default function BillInvoiceStatus({
                     <div className="flex flex-col items-center">
                       <div
                         className={`font-bold ${
-                          isFalseStatus
-                            ? "text-orange-600"
-                            : getTextColor(index)
+                          isCanceled ? "text-orange-600" : getTextColor(index)
                         }`}
                       >
                         {step.label}
@@ -385,15 +383,14 @@ export default function BillInvoiceStatus({
                     </div>
                   </div>
 
-                  {!isFinalStatus &&
-                    !isFalseStatus &&
-                    index < steps.length - 1 && (
-                      <div
-                        className={`flex-1 h-[2px] mb-12 ${getLineColor(
-                          index
-                        )} transition-all duration-300`}
-                      ></div>
-                    )}
+                  {/* Chỉ hiển thị đường nối khi không phải trạng thái cuối cùng và không phải trạng thái hủy */}
+                  {!isFalseStatus && index < steps.length - 1 && (
+                    <div
+                      className={`flex-1 h-[2px] mb-12 ${getLineColor(
+                        index
+                      )} transition-all duration-300`}
+                    ></div>
+                  )}
                 </React.Fragment>
               );
             })}
@@ -401,7 +398,6 @@ export default function BillInvoiceStatus({
         </div>
       </div>
 
-      {/* Modal xác nhận chuyển trạng thái */}
       <Modal
         open={isNextStatusModalOpen}
         onCancel={() => setIsNextStatusModalOpen(false)}

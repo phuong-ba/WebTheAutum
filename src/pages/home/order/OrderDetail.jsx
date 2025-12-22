@@ -80,7 +80,7 @@ export default function OrderDetailPage() {
 
     if (!id) return;
 
-    if (data?.trangThai === 4 ||data?.trangThai === 3 ) {
+    if (data?.trangThai === 4 || data?.trangThai === 3) {
       return;
     }
 
@@ -355,7 +355,7 @@ export default function OrderDetailPage() {
               </button>
             )} */}
 
-            {!isLoggedIn &&
+            {/* {!isLoggedIn &&
               data.soTienCanThanhToan > 0 &&
               data.trangThai === 0 && (
                 <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg flex items-center gap-2">
@@ -374,7 +374,7 @@ export default function OrderDetailPage() {
                     Đăng nhập để thanh toán
                   </span>
                 </div>
-              )}
+              )} */}
 
             {isLoggedIn &&
               data.soTienCanThanhToan > 0 &&
@@ -467,7 +467,7 @@ export default function OrderDetailPage() {
               <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-center gap-3 mb-4">
                   <Truck className="w-6 h-6 text-orange-500" />
-                  <h3 className="text-lg font-semibold">Thông tin giao hàng</h3>
+                  <div className="text-lg font-semibold">Thông tin giao hàng</div>
                 </div>
                 <div className="space-y-4 text-gray-700">
                   <div className="flex items-start gap-3">
@@ -495,7 +495,7 @@ export default function OrderDetailPage() {
               </div>
 
               <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow animate-fadeIn">
-                <h3 className="font-semibold text-lg mb-4">Tóm tắt đơn hàng</h3>
+                <div className="font-semibold text-lg mb-4">Tóm tắt đơn hàng</div>
                 <div className="space-y-3 text-gray-600">
                   <div className="flex justify-between items-center">
                     <span className="flex items-center gap-2">
@@ -674,10 +674,10 @@ export default function OrderDetailPage() {
                     <span className="text-gray-500">Mã giao dịch</span>
                     <span className="font-medium">{data.maGiaoDich}</span>
                   </div>
-                  <div className="flex justify-between">
+                  {/* <div className="flex justify-between">
                     <span className="text-gray-500">Nhân viên tạo</span>
                     <span className="font-medium">{data.tenNhanVien}</span>
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="mt-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
