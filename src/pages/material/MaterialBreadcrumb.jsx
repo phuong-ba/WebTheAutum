@@ -11,7 +11,7 @@ export default function MaterialBreadcrumb() {
   if (path === "/admin/material") {
     items = [
       { title: <Link to="/admin/">Trang chủ</Link> },
-      { title: "Quản lý màu sắc" },
+      { title: "Quản lý chất liệu" },
     ];
   } else if (path === "/admin/add-material") {
     items = [
@@ -23,7 +23,7 @@ export default function MaterialBreadcrumb() {
     items = [
       { title: <Link to="/admin/#">Trang chủ</Link> },
       { title: <Link to="/admin/material">Quản lý chất liệu</Link> },
-      { title: "Cập nhật màu sắc" },
+      { title: "Cập nhật chất liệu" },
     ];
   }
 

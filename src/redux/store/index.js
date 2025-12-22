@@ -14,6 +14,11 @@ import giaoCaSlice from "../slices/giaoCaSlice";
 import orderSlice from "../slices/orderSlice";
 import mauSacSlice from "../slices/mauSacSlice";
 import chatLieuSlice from "../slices/chatLieuSlice";
+import xuatXuSlice from "../slices/xuatXuSlice";
+import hangSlice from "../slices/hangSlice";
+import kieuDangSlice from "../slices/kieuDangSlice";
+import coAoSlice from "../slices/coAoSlice";
+import tayAoSlice from "../slices/tayAoSlice";
 
 const store = configureStore({
   reducer: {
@@ -31,6 +36,11 @@ const store = configureStore({
     vanChuyen: vanChuyenReducer,
     mausac: mauSacSlice,
     chatlieu: chatLieuSlice,
+    xuatxu: xuatXuSlice,
+    hang: hangSlice,
+    kieudang: kieuDangSlice,
+    coao: coAoSlice,
+    tayao: tayAoSlice
   },
 });
 
