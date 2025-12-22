@@ -4,6 +4,8 @@ import hoaDonApi from "@/api/HoaDonAPI";
 import { message, Modal, QRCode, Button, Space, Divider, Spin } from "antd";
 import { useNavigate } from "react-router";
 import { getCurrentUserId } from "@/utils/authHelper";
+import ghn from "/src/assets/img/ghn.png";
+import ghtk from "/src/assets/img/ghttk.png";
 import {
   QrcodeOutlined,
   CopyOutlined,
@@ -1005,7 +1007,7 @@ export default function SellPay({
         <div className="font-bold text-gray-700 mb-2">Đơn vị vận chuyển:</div>
 
         {isCalculating && (
-          <div className="flex items-center gap-2 text-sm text-amber-600 mb-2">
+          <div className="flex  items-center gap-2 text-sm text-amber-600 mb-2">
             <Spin size="small" />
             <span>Đang tính phí vận chuyển...</span>
           </div>
@@ -1021,7 +1023,7 @@ export default function SellPay({
           <div className="text-sm text-red-600 mb-2">⚠️ {addressError}</div>
         )}
 
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col gap-2 flex-wrap">
           {sortedShippingFees.length > 0 ? (
             sortedShippingFees.map((provider) => {
               const providerValue =
@@ -1033,37 +1035,73 @@ export default function SellPay({
                 <div
                   key={providerValue}
                   onClick={() => handleSelectShipping(providerValue)}
-                  className={`cursor-pointer select-none px-4 py-3 rounded-lg border shadow-sm min-w-[120px] ${
+                  className={`cursor-pointer flex justify-between items-center  select-none px-4 py-3 rounded-lg border shadow-sm min-w-[120px] ${
                     isSelected
                       ? "bg-amber-600 text-white border-amber-600 shadow-md"
                       : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
                   } ${isCheapest && !isSelected ? "border-green-400" : ""}`}
                 >
-                  <div className="text-sm font-semibold">
-                    {provider.tenDonVi ||
-                      provider.name ||
-                      provider.ten ||
-                      providerValue}
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const providerName =
+                        provider.tenDonVi ||
+                        provider.name ||
+                        provider.ten ||
+                        providerValue;
+                      const normalizedName = String(providerName)
+                        .toLowerCase()
+                        .trim();
+
+                      if (
+                        normalizedName.includes("ghn") ||
+                        normalizedName.includes("giao hàng nhanh")
+                      ) {
+                        return (
+                          <img
+                            src={ghn}
+                            width={80}
+                            className="rounded-xl"
+                            alt="GHN"
+                          />
+                        );
+                      } else if (
+                        normalizedName.includes("ghtk") ||
+                        normalizedName.includes("giao hàng tiết kiệm")
+                      ) {
+                        return (
+                          <img
+                            src={ghtk}
+                            width={80}
+                            className="rounded-xl"
+                            alt="GHTK"
+                          />
+                        );
+                      } else {
+                        return null; // Không hiển thị ảnh nếu không khớp
+                      }
+                    })()}
                   </div>
-                  <div
-                    className={`text-xs mt-1 ${
-                      isSelected ? "text-amber-100" : "text-gray-500"
-                    }`}
-                  >
-                    {provider.phiVanChuyen === 0
-                      ? "Miễn phí"
-                      : `${provider.phiVanChuyen.toLocaleString()} VND`}
+                  <div>
+                    <div
+                      className={`text-xs mt-1 ${
+                        isSelected ? "text-amber-100" : "text-gray-500"
+                      }`}
+                    >
+                      {provider.phiVanChuyen === 0
+                        ? "Miễn phí"
+                        : `${provider.phiVanChuyen.toLocaleString()} VND`}
+                    </div>
+                    {isCheapest && !isSelected && (
+                      <div className="text-xs text-green-600 font-bold mt-1">
+                        (Rẻ nhất)
+                      </div>
+                    )}
+                    {isSelected && (
+                      <div className="text-xs text-amber-200 font-bold mt-1">
+                        ✓ Đã chọn
+                      </div>
+                    )}
                   </div>
-                  {isCheapest && !isSelected && (
-                    <div className="text-xs text-green-600 font-bold mt-1">
-                      (Rẻ nhất)
-                    </div>
-                  )}
-                  {isSelected && (
-                    <div className="text-xs text-amber-200 font-bold mt-1">
-                      ✓ Đã chọn
-                    </div>
-                  )}
                 </div>
               );
             })

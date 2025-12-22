@@ -18,6 +18,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { addOrder, taoVietQR } from "@/services/orderService";
 import { fetchPhieuGiamGia } from "@/services/phieuGiamGiaService";
 import { getByIdKhachHang } from "@/services/khachHangService";
+import ghn from "/src/assets/img/ghn.png";
+import ghtk from "/src/assets/img/ghttk.png";
 import {
   tinhPhiVanChuyen,
   fetchDonViVanChuyen,
@@ -837,7 +839,37 @@ export default function CheckOut() {
         return "text-blue-600";
       return "text-gray-600";
     };
+    const getProviderLogo = (provider) => {
+      const providerName =
+        provider.tenDonVi ||
+        provider.name ||
+        provider.ten ||
+        provider.code ||
+        "";
+      const normalizedName = String(providerName).toLowerCase().trim();
 
+      // Kiểm tra tên đơn vị để trả về logo phù hợp
+      if (
+        normalizedName.includes("ghn") ||
+        normalizedName.includes("giao hàng nhanh") ||
+        normalizedName.includes("giaohangnhanh")
+      ) {
+        return (
+          <img src={ghn} width={60} alt="GHN" className="object-contain" />
+        );
+      } else if (
+        normalizedName.includes("ghtk") ||
+        normalizedName.includes("giao hàng tiết kiệm") ||
+        normalizedName.includes("giaohangtietkiem")
+      ) {
+        return (
+          <img src={ghtk} width={60} alt="GHTK" className="object-contain" />
+        );
+      } else {
+        // Trả về icon mặc định nếu không có logo
+        return <TruckIcon size={24} className="text-gray-600" />;
+      }
+    };
     return (
       <div className="mt-6 bg-gray-50 p-6 rounded-xl">
         <div className="flex justify-between items-center mb-4">
@@ -874,7 +906,7 @@ export default function CheckOut() {
                           isSelected ? "bg-orange-100" : "bg-gray-100"
                         }`}
                       >
-                        {getProviderIcon(provider.tenDonVi)}
+                        {getProviderLogo(provider)}
                       </div>
                       <div>
                         <div className="font-semibold text-gray-900 flex items-center gap-2">
