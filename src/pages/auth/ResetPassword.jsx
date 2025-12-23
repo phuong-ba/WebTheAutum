@@ -79,12 +79,12 @@ export default function ResetPassword() {
                 Đặt lại mật khẩu
               </h2>
 
-              {!isSuccess && (
+              {/* {!isSuccess && (
                 <div className="token-info bg-gray-100 p-4 rounded-lg mb-4 border-l-4 border-[#dc833a]">
                   <p className="text-sm text-gray-600 mb-2">Token reset:</p>
                   <code className="text-xs break-all">{token}</code>
                 </div>
-              )}
+              )} */}
 
               {!isSuccess ? (
                 <Form

@@ -427,23 +427,31 @@ export default function Material() {
       {messageContextHolder}
       {contextHolder}
 
-      <div className="bg-white flex flex-col gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
-        <div className="font-bold text-4xl text-[#E67E22]">
-          Quản lý chất liệu
+      <div className="bg-white flex justify-between items-center gap-3 px-4 py-[20px] rounded-lg shadow overflow-hidden">
+        <div>
+          <div className="font-bold text-4xl text-[#E67E22]">
+            Quản lý chất liệu
+          </div>
+          <MaterialBreadcrumb />
         </div>
-        <MaterialBreadcrumb />
+        <div
+          onClick={showAddModal}
+          className="bg-[#E67E22] text-white text-xs rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 active:bg-cyan-800 select-none"
+        >
+          Thêm chất liệu
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden mt-6">
+      {/* <div className="bg-white rounded-lg shadow mb-6 overflow-hidden mt-6">
         <div className="bg-[#E67E22] text-white px-6 py-3">
           <div className="font-bold text-2xl text-white">Bộ lọc chất liệu</div>
         </div>
         <div className="p-4">
           <FilterMaterial showAddModal={showAddModal} />
         </div>
-      </div>
+      </div> */}
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden mt-6">
         <div className="bg-[#E67E22] text-white px-6 py-3 flex justify-between items-center">
           <div className="font-bold text-2xl text-white">
             Danh sách chất liệu

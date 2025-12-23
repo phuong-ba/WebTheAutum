@@ -104,7 +104,9 @@ export default function AddProduct() {
     kichThuocs: [],
     mauSacs: [],
   });
-
+  const filterActiveData = (dataArray) => {
+    return dataArray?.filter((item) => item.trangThai === true) || [];
+  };
   const fetchDropdownData = async () => {
     setLoading(true);
     try {
@@ -124,14 +126,14 @@ export default function AddProduct() {
       );
 
       setDropdownData({
-        nhaSanXuats: responses[0].data?.data || [],
-        xuatXus: responses[1].data?.data || [],
-        chatLieus: responses[2].data?.data || [],
-        kieuDangs: responses[3].data?.data || [],
-        coAos: responses[4].data?.data || [],
-        tayAos: responses[5].data?.data || [],
-        kichThuocs: responses[6].data?.data || [],
-        mauSacs: responses[7].data?.data || [],
+        nhaSanXuats: filterActiveData(responses[0].data?.data || []),
+        xuatXus: filterActiveData(responses[1].data?.data || []),
+        chatLieus: filterActiveData(responses[2].data?.data || []),
+        kieuDangs: filterActiveData(responses[3].data?.data || []),
+        coAos: filterActiveData(responses[4].data?.data || []),
+        tayAos: filterActiveData(responses[5].data?.data || []),
+        kichThuocs: filterActiveData(responses[6].data?.data || []),
+        mauSacs: filterActiveData(responses[7].data?.data || []),
       });
     } catch (error) {
       console.error("💥 Lỗi tải dropdown data:", error);

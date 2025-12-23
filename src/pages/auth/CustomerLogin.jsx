@@ -62,7 +62,7 @@ export default function CustomerLogin() {
     } catch (error) {
       console.error("❌ Customer login error:", error);
       messageApi.error({
-        content: "Không thể kết nối đến máy chủ. Vui lòng thử lại!",
+        content: "Sai mật khẩu hoặc tài khoản. Vui lòng thử lại!",
         duration: 3,
       });
     } finally {

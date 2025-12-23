@@ -112,7 +112,6 @@ export default function UpdateUser() {
         tenNhanVien: userInfo.hoTen,
         gioiTinh: userInfo.gioiTinh ? "Nam" : "Nữ",
         soDienThoai: userInfo.sdt,
-        cccd: userInfo.cccd,
         diaChi: shortAddress,
         email: userInfo.email,
         chucVu: userInfo.chucVuId,
@@ -149,7 +148,6 @@ export default function UpdateUser() {
         gioiTinh: values.gioiTinh === "Nam",
         sdt: values.soDienThoai,
         diaChi: values.diaChi,
-        cccd: values.cccd ?? userData.cccd,
         email: values.email ?? userData.email,
         chucVuId: values.chucVu,
         ngaySinh: values.ngaySinh?.toISOString(),
@@ -239,12 +237,11 @@ export default function UpdateUser() {
                     </Form.Item>
                   </Col>
                   <Col flex="1">
-                    <Form.Item
-                      name="cccd"
-                      label="Căn cước công dân"
-                      rules={[{ required: true, message: "Nhập CCCD" }]}
-                    >
-                      <Input placeholder="Nhập căn cước công dân" />
+                    <Form.Item name="gioiTinh" label="Giới tính">
+                      <Select placeholder="Chọn giới tính">
+                        <Option value="Nam">Nam</Option>
+                        <Option value="Nữ">Nữ</Option>
+                      </Select>
                     </Form.Item>
                   </Col>
                 </Row>
@@ -286,14 +283,6 @@ export default function UpdateUser() {
                   <Col flex="1">
                     <Form.Item name="diaChi" label="Địa chỉ">
                       <Input placeholder="Nhập địa chỉ" />
-                    </Form.Item>
-                  </Col>
-                  <Col flex="1">
-                    <Form.Item name="gioiTinh" label="Giới tính">
-                      <Select placeholder="Chọn giới tính">
-                        <Option value="Nam">Nam</Option>
-                        <Option value="Nữ">Nữ</Option>
-                      </Select>
                     </Form.Item>
                   </Col>
                 </Row>
