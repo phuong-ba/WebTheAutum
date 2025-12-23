@@ -220,9 +220,7 @@ export default function GiaoCaManagement() {
       const fullList = Array.isArray(data) ? data : [];
 
       // 1. TÌM CA ĐÃ HOÀN THÀNH GẦN NHẤT TỪ TOÀN BỘ DỮ LIỆU
-      const allCompletedShifts = fullList.filter(
-        (gc) => !!gc.thoiGianKetThuc
-      );
+      const allCompletedShifts = fullList.filter((gc) => !!gc.thoiGianKetThuc);
 
       // Sắp xếp TẤT CẢ các ca đã hoàn thành theo thời gian kết thúc mới nhất
       const latestCompleted = allCompletedShifts.sort(
@@ -291,7 +289,7 @@ export default function GiaoCaManagement() {
       console.error("Lỗi bắt đầu ca:", error);
       showNotification(
         "error",
-        error.response?.data?.message || "Bắt đầu giao ca thất bại."
+        error.response?.data?.message || "Hiện tại bạn chưa có ca làm việc"
       );
     } finally {
       setSubmitLoading(false);
@@ -320,7 +318,7 @@ export default function GiaoCaManagement() {
       console.error("Lỗi kết thúc ca:", error);
       showNotification(
         "error",
-        error.response?.data?.message || "Kết thúc giao ca thất bại."
+        error.response?.data?.message || "Không thể kết thúc trong ca làm việc"
       );
     } finally {
       setSubmitLoading(false);
@@ -331,16 +329,19 @@ export default function GiaoCaManagement() {
   const handleExportExcel = async () => {
     try {
       const blob = await giaoCaApi.exportGiaoCaToExcel();
-      
+
       // Tạo URL tải xuống
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `danh-sach-giao-ca-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      link.setAttribute(
+        "download",
+        `danh-sach-giao-ca-${dayjs().format("YYYY-MM-DD")}.xlsx`
+      );
       document.body.appendChild(link);
       link.click();
       link.remove();
-      
+
       message.success("Xuất file Excel thành công!");
     } catch (error) {
       console.error("Lỗi xuất Excel:", error);
@@ -392,7 +393,7 @@ export default function GiaoCaManagement() {
   const activeCount = giaoCaList.filter((gc) => !gc.thoiGianKetThuc).length;
   const completedCount = giaoCaList.filter((gc) => !!gc.thoiGianKetThuc).length;
   const totalCount = giaoCaList.length;
-  
+
   // currentActiveShift tìm ca đang hoạt động CỦA NHÂN VIÊN HIỆN TẠI
   const currentActiveShift = giaoCaList.find(
     (gc) => !gc.thoiGianKetThuc && gc.idNhanVien === currentUser?.id
@@ -987,7 +988,7 @@ export default function GiaoCaManagement() {
                     ).padStart(5, "0")} (NV cũ: ${
                       latestCompletedShift?.hoTenNhanVien || "---"
                     }).`}
-            </div>
+              </div>
             </div>
           </div>
 
