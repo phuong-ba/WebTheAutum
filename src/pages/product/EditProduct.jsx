@@ -655,7 +655,7 @@ export default function EditProduct() {
             <Form.Item
               name="trongLuong"
               label="Trọng lượng"
-              rules={[{ max: 50, message: "Trọng lượng tối đa 50 ký tự" }]}
+              // rules={[{ max: 50, message: "Trọng lượng tối đa 50 ký tự" }]}
             >
               <Input placeholder="VD: 200g" size="large" />
             </Form.Item>
@@ -736,19 +736,19 @@ export default function EditProduct() {
                       </div>
                     </div>
                   }
-                  extra={
-                    <Button
-                      type="link"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteVariant(variant.id);
-                      }}
-                    >
-                      Xóa
-                    </Button>
-                  }
+                  // extra={
+                  //   <Button
+                  //     type="link"
+                  //     danger
+                  //     icon={<DeleteOutlined />}
+                  //     onClick={(e) => {
+                  //       e.stopPropagation();
+                  //       handleDeleteVariant(variant.id);
+                  //     }}
+                  //   >
+                  //     Xóa
+                  //   </Button>
+                  // }
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded">
                     <div>

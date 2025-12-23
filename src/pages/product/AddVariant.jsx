@@ -127,12 +127,10 @@ export default function AddVariant() {
         idKichThuoc: values.idKichThuoc,
       };
 
-
       const response = await baseUrl.post(
         "/chi-tiet-san-pham/tao-bien-the-cho-san-pham",
         requestData
       );
-
 
       if (response.data.success) {
         const newVariants = response.data.data || [];
@@ -163,7 +161,6 @@ export default function AddVariant() {
 
   const handleUpdateVariantInfo = async (variantId, values) => {
     try {
-
       const updateData = {};
 
       if (values.donGia !== undefined && values.donGia !== null) {
@@ -476,19 +473,12 @@ export default function AddVariant() {
                     >
                       {duplicates.length > 0 ? (
                         <>
-                           Có {duplicates.length} màu đã tồn tại. Sẽ tạo{" "}
-                          <span>
-                            {newVariantsCount}
-                          </span>{" "}
-                          biến thể mới
+                          Có {duplicates.length} màu đã tồn tại. Sẽ tạo{" "}
+                          <span>{newVariantsCount}</span> biến thể mới
                         </>
                       ) : (
                         <>
-                           Sẽ tạo{" "}
-                          <span>
-                            {colorCount}
-                          </span>{" "}
-                          biến thể mới
+                          Sẽ tạo <span>{colorCount}</span> biến thể mới
                         </>
                       )}
                     </p>
@@ -642,7 +632,7 @@ export default function AddVariant() {
                     rules={[
                       {
                         type: "number",
-                        min: 0,
+                        min: 1,
                         message: "Số lượng không được âm",
                       },
                     ]}
@@ -708,11 +698,11 @@ export default function AddVariant() {
 
             <div className="text-sm text-gray-500 text-center bg-gray-50 p-3 rounded">
               <p>
-                 Bạn có thể nhập giá, số lượng và upload ảnh ngay bây giờ,
-                hoặc cập nhật sau trong trang chi tiết
+                Bạn có thể nhập giá, số lượng và upload ảnh ngay bây giờ, hoặc
+                cập nhật sau trong trang chi tiết
               </p>
               <p>
-                 Nhấn 'Tiếp tục' để lưu thông tin và chuyển sang biến thể tiếp
+                Nhấn 'Tiếp tục' để lưu thông tin và chuyển sang biến thể tiếp
                 theo
               </p>
             </div>
