@@ -216,7 +216,9 @@ export default function ShiftManagement() {
       setCaLamViec(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Lỗi tải danh sách ca:", error);
-      message.error(error.response?.data?.message || "Không tải được danh sách ca");
+      message.error(
+        error.response?.data?.message || "Không tải được danh sách ca"
+      );
     }
   };
 
@@ -227,12 +229,14 @@ export default function ShiftManagement() {
       const params = {};
       if (filters.caLamViecId) params.caLamViecId = filters.caLamViecId;
       if (filters.ngayPhanCa) params.ngayPhanCa = filters.ngayPhanCa;
-      
+
       const data = await shiftManagementApi.getAllPhanCa(params);
       setPhanCa(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Lỗi tải danh sách phân ca:", error);
-      message.error(error.response?.data?.message || "Không tải được danh sách phân ca");
+      message.error(
+        error.response?.data?.message || "Không tải được danh sách phân ca"
+      );
     } finally {
       setLoading(false);
     }
@@ -253,7 +257,7 @@ export default function ShiftManagement() {
       showNotification("error", "Vui lòng nhập đầy đủ tên và giờ");
       return;
     }
-    
+
     setSubmitLoading(true);
     try {
       let data;
@@ -303,15 +307,16 @@ export default function ShiftManagement() {
         } catch (error) {
           console.error("Lỗi xóa ca:", error);
           let errorMessage = "Xóa thất bại (Lỗi không xác định).";
-          
+
           if (error.response?.status === 404) {
             errorMessage = "Xóa thất bại: Không tìm thấy ca làm việc này.";
           } else if (error.response?.status === 409) {
-            errorMessage = "Xóa thất bại: Ca này đang được phân công cho nhân viên.";
+            errorMessage =
+              "Xóa thất bại: Ca này đang được phân công cho nhân viên.";
           } else if (error.response?.data?.message) {
             errorMessage = error.response.data.message;
           }
-          
+
           showNotification("error", errorMessage);
         }
       },
@@ -320,11 +325,15 @@ export default function ShiftManagement() {
 
   // --- ACTIONS: PHÂN CA ---
   const handleSavePhanCa = async () => {
-    if (!formPhanCa.idNhanVien || !formPhanCa.idCaLamViec || !formPhanCa.ngayPhanCa) {
+    if (
+      !formPhanCa.idNhanVien ||
+      !formPhanCa.idCaLamViec ||
+      !formPhanCa.ngayPhanCa
+    ) {
       showNotification("error", "Vui lòng chọn nhân viên, ca và ngày");
       return;
     }
-    
+
     setSubmitLoading(true);
     try {
       const payload = {
@@ -374,13 +383,13 @@ export default function ShiftManagement() {
         } catch (error) {
           console.error("Lỗi xóa phân ca:", error);
           let errorMessage = "Xóa thất bại (Lỗi không xác định).";
-          
+
           if (error.response?.status === 404) {
             errorMessage = "Xóa thất bại: Không tìm thấy phân ca này.";
           } else if (error.response?.data?.message) {
             errorMessage = error.response.data.message;
           }
-          
+
           showNotification("error", errorMessage);
         }
       },
@@ -394,7 +403,10 @@ export default function ShiftManagement() {
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `danh-sach-ca-lam-viec-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      link.setAttribute(
+        "download",
+        `danh-sach-ca-lam-viec-${dayjs().format("YYYY-MM-DD")}.xlsx`
+      );
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -412,7 +424,10 @@ export default function ShiftManagement() {
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `danh-sach-phan-ca-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      link.setAttribute(
+        "download",
+        `danh-sach-phan-ca-${dayjs().format("YYYY-MM-DD")}.xlsx`
+      );
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -476,7 +491,7 @@ export default function ShiftManagement() {
       "Kết thúc": c.gioKetThuc,
       "Mô tả": c.moTa,
     }));
-    
+
   const prepareAssignmentData = () =>
     filteredPhanCa.map((p) => ({
       "Nhân viên": p.hoTenNhanVien,
@@ -550,7 +565,9 @@ export default function ShiftManagement() {
           <Tooltip title="Chỉnh sửa">
             <Button
               type="text"
-              icon={<PencilLine size={18} color={PRIMARY_COLOR} weight="bold" />}
+              icon={
+                <PencilLine size={18} color={PRIMARY_COLOR} weight="bold" />
+              }
               onClick={() => openEditCa(record)}
             />
           </Tooltip>
@@ -632,29 +649,29 @@ export default function ShiftManagement() {
       width: 150,
       render: (text) => text || "—",
     },
-    {
-      title: "TRẠNG THÁI",
-      dataIndex: "trangThai",
-      key: "trangThai",
-      align: "center",
-      width: 150,
-      render: (trangThai) => {
-        const isActive = trangThai;
-        const color = isActive ? "#52C41A" : "#FF4D4F";
-        const label = isActive ? "Đang hoạt động" : "Ngừng hoạt động";
-        return (
-          <Tag
-            style={{
-              border: `1px solid ${color}`,
-              backgroundColor: `${color}15`,
-            }}
-          >
-            <span style={{ color: color }}>{label}</span>
-          </Tag>
-        );
-      },
-      className: "column-centered",
-    },
+    // {
+    //   title: "TRẠNG THÁI",
+    //   dataIndex: "trangThai",
+    //   key: "trangThai",
+    //   align: "center",
+    //   width: 150,
+    //   render: (trangThai) => {
+    //     const isActive = trangThai;
+    //     const color = isActive ? "#52C41A" : "#FF4D4F";
+    //     const label = isActive ? "Đang hoạt động" : "Ngừng hoạt động";
+    //     return (
+    //       <Tag
+    //         style={{
+    //           border: `1px solid ${color}`,
+    //           backgroundColor: `${color}15`,
+    //         }}
+    //       >
+    //         <span style={{ color: color }}>{label}</span>
+    //       </Tag>
+    //     );
+    //   },
+    //   className: "column-centered",
+    // },
     {
       title: "HÀNH ĐỘNG",
       key: "action",
@@ -665,7 +682,9 @@ export default function ShiftManagement() {
           <Tooltip title="Chỉnh sửa">
             <Button
               type="text"
-              icon={<PencilLine size={18} color={PRIMARY_COLOR} weight="bold" />}
+              icon={
+                <PencilLine size={18} color={PRIMARY_COLOR} weight="bold" />
+              }
               onClick={() => openEditPhanCa(record)}
             />
           </Tooltip>
@@ -684,7 +703,8 @@ export default function ShiftManagement() {
   ];
 
   return (
-    <div style={{
+    <div
+      style={{
         padding: "24px",
         backgroundColor: "#f5f5f5",
         minHeight: "100vh",
@@ -729,7 +749,8 @@ export default function ShiftManagement() {
       </div>
 
       {/* HEADER TABS & ACTIONS */}
-      <div style={{
+      <div
+        style={{
           marginTop: 24,
           marginBottom: 16,
           display: "flex",
@@ -820,7 +841,8 @@ export default function ShiftManagement() {
         }}
         bodyStyle={{ padding: "20px" }}
       >
-        <div style={{
+        <div
+          style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
             gap: 12,
@@ -883,7 +905,8 @@ export default function ShiftManagement() {
         </div>
 
         {/* --- Nút hành động --- */}
-        <div style={{
+        <div
+          style={{
             display: "flex",
             justifyContent: "flex-end",
             gap: 12,
@@ -933,7 +956,11 @@ export default function ShiftManagement() {
             )}
             <Button
               icon={<FileExcelOutlined />}
-              onClick={activeTab === "shifts" ? handleExportShiftsExcel : handleExportAssignmentsExcel}
+              onClick={
+                activeTab === "shifts"
+                  ? handleExportShiftsExcel
+                  : handleExportAssignmentsExcel
+              }
               className="!bg-white !border-white !text-[#ff8c42] font-medium hover:!bg-amber-800 hover:!text-white"
             >
               Xuất Excel
@@ -953,9 +980,7 @@ export default function ShiftManagement() {
                 pageSize: 5,
                 showSizeChanger: true,
                 showTotal: (total) => (
-                  <span className="text-gray-400 text-sm">
-                    Tổng {total} ca
-                  </span>
+                  <span className="text-gray-400 text-sm">Tổng {total} ca</span>
                 ),
                 pageSizeOptions: ["5", "10", "20", "50"],
               }}
@@ -1186,9 +1211,7 @@ export default function ShiftManagement() {
                 className="w-full rounded-lg"
                 format="DD/MM/YYYY"
                 value={
-                  formPhanCa.ngayPhanCa
-                    ? dayjs(formPhanCa.ngayPhanCa)
-                    : null
+                  formPhanCa.ngayPhanCa ? dayjs(formPhanCa.ngayPhanCa) : null
                 }
                 onChange={(date, dateString) =>
                   setFormPhanCa({
