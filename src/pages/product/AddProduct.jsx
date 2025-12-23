@@ -315,8 +315,12 @@ export default function AddProduct() {
       errors.idTayAo = "Vui lòng chọn tay áo";
     }
 
-    if (!formValues.trongLuong?.trim()) {
+    if (!formValues.trongLuong) {
       errors.trongLuong = "Vui lòng nhập trọng lượng";
+    } else if (isNaN(formValues.trongLuong)) {
+      errors.trongLuong = "Trọng lượng phải là số";
+    } else if (Number(formValues.trongLuong) <= 0) {
+      errors.trongLuong = "Trọng lượng phải lớn hơn 0";
     }
 
     if (!formValues.idMauSacs?.length) {
@@ -998,7 +1002,22 @@ export default function AddProduct() {
           <Form.Item
             name="trongLuong"
             label="Trọng lượng"
-            // KHÔNG có rules ở đây
+            rules={[
+              {
+                required: true,
+                message: "Vui lòng nhập trọng lượng",
+              },
+              {
+                validator: (_, value) => {
+                  if (value && (isNaN(value) || Number(value) <= 0)) {
+                    return Promise.reject(
+                      new Error("Trọng lượng phải là số dương")
+                    );
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
             validateStatus={formErrors.trongLuong ? "error" : ""}
             help={
               formErrors.trongLuong ? (
@@ -1007,11 +1026,31 @@ export default function AddProduct() {
             }
           >
             <Input
-              placeholder="Nhập trọng lượng (VD: 200g, 0.5kg)"
+              placeholder="Nhập trọng lượng (VD: 200, 0.5)"
               suffix={<span className="text-gray-400 text-xs">g/kg</span>}
               size="middle"
               data-field="trongLuong"
-              onChange={() => handleFieldChange("trongLuong")}
+              onChange={(e) => {
+                // Chỉ cho phép nhập số và dấu chấm
+                const value = e.target.value;
+                const regex = /^[0-9]*\.?[0-9]*$/;
+                if (regex.test(value)) {
+                  form.setFieldsValue({
+                    trongLuong: value === "" ? "" : Number(value),
+                  });
+                  handleFieldChange("trongLuong");
+                }
+              }}
+              onBlur={(e) => {
+                // Format số khi blur
+                const value = e.target.value;
+                if (value && !isNaN(value)) {
+                  const numValue = parseFloat(value);
+                  if (!isNaN(numValue)) {
+                    form.setFieldsValue({ trongLuong: numValue });
+                  }
+                }
+              }}
             />
           </Form.Item>
         </Col>
