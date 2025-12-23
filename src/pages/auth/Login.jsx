@@ -99,9 +99,9 @@ export default function Login() {
       messageApi.error({
         content: (
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <div style={{ fontWeight: "bold" }}>⚠️ Lỗi kết nối</div>
+      
             <div style={{ fontSize: "13px" }}>
-              Không thể kết nối đến máy chủ. Vui lòng thử lại!
+             Sai mật khẩu hoặc tài khoản. Vui lòng thử lại!
             </div>
           </div>
         ),

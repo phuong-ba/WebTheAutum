@@ -32,7 +32,6 @@ export default function AddUser() {
   const [imageUrl, setImageUrl] = useState("");
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrLoadingCam, setOcrLoadingCam] = useState(false);
-
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [pendingValues, setPendingValues] = useState(null);
   const fileInputRef = useRef(null);
@@ -40,7 +39,6 @@ export default function AddUser() {
   const webcamRef = useRef(null);
   const [provinces, setProvinces] = useState([]);
   const [wards, setWards] = useState([]);
-  const OCR_API_URL = `${baseUrl}cccd/scan`;
   const API_BASE = "https://provinces.open-api.vn/api/v2";
 
   useEffect(() => {
@@ -71,6 +69,7 @@ export default function AddUser() {
   const handleButtonClick = () => {
     if (fileInputRef.current) fileInputRef.current.click();
   };
+
   const handleCapture = async () => {
     if (!webcamRef.current) return;
 
@@ -87,6 +86,7 @@ export default function AddUser() {
     setCameraVisible(false);
     await handleScanCCCD(file, "camera");
   };
+
   const handleScanCCCD = async (file, source = "file") => {
     if (source === "file") setOcrLoading(true);
     else setOcrLoadingCam(true);
@@ -95,7 +95,8 @@ export default function AddUser() {
     formData.append("file", file);
 
     try {
-      const response = await axios.post(OCR_API_URL, formData, {
+      // SỬA DÒNG NÀY: Sử dụng instance baseUrl thay vì axios trực tiếp
+      const response = await baseUrl.post("/cccd/scan", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -192,7 +193,6 @@ export default function AddUser() {
       messageApi.error("Thêm thất bại!");
     }
   };
-
   return (
     <>
       {contextHolder}

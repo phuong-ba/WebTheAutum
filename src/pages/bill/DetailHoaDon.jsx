@@ -1233,8 +1233,567 @@ const DetailHoaDon = () => {
     }
   };
 
+  // DetailHoaDon.js - Phần code cho chức năng in hóa đơn
+
   const handlePrint = () => {
-    // ... (giữ nguyên code print)
+    // Tạo một cửa sổ mới để in
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      message.error("Không thể mở cửa sổ in. Vui lòng cho phép popup!");
+      return;
+    }
+
+    // Lấy HTML của phần cần in (loại bỏ các phần tử có class "no-print")
+    const printContent = document.querySelector(".print-area")?.innerHTML;
+
+    if (!printContent) {
+      message.error("Không tìm thấy nội dung để in!");
+      printWindow.close();
+      return;
+    }
+
+    // Tạo HTML cho hóa đơn in (loại bỏ trạng thái)
+    const htmlContent = `
+  <!DOCTYPE html>
+  <html lang="vi">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hóa đơn #${invoice?.maHoaDon || ""}</title>
+    <style>
+      /* Reset và font */
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+      
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #333;
+        background: #fff;
+        line-height: 1.4;
+        font-size: 14px;
+        padding: 20px;
+      }
+      
+      .no-print {
+        display: none !important;
+      }
+      
+      /* Ẩn tất cả các phần tử không cần thiết khi in */
+      button, .ant-btn, .ant-space, .ant-card-actions, 
+      .history-section, .customer-payment-row .ant-col:nth-child(2) {
+        display: none !important;
+      }
+      
+      /* Style cho hóa đơn in */
+      .invoice-container {
+        max-width: 800px;
+        margin: 0 auto;
+        border: 2px solid #000;
+        padding: 30px;
+        position: relative;
+      }
+      
+      /* Header hóa đơn */
+      .invoice-header {
+        text-align: center;
+        margin-bottom: 30px;
+        border-bottom: 3px double #000;
+        padding-bottom: 20px;
+      }
+      
+      .invoice-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #E67E22;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+      }
+      
+      .invoice-subtitle {
+        font-size: 18px;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 15px;
+      }
+      
+      .invoice-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      
+      .invoice-info-left, .invoice-info-right {
+        flex: 1;
+        min-width: 300px;
+      }
+      
+      .info-box {
+        background: #f8f9fa;
+        padding: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 15px;
+      }
+      
+      .info-title {
+        font-weight: 600;
+        color: #E67E22;
+        margin-bottom: 8px;
+        font-size: 16px;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 5px;
+      }
+      
+      .info-row {
+        display: flex;
+        margin-bottom: 6px;
+      }
+      
+      .info-label {
+        min-width: 120px;
+        font-weight: 500;
+        color: #666;
+      }
+      
+      .info-value {
+        font-weight: 400;
+        color: #333;
+      }
+      
+      /* Bảng sản phẩm */
+      .product-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 25px 0;
+        border: 1px solid #dee2e6;
+      }
+      
+      .product-table th {
+        background: #E67E22;
+        color: white;
+        font-weight: 600;
+        text-align: center;
+        padding: 12px 8px;
+        border: 1px solid #dee2e6;
+      }
+      
+      .product-table td {
+        padding: 10px 8px;
+        border: 1px solid #dee2e6;
+        vertical-align: top;
+      }
+      
+      .product-table tr:nth-child(even) {
+        background: #f8f9fa;
+      }
+      
+      .product-table .text-right {
+        text-align: right;
+      }
+      
+      .product-table .text-center {
+        text-align: center;
+      }
+      
+      /* Tổng tiền */
+      .total-section {
+        margin-top: 30px;
+        border-top: 2px solid #000;
+        padding-top: 20px;
+      }
+      
+      .total-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        padding: 5px 0;
+      }
+      
+      .total-label {
+        font-weight: 500;
+        color: #666;
+      }
+      
+      .total-value {
+        font-weight: 600;
+        color: #333;
+      }
+      
+      .grand-total {
+        font-size: 18px;
+        font-weight: 700;
+        color: #E67E22;
+        border-top: 2px solid #000;
+        padding-top: 10px;
+        margin-top: 10px;
+      }
+      
+      /* Chú thích và thông tin thêm */
+      .notes-section {
+        margin-top: 30px;
+        padding: 15px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+      }
+      
+      .notes-title {
+        font-weight: 600;
+        color: #E67E22;
+        margin-bottom: 10px;
+      }
+      
+      /* Footer hóa đơn */
+      .invoice-footer {
+        margin-top: 40px;
+        border-top: 1px solid #dee2e6;
+        padding-top: 20px;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      
+      .footer-section {
+        text-align: center;
+        flex: 1;
+        min-width: 200px;
+      }
+      
+      .footer-title {
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #333;
+      }
+      
+      .signature {
+        margin-top: 40px;
+        text-align: center;
+      }
+      
+      .signature-line {
+        width: 200px;
+        border-top: 1px solid #000;
+        margin: 0 auto;
+        padding-top: 10px;
+      }
+      
+      .signature-text {
+        font-weight: 600;
+        margin-top: 5px;
+      }
+      
+      /* Utility classes */
+      .text-bold {
+        font-weight: 700;
+      }
+      
+      .text-large {
+        font-size: 16px;
+      }
+      
+      .text-danger {
+        color: #dc3545 !important;
+      }
+      
+      .text-success {
+        color: #28a745 !important;
+      }
+      
+      .mb-3 {
+        margin-bottom: 15px;
+      }
+      
+      .mt-3 {
+        margin-top: 15px;
+      }
+      
+      /* Print-specific styles */
+      @media print {
+        body {
+          padding: 0;
+          margin: 0;
+        }
+        
+        .invoice-container {
+          border: none;
+          padding: 15px;
+          max-width: 100%;
+        }
+        
+        .no-print, button, .ant-btn, .ant-space, .ant-card-actions,
+        .history-section, .customer-payment-row .ant-col:nth-child(2) {
+          display: none !important;
+        }
+        
+        .page-break {
+          page-break-before: always;
+        }
+        
+        /* Đảm bảo không bị cắt khi in */
+        .product-table {
+          page-break-inside: avoid;
+        }
+        
+        .total-section {
+          page-break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-container">
+      <!-- Header -->
+      <div class="invoice-header">
+        <div class="invoice-title">HÓA ĐƠN BÁN HÀNG</div>
+        <div class="invoice-subtitle">Mã hóa đơn: <strong>${
+          invoice?.maHoaDon || ""
+        }</strong></div>
+        <div>Ngày tạo: ${formatDate(invoice?.ngayTao)}</div>
+      </div>
+      
+      <!-- Thông tin khách hàng và cửa hàng -->
+      <div class="invoice-info">
+        <div class="invoice-info-left">
+          <div class="info-box">
+            <div class="info-title">THÔNG TIN CỬA HÀNG</div>
+            <div class="info-row">
+              <div class="info-label">Tên cửa hàng:</div>
+              <div class="info-value">The Autumn</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Địa chỉ:</div>
+              <div class="info-value">123 Đường ABC, Quận XYZ,Hà Nội</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Số điện thoại:</div>
+              <div class="info-value">(028) 1234 5678</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Email:</div>
+              <div class="info-value">autumn@gmail.com</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="invoice-info-right">
+          <div class="info-box">
+            <div class="info-title">THÔNG TIN KHÁCH HÀNG</div>
+            <div class="info-row">
+              <div class="info-label">Họ tên:</div>
+              <div class="info-value">${
+                invoice?.khachHang?.hoTen || invoice?.tenKhachHang || "Khách lẻ"
+              }</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Số điện thoại:</div>
+              <div class="info-value">${
+                invoice?.khachHang?.sdt || invoice?.sdtKhachHang || "—"
+              }</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Email:</div>
+              <div class="info-value">${
+                invoice?.khachHang?.email || invoice?.emailKhachHang || "—"
+              }</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Địa chỉ:</div>
+              <div class="info-value">${(() => {
+                if (invoice?.diaChiKhachHang) return invoice.diaChiKhachHang;
+                const defaultAddress = invoice?.khachHang?.diaChi?.find(
+                  (addr) => addr.trangThai === true
+                );
+                if (defaultAddress) {
+                  const diaChiCuThe = defaultAddress.diaChiCuThe || "";
+                  const tenQuan =
+                    defaultAddress.quanHuyen?.tenQuan ||
+                    defaultAddress.tenQuan ||
+                    "";
+                  const tenTinh =
+                    defaultAddress.tinhThanh?.tenTinh ||
+                    defaultAddress.tenTinh ||
+                    "";
+                  return (
+                    [diaChiCuThe, tenQuan, tenTinh]
+                      .filter(Boolean)
+                      .join(", ") || "—"
+                  );
+                }
+                return invoice?.tenKhachHang?.includes("Khách lẻ") ||
+                  !invoice?.khachHang
+                  ? "Nhận tại quầy"
+                  : "—";
+              })()}</div>
+            </div>
+        
+          </div>
+        </div>
+      </div>
+      
+      <!-- Bảng sản phẩm -->
+      <table class="product-table">
+        <thead>
+          <tr>
+            <th width="50">STT</th>
+            <th width="300">Tên sản phẩm</th>
+            <th width="80">Màu</th>
+            <th width="80">Size</th>
+            <th width="100">Đơn giá</th>
+            <th width="80">Số lượng</th>
+            <th width="120">Thành tiền</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            invoiceProducts && invoiceProducts.length > 0
+              ? invoiceProducts
+                  .map(
+                    (product, index) => `
+              <tr>
+                <td class="text-center">${index + 1}</td>
+                <td>${product.tenSanPham || "—"}</td>
+                <td>${product.mauSac || "—"}</td>
+                <td>${product.kichThuoc || "—"}</td>
+                <td class="text-right">${formatMoney(
+                  product.giaSauGiam || product.giaBan || 0
+                )}</td>
+                <td class="text-center">${product.soLuong || 1}</td>
+                <td class="text-right text-bold">${formatMoney(
+                  (product.giaSauGiam || product.giaBan || 0) *
+                    (product.soLuong || 1)
+                )}</td>
+              </tr>
+            `
+                  )
+                  .join("")
+              : `<tr><td colspan="7" class="text-center">Không có sản phẩm</td></tr>`
+          }
+        </tbody>
+      </table>
+      
+      <!-- Tổng tiền -->
+      <div class="total-section">
+        <div class="total-row">
+          <div class="total-label">Tổng tiền hàng:</div>
+          <div class="total-value">${formatMoney(
+            finalTotal.tongTienSanPham
+          )}</div>
+        </div>
+        
+        ${
+          finalTotal.phiVanChuyen > 0
+            ? `
+          <div class="total-row">
+            <div class="total-label">Phí vận chuyển:</div>
+            <div class="total-value">+ ${formatMoney(
+              finalTotal.phiVanChuyen
+            )}</div>
+          </div>
+        `
+            : ""
+        }
+        
+        ${
+          finalTotal.tienGiamGia > 0
+            ? `
+          <div class="total-row">
+            <div class="total-label">Giảm giá:</div>
+            <div class="total-value text-danger">- ${formatMoney(
+              finalTotal.tienGiamGia
+            )}</div>
+          </div>
+        `
+            : ""
+        }
+        
+        <div class="total-row grand-total">
+          <div class="total-label">TỔNG CỘNG:</div>
+          <div class="total-value">${formatMoney(
+            finalTotal.tongTienCuoiCung()
+          )}</div>
+        </div>
+        
+        ${
+          paymentSummary.soTienThanhToan > 0
+            ? `
+          <div class="total-row">
+            <div class="total-label">Đã thanh toán:</div>
+            <div class="total-value text-success">${formatMoney(
+              paymentSummary.soTienThanhToan
+            )}</div>
+          </div>
+        `
+            : ""
+        }
+        
+        ${
+          paymentSummary.soTienConLai() > 0
+            ? `
+          <div class="total-row">
+            <div class="total-label">Còn lại:</div>
+            <div class="total-value">${formatMoney(
+              paymentSummary.soTienConLai()
+            )}</div>
+          </div>
+        `
+            : ""
+        }
+        
+        ${
+          paymentSummary.soTienConLai() <= 0 &&
+          paymentSummary.soTienThanhToan > 0
+            ? ``  : ""
+        }
+      </div>
+      
+      <!-- Chú thích -->
+      ${
+        invoice?.ghiChu
+          ? `
+        <div class="notes-section">
+          <div class="notes-title">Ghi chú:</div>
+          <div>${invoice.ghiChu}</div>
+        </div>
+      `
+          : ""
+      }
+      <!-- Thông tin thêm -->
+      <div style="margin-top: 30px; text-align: center; font-size: 12px; color: #666;">
+        <p>Cảm ơn quý khách đã mua hàng! Hóa đơn này có giá trị như một phiếu bảo hành.</p>
+        <p>Thời gian bảo hành: 6 tháng kể từ ngày mua. Đổi trả trong vòng 7 ngày nếu có lỗi từ nhà sản xuất.</p>
+        <p>Mọi thắc mắc vui lòng liên hệ: (028) 1234 5678 - Hotline: 0909 123 456</p>
+      </div>
+    </div>
+    
+    <script>
+      // Tự động in khi tải xong
+      window.onload = function() {
+        setTimeout(function() {
+          window.print();
+          setTimeout(function() {
+            window.close();
+          }, 100);
+        }, 500);
+      };
+    </script>
+  </body>
+  </html>
+  `;
+
+    // Ghi nội dung HTML vào cửa sổ in
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    message.success("Đang mở hộp thoại in...");
   };
 
   const handleSendEmail = () => {
@@ -1680,9 +2239,9 @@ const DetailHoaDon = () => {
                 <Button icon={<PrinterOutlined />} onClick={handlePrint}>
                   In đơn hàng
                 </Button>
-                <Button icon={<MailOutlined />} onClick={handleSendEmail}>
+                {/* <Button icon={<MailOutlined />} onClick={handleSendEmail}>
                   Gửi email
-                </Button>
+                </Button> */}
               </Space>
             </div>
           </Card>

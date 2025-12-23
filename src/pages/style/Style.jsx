@@ -16,12 +16,13 @@ import {
   fetchAddKieuDang,
   fetchUpdateTrangThai,
 } from "@/redux/slices/kieuDangSlice";
-import { updatePagination, updateAdvancedFilters, resetKieuDangState } from "@/redux/slices/kieuDangSlice";
-import FilterStyle from "./FilterStyle";
 import {
-  ToggleLeftIcon,
-  ToggleRightIcon,
-} from "@phosphor-icons/react";
+  updatePagination,
+  updateAdvancedFilters,
+  resetKieuDangState,
+} from "@/redux/slices/kieuDangSlice";
+import FilterStyle from "./FilterStyle";
+import { ToggleLeftIcon, ToggleRightIcon } from "@phosphor-icons/react";
 import StyleBreadcrumb from "./StyleBreadcrumb";
 
 export default function Style() {
@@ -53,7 +54,8 @@ export default function Style() {
 
   // Modal states
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
-  const [isAddConfirmModalVisible, setIsAddConfirmModalVisible] = useState(false);
+  const [isAddConfirmModalVisible, setIsAddConfirmModalVisible] =
+    useState(false);
   const [addForm] = Form.useForm();
   const [addFormValues, setAddFormValues] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -64,7 +66,8 @@ export default function Style() {
     if (!rawData) return [];
     if (Array.isArray(rawData)) return rawData;
     if (rawData.data && Array.isArray(rawData.data)) return rawData.data;
-    if (rawData.content && Array.isArray(rawData.content)) return rawData.content;
+    if (rawData.content && Array.isArray(rawData.content))
+      return rawData.content;
     return [];
   }, [rawData]);
 
@@ -93,7 +96,9 @@ export default function Style() {
 
     modal.confirm({
       title: `Xác nhận ${action}`,
-      content: `Bạn có chắc muốn ${action.toLowerCase()} kiểu dáng "${record.tenKieuDang}"?`,
+      content: `Bạn có chắc muốn ${action.toLowerCase()} kiểu dáng "${
+        record.tenKieuDang
+      }"?`,
       okText: action,
       cancelText: "Hủy",
       async onOk() {
@@ -307,8 +312,14 @@ export default function Style() {
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="text-red-700 font-medium mb-2">Đã xảy ra lỗi</div>
-          <div className="text-red-600 mb-4">{error?.message || "Không thể tải dữ liệu"}</div>
-          <Button type="primary" danger onClick={() => dispatch(resetKieuDangState())}>
+          <div className="text-red-600 mb-4">
+            {error?.message || "Không thể tải dữ liệu"}
+          </div>
+          <Button
+            type="primary"
+            danger
+            onClick={() => dispatch(resetKieuDangState())}
+          >
             Thử lại
           </Button>
         </div>
@@ -322,25 +333,37 @@ export default function Style() {
       {contextHolder}
 
       {/* Header */}
-      <div className="bg-white flex flex-col gap-3 px-4 py-5 rounded-lg shadow">
-        <div className="font-bold text-4xl text-[#E67E22]">Quản lý kiểu dáng</div>
-        <StyleBreadcrumb />
+      <div className="bg-white flex justify-between items-center gap-3 px-4 py-5 rounded-lg shadow">
+        <div>
+          <div className="font-bold text-4xl text-[#E67E22]">
+            Quản lý kiểu dáng
+          </div>
+          <StyleBreadcrumb />
+        </div>
+        <div
+          onClick={showAddModal}
+          className="bg-[#E67E22] text-white text-xs rounded-md px-6 py-2 cursor-pointer font-bold hover:bg-amber-700 select-none"
+        >
+          Thêm kiểu dáng
+        </div>
       </div>
 
       {/* Filter */}
-      <div className="bg-white rounded-lg shadow mb-6 overflow-hidden mt-6">
+      {/* <div className="bg-white rounded-lg shadow mb-6 overflow-hidden mt-6">
         <div className="bg-[#E67E22] text-white px-6 py-3">
           <div className="font-bold text-2xl text-white">Bộ lọc kiểu dáng</div>
         </div>
         <div className="p-4">
           <FilterStyle showAddModal={showAddModal} />
         </div>
-      </div>
+      </div> */}
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden mt-6">
         <div className="bg-[#E67E22] text-white px-6 py-3">
-          <div className="font-bold text-2xl text-white">Danh sách kiểu dáng</div>
+          <div className="font-bold text-2xl text-white">
+            Danh sách kiểu dáng
+          </div>
         </div>
         <Table
           columns={columns}
@@ -386,10 +409,16 @@ export default function Style() {
               { min: 2, message: "Tên kiểu dáng phải có ít nhất 2 ký tự!" },
             ]}
           >
-            <Input placeholder="VD: Áo thun, Áo sơ mi, Quần jeans..." disabled={isAdding} />
+            <Input
+              placeholder="VD: Áo thun, Áo sơ mi, Quần jeans..."
+              disabled={isAdding}
+            />
           </Form.Item>
           <div className="flex justify-end gap-4 mt-8">
-            <Button onClick={() => setIsAddModalVisible(false)} disabled={isAdding}>
+            <Button
+              onClick={() => setIsAddModalVisible(false)}
+              disabled={isAdding}
+            >
               Hủy
             </Button>
             <Button type="primary" onClick={handleAddSubmit} loading={isAdding}>
@@ -407,16 +436,24 @@ export default function Style() {
         centered
       >
         <div className="flex flex-col items-center gap-4 p-4">
-          <h2 className="text-xl font-bold text-center">Xác nhận thêm kiểu dáng</h2>
+          <h2 className="text-xl font-bold text-center">
+            Xác nhận thêm kiểu dáng
+          </h2>
           {addFormValues && (
             <div className="w-full bg-gray-50 rounded-lg p-4">
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <div className="font-medium text-gray-700 w-32">Tên kiểu dáng:</div>
-                  <div className="font-semibold text-gray-900">{addFormValues.tenKieuDang}</div>
+                  <div className="font-medium text-gray-700 w-32">
+                    Tên kiểu dáng:
+                  </div>
+                  <div className="font-semibold text-gray-900">
+                    {addFormValues.tenKieuDang}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="font-medium text-gray-700 w-32">Trạng thái:</div>
+                  <div className="font-medium text-gray-700 w-32">
+                    Trạng thái:
+                  </div>
                   <Tag color="#E9FBF4" style={{ border: "1px solid #00A96C" }}>
                     <div className="text-[#00A96C]">Đang hoạt động</div>
                   </Tag>
@@ -424,12 +461,25 @@ export default function Style() {
               </div>
             </div>
           )}
-          <p className="text-gray-600 text-center mt-2">Bạn có chắc muốn thêm kiểu dáng này vào hệ thống?</p>
+          <p className="text-gray-600 text-center mt-2">
+            Bạn có chắc muốn thêm kiểu dáng này vào hệ thống?
+          </p>
           <div className="flex justify-center gap-6 mt-6 w-full">
-            <Button size="large" className="w-40" onClick={() => setIsAddConfirmModalVisible(false)} disabled={isAdding}>
+            <Button
+              size="large"
+              className="w-40"
+              onClick={() => setIsAddConfirmModalVisible(false)}
+              disabled={isAdding}
+            >
               Hủy
             </Button>
-            <Button type="primary" size="large" className="w-40" onClick={handleConfirmAdd} loading={isAdding}>
+            <Button
+              type="primary"
+              size="large"
+              className="w-40"
+              onClick={handleConfirmAdd}
+              loading={isAdding}
+            >
               {isAdding ? "Đang thêm..." : "Xác nhận thêm"}
             </Button>
           </div>

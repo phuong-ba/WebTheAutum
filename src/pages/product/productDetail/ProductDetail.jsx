@@ -831,6 +831,7 @@ export default function ProductDetail({
                   formatter={(value) =>
                     `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                   }
+                  controls={false}
                   parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
                   addonAfter="₫"
                   style={{
@@ -939,7 +940,7 @@ export default function ProductDetail({
                 >
                   Nhập nhanh ({selectedRowKeys.length})
                 </div>
-                <Popconfirm
+                {/* <Popconfirm
                   title="Xác nhận xóa"
                   description={`Bạn có chắc muốn xóa ${selectedRowKeys.length} biến thể đã chọn?`}
                   onConfirm={handleDeleteMultiple}
@@ -949,7 +950,7 @@ export default function ProductDetail({
                   <div className="border border-white text-white rounded px-4 py-1.5 cursor-pointer hover:bg-white hover:text-[#E67E22] transition-colors font-medium text-sm">
                     Xóa đã chọn ({selectedRowKeys.length})
                   </div>
-                </Popconfirm>
+                </Popconfirm> */}
               </>
             )}
           </div>
